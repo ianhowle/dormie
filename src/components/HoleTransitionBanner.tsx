@@ -1,17 +1,20 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 // TODO: Hole Transition Banner (204 lines) — Animated hole recap
 
 export function HoleTransitionBanner() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Hole Transition</Text>
+      <Text style={[styles.text, { color: c.text }]}>Hole Transition</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { padding: 16 },
-  text: { color: colors.text, fontSize: 16 },
+  text: { fontSize: 16 },
 });

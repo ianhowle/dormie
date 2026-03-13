@@ -1,48 +1,37 @@
-import React, { createContext, useContext, useState } from 'react';
-import { colors, darkColors } from './colors';
-import { fonts } from './fonts';
+import React, { createContext, useContext, useMemo, useState } from 'react';
+import { dark, light, type ThemeColors } from './colors';
 
 type ThemeMode = 'light' | 'dark';
 
 type Theme = {
-  colors: typeof colors;
-  fonts: typeof fonts;
+  colors: ThemeColors;
   mode: ThemeMode;
+  isDark: boolean;
 };
 
-type ThemeContextType = {
+type ThemeContextValue = {
   theme: Theme;
   toggleTheme: () => void;
 };
 
-const lightTheme: Theme = {
-  colors,
-  fonts,
-  mode: 'light',
-};
+const darkTheme: Theme = { colors: dark, mode: 'dark', isDark: true };
+const lightTheme: Theme = { colors: light, mode: 'light', isDark: false };
 
-const darkTheme: Theme = {
-  colors: darkColors,
-  fonts,
-  mode: 'dark',
-};
-
-const ThemeContext = createContext<ThemeContextType>({
-  theme: lightTheme,
+const ThemeContext = createContext<ThemeContextValue>({
+  theme: darkTheme,
   toggleTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('dark');
 
-  const toggleTheme = () => {
-    setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  const theme = mode === 'light' ? lightTheme : darkTheme;
+  const value = useMemo<ThemeContextValue>(() => ({
+    theme: mode === 'dark' ? darkTheme : lightTheme,
+    toggleTheme: () => setMode((m) => (m === 'dark' ? 'light' : 'dark')),
+  }), [mode]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
