@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
@@ -434,6 +435,7 @@ function ToggleRow<T extends string>({
 export default function ScoreScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   // State
   const [course, setCourse] = useState<SelectedCourse>(null);
@@ -472,6 +474,26 @@ export default function ScoreScreen() {
   };
 
   const canStart = course !== null;
+
+  const handleStartRound = () => {
+    if (!course) return;
+    const activeFormat = SCORING_FORMATS.find((f) => f.key === format);
+    // Look up slope/rating from played courses if available
+    const played = PLAYED_SORTED.find((pc) => pc.id === course.id);
+    router.push({
+      pathname: '/scoring',
+      params: {
+        courseName: course.name,
+        coursePar: String(effectivePar),
+        courseSlope: String(played?.slope ?? 113),
+        courseRating: String(effectivePar), // use par as approx rating if unknown
+        players: JSON.stringify(players),
+        format: activeFormat?.label ?? 'Total Strokes',
+        holeRange,
+        scoreMode,
+      },
+    });
+  };
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
@@ -559,6 +581,7 @@ export default function ScoreScreen() {
 
             {/* Start button */}
             <Pressable
+              onPress={handleStartRound}
               disabled={!canStart}
               style={[
                 st.startBtn,
