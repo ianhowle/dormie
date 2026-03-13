@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { colors } from './colors';
+import { colors, darkColors } from './colors';
 import { fonts } from './fonts';
 
 type ThemeMode = 'light' | 'dark';
@@ -22,15 +22,7 @@ const lightTheme: Theme = {
 };
 
 const darkTheme: Theme = {
-  colors: {
-    ...colors,
-    background: '#121212',
-    surface: '#1e1e1e',
-    text: '#ffffff',
-    textSecondary: '#b0b0b0',
-    textLight: '#808080',
-    border: '#333333',
-  },
+  colors: darkColors,
   fonts,
   mode: 'dark',
 };
@@ -41,7 +33,7 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('light');
+  const [mode, setMode] = useState<ThemeMode>('dark');
 
   const toggleTheme = () => {
     setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
