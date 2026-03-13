@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
@@ -268,6 +269,7 @@ function PlayerRow({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
   const bgColor = isMe
     ? `${c.teal}12`
     : position % 2 === 0
@@ -275,7 +277,8 @@ function PlayerRow({
       : c.elevated;
 
   return (
-    <View
+    <Pressable
+      onPress={() => router.push(`/player-detail?playerId=${player.id}`)}
       style={[
         styles.tableRow,
         { backgroundColor: bgColor },
@@ -332,7 +335,7 @@ function PlayerRow({
       <Text style={[styles.colStat, { color: c.textMuted, fontFamily: GEO }]}>
         {player.avgScore.toFixed(1)}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
