@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -168,10 +168,14 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 // ─── Main component ──────────────────────────────────────────────────
-export function CoursesTab() {
-  const [query, setQuery] = useState('');
-
-  const q = query.trim().toLowerCase();
+export function CoursesTab({
+  search,
+  onSearchChange,
+}: {
+  search: string;
+  onSearchChange: (v: string) => void;
+}) {
+  const q = search.trim().toLowerCase();
 
   const playedFiltered = useMemo(
     () =>
@@ -203,7 +207,7 @@ export function CoursesTab() {
 
   return (
     <View style={s.container}>
-      <SearchBar value={query} onChange={setQuery} />
+      <SearchBar value={search} onChange={onSearchChange} />
 
       {noResults ? (
         <EmptyState />

@@ -186,3 +186,92 @@ export const MOCK_COMMUNITY_COURSES: CommunityCourse[] = [
     communityAvg: 82.9,
   },
 ];
+
+// ─── Bucket list ─────────────────────────────────────────────────────
+export type BucketListCourse = {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  communityRounds: number | null; // null = no community data
+  communityAvg: number | null;
+};
+
+export const MOCK_BUCKET_LIST: BucketListCourse[] = [
+  {
+    id: 'bl1',
+    name: 'Pebble Beach Golf Links',
+    city: 'Pebble Beach',
+    state: 'CA',
+    communityRounds: 31,
+    communityAvg: 87.2,
+  },
+  {
+    id: 'bl2',
+    name: 'St Andrews Old Course',
+    city: 'St Andrews',
+    state: 'Scotland',
+    communityRounds: 12,
+    communityAvg: 83.5,
+  },
+  {
+    id: 'bl3',
+    name: 'Pinehurst No. 2',
+    city: 'Pinehurst',
+    state: 'NC',
+    communityRounds: 55,
+    communityAvg: 84.7,
+  },
+  {
+    id: 'bl4',
+    name: 'Bandon Dunes',
+    city: 'Bandon',
+    state: 'OR',
+    communityRounds: null,
+    communityAvg: null,
+  },
+];
+
+// ─── Global discover (not played, not bucket list) ───────────────────
+export const MOCK_GLOBAL_COURSES: CommunityCourse[] = [
+  {
+    id: 'gl1',
+    name: 'Bethpage Black',
+    city: 'Farmingdale',
+    state: 'NY',
+    communityRounds: 38,
+    communityAvg: 88.1,
+  },
+  {
+    id: 'gl2',
+    name: 'Torrey Pines South',
+    city: 'La Jolla',
+    state: 'CA',
+    communityRounds: 18,
+    communityAvg: 82.9,
+  },
+  {
+    id: 'gl3',
+    name: 'Whistling Straits',
+    city: 'Haven',
+    state: 'WI',
+    communityRounds: 42,
+    communityAvg: 86.3,
+  },
+  {
+    id: 'gl4',
+    name: 'Kiawah Island Ocean Course',
+    city: 'Kiawah Island',
+    state: 'SC',
+    communityRounds: 29,
+    communityAvg: 89.4,
+  },
+  {
+    id: 'gl5',
+    name: 'Streamsong Red',
+    city: 'Bowling Green',
+    state: 'FL',
+    communityRounds: 14,
+    communityAvg: 81.6,
+  },
+];

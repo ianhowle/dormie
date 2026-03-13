@@ -367,6 +367,7 @@ export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
   const [scope, setScope] = useState<LeaderboardScope>('group');
   const [tab, setTab] = useState<Tab>('Leaderboard');
+  const [search, setSearch] = useState('');
 
   const me = MOCK_GROUP_RANKED.find((p) => p.id === MY_ID)!;
   const myPos =
@@ -430,9 +431,9 @@ export default function LeaderboardScreen() {
         {tab === 'Leaderboard' && (
           <LeaderboardTable players={MOCK_GROUP_RANKED} />
         )}
-        {tab === 'Courses' && <CoursesTab />}
+        {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
         {tab === 'H2H' && <H2HTab />}
-        {tab === 'Records' && <RecordsTab />}
+        {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
       </ScrollView>
     </View>
   );
