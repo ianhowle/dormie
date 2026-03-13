@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
 import {
@@ -47,9 +48,13 @@ function SearchBar({
 function PlayedCourseCard({ course }: { course: PlayedCourse }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   return (
-    <Pressable style={[s.card, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+    <Pressable
+      onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
+      style={[s.card, { backgroundColor: c.cardBg, borderColor: c.border }]}
+    >
       {/* Gradient image header */}
       <LinearGradient
         colors={course.gradient}
@@ -117,9 +122,11 @@ function StatPill({
 function CommunityRow({ course }: { course: CommunityCourse }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   return (
     <Pressable
+      onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
       style={[s.communityRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
     >
       <View style={s.communityInfo}>

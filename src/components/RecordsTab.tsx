@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
 import { Avatar } from './Avatar';
@@ -81,6 +82,7 @@ function toParColor(
 function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   const withRecords = courses.filter(
     (cr) => cr.recordScore !== null && cr.recordHolder !== null,
@@ -112,6 +114,7 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
           return (
             <Pressable
               key={cr.id}
+              onPress={() => router.push(`/course-detail?courseId=${cr.id}`)}
               style={[
                 s.tableRow,
                 { backgroundColor: bgColor },
@@ -186,10 +189,12 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
 function BucketListCard({ course }: { course: BucketListCourse }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
   const hasCommunity = course.communityRounds !== null;
 
   return (
     <Pressable
+      onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
       style={[
         s.bucketCard,
         {
@@ -227,9 +232,11 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
 function DiscoverRow({ course }: { course: CommunityCourse }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   return (
     <Pressable
+      onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
       style={[s.discoverRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
     >
       <View style={s.discoverInfo}>
