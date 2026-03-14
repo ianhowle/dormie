@@ -19,6 +19,8 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
+import { useAuth } from '../src/lib/auth';
+import { seasonsService } from '../src/services/seasons.service';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -723,6 +725,7 @@ export default function SeasonsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const { user } = useAuth();
 
   const [step, setStep] = useState(0);
   const currentStep = STEPS[step];
@@ -773,10 +776,38 @@ export default function SeasonsScreen() {
     return true;
   }, [currentStep, name, selectedIds]);
 
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback(async () => {
+    if (user) {
+      try {
+        await seasonsService.create(
+          {
+            name,
+            type: seasonType,
+            creator_id: user.id,
+            config: {
+              scoring_method: scoringMethod,
+              cut_percentage: cutEnabled ? cutValue : null,
+              drop_worst: dropWorst,
+              playoff_multiplier: playoffMultiplier,
+              championship_multiplier: champMultiplier,
+            },
+          },
+          editableWeeks.map((w) => ({
+            week_number: w.number,
+            format: w.format,
+            is_major: w.isMajor,
+            major_name: w.majorName || null,
+            is_playoff: w.isPlayoff,
+            is_championship: w.isChampionship,
+            multiplier: w.multiplier,
+          })),
+          selectedIds
+        );
+      } catch {}
+    }
     Alert.alert('Season Created', `"${name}" has been created with ${selectedIds.length + 1} members.`);
     router.back();
-  }, [name, selectedIds, router]);
+  }, [name, seasonType, scoringMethod, user, cutEnabled, cutValue, dropWorst, playoffMultiplier, champMultiplier, editableWeeks, selectedIds, router]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>

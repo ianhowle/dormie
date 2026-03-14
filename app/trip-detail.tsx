@@ -22,6 +22,10 @@ import { Avatar } from '../src/components/Avatar';
 import { TripCountdownRing } from '../src/components/TripCountdownRing';
 import { RyderCupHub } from '../src/components/RyderCupHub';
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
+import { useAuth } from '../src/lib/auth';
+import { messagesService } from '../src/services/messages.service';
+import { tripsService } from '../src/services/trips.service';
+import type { TripMessageWithUser } from '../src/lib/database.types';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -661,29 +665,84 @@ function ChecklistTab({
 // ═══════════════════════════════════════════════════════════════════════
 // CHAT TAB
 // ═══════════════════════════════════════════════════════════════════════
-function ChatTab() {
+function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const [messages, setMessages] = useState(MOCK_CHAT);
+  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT);
   const [inputText, setInputText] = useState('');
   const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Fetch existing messages and subscribe to real-time updates
+  useEffect(() => {
+    let cancelled = false;
+
+    messagesService.fetch(tripId).then((fetched) => {
+      if (cancelled) return;
+      const mapped: ChatMessage[] = fetched.reverse().map((m) => ({
+        id: m.id,
+        userId: m.user_id,
+        userName: m.user?.name ?? 'Unknown',
+        text: m.message,
+        time: new Date(m.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        reactions: (m.reactions ?? []).map((r) => ({ emoji: r.emoji, count: r.count ?? 1, reacted: false })),
+      }));
+      if (mapped.length > 0) {
+        setMessages(mapped);
+      }
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 200);
+    }).catch(() => {
+      // Keep mock data on error
+    });
+
+    const channel = messagesService.subscribe(tripId, (newMsg) => {
+      setMessages((prev) => {
+        // Avoid duplicates
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [
+          ...prev,
+          {
+            id: newMsg.id,
+            userId: newMsg.user_id,
+            userName: '',
+            text: newMsg.message,
+            time: new Date(newMsg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+            reactions: [],
+          },
+        ];
+      });
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    return () => {
+      cancelled = true;
+      messagesService.unsubscribe(channel);
+    };
+  }, [tripId]);
+
   const sendMessage = () => {
     if (!inputText.trim()) return;
+    const text = inputText.trim();
+    setInputText('');
+
+    // Optimistic local update
+    const optimisticId = `m-${Date.now()}`;
     setMessages((prev) => [
       ...prev,
       {
-        id: `m-${Date.now()}`,
-        userId: '1',
-        userName: 'Ian McGowan',
-        text: inputText.trim(),
+        id: optimisticId,
+        userId: userId,
+        userName: 'You',
+        text,
         time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
         reactions: [],
       },
     ]);
-    setInputText('');
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+    messagesService.send(tripId, userId, text).catch(() => {
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    });
   };
 
   const toggleReaction = (msgId: string, emoji: string) => {
@@ -727,7 +786,7 @@ function ChatTab() {
         showsVerticalScrollIndicator={false}
       >
         {messages.map((msg) => {
-          const isMe = msg.userId === '1';
+          const isMe = msg.userId === userId;
           return (
             <View key={msg.id} style={s.chatMsgWrap}>
               {!isMe && <Avatar id={msg.userId} size={28} name={msg.userName} />}
@@ -1903,6 +1962,7 @@ export default function TripDetailScreen() {
   const c = theme.colors;
   const router = useRouter();
   const params = useLocalSearchParams<{ tripId?: string }>();
+  const { user } = useAuth();
 
   const trip = MOCK_UPCOMING_TRIPS.find((t) => t.id === params.tripId) ?? MOCK_UPCOMING_TRIPS[0];
 
@@ -2084,7 +2144,7 @@ export default function TripDetailScreen() {
         {activeTab === 'Courses' && <CoursesTab />}
         {activeTab === 'Players' && <PlayersTab />}
         {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
-        {activeTab === 'Chat' && <ChatTab />}
+        {activeTab === 'Chat' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
       </View>
     </View>
   );

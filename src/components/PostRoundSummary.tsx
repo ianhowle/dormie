@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
 import { Avatar } from './Avatar';
+import { SCORE_COLORS, scoreColor, formatToPar as fmtToPar, scoreName } from '../lib/scoring-utils';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -58,11 +59,11 @@ export type PostRoundSummaryProps = {
 type ScoreCategory = 'eagles' | 'birdies' | 'pars' | 'bogeys' | 'doubles';
 
 const SCORE_CATEGORY_COLORS: Record<ScoreCategory, string> = {
-  eagles: '#D4AF37',
-  birdies: '#C41E3A',
-  pars: '#2A9D8F',
-  bogeys: '#6B8E23',
-  doubles: '#8B4513',
+  eagles: SCORE_COLORS.eagle,
+  birdies: SCORE_COLORS.birdie,
+  pars: SCORE_COLORS.par,
+  bogeys: SCORE_COLORS.bogey,
+  doubles: SCORE_COLORS.double,
 };
 
 const SCORE_CATEGORY_LABELS: Record<ScoreCategory, string> = {
@@ -131,11 +132,7 @@ function computePuttBuckets(holes: HoleResult[]): PuttBucket[] {
   return buckets;
 }
 
-function formatToPar(score: number, par: number): string {
-  const diff = score - par;
-  if (diff === 0) return 'E';
-  return diff > 0 ? `+${diff}` : `${diff}`;
-}
+const formatToPar = fmtToPar;
 
 function splitNine(holes: HoleResult[], side: 'front' | 'back') {
   const slice = side === 'front' ? holes.slice(0, 9) : holes.slice(9, 18);
@@ -286,14 +283,8 @@ function HoleStrip({ holes, colors: c }: { holes: HoleResult[]; colors: any }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.holeStrip}>
       {holes.map((h) => {
-        const diff = h.gross - h.par;
-        let bg = c.teal + '22';
-        let fg = c.teal;
-        if (diff <= -2) { bg = '#D4AF3722'; fg = '#D4AF37'; }
-        else if (diff === -1) { bg = '#C41E3A22'; fg = '#C41E3A'; }
-        else if (diff === 0) { bg = c.teal + '22'; fg = c.teal; }
-        else if (diff === 1) { bg = '#6B8E2322'; fg = '#6B8E23'; }
-        else { bg = '#8B451322'; fg = '#8B4513'; }
+        const fg = scoreColor(h.gross, h.par, c.textMuted);
+        const bg = fg + '22';
 
         return (
           <View key={h.hole} style={[styles.holeCell, { backgroundColor: bg }]}>
@@ -374,8 +365,7 @@ function ShareCardModal({
               {/* Mini hole strip */}
               <View style={styles.shareHoleRow}>
                 {player.holes.slice(0, 9).map((h) => {
-                  const diff = h.gross - h.par;
-                  const color = diff <= -2 ? '#D4AF37' : diff === -1 ? '#C41E3A' : diff === 0 ? '#2A9D8F' : diff === 1 ? '#6B8E23' : '#8B4513';
+                  const color = scoreColor(h.gross, h.par);
                   return (
                     <View key={h.hole} style={styles.shareHoleCell}>
                       <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
@@ -386,8 +376,7 @@ function ShareCardModal({
               {player.holes.length > 9 && (
                 <View style={styles.shareHoleRow}>
                   {player.holes.slice(9, 18).map((h) => {
-                    const diff = h.gross - h.par;
-                    const color = diff <= -2 ? '#D4AF37' : diff === -1 ? '#C41E3A' : diff === 0 ? '#2A9D8F' : diff === 1 ? '#6B8E23' : '#8B4513';
+                    const color = scoreColor(h.gross, h.par);
                     return (
                       <View key={h.hole} style={styles.shareHoleCell}>
                         <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>

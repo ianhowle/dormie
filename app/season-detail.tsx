@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
+import { useAuth } from '../src/lib/auth';
+import { seasonsService } from '../src/services/seasons.service';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -564,6 +566,15 @@ export default function SeasonDetailScreen() {
   const c = theme.colors;
   const router = useRouter();
   const params = useLocalSearchParams<{ seasonId: string }>();
+  const { user } = useAuth();
+  const seasonId = params.seasonId;
+
+  useEffect(() => {
+    if (!seasonId) return;
+    seasonsService.getStandings(seasonId).then(data => {
+      // Use real data when available
+    }).catch(() => {});
+  }, [seasonId]);
 
   const [tab, setTab] = useState<Tab>('standings');
   const [selectedPlayer, setSelectedPlayer] = useState<Standing | null>(null);

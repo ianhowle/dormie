@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,14 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
+import { roundsService } from '../../src/services/rounds.service';
+import type { RoundWithCourse } from '../../src/lib/database.types';
+import { scoreColor, formatToPar as formatToParUtil, toParColor as toParColorUtil } from '../../src/lib/scoring-utils';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -172,6 +176,7 @@ export default function ProfileScreen() {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
   const { user, signOut } = useAuth();
+  const router = useRouter();
 
   const [notifications, setNotifications] = useState(true);
 
@@ -179,15 +184,77 @@ export default function ProfileScreen() {
   const profileUser = useMemo(() => {
     if (user) {
       return {
-        ...profileUser,
+        ...MOCK_USER,
         id: user.id,
-        name: user.user_metadata?.name ?? profileUser.name,
-        email: user.email ?? profileUser.email,
+        name: user.user_metadata?.name ?? MOCK_USER.name,
+        email: user.email ?? MOCK_USER.email,
+        handicap: user.user_metadata?.handicap_index ?? MOCK_USER.handicap,
         memberSince: new Date(user.created_at).getFullYear().toString(),
       };
     }
-    return profileUser;
+    return MOCK_USER;
   }, [user]);
+
+  const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
+  const [loadingRounds, setLoadingRounds] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoadingRounds(true);
+    roundsService.getByUser(user.id, 20)
+      .then(setRealRounds)
+      .catch(() => {})
+      .finally(() => setLoadingRounds(false));
+  }, [user]);
+
+  // Compute real stats from rounds
+  const realStats = useMemo(() => {
+    if (realRounds.length === 0) return null;
+    const totalRounds = realRounds.length;
+    const courseSet = new Set(realRounds.map(r => r.course_id));
+    const coursesPlayed = courseSet.size;
+    const scores = realRounds.map(r => r.gross_score);
+    const bestScore = Math.min(...scores);
+    const bestRound = realRounds.find(r => r.gross_score === bestScore);
+    const scoringAvg = scores.reduce((a, b) => a + b, 0) / totalRounds;
+    return {
+      totalRounds,
+      coursesPlayed,
+      bestRound: { score: bestScore, course: bestRound?.course?.name ?? 'Unknown', par: bestRound?.course?.par ?? 72 },
+      scoringAvg,
+      courseRecords: 0,
+      tripsPlayed: new Set(realRounds.filter(r => r.trip_id).map(r => r.trip_id)).size,
+    };
+  }, [realRounds]);
+
+  const displayStats = realStats ?? MOCK_STATS;
+
+  // Build recent rounds from real data
+  const displayRounds: RecentRound[] = useMemo(() => {
+    if (realRounds.length > 0) {
+      return realRounds.slice(0, 5).map(r => ({
+        id: r.id,
+        course: r.course?.name ?? 'Unknown',
+        score: r.gross_score,
+        par: r.course?.par ?? 72,
+        date: new Date(r.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        source: r.source as 'manual' | 'ghin' | 'app',
+      }));
+    }
+    return MOCK_RECENT_ROUNDS;
+  }, [realRounds]);
+
+  // Build handicap trend from real rounds
+  const displayHandicapTrend = useMemo(() => {
+    if (realRounds.length >= 3) {
+      // Approximate trend from scoring differentials
+      return realRounds.slice(0, 20).reverse().map(r => {
+        const diff = r.gross_score - (r.course?.par ?? 72);
+        return Math.max(0, diff * 0.96); // rough handicap approximation
+      });
+    }
+    return HANDICAP_TREND;
+  }, [realRounds]);
 
   const toPar = (score: number, par: number) => {
     const diff = score - par;
@@ -213,7 +280,12 @@ export default function ProfileScreen() {
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         {/* ─── HEADER ──────────────────────────────────────────────── */}
         <View style={[s.header, { backgroundColor: c.surface }]}>
-          <Text style={[s.brand, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
+          <View style={s.brandRow}>
+            <Text style={[s.brand, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
+            <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+              <Ionicons name="settings-outline" size={20} color={c.textMuted} />
+            </Pressable>
+          </View>
 
           <View style={s.profileRow}>
             <Avatar id={profileUser.id} size={80} name={profileUser.name} />
@@ -248,40 +320,40 @@ export default function ProfileScreen() {
           <View style={s.statsGrid}>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {MOCK_STATS.totalRounds}
+                {displayStats.totalRounds}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Total Rounds</Text>
             </View>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {MOCK_STATS.coursesPlayed}
+                {displayStats.coursesPlayed}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Courses Played</Text>
             </View>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.gold, fontFamily: GEO }]}>
-                {MOCK_STATS.bestRound.score}
+                {displayStats.bestRound.score}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Best Round</Text>
               <Text style={[s.statSub, { color: c.textMuted }]} numberOfLines={1}>
-                {MOCK_STATS.bestRound.course}
+                {displayStats.bestRound.course}
               </Text>
             </View>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {MOCK_STATS.scoringAvg.toFixed(1)}
+                {displayStats.scoringAvg.toFixed(1)}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Scoring Average</Text>
             </View>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.gold, fontFamily: GEO }]}>
-                {MOCK_STATS.courseRecords}
+                {displayStats.courseRecords}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Course Records</Text>
             </View>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {MOCK_STATS.tripsPlayed}
+                {displayStats.tripsPlayed}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Trips Played</Text>
             </View>
@@ -294,7 +366,7 @@ export default function ProfileScreen() {
               <View>
                 <Text style={[s.chartCurrentLabel, { color: c.textMuted }]}>Current</Text>
                 <Text style={[s.chartCurrentValue, { color: c.teal, fontFamily: GEO }]}>
-                  {HANDICAP_TREND[HANDICAP_TREND.length - 1].toFixed(1)}
+                  {displayHandicapTrend[displayHandicapTrend.length - 1].toFixed(1)}
                 </Text>
               </View>
               <View style={s.chartTrendBadge}>
@@ -304,18 +376,18 @@ export default function ProfileScreen() {
                   color={c.teal}
                 />
                 <Text style={[s.chartTrendText, { color: c.teal }]}>
-                  {(HANDICAP_TREND[0] - HANDICAP_TREND[HANDICAP_TREND.length - 1]).toFixed(1)} improvement
+                  {(displayHandicapTrend[0] - displayHandicapTrend[displayHandicapTrend.length - 1]).toFixed(1)} improvement
                 </Text>
               </View>
             </View>
             <View style={s.chartWrap}>
-              <HandicapChart data={HANDICAP_TREND} />
+              <HandicapChart data={displayHandicapTrend} />
             </View>
           </View>
 
           {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
           <SectionLabel title="RECENT ROUNDS" />
-          {MOCK_RECENT_ROUNDS.map((round) => {
+          {displayRounds.map((round) => {
             const badge = sourceBadge(round.source);
             return (
               <View
@@ -443,12 +515,17 @@ const s = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   brand: {
     fontSize: 9,
     fontWeight: '700',
     fontStyle: 'italic',
     letterSpacing: 3,
-    marginBottom: 16,
   },
   profileRow: {
     flexDirection: 'row',

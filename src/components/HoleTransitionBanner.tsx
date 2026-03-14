@@ -3,34 +3,14 @@ import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { scoreColor as scoreColorUtil, scoreName as scoreNameUtil } from '../lib/scoring-utils';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const AUTO_DISMISS_MS = 1800;
 
-// ─── Score styling ────────────────────────────────────────────────────
-const SCORE_COLORS: Record<string, string> = {
-  Eagle: '#B8860B',
-  Birdie: '#C41E3A',
-  Par: '#2A9D8F',
-  Bogey: '#6B8E23',
-  Double: '#8B4513',
-  Triple: '#8B4513',
-};
-
-function scoreName(gross: number, par: number): string {
-  const diff = gross - par;
-  if (diff <= -2) return 'Eagle';
-  if (diff === -1) return 'Birdie';
-  if (diff === 0) return 'Par';
-  if (diff === 1) return 'Bogey';
-  if (diff === 2) return 'Double';
-  if (diff === 3) return 'Triple';
-  return `+${diff}`;
-}
-
-function scoreColor(gross: number, par: number): string {
-  return SCORE_COLORS[scoreName(gross, par)] ?? '#8B4513';
-}
+// ─── Score styling (from shared scoring-utils) ──────────────────────
+const scoreName = scoreNameUtil;
+const scoreColor = scoreColorUtil;
 
 // ─── Types ────────────────────────────────────────────────────────────
 export type PlayerHoleResult = {

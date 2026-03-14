@@ -18,6 +18,8 @@ import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
 import { RyderCupWizard } from '../src/components/RyderCupWizard';
+import { useAuth } from '../src/lib/auth';
+import { tripsService } from '../src/services/trips.service';
 import {
   SCORING_FORMATS,
   SIDE_GAMES,
@@ -179,6 +181,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const { user } = useAuth();
 
   // State
   const [name, setName] = useState('');
@@ -553,7 +556,20 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
 
             {/* Create button */}
             <Pressable
-              onPress={() => {
+              onPress={async () => {
+                if (user) {
+                  try {
+                    await tripsService.create({
+                      name,
+                      location,
+                      start_date: startDate || new Date().toISOString().slice(0, 10),
+                      end_date: endDate || new Date().toISOString().slice(0, 10),
+                      organizer_id: user.id,
+                      trip_type: tripType,
+                      format,
+                    });
+                  } catch {}
+                }
                 Alert.alert('Trip Created', `${name} has been created!`, [
                   { text: 'OK', onPress: () => router.back() },
                 ]);

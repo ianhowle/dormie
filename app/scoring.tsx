@@ -16,6 +16,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
+import { useAuth } from '../src/lib/auth';
+import { roundsService } from '../src/services/rounds.service';
+import { coursesService } from '../src/services/courses.service';
+import { scoreColor, formatToPar as fmtToPar, toParColor as toParColorUtil, scoreName as scoreNameUtil } from '../src/lib/scoring-utils';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -74,17 +78,7 @@ function buildHoles(coursePar: number, holeRange: string): HoleData[] {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
-function scoreName(score: number, par: number): string {
-  const diff = score - par;
-  if (diff <= -3) return 'Albatross';
-  if (diff === -2) return 'Eagle';
-  if (diff === -1) return 'Birdie';
-  if (diff === 0) return 'Par';
-  if (diff === 1) return 'Bogey';
-  if (diff === 2) return 'Double';
-  if (diff === 3) return 'Triple';
-  return `+${diff}`;
-}
+const scoreName = scoreNameUtil;
 
 function scoreNameColor(
   score: number,
@@ -99,11 +93,7 @@ function scoreNameColor(
   return '#C44B4F';
 }
 
-function formatToPar(total: number, par: number): string {
-  const diff = total - par;
-  if (diff === 0) return 'E';
-  return diff > 0 ? `+${diff}` : String(diff);
-}
+const formatToPar = fmtToPar;
 
 function toParColor(
   diff: number,
@@ -1428,6 +1418,7 @@ export default function ScoringScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const { user } = useAuth();
   const params = useLocalSearchParams<{
     courseName: string;
     coursePar: string;
@@ -1438,12 +1429,14 @@ export default function ScoringScreen() {
     holeRange: string;
     scoreMode: string;
     sideGames: string;
+    courseId: string;
   }>();
 
   const courseName = params.courseName ?? 'Course';
   const coursePar = Number(params.coursePar) || 72;
   const courseSlope = Number(params.courseSlope) || 113;
   const courseRating = Number(params.courseRating) || 72;
+  const courseId = params.courseId ?? '';
   const holeRange = params.holeRange ?? 'full18';
   const scoreMode = params.scoreMode ?? 'gross';
   const formatLabel = params.format ?? 'Total Strokes';
@@ -1588,7 +1581,48 @@ export default function ScoringScreen() {
         courseName={courseName}
         formatLabel={formatLabel}
         sideGameKeys={sideGameKeys}
-        onDone={() => router.dismissAll()}
+        onDone={async () => {
+          if (!user) { router.dismissAll(); return; }
+          try {
+            // Build hole scores for the current user
+            const holeScores: { hole: number; gross: number; putts?: number; fir?: boolean }[] = [];
+            holes.forEach((h) => {
+              const s = allScores.get(h.number)?.get(user.id);
+              if (s) {
+                holeScores.push({ hole: h.number, gross: s.gross, putts: s.putts, ...(s.fir !== null ? { fir: s.fir } : {}) });
+              }
+            });
+            const grossTotal = holeScores.reduce((sum, h) => sum + h.gross, 0);
+            const totalPar = holes.reduce((sum, h) => sum + h.par, 0);
+            // Compute net if applicable
+            let netTotal: number | null = null;
+            if (scoreMode === 'net') {
+              const playerStrokes = handicapStrokes.get(user.id);
+              if (playerStrokes) {
+                netTotal = grossTotal - Array.from(playerStrokes.values()).reduce((a, b) => a + b, 0);
+              }
+            }
+            // Ensure course exists
+            let finalCourseId = courseId;
+            if (!finalCourseId) {
+              const course = await coursesService.ensureCourse({ name: courseName, location: courseName });
+              finalCourseId = course.id;
+            }
+            await roundsService.create({
+              user_id: user.id,
+              course_id: finalCourseId,
+              gross_score: grossTotal,
+              net_score: netTotal,
+              hole_scores: holeScores,
+              source: 'app',
+              played_at: new Date().toISOString(),
+            });
+            Alert.alert('Round Saved', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) has been saved.`);
+            router.dismissAll();
+          } catch (err) {
+            Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save round');
+          }
+        }}
       />
     );
   }

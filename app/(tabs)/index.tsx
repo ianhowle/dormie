@@ -1,14 +1,21 @@
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
+import { useAuth } from '../../src/lib/auth';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
+import { roundsService } from '../../src/services/rounds.service';
+import { friendsService } from '../../src/services/friends.service';
+import { tripsService } from '../../src/services/trips.service';
+import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
 import {
   MOCK_QUICK_STATS,
   MOCK_FEED,
   MOCK_UPCOMING,
   type FeedItem,
+  type QuickStats,
   type UpcomingItem,
 } from '../../src/data/homeFeed';
 
@@ -45,8 +52,26 @@ function feedIcon(type: FeedItem['type']): keyof typeof Ionicons.glyphMap {
   }
 }
 
+// ─── ESPN Ticker ─────────────────────────────────────────────────────
+function ESPNTicker({ items }: { items: { label: string; value: string; color: string }[] }) {
+  const { theme } = useTheme();
+  if (items.length === 0) return null;
+  return (
+    <View style={{ backgroundColor: '#1E4D2B', paddingVertical: 6 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 16 }}>
+        {items.map((item, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: '#D4AF37', fontSize: 10, fontWeight: '700', letterSpacing: 0.5, fontFamily: 'Georgia' }}>{item.label}</Text>
+            <Text style={{ color: item.color, fontSize: 10, fontWeight: '700', fontFamily: 'Georgia' }}>{item.value}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── Header ───────────────────────────────────────────────────────────
-function Header() {
+function Header({ name }: { name: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -56,17 +81,17 @@ function Header() {
         DORMIE
       </Text>
       <Text style={[st.greeting, { color: c.text, fontFamily: GEO }]}>
-        {getGreeting()}, Ian
+        {getGreeting()}, {name}
       </Text>
     </View>
   );
 }
 
 // ─── Quick stats ──────────────────────────────────────────────────────
-function QuickStatsRow() {
+function QuickStatsRow({ stats }: { stats: QuickStats }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const s = MOCK_QUICK_STATS;
+  const s = stats;
 
   return (
     <View style={st.statsRow}>
@@ -225,22 +250,88 @@ function SectionHeader({ title }: { title: string }) {
 export default function HomeScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
+  const { user } = useAuth();
+  const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    roundsService.getByUser(user.id, 10).then(setRealRounds).catch(() => {});
+    friendsService.getPendingRequests(user.id).then(setPendingRequests).catch(() => {});
+  }, [user]);
+
+  // Build real quick stats
+  const quickStats = useMemo(() => {
+    if (realRounds.length === 0) return MOCK_QUICK_STATS;
+    const now = new Date();
+    const thisMonth = realRounds.filter(r => {
+      const d = new Date(r.played_at);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const scores = realRounds.map(r => r.gross_score);
+    return {
+      handicap: user?.user_metadata?.handicap_index ?? MOCK_QUICK_STATS.handicap,
+      monthRounds: thisMonth.length || MOCK_QUICK_STATS.monthRounds,
+      bestRecent: scores.length > 0 ? Math.min(...scores) : MOCK_QUICK_STATS.bestRecent,
+      streak: MOCK_QUICK_STATS.streak, // keep mock for now
+    };
+  }, [realRounds, user]);
+
+  // Build feed from real rounds
+  const feedItems: FeedItem[] = useMemo(() => {
+    if (realRounds.length === 0) return MOCK_FEED;
+    return realRounds.slice(0, 6).map((r, i) => ({
+      id: r.id,
+      type: 'round_posted' as const,
+      playerId: r.user_id,
+      playerName: user?.user_metadata?.name ?? 'You',
+      description: `posted ${r.gross_score} at ${r.course?.name ?? 'Unknown'}`,
+      timestamp: r.played_at,
+    }));
+  }, [realRounds, user]);
+
+  // ESPN ticker items from quick stats
+  const tickerItems = useMemo(() => [
+    { label: 'HCP', value: quickStats.handicap.toFixed(1), color: '#2A9D8F' },
+    { label: 'THIS MONTH', value: String(quickStats.monthRounds), color: '#E8E4DE' },
+    { label: 'BEST', value: String(quickStats.bestRecent), color: '#D4AF37' },
+    ...(pendingRequests.length > 0 ? [{ label: 'FRIEND REQUESTS', value: String(pendingRequests.length), color: '#C44B4F' }] : []),
+  ], [quickStats, pendingRequests]);
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-        <Header />
+        <Header name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'} />
+        <ESPNTicker items={tickerItems} />
 
         <View style={st.body}>
           {/* Quick stats */}
-          <QuickStatsRow />
+          <QuickStatsRow stats={quickStats} />
 
           {/* Quick actions */}
           <QuickActions />
 
+          {/* Friend requests */}
+          {pendingRequests.length > 0 && (
+            <>
+              <SectionHeader title="FRIEND REQUESTS" />
+              <Pressable
+                onPress={() => router.push('/(tabs)/leaderboard')}
+                style={[st.feedCard, { backgroundColor: c.cardBg, borderColor: c.urgent, borderLeftWidth: 3 }]}
+              >
+                <Ionicons name="people" size={20} color={c.urgent} style={{ marginRight: 10 }} />
+                <Text style={[st.feedName, { color: c.text }]}>
+                  {pendingRequests.length} pending friend request{pendingRequests.length > 1 ? 's' : ''}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+            </>
+          )}
+
           {/* Activity feed */}
           <SectionHeader title="LATEST" />
-          {MOCK_FEED.map((item) => (
+          {feedItems.map((item) => (
             <FeedCard key={item.id} item={item} />
           ))}
 

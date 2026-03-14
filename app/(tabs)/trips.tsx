@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +14,9 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
+import { useAuth } from '../../src/lib/auth';
+import { tripsService } from '../../src/services/trips.service';
+import type { TripWithMembers } from '../../src/lib/database.types';
 import {
   MOCK_TRIP_STATS,
   MOCK_UPCOMING_TRIPS,
@@ -299,6 +303,13 @@ function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
 export default function TripsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const { user } = useAuth();
+  const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    tripsService.getByUser(user.id).then(setRealTrips).catch(() => {});
+  }, [user]);
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>

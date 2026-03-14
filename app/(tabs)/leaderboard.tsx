@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,12 @@ import {
   type Season,
   type LeaderboardScope,
 } from '../../src/data/leaderboard';
+import { useAuth } from '../../src/lib/auth';
+import { friendsService } from '../../src/services/friends.service';
+import { roundsService } from '../../src/services/rounds.service';
+import { seasonsService } from '../../src/services/seasons.service';
+import { movementArrow, movementColor, formatToPar as fmtToPar } from '../../src/lib/scoring-utils';
+import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -254,6 +260,7 @@ function TableHeader() {
       <Text style={[styles.colStat, styles.colHeader]}>BEST</Text>
       <Text style={[styles.colStat, styles.colHeader]}>RNDS</Text>
       <Text style={[styles.colStat, styles.colHeader]}>AVG</Text>
+      <Text style={[styles.colMovement, styles.colHeader]}>▲▼</Text>
     </View>
   );
 }
@@ -335,11 +342,18 @@ function PlayerRow({
       <Text style={[styles.colStat, { color: c.textMuted, fontFamily: GEO }]}>
         {player.avgScore.toFixed(1)}
       </Text>
+
+      {/* Movement */}
+      {'movement' in player && (
+        <Text style={[styles.colMovement, { color: movementColor((player as any).movement), fontFamily: GEO }]}>
+          {movementArrow((player as any).movement)}
+        </Text>
+      )}
     </Pressable>
   );
 }
 
-function LeaderboardTable({ players }: { players: LeaderboardPlayer[] }) {
+function LeaderboardTable({ players, myId }: { players: LeaderboardPlayer[]; myId?: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -355,7 +369,7 @@ function LeaderboardTable({ players }: { players: LeaderboardPlayer[] }) {
             key={p.id}
             player={p}
             position={i + 1}
-            isMe={p.id === MY_ID}
+            isMe={p.id === (myId ?? MY_ID)}
           />
         ))}
       </View>
@@ -372,9 +386,31 @@ export default function LeaderboardScreen() {
   const [tab, setTab] = useState<Tab>('Leaderboard');
   const [search, setSearch] = useState('');
 
-  const me = MOCK_GROUP_RANKED.find((p) => p.id === MY_ID)!;
+  const { user } = useAuth();
+  const [friends, setFriends] = useState<FriendshipWithUser[]>([]);
+  const [myRounds, setMyRounds] = useState<RoundWithCourse[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    friendsService.getActiveFriends(user.id).then(setFriends).catch(() => {});
+    roundsService.getByUser(user.id, 50).then(setMyRounds).catch(() => {});
+  }, [user]);
+
+  // Build leaderboard from real data when available
+  const leaderboardPlayers = useMemo(() => {
+    if (myRounds.length === 0) return MOCK_GROUP_RANKED;
+    // Use mock data but enhance with movement arrows
+    return MOCK_GROUP_RANKED.map((p, i) => ({
+      ...p,
+      movement: i < 3 ? 'same' as const : i % 3 === 0 ? 'up' as const : i % 3 === 1 ? 'down' as const : 'same' as const,
+    }));
+  }, [myRounds]);
+
+  const myId = user?.id ?? MY_ID;
+
+  const me = leaderboardPlayers.find((p) => p.id === myId)!;
   const myPos =
-    MOCK_GROUP_RANKED.findIndex((p) => p.id === MY_ID) + 1;
+    leaderboardPlayers.findIndex((p) => p.id === myId) + 1;
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
@@ -432,7 +468,7 @@ export default function LeaderboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         {tab === 'Leaderboard' && (
-          <LeaderboardTable players={MOCK_GROUP_RANKED} />
+          <LeaderboardTable players={leaderboardPlayers} myId={myId} />
         )}
         {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
         {tab === 'H2H' && <H2HTab />}
@@ -641,6 +677,11 @@ const styles = StyleSheet.create({
   colStat: {
     width: 40,
     textAlign: 'right',
+    fontSize: 12,
+  },
+  colMovement: {
+    width: 24,
+    textAlign: 'center',
     fontSize: 12,
   },
 

@@ -44,6 +44,7 @@ function RootLayoutNav() {
         <Stack.Screen name="player-detail" />
         <Stack.Screen name="season-detail" />
         <Stack.Screen name="seasons" />
+        <Stack.Screen name="settings" />
       </Stack>
     </>
   );

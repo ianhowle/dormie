@@ -484,6 +484,7 @@ export default function ScoreScreen() {
       pathname: '/scoring',
       params: {
         courseName: course.name,
+        courseId: course.id,
         coursePar: String(effectivePar),
         courseSlope: String(played?.slope ?? 113),
         courseRating: String(effectivePar), // use par as approx rating if unknown
