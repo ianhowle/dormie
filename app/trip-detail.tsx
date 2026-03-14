@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -1470,6 +1470,432 @@ function WeatherForecast({
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// COMPETITION MODE — CEREMONY ANIMATION
+// ═══════════════════════════════════════════════════════════════════════
+function CompetitionCeremony({
+  trip,
+  players,
+  onComplete,
+}: {
+  trip: typeof MOCK_UPCOMING_TRIPS[0];
+  players: TripPlayer[];
+  onComplete: () => void;
+}) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const titleSlide = useRef(new Animated.Value(30)).current;
+  const badgeFade = useRef(new Animated.Value(0)).current;
+  const avatarsFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(titleSlide, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(badgeFade, { toValue: 1, duration: 400, delay: 200, useNativeDriver: true }),
+      ]),
+      Animated.timing(avatarsFade, { toValue: 1, duration: 500, useNativeDriver: true }),
+    ]).start();
+
+    const timer = setTimeout(onComplete, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Pressable onPress={onComplete} style={cm.ceremonyScreen}>
+      <LinearGradient
+        colors={['#0A2A1A', '#1E4D2B', '#2D6A3F', '#1E4D2B', '#0A2A1A']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <Animated.View style={[cm.ceremonyContent, { opacity: fadeAnim }]}>
+        <Text style={[cm.ceremonyBrand, { fontFamily: GEO }]}>DORMIE</Text>
+
+        <Animated.View style={{ transform: [{ translateY: titleSlide }] }}>
+          <Text style={[cm.ceremonyTripName, { fontFamily: GEO }]}>{trip.name}</Text>
+        </Animated.View>
+
+        <Animated.View style={[cm.ceremonyBadge, { opacity: badgeFade }]}>
+          <View style={cm.liveIndicator} />
+          <Text style={[cm.ceremonyLive, { fontFamily: GEO }]}>COMPETITION IS LIVE</Text>
+        </Animated.View>
+
+        <Animated.View style={[cm.ceremonyAvatarRow, { opacity: avatarsFade }]}>
+          {players.filter((p) => p.rsvp === 'confirmed').map((p) => (
+            <View key={p.id} style={cm.ceremonyAvatarWrap}>
+              <Avatar id={p.id} size={44} name={p.name} />
+              <Text style={cm.ceremonyAvatarName}>{p.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </Animated.View>
+
+        <Text style={cm.ceremonyTap}>Tap to continue</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COMPETITION MODE — LEADERBOARD DATA
+// ═══════════════════════════════════════════════════════════════════════
+type CompPlayer = {
+  id: string;
+  name: string;
+  handicap: number;
+  rounds: (number | null)[];
+  total: number | null;
+};
+
+const MOCK_COMP_PLAYERS: CompPlayer[] = [
+  { id: '6', name: 'Tommy Fleetwood', handicap: 3, rounds: [71, 68, null], total: 139 },
+  { id: '1', name: 'Ian McGowan', handicap: 8, rounds: [76, 74, null], total: 150 },
+  { id: '2', name: 'Drew Patterson', handicap: 12, rounds: [82, 79, null], total: 161 },
+  { id: '4', name: 'Jake Sullivan', handicap: 15, rounds: [86, 83, null], total: 169 },
+];
+
+type SideGameEntry = {
+  id: string;
+  name: string;
+  icon: string;
+  status: 'active' | 'settled';
+  leader: string;
+  amount: string;
+  rules: string;
+};
+
+const MOCK_SIDE_GAMES: SideGameEntry[] = [
+  { id: 'sg1', name: 'Skins', icon: 'cash', status: 'active', leader: 'Tommy F.', amount: '$20/hole', rules: 'Win a hole outright to collect the skin. Ties carry over to the next hole.' },
+  { id: 'sg2', name: 'Nassau', icon: 'swap-horizontal', status: 'active', leader: 'Ian M.', amount: '$10 front/back/total', rules: 'Three bets in one: front 9, back 9, and overall match. Automatic press at 2 down.' },
+  { id: 'sg3', name: 'Dots (Trash)', icon: 'ellipsis-horizontal', status: 'active', leader: 'Drew P.', amount: '$1/dot', rules: 'Points for greenies, sandies, barkies, poleys. Most dots at end wins.' },
+  { id: 'sg4', name: 'Snake', icon: 'git-branch', status: 'active', leader: 'Jake S.', amount: '$5/snake', rules: 'First 3-putt gets the snake. Pass the snake on each subsequent 3-putt. Holder at end of round pays.' },
+];
+
+const MOCK_COMP_MOMENTS = [
+  { id: 'cm1', text: 'Tommy just eagled the 5th! 🦅', author: 'Ian McGowan', time: '20 min ago' },
+  { id: 'cm2', text: 'Drew chipped in from the bunker on 11', author: 'Jake Sullivan', time: '45 min ago' },
+];
+
+// ═══════════════════════════════════════════════════════════════════════
+// COMPETITION VIEW
+// ═══════════════════════════════════════════════════════════════════════
+function CompetitionView({
+  trip,
+  courses,
+  onScoreHole,
+  onQuickEntry,
+  onExit,
+}: {
+  trip: typeof MOCK_UPCOMING_TRIPS[0];
+  courses: TripCourse[];
+  onScoreHole: () => void;
+  onQuickEntry: () => void;
+  onExit: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const MASTERS = '#1E4D2B';
+
+  const [scoreMode, setScoreMode] = useState<'gross' | 'net'>('gross');
+  const [expandedSideGame, setExpandedSideGame] = useState<string | null>(null);
+  const [moments, setMoments] = useState(MOCK_COMP_MOMENTS);
+  const [unreadChat] = useState(3);
+
+  const coursePar = 72;
+  const currentDay = 2;
+  const totalDays = trip.roundsPlanned ?? 3;
+
+  // Sort players
+  const sortedPlayers = [...MOCK_COMP_PLAYERS].sort((a, b) => {
+    if (a.total === null && b.total === null) return 0;
+    if (a.total === null) return 1;
+    if (b.total === null) return -1;
+    if (scoreMode === 'net') {
+      const aNet = a.total - a.handicap * (a.rounds.filter((r) => r !== null).length);
+      const bNet = b.total - b.handicap * (b.rounds.filter((r) => r !== null).length);
+      return aNet - bNet;
+    }
+    return a.total - b.total;
+  });
+
+  const getPlayerTotal = (p: CompPlayer) => {
+    if (p.total === null) return '-';
+    if (scoreMode === 'net') {
+      const roundsPlayed = p.rounds.filter((r) => r !== null).length;
+      return p.total - p.handicap * roundsPlayed;
+    }
+    return p.total;
+  };
+
+  const getToPar = (p: CompPlayer) => {
+    if (p.total === null) return '';
+    const roundsPlayed = p.rounds.filter((r) => r !== null).length;
+    let total = p.total;
+    if (scoreMode === 'net') total = p.total - p.handicap * roundsPlayed;
+    const par = coursePar * roundsPlayed;
+    const diff = total - par;
+    if (diff === 0) return 'E';
+    return diff > 0 ? `+${diff}` : `${diff}`;
+  };
+
+  const toParColor = (p: CompPlayer) => {
+    const tp = getToPar(p);
+    if (tp === '' || tp === 'E') return c.text;
+    return tp.startsWith('-') ? c.teal : c.urgent;
+  };
+
+  const todayCourse = courses.find((co) => co.day === currentDay) ?? courses[0];
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      {/* Masters green header */}
+      <LinearGradient
+        colors={[MASTERS, '#2D6A3F']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={cm.compHeader}
+      >
+        <View style={cm.compHeaderTop}>
+          <Pressable onPress={onExit} hitSlop={12}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </Pressable>
+          <View style={cm.compLiveBadge}>
+            <View style={cm.compLiveDot} />
+            <Text style={[cm.compLiveText, { fontFamily: GEO }]}>LIVE</Text>
+          </View>
+          <View style={{ width: 24 }} />
+        </View>
+        <Text style={[cm.compTripName, { fontFamily: GEO }]}>{trip.name}</Text>
+
+        {/* Day pills */}
+        <View style={cm.dayPillRow}>
+          {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
+            const isActive = day === currentDay;
+            const isComplete = day < currentDay;
+            return (
+              <View
+                key={day}
+                style={[
+                  cm.dayPill,
+                  isActive && cm.dayPillActive,
+                  isComplete && cm.dayPillComplete,
+                ]}
+              >
+                <Text style={[cm.dayPillText, { fontFamily: GEO }, isActive && cm.dayPillTextActive]}>
+                  DAY {day}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </LinearGradient>
+
+      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+        <View style={cm.compBody}>
+          {/* LEADERBOARD */}
+          <View style={cm.lbHeaderRow}>
+            <Text style={[cm.lbTitle, { color: c.gold, fontFamily: GEO }]}>LEADERBOARD</Text>
+            <View style={cm.toggleRow}>
+              <Pressable
+                onPress={() => setScoreMode('gross')}
+                style={[cm.toggleBtn, scoreMode === 'gross' && { backgroundColor: `${c.teal}20` }]}
+              >
+                <Text style={[cm.toggleText, { color: scoreMode === 'gross' ? c.teal : c.textMuted }]}>Gross</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setScoreMode('net')}
+                style={[cm.toggleBtn, scoreMode === 'net' && { backgroundColor: `${c.teal}20` }]}
+              >
+                <Text style={[cm.toggleText, { color: scoreMode === 'net' ? c.teal : c.textMuted }]}>Net</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Column headers */}
+          <View style={[cm.lbColHeaders, { borderColor: c.border }]}>
+            <Text style={[cm.lbColPos, { color: c.textMuted }]}>POS</Text>
+            <Text style={[cm.lbColPlayer, { color: c.textMuted }]}>PLAYER</Text>
+            {Array.from({ length: totalDays }, (_, i) => (
+              <Text key={i} style={[cm.lbColRound, { color: c.textMuted }]}>R{i + 1}</Text>
+            ))}
+            <Text style={[cm.lbColTotal, { color: c.textMuted }]}>TOT</Text>
+            <Text style={[cm.lbColPar, { color: c.textMuted }]}>PAR</Text>
+          </View>
+
+          {/* Player rows */}
+          {sortedPlayers.map((p, i) => (
+            <View
+              key={p.id}
+              style={[
+                cm.lbRow,
+                {
+                  backgroundColor: i === 0 ? `${c.gold}08` : c.cardBg,
+                  borderColor: i === 0 ? c.gold : c.border,
+                },
+              ]}
+            >
+              <Text style={[cm.lbPos, { color: i === 0 ? c.gold : c.textMuted, fontFamily: GEO }]}>
+                {i + 1}
+              </Text>
+              <View style={cm.lbPlayerCell}>
+                <Avatar id={p.id} size={24} name={p.name} />
+                <Text style={[cm.lbPlayerName, { color: c.text }]} numberOfLines={1}>
+                  {p.name.split(' ')[1] ?? p.name}
+                </Text>
+              </View>
+              {p.rounds.map((r, ri) => (
+                <Text key={ri} style={[cm.lbRoundScore, { color: r !== null ? c.text : c.textMuted, fontFamily: GEO }]}>
+                  {r ?? '-'}
+                </Text>
+              ))}
+              <Text style={[cm.lbTotal, { color: c.text, fontFamily: GEO }]}>
+                {getPlayerTotal(p)}
+              </Text>
+              <Text style={[cm.lbPar, { color: toParColor(p), fontFamily: GEO }]}>
+                {getToPar(p)}
+              </Text>
+            </View>
+          ))}
+
+          {/* TODAY'S COURSE */}
+          <Text style={[cm.compSectionTitle, { color: c.gold, fontFamily: GEO }]}>TODAY'S COURSE</Text>
+          {todayCourse && (
+            <View style={[cm.courseCard, { borderColor: c.border }]}>
+              <LinearGradient
+                colors={todayCourse.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={cm.courseGradient}
+              >
+                <View style={cm.courseOverlay} />
+                <View style={cm.courseDayBadge}>
+                  <Text style={[cm.courseDayText, { fontFamily: GEO }]}>DAY {todayCourse.day}</Text>
+                </View>
+                <Text style={[cm.courseName, { fontFamily: GEO }]}>{todayCourse.name}</Text>
+                <Text style={cm.courseTime}>{todayCourse.teeTime}</Text>
+              </LinearGradient>
+              <View style={[cm.courseStats, { backgroundColor: c.cardBg }]}>
+                {[
+                  { label: 'PAR', value: `${todayCourse.par}` },
+                  { label: 'RATING', value: todayCourse.rating.toFixed(1) },
+                  { label: 'SLOPE', value: `${todayCourse.slope}` },
+                  { label: 'YARDS', value: todayCourse.yards.toLocaleString() },
+                ].map((st) => (
+                  <View key={st.label} style={cm.courseStat}>
+                    <Text style={[cm.courseStatVal, { color: c.text, fontFamily: GEO }]}>{st.value}</Text>
+                    <Text style={[cm.courseStatLabel, { color: c.textMuted }]}>{st.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ACTION BUTTONS */}
+          <View style={cm.actionBtns}>
+            <Pressable onPress={onScoreHole} style={cm.actionPrimary}>
+              <LinearGradient colors={['#1E4D2B', '#2D6A3F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              <Ionicons name="golf" size={18} color="#D4AF37" />
+              <Text style={[cm.actionPrimaryText, { fontFamily: GEO }]}>Score Hole-by-Hole</Text>
+            </Pressable>
+            <Pressable onPress={onQuickEntry} style={[cm.actionSecondary, { borderColor: c.border, backgroundColor: c.cardBg }]}>
+              <Ionicons name="keypad-outline" size={16} color={c.teal} />
+              <Text style={[cm.actionSecondaryText, { color: c.teal }]}>Quick Total Entry</Text>
+            </Pressable>
+          </View>
+
+          {/* SIDE GAMES */}
+          <Text style={[cm.compSectionTitle, { color: c.gold, fontFamily: GEO }]}>SIDE GAMES</Text>
+          {MOCK_SIDE_GAMES.map((sg) => {
+            const isExpanded = expandedSideGame === sg.id;
+            return (
+              <Pressable
+                key={sg.id}
+                onPress={() => setExpandedSideGame(isExpanded ? null : sg.id)}
+                style={[cm.sideGameCard, { backgroundColor: c.cardBg, borderColor: c.border }]}
+              >
+                <View style={cm.sideGameTop}>
+                  <Ionicons name={sg.icon as any} size={18} color={c.gold} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[cm.sideGameName, { color: c.text }]}>{sg.name}</Text>
+                    <Text style={[cm.sideGameMeta, { color: c.textMuted }]}>
+                      {sg.amount} · Leader: {sg.leader}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={c.textMuted}
+                  />
+                </View>
+                {isExpanded && (
+                  <View style={[cm.sideGameRules, { borderColor: c.border }]}>
+                    <Text style={[cm.sideGameRulesText, { color: c.textMuted }]}>{sg.rules}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+
+          {/* ALL COURSES */}
+          <Text style={[cm.compSectionTitle, { color: c.gold, fontFamily: GEO }]}>ALL COURSES</Text>
+          {courses.map((co) => {
+            const isComplete = co.day < currentDay;
+            const isToday = co.day === currentDay;
+            return (
+              <View
+                key={co.id}
+                style={[cm.allCourseRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+              >
+                <View style={[cm.allCourseDot, { backgroundColor: isComplete ? c.teal : isToday ? c.gold : c.textMuted }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[cm.allCourseName, { color: c.text }]}>{co.name}</Text>
+                  <Text style={[cm.allCourseMeta, { color: c.textMuted }]}>Day {co.day} · {co.teeTime}</Text>
+                </View>
+                <View style={[cm.allCourseStatus, { backgroundColor: isComplete ? `${c.teal}15` : isToday ? `${c.gold}15` : c.elevated }]}>
+                  <Text style={[cm.allCourseStatusText, { color: isComplete ? c.teal : isToday ? c.gold : c.textMuted }]}>
+                    {isComplete ? 'COMPLETE' : isToday ? 'TODAY' : 'UPCOMING'}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+
+          {/* TRIP MOMENTS */}
+          <Text style={[cm.compSectionTitle, { color: c.gold, fontFamily: GEO }]}>TRIP MOMENTS</Text>
+          {moments.map((m) => (
+            <View key={m.id} style={[cm.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Text style={[cm.momentText, { color: c.text }]}>{m.text}</Text>
+              <View style={cm.momentMeta}>
+                <Text style={[cm.momentAuthor, { color: c.textMuted }]}>{m.author}</Text>
+                <Text style={[cm.momentTime, { color: c.textMuted }]}>{m.time}</Text>
+              </View>
+            </View>
+          ))}
+          <Pressable style={[cm.addMomentBtn, { borderColor: c.border }]}>
+            <Ionicons name="add-circle-outline" size={16} color={c.teal} />
+            <Text style={[cm.addMomentText, { color: c.teal }]}>Add Moment</Text>
+          </Pressable>
+
+          <View style={{ height: 80 }} />
+        </View>
+      </ScrollView>
+
+      {/* Floating chat button */}
+      <Pressable style={cm.chatFab}>
+        <LinearGradient colors={['#1E4D2B', '#2D6A3F']} style={StyleSheet.absoluteFill} />
+        <Ionicons name="chatbubbles" size={22} color="#fff" />
+        {unreadChat > 0 && (
+          <View style={cm.chatBadge}>
+            <Text style={cm.chatBadgeText}>{unreadChat}</Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════
 export default function TripDetailScreen() {
@@ -1490,6 +1916,7 @@ export default function TripDetailScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
   const [checklist, setChecklist] = useState(MOCK_CHECKLIST);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [competitionMode, setCompetitionMode] = useState<'off' | 'ceremony' | 'live'>('off');
 
   const toggleCheck = useCallback((id: string) => {
     setChecklist((prev) =>
@@ -1503,6 +1930,28 @@ export default function TripDetailScreen() {
     const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
     return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`;
   };
+
+  // Competition mode routing
+  if (competitionMode === 'ceremony') {
+    return (
+      <CompetitionCeremony
+        trip={trip}
+        players={MOCK_PLAYERS}
+        onComplete={() => setCompetitionMode('live')}
+      />
+    );
+  }
+  if (competitionMode === 'live') {
+    return (
+      <CompetitionView
+        trip={trip}
+        courses={MOCK_COURSES}
+        onScoreHole={() => router.push('/scoring')}
+        onQuickEntry={() => Alert.alert('Quick Entry', 'Enter total score for the round.')}
+        onExit={() => setCompetitionMode('off')}
+      />
+    );
+  }
 
   // Trip tool routing
   const closeTool = () => setActiveTool(null);
@@ -1562,7 +2011,17 @@ export default function TripDetailScreen() {
             {formatDateRange(trip.startDate, trip.endDate)}
           </Text>
         </View>
-        <TripCountdownRing daysUntil={daysUntil} size={100} totalDays={60} />
+        <View style={s.heroRight}>
+          <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
+          <Pressable
+            onPress={() => setCompetitionMode('ceremony')}
+            style={s.startTripBtn}
+          >
+            <LinearGradient colors={['#1E4D2B', '#2D6A3F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            <Ionicons name="play" size={12} color="#D4AF37" />
+            <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ─── PLAYER ROW ─────────────────────────────────────────────── */}
@@ -1665,9 +2124,19 @@ const s = StyleSheet.create({
     paddingVertical: 16,
   },
   heroLeft: { flex: 1, marginRight: 16 },
+  heroRight: { alignItems: 'center', gap: 8 },
   heroName: { fontSize: 26, fontWeight: '700', lineHeight: 30 },
   heroLocation: { fontSize: 13, marginTop: 4 },
   heroDateRange: { fontSize: 12, marginTop: 4 },
+  startTripBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    overflow: 'hidden',
+  },
+  startTripText: { color: '#D4AF37', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
 
   /* Player row */
   playerRowContainer: {
@@ -2285,4 +2754,288 @@ const tt = StyleSheet.create({
   weatherMetaRow: { flexDirection: 'row', gap: 12 },
   weatherMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   weatherMetaText: { fontSize: 11, fontWeight: '600' },
+});
+
+// ─── Competition Mode Styles ────────────────────────────────────────
+const cm = StyleSheet.create({
+  /* Ceremony */
+  ceremonyScreen: { flex: 1, backgroundColor: '#0A2A1A' },
+  ceremonyContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  ceremonyBrand: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 6,
+    marginBottom: 16,
+  },
+  ceremonyTripName: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: 2,
+    marginBottom: 24,
+  },
+  ceremonyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginBottom: 32,
+  },
+  liveIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2A9D8F',
+  },
+  ceremonyLive: {
+    color: '#2A9D8F',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 3,
+  },
+  ceremonyAvatarRow: {
+    flexDirection: 'row',
+    gap: 16,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  ceremonyAvatarWrap: { alignItems: 'center', gap: 4 },
+  ceremonyAvatarName: { color: 'rgba(255,255,255,0.6)', fontSize: 10 },
+  ceremonyTap: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 11,
+    marginTop: 48,
+    letterSpacing: 1,
+  },
+
+  /* Competition view */
+  compHeader: {
+    paddingTop: STATUS_BAR_H,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  compHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  compLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  compLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2A9D8F',
+  },
+  compLiveText: {
+    color: '#2A9D8F',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  compTripName: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  dayPillRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  dayPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  dayPillActive: { backgroundColor: 'rgba(212,175,55,0.2)', borderWidth: 1, borderColor: '#D4AF37' },
+  dayPillComplete: { backgroundColor: 'rgba(42,157,143,0.15)' },
+  dayPillText: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  dayPillTextActive: { color: '#D4AF37' },
+
+  compBody: { paddingHorizontal: 16 },
+  compSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginTop: 24,
+    marginBottom: 10,
+  },
+
+  /* Leaderboard */
+  lbHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  lbTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 2 },
+  toggleRow: { flexDirection: 'row', gap: 2 },
+  toggleBtn: { paddingHorizontal: 10, paddingVertical: 4 },
+  toggleText: { fontSize: 11, fontWeight: '600' },
+  lbColHeaders: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+  },
+  lbColPos: { width: 28, fontSize: 8, fontWeight: '700', letterSpacing: 1 },
+  lbColPlayer: { flex: 1, fontSize: 8, fontWeight: '700', letterSpacing: 1 },
+  lbColRound: { width: 32, fontSize: 8, fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  lbColTotal: { width: 36, fontSize: 8, fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  lbColPar: { width: 36, fontSize: 8, fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  lbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  lbPos: { width: 28, fontSize: 14, fontWeight: '700' },
+  lbPlayerCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  lbPlayerName: { fontSize: 12, fontWeight: '600' },
+  lbRoundScore: { width: 32, fontSize: 13, textAlign: 'center' },
+  lbTotal: { width: 36, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  lbPar: { width: 36, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+
+  /* Course card */
+  courseCard: { borderWidth: 1, overflow: 'hidden', marginBottom: 8 },
+  courseGradient: { padding: 14 },
+  courseOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)' },
+  courseDayBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  courseDayText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  courseName: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  courseTime: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 3 },
+  courseStats: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 },
+  courseStat: { alignItems: 'center' },
+  courseStatVal: { fontSize: 14, fontWeight: '700' },
+  courseStatLabel: { fontSize: 7, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
+
+  /* Action buttons */
+  actionBtns: { gap: 8, marginTop: 16 },
+  actionPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    overflow: 'hidden',
+  },
+  actionPrimaryText: { color: '#D4AF37', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+  actionSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderWidth: 1,
+  },
+  actionSecondaryText: { fontSize: 13, fontWeight: '600' },
+
+  /* Side games */
+  sideGameCard: { borderWidth: 1, marginBottom: 6, overflow: 'hidden' },
+  sideGameTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+  },
+  sideGameName: { fontSize: 14, fontWeight: '600' },
+  sideGameMeta: { fontSize: 11, marginTop: 2 },
+  sideGameRules: { borderTopWidth: 1, padding: 12 },
+  sideGameRulesText: { fontSize: 12, lineHeight: 17 },
+
+  /* All courses */
+  allCourseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  allCourseDot: { width: 8, height: 8, borderRadius: 4 },
+  allCourseName: { fontSize: 13, fontWeight: '600' },
+  allCourseMeta: { fontSize: 10, marginTop: 2 },
+  allCourseStatus: { paddingHorizontal: 8, paddingVertical: 3 },
+  allCourseStatusText: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+
+  /* Trip moments */
+  momentRow: {
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  momentText: { fontSize: 13 },
+  momentMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  momentAuthor: { fontSize: 10 },
+  momentTime: { fontSize: 10 },
+  addMomentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  addMomentText: { fontSize: 12, fontWeight: '600' },
+
+  /* Chat FAB */
+  chatFab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  chatBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#C44B4F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
 });
