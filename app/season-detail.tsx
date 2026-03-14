@@ -881,7 +881,7 @@ export default function SeasonDetailScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingTop: STATUS_BAR_H + 8, paddingHorizontal: 16, paddingBottom: 16 },
+  header: { paddingTop: STATUS_BAR_H + 8, paddingHorizontal: 20, paddingBottom: 20 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 16, justifyContent: 'center' },
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   leaderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, marginTop: 12 },
   leaderName: { fontSize: 16, fontWeight: '600' },
   leaderSub: { fontSize: 12, marginTop: 1 },
-  leaderPts: { fontSize: 24 },
+  leaderPts: { fontSize: 24, letterSpacing: -1 },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, paddingHorizontal: 16 },
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 12, position: 'relative' },
@@ -960,8 +960,8 @@ const styles = StyleSheet.create({
   modalPlayerHcp: { fontSize: 13, marginTop: 2 },
   statsHero: { flexDirection: 'row', padding: 14, marginTop: 16, justifyContent: 'space-around' },
   statsHeroItem: { alignItems: 'center' },
-  statsHeroVal: { fontSize: 24, fontWeight: '700' },
-  statsHeroLabel: { fontSize: 11, marginTop: 2 },
+  statsHeroVal: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
+  statsHeroLabel: { fontSize: 10, marginTop: 2 },
   sectionTitle: { fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   weekNum: { fontSize: 13, fontWeight: '600' },

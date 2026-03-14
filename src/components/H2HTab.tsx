@@ -151,16 +151,18 @@ const s = StyleSheet.create({
     alignItems: 'baseline',
   },
   recordWins: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   recordDash: {
     fontSize: 16,
     marginHorizontal: 4,
   },
   recordLosses: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   recordTies: {
     fontSize: 12,

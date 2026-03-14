@@ -4776,7 +4776,7 @@ const ps = StyleSheet.create({
   /* ─── Stats tab ──────────────────────────────────────── */
   statPlayerCard: {
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 10,
   },
   statPlayerHeader: {
@@ -4981,7 +4981,7 @@ const ps = StyleSheet.create({
   },
   settlementCard: {
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
   },
   settlementSubtitle: {
     fontSize: 10,
