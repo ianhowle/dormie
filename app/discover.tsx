@@ -157,7 +157,7 @@ export default function DiscoverScreen() {
     <View style={[s.screen, { backgroundColor: c.bg }]}>
       {/* Header */}
       <View style={[s.header, { backgroundColor: c.surface }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={c.text} />
         </Pressable>
         <View style={s.headerCenter}>
@@ -188,7 +188,7 @@ export default function DiscoverScreen() {
                     <View style={s.dreamOverlay} />
                     {/* Remove button */}
                     <Pressable
-                      onPress={() => removeSaved(dest.id)}
+                      onPress={() => { haptics.light(); removeSaved(dest.id); }}
                       style={s.dreamRemoveBtn}
                       hitSlop={8}
                     >
@@ -198,7 +198,7 @@ export default function DiscoverScreen() {
                     <Text style={s.dreamCourses}>{dest.courseCount} courses</Text>
                   </LinearGradient>
                   <Pressable
-                    onPress={() => router.push(`/create-trip?destination=${encodeURIComponent(dest.name)}`)}
+                    onPress={() => { haptics.light(); router.push(`/create-trip?destination=${encodeURIComponent(dest.name)}`); }}
                     style={[s.dreamFooter, { backgroundColor: c.cardBg }]}
                   >
                     <Text style={[s.dreamAction, { color: c.teal }]}>Plan Trip →</Text>
