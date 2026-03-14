@@ -9,6 +9,8 @@ import {
   StatusBar,
   Alert,
   FlatList,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +36,29 @@ type HoleScore = {
   gross: number;
   putts: number;
   fir: boolean | null; // null for par 3s
+  penalties?: { water: number; ob: number; lost: number };
+};
+
+// ─── Hammer state type ───────────────────────────────────────────────
+type HammerState = {
+  active: boolean;
+  thrower: string;
+  target: string;
+  multiplier: number; // 2, 4, 8
+  pending: boolean;
+};
+
+type HammerResult = {
+  thrower: string;
+  target: string;
+  multiplier: number;
+  accepted: boolean;
+};
+
+// ─── Scoring event for live feed ─────────────────────────────────────
+type ScoringEvent = {
+  text: string;
+  time: Date;
 };
 
 type HoleData = {
@@ -125,6 +150,11 @@ function ScoringHeader({
   format,
   totalHoles,
   holesScored,
+  onLeaderboard,
+  onFeed,
+  unreadFeedCount,
+  viewMode,
+  onToggleViewMode,
 }: {
   courseName: string;
   holeNumber: number;
@@ -132,6 +162,11 @@ function ScoringHeader({
   format: string;
   totalHoles: number;
   holesScored: number;
+  onLeaderboard?: () => void;
+  onFeed?: () => void;
+  unreadFeedCount?: number;
+  viewMode?: 'solo' | 'all';
+  onToggleViewMode?: () => void;
 }) {
   const router = useRouter();
 
@@ -164,9 +199,38 @@ function ScoringHeader({
         <Text style={[st.headerCourseName, { fontFamily: GEO }]} numberOfLines={1}>
           {courseName}
         </Text>
-        <Text style={st.headerThrough}>
-          {holesScored}/{totalHoles}
-        </Text>
+        <View style={st.headerActions}>
+          {/* View mode toggle (Feature 14) */}
+          {onToggleViewMode && (
+            <Pressable onPress={onToggleViewMode} hitSlop={8}>
+              <Ionicons
+                name={viewMode === 'solo' ? 'person-outline' : 'people-outline'}
+                size={18}
+                color="#fff"
+              />
+            </Pressable>
+          )}
+          {/* Live feed toggle (Feature 12) */}
+          {onFeed && (
+            <Pressable onPress={onFeed} hitSlop={8} style={st.headerActionBtn}>
+              <Ionicons name="newspaper-outline" size={18} color="#fff" />
+              {(unreadFeedCount ?? 0) > 0 && (
+                <View style={st.feedBadge}>
+                  <Text style={st.feedBadgeText}>{unreadFeedCount}</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+          {/* Leaderboard toggle (Feature 11) */}
+          {onLeaderboard && (
+            <Pressable onPress={onLeaderboard} hitSlop={8}>
+              <Ionicons name="trophy-outline" size={18} color="#D4AF37" />
+            </Pressable>
+          )}
+          <Text style={st.headerThrough}>
+            {holesScored}/{totalHoles}
+          </Text>
+        </View>
       </View>
 
       {/* Hole info */}
@@ -191,11 +255,13 @@ function HoleStrip({
   currentIdx,
   scores,
   onSelect,
+  holeNotes,
 }: {
   holes: HoleData[];
   currentIdx: number;
   scores: Map<number, Map<string, HoleScore>>; // holeNumber -> playerId -> score
   onSelect: (idx: number) => void;
+  holeNotes?: Map<number, string>;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -205,6 +271,18 @@ function HoleStrip({
     ({ item, index }: { item: HoleData; index: number }) => {
       const isCurrent = index === currentIdx;
       const hasScores = scores.has(item.number);
+      // Feature 2: Check if any player has penalties on this hole
+      const holeScores = scores.get(item.number);
+      let hasPenalties = false;
+      if (holeScores) {
+        holeScores.forEach((s) => {
+          if (s.penalties && (s.penalties.water > 0 || s.penalties.ob > 0 || s.penalties.lost > 0)) {
+            hasPenalties = true;
+          }
+        });
+      }
+      // Feature 6: Check if hole has notes
+      const hasNote = holeNotes?.has(item.number) && (holeNotes.get(item.number) ?? '').length > 0;
 
       return (
         <Pressable
@@ -241,10 +319,18 @@ function HoleStrip({
           >
             {item.par}
           </Text>
+          {/* Penalty indicator (Feature 2) */}
+          {hasPenalties && (
+            <View style={st.holeChipPenaltyDot} />
+          )}
+          {/* Note indicator (Feature 6) */}
+          {hasNote && (
+            <View style={[st.holeChipNoteDot, { backgroundColor: c.gold }]} />
+          )}
         </Pressable>
       );
     },
-    [currentIdx, scores, c],
+    [currentIdx, scores, c, holeNotes],
   );
 
   return (
@@ -271,6 +357,7 @@ function PlayerScoreInput({
   netStrokes,
   scoreMode,
   onChange,
+  compact,
 }: {
   player: PlayerConfig;
   holePar: number;
@@ -280,6 +367,7 @@ function PlayerScoreInput({
   netStrokes: number;
   scoreMode: string;
   onChange: (s: HoleScore) => void;
+  compact?: boolean;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -287,6 +375,12 @@ function PlayerScoreInput({
   const showFIR = holePar >= 4;
   const gir = isGIR(score.gross, score.putts, holePar);
   const netScore = score.gross - netStrokes;
+  const [showHighGrid, setShowHighGrid] = useState(false);
+  const penalties = score.penalties ?? { water: 0, ob: 0, lost: 0 };
+
+  const setGross = (val: number) => {
+    onChange({ ...score, gross: val });
+  };
 
   const adjustGross = (delta: number) => {
     const next = Math.max(1, Math.min(15, score.gross + delta));
@@ -301,6 +395,122 @@ function PlayerScoreInput({
   const toggleFIR = () => {
     onChange({ ...score, fir: score.fir === true ? false : true });
   };
+
+  // Feature 2: Penalty adjustment — each penalty auto-adds 1 to gross
+  const adjustPenalty = (type: 'water' | 'ob' | 'lost', delta: number) => {
+    const current = penalties[type];
+    const next = Math.max(0, current + delta);
+    const diff = next - current; // +1 or -1
+    const newPenalties = { ...penalties, [type]: next };
+    onChange({
+      ...score,
+      gross: Math.max(1, score.gross + diff),
+      penalties: newPenalties,
+    });
+  };
+
+  // Feature 7: Score entry grid
+  const gridNumbers = [1, 2, 3, 4, 5, 6, 7];
+
+  if (compact) {
+    // Feature 14: Compact view for 'all' mode
+    return (
+      <View
+        style={[
+          st.playerCardCompact,
+          {
+            backgroundColor: c.cardBg,
+            borderColor: isMe ? c.teal : c.border,
+          },
+          isMe && { borderLeftWidth: 3, borderLeftColor: c.teal },
+        ]}
+      >
+        <View style={st.compactHeader}>
+          <Avatar id={player.id} size={22} name={player.name} />
+          <Text
+            style={[
+              st.compactName,
+              { color: isMe ? c.teal : c.text },
+              isMe && { fontWeight: '700' },
+            ]}
+            numberOfLines={1}
+          >
+            {isMe ? 'You' : player.name.split(' ')[0]}
+          </Text>
+          <Text
+            style={[
+              st.compactRunning,
+              { color: toParColor(runningTotal - runningPar, c), fontFamily: GEO },
+            ]}
+          >
+            {runningTotal > 0 ? formatToPar(runningTotal, runningPar) : '-'}
+          </Text>
+        </View>
+        {/* Compact grid */}
+        <View style={st.compactGrid}>
+          {gridNumbers.map((n) => (
+            <Pressable
+              key={n}
+              onPress={() => setGross(n)}
+              style={[
+                st.compactGridCell,
+                {
+                  backgroundColor: score.gross === n ? c.teal : c.elevated,
+                  borderColor: score.gross === n ? c.teal : c.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  st.compactGridText,
+                  {
+                    color: score.gross === n ? '#fff' : c.text,
+                    fontFamily: GEO,
+                  },
+                ]}
+              >
+                {n}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => { if (score.gross < 8) setGross(8); else adjustGross(1); }}
+            onLongPress={() => adjustGross(-1)}
+            style={[
+              st.compactGridCell,
+              {
+                backgroundColor: score.gross >= 8 ? c.teal : c.elevated,
+                borderColor: score.gross >= 8 ? c.teal : c.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                st.compactGridText,
+                {
+                  color: score.gross >= 8 ? '#fff' : c.text,
+                  fontFamily: GEO,
+                },
+              ]}
+            >
+              {score.gross >= 8 ? score.gross : '8+'}
+            </Text>
+          </Pressable>
+        </View>
+        {/* Compact putts */}
+        <View style={st.compactPuttsRow}>
+          <Text style={[st.compactPuttsLabel, { color: c.textMuted }]}>P:</Text>
+          <Pressable onPress={() => adjustPutts(-1)} hitSlop={6}>
+            <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
+          </Pressable>
+          <Text style={[st.compactPuttsValue, { color: c.text, fontFamily: GEO }]}>{score.putts}</Text>
+          <Pressable onPress={() => adjustPutts(1)} hitSlop={6}>
+            <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -348,45 +558,95 @@ function PlayerScoreInput({
         </View>
       </View>
 
-      {/* Main score input */}
-      <View style={st.scoreInputRow}>
-        <Pressable
-          onPress={() => adjustGross(-1)}
-          style={[st.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
-        >
-          <Ionicons name="remove" size={22} color={c.text} />
-        </Pressable>
-
-        <View style={st.scoreCenterWrap}>
-          <Text
+      {/* Feature 7: Score entry grid */}
+      <View style={st.scoreGridRow}>
+        {gridNumbers.map((n) => (
+          <Pressable
+            key={n}
+            onPress={() => setGross(n)}
             style={[
-              st.scoreNumber,
-              { color: scoreNameColor(score.gross, holePar, c), fontFamily: GEO },
+              st.scoreGridCell,
+              {
+                backgroundColor: score.gross === n ? c.teal : c.elevated,
+                borderColor: score.gross === n ? c.teal : c.border,
+              },
             ]}
           >
-            {score.gross}
-          </Text>
-          {scoreMode === 'net' && netStrokes > 0 && (
-            <Text style={[st.netScore, { color: c.gold, fontFamily: GEO }]}>
-              ({netScore})
+            <Text
+              style={[
+                st.scoreGridText,
+                {
+                  color: score.gross === n ? '#fff' : c.text,
+                  fontFamily: GEO,
+                  fontWeight: score.gross === n ? '700' : '500',
+                },
+              ]}
+            >
+              {n}
             </Text>
-          )}
-          <Text
+          </Pressable>
+        ))}
+        {/* 8+ cell */}
+        {!showHighGrid ? (
+          <Pressable
+            onPress={() => { setGross(8); setShowHighGrid(true); }}
             style={[
-              st.scoreLabelText,
-              { color: scoreNameColor(score.gross, holePar, c) },
+              st.scoreGridCell,
+              {
+                backgroundColor: score.gross >= 8 ? c.teal : c.elevated,
+                borderColor: score.gross >= 8 ? c.teal : c.border,
+              },
             ]}
           >
-            {scoreName(score.gross, holePar)}
-          </Text>
-        </View>
+            <Text
+              style={[
+                st.scoreGridText,
+                {
+                  color: score.gross >= 8 ? '#fff' : c.text,
+                  fontFamily: GEO,
+                  fontWeight: score.gross >= 8 ? '700' : '500',
+                },
+              ]}
+            >
+              {score.gross >= 8 ? score.gross : '8+'}
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={st.highScoreStepper}>
+            <Pressable
+              onPress={() => { const n = Math.max(1, score.gross - 1); setGross(n); if (n < 8) setShowHighGrid(false); }}
+              style={[st.miniBtn, { borderColor: c.border }]}
+            >
+              <Ionicons name="remove" size={14} color={c.textMuted} />
+            </Pressable>
+            <Text style={[st.scoreGridText, { color: c.teal, fontFamily: GEO, fontWeight: '700', minWidth: 24, textAlign: 'center' }]}>
+              {score.gross}
+            </Text>
+            <Pressable
+              onPress={() => adjustGross(1)}
+              style={[st.miniBtn, { borderColor: c.border }]}
+            >
+              <Ionicons name="add" size={14} color={c.textMuted} />
+            </Pressable>
+          </View>
+        )}
+      </View>
 
-        <Pressable
-          onPress={() => adjustGross(1)}
-          style={[st.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+      {/* Score label */}
+      <View style={st.scoreLabelRow}>
+        <Text
+          style={[
+            st.scoreLabelText,
+            { color: scoreNameColor(score.gross, holePar, c) },
+          ]}
         >
-          <Ionicons name="add" size={22} color={c.text} />
-        </Pressable>
+          {scoreName(score.gross, holePar)}
+        </Text>
+        {scoreMode === 'net' && netStrokes > 0 && (
+          <Text style={[st.netScore, { color: c.gold, fontFamily: GEO }]}>
+            Net: {netScore}
+          </Text>
+        )}
       </View>
 
       {/* Secondary inputs: Putts, FIR, GIR */}
@@ -453,6 +713,60 @@ function PlayerScoreInput({
               size={14}
               color={gir ? c.teal : c.textMuted}
             />
+          </View>
+        </View>
+      </View>
+
+      {/* Feature 2: Penalty tracking */}
+      <View style={st.penaltyRow}>
+        {/* Water */}
+        <View style={st.penaltyGroup}>
+          <Ionicons name="water-outline" size={14} color={penalties.water > 0 ? c.urgent : c.textMuted} />
+          <Text style={[st.penaltyLabel, { color: c.textMuted }]}>Water</Text>
+          <View style={st.penaltyControls}>
+            <Pressable onPress={() => adjustPenalty('water', -1)} hitSlop={6}>
+              <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
+            </Pressable>
+            <Text style={[st.penaltyValue, { color: penalties.water > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]}>
+              {penalties.water}
+            </Text>
+            <Pressable onPress={() => adjustPenalty('water', 1)} hitSlop={6}>
+              <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* OB */}
+        <View style={st.penaltyGroup}>
+          <Ionicons name="alert-circle-outline" size={14} color={penalties.ob > 0 ? c.urgent : c.textMuted} />
+          <Text style={[st.penaltyLabel, { color: c.textMuted }]}>OB</Text>
+          <View style={st.penaltyControls}>
+            <Pressable onPress={() => adjustPenalty('ob', -1)} hitSlop={6}>
+              <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
+            </Pressable>
+            <Text style={[st.penaltyValue, { color: penalties.ob > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]}>
+              {penalties.ob}
+            </Text>
+            <Pressable onPress={() => adjustPenalty('ob', 1)} hitSlop={6}>
+              <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Lost Ball */}
+        <View style={st.penaltyGroup}>
+          <Ionicons name="help-circle-outline" size={14} color={penalties.lost > 0 ? c.urgent : c.textMuted} />
+          <Text style={[st.penaltyLabel, { color: c.textMuted }]}>Lost</Text>
+          <View style={st.penaltyControls}>
+            <Pressable onPress={() => adjustPenalty('lost', -1)} hitSlop={6}>
+              <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
+            </Pressable>
+            <Text style={[st.penaltyValue, { color: penalties.lost > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]}>
+              {penalties.lost}
+            </Text>
+            <Pressable onPress={() => adjustPenalty('lost', 1)} hitSlop={6}>
+              <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
+            </Pressable>
           </View>
         </View>
       </View>
@@ -1192,6 +1506,192 @@ function buildGenericResult(label: string, players: PlayerConfig[]): GameResult 
   };
 }
 
+// ─── Feature 5: Settlement Section ────────────────────────────────────
+function SettlementSection({
+  sideGameKeys,
+  players,
+  holes,
+  allScores,
+}: {
+  sideGameKeys: string[];
+  players: PlayerConfig[];
+  holes: HoleData[];
+  allScores: Map<number, Map<string, HoleScore>>;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  // Calculate payouts per side game
+  const payouts = new Map<string, number>(); // playerId -> net amount
+  players.forEach((p) => payouts.set(p.id, 0));
+
+  sideGameKeys.forEach((key) => {
+    if (key === 'nassau') {
+      // $5 per bet: front, back, overall
+      const front = holes.filter((h) => h.number <= 9);
+      const back = holes.filter((h) => h.number > 9);
+      const segments = [front, back, holes];
+      segments.forEach((seg) => {
+        if (seg.length === 0) return;
+        let best = Infinity;
+        let winner = '';
+        players.forEach((p) => {
+          let total = 0;
+          seg.forEach((h) => {
+            const s = allScores.get(h.number)?.get(p.id);
+            if (s) total += s.gross;
+          });
+          if (total > 0 && total < best) { best = total; winner = p.id; }
+        });
+        if (winner) {
+          players.forEach((p) => {
+            if (p.id !== winner) {
+              payouts.set(p.id, (payouts.get(p.id) ?? 0) - 5);
+              payouts.set(winner, (payouts.get(winner) ?? 0) + 5);
+            }
+          });
+        }
+      });
+    }
+
+    if (key === 'skins') {
+      // $2 per skin
+      const skinWins = new Map<string, number>();
+      players.forEach((p) => skinWins.set(p.id, 0));
+      let carryover = 0;
+      holes.forEach((h) => {
+        const holeScores = allScores.get(h.number);
+        if (!holeScores || holeScores.size < players.length) { carryover++; return; }
+        let best = Infinity;
+        let winners: string[] = [];
+        holeScores.forEach((s, pid) => {
+          if (s.gross < best) { best = s.gross; winners = [pid]; }
+          else if (s.gross === best) winners.push(pid);
+        });
+        if (winners.length === 1) {
+          skinWins.set(winners[0], (skinWins.get(winners[0]) ?? 0) + 1 + carryover);
+          carryover = 0;
+        } else { carryover++; }
+      });
+      skinWins.forEach((count, pid) => {
+        const winnings = count * 2;
+        payouts.set(pid, (payouts.get(pid) ?? 0) + winnings);
+        // Distribute losses equally among others
+        const perLoser = winnings / (players.length - 1);
+        players.forEach((p) => {
+          if (p.id !== pid) payouts.set(p.id, (payouts.get(p.id) ?? 0) - perLoser);
+        });
+      });
+    }
+
+    if (key === 'dots') {
+      // $1 per dot difference
+      const dots = new Map<string, number>();
+      players.forEach((p) => dots.set(p.id, 0));
+      holes.forEach((h) => {
+        const holeScores = allScores.get(h.number);
+        if (!holeScores) return;
+        holeScores.forEach((s, pid) => {
+          const diff = s.gross - h.par;
+          let pts = 0;
+          if (diff <= -2) pts = 2;
+          else if (diff === -1) pts = 1;
+          else if (diff >= 2) pts = -1;
+          dots.set(pid, (dots.get(pid) ?? 0) + pts);
+        });
+      });
+      // Each pair settles dot difference at $1
+      for (let i = 0; i < players.length; i++) {
+        for (let j = i + 1; j < players.length; j++) {
+          const diff = (dots.get(players[i].id) ?? 0) - (dots.get(players[j].id) ?? 0);
+          payouts.set(players[i].id, (payouts.get(players[i].id) ?? 0) + diff);
+          payouts.set(players[j].id, (payouts.get(players[j].id) ?? 0) - diff);
+        }
+      }
+    }
+
+    if (key === 'snake') {
+      // $5 penalty for last holder
+      let holder: string | null = null;
+      holes.forEach((h) => {
+        const holeScores = allScores.get(h.number);
+        if (!holeScores) return;
+        holeScores.forEach((s, pid) => {
+          if (s.putts >= 3) holder = pid;
+        });
+      });
+      if (holder) {
+        payouts.set(holder, (payouts.get(holder) ?? 0) - 5 * (players.length - 1));
+        players.forEach((p) => {
+          if (p.id !== holder) payouts.set(p.id, (payouts.get(p.id) ?? 0) + 5);
+        });
+      }
+    }
+  });
+
+  // Build "who owes whom" pairs
+  const settlements: { from: string; to: string; amount: number }[] = [];
+  const balances = new Map(payouts);
+  const sortedPlayers = [...players].sort((a, b) => (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0));
+
+  let i = 0;
+  let j = sortedPlayers.length - 1;
+  while (i < j) {
+    const debtor = sortedPlayers[i];
+    const creditor = sortedPlayers[j];
+    const debtorBal = balances.get(debtor.id) ?? 0;
+    const creditorBal = balances.get(creditor.id) ?? 0;
+    if (debtorBal >= 0 || creditorBal <= 0) break;
+    const amount = Math.min(-debtorBal, creditorBal);
+    if (amount > 0.01) {
+      settlements.push({ from: debtor.id, to: creditor.id, amount: Math.round(amount * 100) / 100 });
+    }
+    balances.set(debtor.id, debtorBal + amount);
+    balances.set(creditor.id, creditorBal - amount);
+    if (Math.abs(balances.get(debtor.id) ?? 0) < 0.01) i++;
+    if (Math.abs(balances.get(creditor.id) ?? 0) < 0.01) j--;
+  }
+
+  return (
+    <View style={ps.settlementSection}>
+      <Text style={[ps.sectionTitle, { color: c.gold, fontFamily: GEO }]}>SETTLEMENT</Text>
+      <View style={[ps.settlementCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        {settlements.length === 0 ? (
+          <Text style={[ps.settlementEmpty, { color: c.textMuted }]}>No payouts to settle</Text>
+        ) : (
+          <>
+            <Text style={[ps.settlementSubtitle, { color: c.textMuted }]}>WHO OWES WHOM</Text>
+            {settlements.map((s, idx) => {
+              const fromP = players.find((p) => p.id === s.from);
+              const toP = players.find((p) => p.id === s.to);
+              return (
+                <View key={idx} style={[ps.settlementRow, { borderColor: c.border }]}>
+                  <Text style={[ps.settlementName, { color: c.urgent }]}>
+                    {pName(fromP!)}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={14} color={c.textMuted} />
+                  <Text style={[ps.settlementName, { color: c.teal }]}>
+                    {pName(toP!)}
+                  </Text>
+                  <Text style={[ps.settlementAmount, { color: c.gold, fontFamily: GEO }]}>
+                    ${s.amount.toFixed(0)}
+                  </Text>
+                </View>
+              );
+            })}
+          </>
+        )}
+        <Pressable
+          onPress={() => Alert.alert('Settle Up', 'Venmo / Cash settlement will be tracked here in production.')}
+          style={[ps.settleUpBtn, { backgroundColor: c.teal }]}
+        >
+          <Text style={ps.settleUpBtnText}>Settle Up</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 // ─── Share card ───────────────────────────────────────────────────────
 function ShareCard({
   courseName,
@@ -1373,6 +1873,16 @@ function PostRoundSummary({
             />
           )}
 
+          {/* Feature 5: Settlement / Payout Calculator */}
+          {sideGameKeys.length > 0 && (
+            <SettlementSection
+              sideGameKeys={sideGameKeys}
+              players={players}
+              holes={holes}
+              allScores={allScores}
+            />
+          )}
+
           {/* Share card */}
           <ShareCard
             courseName={courseName}
@@ -1413,6 +1923,187 @@ function MiniStat({
   );
 }
 
+// ─── Feature 13: Running Side Game Panels ─────────────────────────────
+function RunningSkinsPanel({
+  players, holes, allScores, currentHoleNumber,
+}: {
+  players: PlayerConfig[];
+  holes: HoleData[];
+  allScores: Map<number, Map<string, HoleScore>>;
+  currentHoleNumber: number;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const skinWins = new Map<string, number>();
+  players.forEach((p) => skinWins.set(p.id, 0));
+  let carryover = 0;
+
+  holes.forEach((h) => {
+    if (h.number > currentHoleNumber) return;
+    const holeScores = allScores.get(h.number);
+    if (!holeScores || holeScores.size < players.length) { carryover++; return; }
+    let best = Infinity;
+    let winners: string[] = [];
+    holeScores.forEach((s, pid) => {
+      if (s.gross < best) { best = s.gross; winners = [pid]; }
+      else if (s.gross === best) winners.push(pid);
+    });
+    if (winners.length === 1) {
+      skinWins.set(winners[0], (skinWins.get(winners[0]) ?? 0) + 1 + carryover);
+      carryover = 0;
+    } else { carryover++; }
+  });
+
+  return (
+    <View style={st.runningGameSection}>
+      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>SKINS</Text>
+      {players.map((p) => (
+        <View key={p.id} style={st.runningGameRow}>
+          <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+            {p.id === '1' ? 'You' : p.name.split(' ')[0]}
+          </Text>
+          <Text style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
+            {skinWins.get(p.id) ?? 0} skins
+          </Text>
+        </View>
+      ))}
+      {carryover > 0 && (
+        <Text style={[st.runningGameNote, { color: c.textMuted }]}>
+          {carryover} carried over
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function RunningDotsPanel({
+  players, holes, allScores,
+}: {
+  players: PlayerConfig[];
+  holes: HoleData[];
+  allScores: Map<number, Map<string, HoleScore>>;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const dots = new Map<string, number>();
+  players.forEach((p) => dots.set(p.id, 0));
+
+  holes.forEach((h) => {
+    const holeScores = allScores.get(h.number);
+    if (!holeScores) return;
+    holeScores.forEach((s, pid) => {
+      const diff = s.gross - h.par;
+      let pts = 0;
+      if (diff <= -2) pts = 2;
+      else if (diff === -1) pts = 1;
+      else if (diff >= 2) pts = -1;
+      dots.set(pid, (dots.get(pid) ?? 0) + pts);
+    });
+  });
+
+  return (
+    <View style={st.runningGameSection}>
+      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>DOTS</Text>
+      {players.map((p) => {
+        const val = dots.get(p.id) ?? 0;
+        return (
+          <View key={p.id} style={st.runningGameRow}>
+            <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+              {p.id === '1' ? 'You' : p.name.split(' ')[0]}
+            </Text>
+            <Text style={[st.runningGameValue, { color: val >= 0 ? c.teal : c.urgent, fontFamily: GEO }]}>
+              {val >= 0 ? '+' : ''}{val}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function RunningNassauPanel({
+  players, holes, allScores,
+}: {
+  players: PlayerConfig[];
+  holes: HoleData[];
+  allScores: Map<number, Map<string, HoleScore>>;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  function segmentLeader(segHoles: HoleData[]): string {
+    let best = Infinity;
+    let leader = '';
+    players.forEach((p) => {
+      let total = 0;
+      segHoles.forEach((h) => {
+        const s = allScores.get(h.number)?.get(p.id);
+        if (s) total += s.gross;
+      });
+      if (total > 0 && total < best) { best = total; leader = p.id; }
+    });
+    const lp = players.find((p) => p.id === leader);
+    return lp ? pName(lp) : 'Tied';
+  }
+
+  const front = holes.filter((h) => h.number <= 9);
+  const back = holes.filter((h) => h.number > 9);
+
+  return (
+    <View style={st.runningGameSection}>
+      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>NASSAU</Text>
+      {front.length > 0 && (
+        <View style={st.runningGameRow}>
+          <Text style={[st.runningGameName, { color: c.textMuted }]}>Front 9</Text>
+          <Text style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(front)}</Text>
+        </View>
+      )}
+      {back.length > 0 && (
+        <View style={st.runningGameRow}>
+          <Text style={[st.runningGameName, { color: c.textMuted }]}>Back 9</Text>
+          <Text style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(back)}</Text>
+        </View>
+      )}
+      <View style={st.runningGameRow}>
+        <Text style={[st.runningGameName, { color: c.textMuted }]}>Overall</Text>
+        <Text style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(holes)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function RunningSnakePanel({
+  players, holes, allScores,
+}: {
+  players: PlayerConfig[];
+  holes: HoleData[];
+  allScores: Map<number, Map<string, HoleScore>>;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  let holder: string | null = null;
+  holes.forEach((h) => {
+    const holeScores = allScores.get(h.number);
+    if (!holeScores) return;
+    holeScores.forEach((s, pid) => {
+      if (s.putts >= 3) holder = pid;
+    });
+  });
+  const holderPlayer = holder ? players.find((p) => p.id === holder) : null;
+
+  return (
+    <View style={st.runningGameSection}>
+      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>SNAKE</Text>
+      <View style={st.runningGameRow}>
+        <Text style={[st.runningGameName, { color: c.textMuted }]}>Current holder</Text>
+        <Text style={[st.runningGameValue, { color: holder ? c.urgent : c.teal }]}>
+          {holderPlayer ? pName(holderPlayer) : 'Nobody'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────
 export default function ScoringScreen() {
   const { theme } = useTheme();
@@ -1430,6 +2121,11 @@ export default function ScoringScreen() {
     scoreMode: string;
     sideGames: string;
     courseId: string;
+    // Feature 24: Season params
+    seasonName: string;
+    seasonWeek: string;
+    seasonFormat: string;
+    seasonMultiplier: string;
   }>();
 
   const courseName = params.courseName ?? 'Course';
@@ -1443,6 +2139,12 @@ export default function ScoringScreen() {
   const sideGameKeys: string[] = useMemo(() => {
     try { return JSON.parse(params.sideGames ?? '[]'); } catch { return []; }
   }, [params.sideGames]);
+
+  // Feature 24: Season params
+  const seasonName = params.seasonName ?? '';
+  const seasonWeek = params.seasonWeek ?? '';
+  const seasonFormat = params.seasonFormat ?? '';
+  const seasonMultiplier = Number(params.seasonMultiplier) || 1;
 
   const players: PlayerConfig[] = useMemo(() => {
     try {
@@ -1477,6 +2179,48 @@ export default function ScoringScreen() {
   const [currentHoleIdx, setCurrentHoleIdx] = useState(0);
   const [allScores, setAllScores] = useState<Map<number, Map<string, HoleScore>>>(new Map());
   const [showSummary, setShowSummary] = useState(false);
+
+  // Feature 1: Hammer game
+  const [hammerState, setHammerState] = useState<HammerState>({
+    active: false, thrower: '', target: '', multiplier: 2, pending: false,
+  });
+  const [showHammerModal, setShowHammerModal] = useState(false);
+  const [hammerResults, setHammerResults] = useState<Map<number, HammerResult>>(new Map());
+
+  // Feature 3: Putt distance prompt
+  const [puttDistPrompt, setPuttDistPrompt] = useState<{ show: boolean; playerIdx: number; holeNumber: number }>({ show: false, playerIdx: 0, holeNumber: 1 });
+  const [puttDist, setPuttDist] = useState<Map<number, Map<string, string>>>(new Map());
+
+  // Feature 4: Best Ball 2v2
+  const isBestBall = formatLabel.toLowerCase().includes('best ball') && players.length === 4;
+  const [bestBallTeams, setBestBallTeams] = useState<{ team1: string[]; team2: string[] }>({
+    team1: players.length >= 4 ? [players[0].id, players[1].id] : [],
+    team2: players.length >= 4 ? [players[2].id, players[3].id] : [],
+  });
+  const [showBestBallSetup, setShowBestBallSetup] = useState(isBestBall);
+
+  // Feature 6: Hole notes
+  const [holeNotes, setHoleNotes] = useState<Map<number, string>>(new Map());
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteText, setNoteText] = useState('');
+
+  // Feature 10: Scorecard confirmation
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
+  // Feature 11: Pinned floating scoreboard
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  // Feature 12: Live feed
+  const [scoringEvents, setScoringEvents] = useState<ScoringEvent[]>([]);
+  const [showFeed, setShowFeed] = useState(false);
+  const [lastReadEventCount, setLastReadEventCount] = useState(0);
+
+  // Feature 13: Side game running panel
+  const [showRunningPanel, setShowRunningPanel] = useState(false);
+
+  // Feature 14: Scoring view mode toggle
+  const [viewMode, setViewMode] = useState<'solo' | 'all'>('all');
+  const [soloPlayerIdx, setSoloPlayerIdx] = useState(0);
 
   const currentHole = holes[currentHoleIdx];
 
@@ -1542,6 +2286,32 @@ export default function ScoringScreen() {
 
   const isLastHole = currentHoleIdx === holes.length - 1;
 
+  // Feature 12: Generate scoring events when scores are entered
+  const generateEvents = useCallback((holeNumber: number) => {
+    const newEvents: ScoringEvent[] = [];
+    const holeData = holes.find((h) => h.number === holeNumber);
+    if (!holeData) return;
+    const holeScores = allScores.get(holeNumber);
+    if (!holeScores) return;
+
+    holeScores.forEach((s, pid) => {
+      const player = players.find((p) => p.id === pid);
+      if (!player) return;
+      const name = player.id === '1' ? 'You' : player.name.split(' ')[0];
+      const diff = s.gross - holeData.par;
+
+      if (diff <= -2) newEvents.push({ text: `${name} eagled Hole ${holeNumber}!`, time: new Date() });
+      else if (diff === -1) newEvents.push({ text: `${name} birdied Hole ${holeNumber}`, time: new Date() });
+      else if (diff >= 2) newEvents.push({ text: `${name} made ${scoreName(s.gross, holeData.par)} on Hole ${holeNumber}`, time: new Date() });
+      if (s.putts >= 3) newEvents.push({ text: `${name} 3-putted Hole ${holeNumber}`, time: new Date() });
+      if (s.putts === 0) newEvents.push({ text: `${name} chipped in on Hole ${holeNumber}!`, time: new Date() });
+    });
+
+    if (newEvents.length > 0) {
+      setScoringEvents((prev) => [...newEvents, ...prev]);
+    }
+  }, [allScores, holes, players]);
+
   const handleNext = () => {
     // Auto-save current hole scores if not yet saved
     players.forEach((p) => {
@@ -1549,8 +2319,46 @@ export default function ScoringScreen() {
         updatePlayerScore(p.id, getPlayerScore(p.id));
       }
     });
-    if (currentHoleIdx < holes.length - 1) {
+
+    // Feature 12: Generate events
+    generateEvents(currentHole.number);
+
+    // Feature 3: Check if putt distance prompt needed
+    const playersWithPutts = players.filter((p) => {
+      const s = getPlayerScore(p.id);
+      return s.putts > 0;
+    });
+
+    if (playersWithPutts.length > 0 && currentHoleIdx < holes.length - 1) {
+      setPuttDistPrompt({ show: true, playerIdx: 0, holeNumber: currentHole.number });
+    } else if (currentHoleIdx < holes.length - 1) {
       setCurrentHoleIdx(currentHoleIdx + 1);
+    }
+  };
+
+  const handlePuttDistSelect = (bucket: string) => {
+    const playersWithPutts = players.filter((p) => {
+      const s = getPlayerScore(p.id);
+      return s.putts > 0;
+    });
+    const currentPlayer = playersWithPutts[puttDistPrompt.playerIdx];
+    if (currentPlayer) {
+      setPuttDist((prev) => {
+        const next = new Map(prev);
+        const holeMap = new Map(next.get(puttDistPrompt.holeNumber) ?? new Map());
+        holeMap.set(currentPlayer.id, bucket);
+        next.set(puttDistPrompt.holeNumber, holeMap);
+        return next;
+      });
+    }
+    // Move to next player or close
+    if (puttDistPrompt.playerIdx < playersWithPutts.length - 1) {
+      setPuttDistPrompt((prev) => ({ ...prev, playerIdx: prev.playerIdx + 1 }));
+    } else {
+      setPuttDistPrompt({ show: false, playerIdx: 0, holeNumber: 1 });
+      if (currentHoleIdx < holes.length - 1) {
+        setCurrentHoleIdx(currentHoleIdx + 1);
+      }
     }
   };
 
@@ -1567,8 +2375,173 @@ export default function ScoringScreen() {
         updatePlayerScore(p.id, getPlayerScore(p.id));
       }
     });
-    setShowSummary(true);
+    generateEvents(currentHole.number);
+    // Feature 10: Show confirmation first
+    setShowConfirmation(true);
   };
+
+  // Feature 4: Best Ball team scores
+  const bestBallTeamScores = useMemo(() => {
+    if (!isBestBall) return { team1: 0, team2: 0, team1Par: 0, team2Par: 0 };
+    let t1 = 0, t2 = 0, par1 = 0, par2 = 0;
+    holes.forEach((h) => {
+      const holeScores = allScores.get(h.number);
+      if (!holeScores) return;
+      let best1 = Infinity, best2 = Infinity;
+      bestBallTeams.team1.forEach((pid) => {
+        const s = holeScores.get(pid);
+        if (s && s.gross < best1) best1 = s.gross;
+      });
+      bestBallTeams.team2.forEach((pid) => {
+        const s = holeScores.get(pid);
+        if (s && s.gross < best2) best2 = s.gross;
+      });
+      if (best1 < Infinity) { t1 += best1; par1 += h.par; }
+      if (best2 < Infinity) { t2 += best2; par2 += h.par; }
+    });
+    return { team1: t1, team2: t2, team1Par: par1, team2Par: par2 };
+  }, [allScores, holes, bestBallTeams, isBestBall]);
+
+  // Feature 11: Leaderboard data
+  const leaderboardData = useMemo(() => {
+    return players.map((p) => {
+      const running = getRunningTotal(p.id);
+      return { player: p, total: running.total, par: running.par, count: running.count };
+    }).sort((a, b) => {
+      if (a.total === 0 && b.total === 0) return 0;
+      if (a.total === 0) return 1;
+      if (b.total === 0) return -1;
+      return (a.total - a.par) - (b.total - b.par);
+    });
+  }, [players, getRunningTotal]);
+
+  // Feature 10: Scorecard Confirmation
+  if (showConfirmation) {
+    const totalPar = holes.reduce((a, h) => a + h.par, 0);
+    const front = holes.filter((h) => h.number <= 9);
+    const back = holes.filter((h) => h.number > 9);
+
+    return (
+      <View style={[st.screen, { backgroundColor: c.bg }]}>
+        <LinearGradient colors={['#1E4D2B', '#2D6A3F']} style={st.confirmHeader}>
+          <View style={st.headerOverlay} />
+          <Text style={[st.confirmTitle, { fontFamily: GEO }]}>CONFIRM SCORECARD</Text>
+          <Text style={st.confirmSub}>Review all scores before saving</Text>
+        </LinearGradient>
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator>
+            <View>
+              {/* Header row */}
+              <View style={[ps.scRow, { backgroundColor: '#1E4D2B' }]}>
+                <Text style={[ps.scCellHole, ps.scHeaderText]}>HOLE</Text>
+                {holes.map((h) => (
+                  <Text key={h.number} style={[ps.scCell, ps.scHeaderText]}>{h.number}</Text>
+                ))}
+                <Text style={[ps.scCellTotal, ps.scHeaderText]}>TOT</Text>
+              </View>
+              {/* Par row */}
+              <View style={[ps.scRow, { backgroundColor: c.elevated }]}>
+                <Text style={[ps.scCellHole, ps.scParText, { color: c.textMuted }]}>Par</Text>
+                {holes.map((h) => (
+                  <Text key={h.number} style={[ps.scCell, ps.scParText, { color: c.textMuted }]}>{h.par}</Text>
+                ))}
+                <Text style={[ps.scCellTotal, ps.scParText, { color: c.textMuted }]}>{totalPar}</Text>
+              </View>
+              {/* Player rows */}
+              {players.map((p, pi) => {
+                const isMe = p.id === '1';
+                let totalGross = 0;
+                return (
+                  <View key={p.id} style={[ps.scRow, { backgroundColor: isMe ? `${c.teal}08` : pi % 2 === 0 ? c.cardBg : c.surface }]}>
+                    <Text style={[ps.scCellHole, ps.scPlayerLabel, { color: isMe ? c.teal : c.text }]} numberOfLines={1}>
+                      {isMe ? 'You' : p.name.split(' ')[0]}
+                    </Text>
+                    {holes.map((h) => {
+                      const s = allScores.get(h.number)?.get(p.id);
+                      if (!s) return <Text key={h.number} style={[ps.scCell, { color: c.textMuted }]}>-</Text>;
+                      totalGross += s.gross;
+                      return (
+                        <Pressable
+                          key={h.number}
+                          onPress={() => {
+                            setShowConfirmation(false);
+                            setCurrentHoleIdx(holes.findIndex((hole) => hole.number === h.number));
+                          }}
+                        >
+                          <Text style={[
+                            ps.scCell,
+                            { color: scoreNameColor(s.gross, h.par, c), fontFamily: GEO },
+                          ]}>
+                            {s.gross}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                    <Text style={[ps.scCellTotal, ps.scTotalText, { color: c.text, fontFamily: GEO }]}>
+                      {totalGross || '-'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* Front/Back totals */}
+          {front.length > 0 && back.length > 0 && (
+            <View style={[st.confirmTotalsRow, { borderColor: c.border }]}>
+              {players.map((p) => {
+                const isMe = p.id === '1';
+                let frontTotal = 0, backTotal = 0, grandTotal = 0;
+                front.forEach((h) => { const s = allScores.get(h.number)?.get(p.id); if (s) frontTotal += s.gross; });
+                back.forEach((h) => { const s = allScores.get(h.number)?.get(p.id); if (s) backTotal += s.gross; });
+                grandTotal = frontTotal + backTotal;
+                return (
+                  <View key={p.id} style={[st.confirmPlayerTotals, { borderColor: c.border }]}>
+                    <Text style={[st.confirmPlayerName, { color: isMe ? c.teal : c.text }]}>
+                      {isMe ? 'You' : p.name.split(' ')[0]}
+                    </Text>
+                    <View style={st.confirmNineTotals}>
+                      <View style={st.confirmNineItem}>
+                        <Text style={[st.confirmNineLabel, { color: c.textMuted }]}>OUT</Text>
+                        <Text style={[st.confirmNineValue, { color: c.text, fontFamily: GEO }]}>{frontTotal || '-'}</Text>
+                      </View>
+                      <View style={st.confirmNineItem}>
+                        <Text style={[st.confirmNineLabel, { color: c.textMuted }]}>IN</Text>
+                        <Text style={[st.confirmNineValue, { color: c.text, fontFamily: GEO }]}>{backTotal || '-'}</Text>
+                      </View>
+                      <View style={st.confirmNineItem}>
+                        <Text style={[st.confirmNineLabel, { color: c.gold }]}>TOT</Text>
+                        <Text style={[st.confirmNineValue, { color: toParColor(grandTotal - totalPar, c), fontFamily: GEO, fontWeight: '700' }]}>
+                          {grandTotal || '-'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+            <Pressable
+              onPress={() => setShowConfirmation(false)}
+              style={[st.navBtn, { backgroundColor: c.elevated, borderColor: c.border, flex: 1 }]}
+            >
+              <Ionicons name="chevron-back" size={18} color={c.text} />
+              <Text style={[st.navBtnText, { color: c.text }]}>Edit Scores</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { setShowConfirmation(false); setShowSummary(true); }}
+              style={[st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B', flex: 1 }]}
+            >
+              <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Save Round</Text>
+              <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   if (showSummary) {
     return (
@@ -1627,6 +2600,12 @@ export default function ScoringScreen() {
     );
   }
 
+  // Feature 12: Unread feed count
+  const unreadFeedCount = scoringEvents.length - lastReadEventCount;
+
+  // Feature 14: Players to show based on view mode
+  const visiblePlayers = viewMode === 'solo' ? [players[soloPlayerIdx]] : players;
+
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
       <ScoringHeader
@@ -1636,6 +2615,11 @@ export default function ScoringScreen() {
         format={formatLabel}
         totalHoles={holes.length}
         holesScored={holesScored}
+        onLeaderboard={() => setShowLeaderboard(true)}
+        onFeed={() => { setShowFeed(!showFeed); setLastReadEventCount(scoringEvents.length); }}
+        unreadFeedCount={unreadFeedCount > 0 ? unreadFeedCount : 0}
+        viewMode={viewMode}
+        onToggleViewMode={() => setViewMode(viewMode === 'solo' ? 'all' : 'solo')}
       />
 
       <HoleStrip
@@ -1643,53 +2627,449 @@ export default function ScoringScreen() {
         currentIdx={currentHoleIdx}
         scores={allScores}
         onSelect={setCurrentHoleIdx}
+        holeNotes={holeNotes}
       />
 
-      <ScrollView
-        bounces={false}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={st.scoringBody}
-      >
-        {/* Player score inputs */}
-        {players.map((p) => {
-          const running = getRunningTotal(p.id);
-          const netStrokes = handicapStrokes.get(p.id)?.get(currentHole.number) ?? 0;
-          return (
-            <PlayerScoreInput
-              key={p.id}
-              player={p}
+      {/* Feature 24: Season Round Link Banner */}
+      {seasonName.length > 0 && (
+        <View style={st.seasonBanner}>
+          <View style={st.seasonBannerContent}>
+            <Text style={[st.seasonBannerName, { fontFamily: GEO }]}>{seasonName}</Text>
+            {seasonWeek.length > 0 && (
+              <Text style={st.seasonBannerWeek}>Week {seasonWeek}</Text>
+            )}
+            {seasonFormat.length > 0 && (
+              <Text style={st.seasonBannerFormat}>{seasonFormat}</Text>
+            )}
+          </View>
+          {seasonMultiplier > 1 && (
+            <View style={st.seasonMultiplierBadge}>
+              <Text style={[st.seasonMultiplierText, { fontFamily: GEO }]}>{seasonMultiplier}X</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Feature 4: Best Ball Team Banner */}
+      {isBestBall && !showBestBallSetup && (
+        <View style={[st.bestBallBanner, { backgroundColor: c.elevated, borderColor: c.border }]}>
+          <View style={st.bestBallTeam}>
+            <Text style={[st.bestBallTeamLabel, { color: c.teal }]}>Team 1</Text>
+            <Text style={[st.bestBallTeamScore, { color: toParColor(bestBallTeamScores.team1 - bestBallTeamScores.team1Par, c), fontFamily: GEO }]}>
+              {bestBallTeamScores.team1 > 0 ? formatToPar(bestBallTeamScores.team1, bestBallTeamScores.team1Par) : '-'}
+            </Text>
+          </View>
+          <Text style={[st.bestBallVs, { color: c.textMuted }]}>vs</Text>
+          <View style={st.bestBallTeam}>
+            <Text style={[st.bestBallTeamLabel, { color: c.gold }]}>Team 2</Text>
+            <Text style={[st.bestBallTeamScore, { color: toParColor(bestBallTeamScores.team2 - bestBallTeamScores.team2Par, c), fontFamily: GEO }]}>
+              {bestBallTeamScores.team2 > 0 ? formatToPar(bestBallTeamScores.team2, bestBallTeamScores.team2Par) : '-'}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Feature 12: Live Feed */}
+      {showFeed ? (
+        <ScrollView
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={st.feedContainer}
+        >
+          <Text style={[st.feedTitle, { color: c.gold, fontFamily: GEO }]}>LIVE FEED</Text>
+          {scoringEvents.length === 0 ? (
+            <Text style={[st.feedEmpty, { color: c.textMuted }]}>No events yet — start scoring!</Text>
+          ) : (
+            scoringEvents.slice(0, 10).map((ev, i) => (
+              <View key={i} style={[st.feedItem, { borderColor: c.border }]}>
+                <Ionicons name="golf-outline" size={14} color={c.teal} />
+                <Text style={[st.feedItemText, { color: c.text }]}>{ev.text}</Text>
+                <Text style={[st.feedItemTime, { color: c.textMuted }]}>
+                  {ev.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={st.scoringBody}
+        >
+          {/* Feature 6: Hole notes button */}
+          <View style={st.holeToolsRow}>
+            <Pressable
+              onPress={() => {
+                setNoteText(holeNotes.get(currentHole.number) ?? '');
+                setShowNoteModal(true);
+              }}
+              style={[st.holeToolBtn, { borderColor: c.border }]}
+            >
+              <Ionicons
+                name="create-outline"
+                size={16}
+                color={holeNotes.has(currentHole.number) && (holeNotes.get(currentHole.number) ?? '').length > 0 ? c.gold : c.textMuted}
+              />
+              <Text style={[st.holeToolLabel, { color: c.textMuted }]}>Notes</Text>
+            </Pressable>
+          </View>
+
+          {/* Feature 14: Solo mode player navigation */}
+          {viewMode === 'solo' && players.length > 1 && (
+            <View style={st.soloNavRow}>
+              <Pressable
+                onPress={() => setSoloPlayerIdx(Math.max(0, soloPlayerIdx - 1))}
+                disabled={soloPlayerIdx === 0}
+                style={{ opacity: soloPlayerIdx === 0 ? 0.3 : 1 }}
+                hitSlop={12}
+              >
+                <Ionicons name="chevron-back" size={20} color={c.text} />
+              </Pressable>
+              <Text style={[st.soloNavText, { color: c.text }]}>
+                {players[soloPlayerIdx].id === '1' ? 'You' : players[soloPlayerIdx].name} ({soloPlayerIdx + 1}/{players.length})
+              </Text>
+              <Pressable
+                onPress={() => setSoloPlayerIdx(Math.min(players.length - 1, soloPlayerIdx + 1))}
+                disabled={soloPlayerIdx === players.length - 1}
+                style={{ opacity: soloPlayerIdx === players.length - 1 ? 0.3 : 1 }}
+                hitSlop={12}
+              >
+                <Ionicons name="chevron-forward" size={20} color={c.text} />
+              </Pressable>
+            </View>
+          )}
+
+          {/* Player score inputs */}
+          {visiblePlayers.map((p) => {
+            const running = getRunningTotal(p.id);
+            const netStrokes = handicapStrokes.get(p.id)?.get(currentHole.number) ?? 0;
+            return (
+              <PlayerScoreInput
+                key={p.id}
+                player={p}
+                holePar={currentHole.par}
+                score={getPlayerScore(p.id)}
+                runningTotal={running.total}
+                runningPar={running.par}
+                netStrokes={netStrokes}
+                scoreMode={scoreMode}
+                onChange={(s) => updatePlayerScore(p.id, s)}
+                compact={viewMode === 'all' && players.length > 2}
+              />
+            );
+          })}
+
+          {/* Hole result */}
+          {players.length > 1 && (
+            <HoleResultBanner
+              players={players}
+              holeScores={currentHoleScores}
               holePar={currentHole.par}
-              score={getPlayerScore(p.id)}
-              runningTotal={running.total}
-              runningPar={running.par}
-              netStrokes={netStrokes}
-              scoreMode={scoreMode}
-              onChange={(s) => updatePlayerScore(p.id, s)}
             />
-          );
-        })}
+          )}
 
-        {/* Hole result */}
-        {players.length > 1 && (
-          <HoleResultBanner
-            players={players}
-            holeScores={currentHoleScores}
-            holePar={currentHole.par}
+          {/* Feature 1: Hammer button */}
+          {sideGameKeys.includes('hammer') && (
+            <Pressable
+              onPress={() => {
+                if (players.length >= 2) {
+                  setHammerState((prev) => ({
+                    ...prev,
+                    active: true,
+                    thrower: players[0].id,
+                    target: players[1].id,
+                    pending: true,
+                  }));
+                  setShowHammerModal(true);
+                }
+              }}
+              style={[st.hammerBtn, { backgroundColor: c.gold }]}
+            >
+              <Ionicons name="hammer-outline" size={18} color="#1E4D2B" />
+              <Text style={[st.hammerBtnText, { fontFamily: GEO }]}>Throw Hammer</Text>
+              {hammerState.active && hammerState.multiplier > 2 && (
+                <View style={st.hammerMultiplierBadge}>
+                  <Text style={[st.hammerMultiplierText, { fontFamily: GEO }]}>{hammerState.multiplier}x</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+
+          {/* Feature 13: Side Game Running Panel */}
+          {sideGameKeys.length > 0 && (
+            <View style={[st.runningPanelWrap, { borderColor: c.border }]}>
+              <Pressable
+                onPress={() => setShowRunningPanel(!showRunningPanel)}
+                style={[st.runningPanelToggle, { backgroundColor: c.elevated }]}
+              >
+                <Text style={[st.runningPanelToggleText, { color: c.text }]}>
+                  Side Games {showRunningPanel ? '\u25B2' : '\u25BC'}
+                </Text>
+              </Pressable>
+              {showRunningPanel && (
+                <View style={[st.runningPanelContent, { backgroundColor: c.cardBg }]}>
+                  {sideGameKeys.includes('skins') && (
+                    <RunningSkinsPanel players={players} holes={holes} allScores={allScores} currentHoleNumber={currentHole.number} />
+                  )}
+                  {sideGameKeys.includes('dots') && (
+                    <RunningDotsPanel players={players} holes={holes} allScores={allScores} />
+                  )}
+                  {sideGameKeys.includes('nassau') && (
+                    <RunningNassauPanel players={players} holes={holes} allScores={allScores} />
+                  )}
+                  {sideGameKeys.includes('snake') && (
+                    <RunningSnakePanel players={players} holes={holes} allScores={allScores} />
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Nav buttons */}
+          <NavButtons
+            canPrev={currentHoleIdx > 0}
+            canNext={currentHoleIdx < holes.length - 1}
+            isLast={isLastHole}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onFinish={handleFinish}
           />
-        )}
 
-        {/* Nav buttons */}
-        <NavButtons
-          canPrev={currentHoleIdx > 0}
-          canNext={currentHoleIdx < holes.length - 1}
-          isLast={isLastHole}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          onFinish={handleFinish}
-        />
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      )}
 
-        <View style={{ height: 24 }} />
-      </ScrollView>
+      {/* ═══ MODALS ═══ */}
+
+      {/* Feature 1: Hammer Modal */}
+      <Modal visible={showHammerModal} transparent animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.gold }]}>
+            <Text style={[st.modalTitle, { color: c.gold, fontFamily: GEO }]}>HAMMER THROWN!</Text>
+            <Text style={[st.modalText, { color: c.text }]}>
+              {players.find((p) => p.id === hammerState.thrower)?.name ?? 'Player'} doubles the bet
+            </Text>
+            <Text style={[st.hammerMultiplierDisplay, { color: c.gold, fontFamily: GEO }]}>
+              Current: {hammerState.multiplier}x
+            </Text>
+            <View style={st.modalBtnRow}>
+              <Pressable
+                onPress={() => {
+                  // Accept: multiplier doubles, hammer can be re-thrown
+                  setHammerState((prev) => ({
+                    ...prev,
+                    multiplier: Math.min(8, prev.multiplier * 2),
+                    pending: false,
+                  }));
+                  setShowHammerModal(false);
+                }}
+                style={[st.modalBtn, { backgroundColor: c.teal }]}
+              >
+                <Text style={st.modalBtnText}>Accept</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  // Fold: concede hole
+                  setHammerResults((prev) => {
+                    const next = new Map(prev);
+                    next.set(currentHole.number, {
+                      thrower: hammerState.thrower,
+                      target: hammerState.target,
+                      multiplier: hammerState.multiplier,
+                      accepted: false,
+                    });
+                    return next;
+                  });
+                  setHammerState((prev) => ({ ...prev, pending: false }));
+                  setShowHammerModal(false);
+                }}
+                style={[st.modalBtn, { backgroundColor: c.urgent }]}
+              >
+                <Text style={st.modalBtnText}>Fold</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feature 3: Putt Distance Prompt */}
+      <Modal visible={puttDistPrompt.show} transparent animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            {(() => {
+              const playersWithPutts = players.filter((p) => {
+                const s = getPlayerScore(p.id);
+                return s.putts > 0;
+              });
+              const currentPlayer = playersWithPutts[puttDistPrompt.playerIdx];
+              return (
+                <>
+                  <Text style={[st.modalTitle, { color: c.teal, fontFamily: GEO }]}>FIRST PUTT DISTANCE</Text>
+                  <Text style={[st.modalText, { color: c.text }]}>
+                    {currentPlayer ? (currentPlayer.id === '1' ? 'Your' : `${currentPlayer.name.split(' ')[0]}'s`) : ''} first putt on Hole {puttDistPrompt.holeNumber}
+                  </Text>
+                  <View style={st.puttDistGrid}>
+                    {['Inside 5ft', '5-15ft', '15-30ft', 'Outside 30ft'].map((bucket) => (
+                      <Pressable
+                        key={bucket}
+                        onPress={() => handlePuttDistSelect(bucket)}
+                        style={[st.puttDistBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+                      >
+                        <Text style={[st.puttDistBtnText, { color: c.text }]}>{bucket}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feature 4: Best Ball Team Setup Modal */}
+      <Modal visible={showBestBallSetup && isBestBall} transparent animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.teal, width: '90%' }]}>
+            <Text style={[st.modalTitle, { color: c.teal, fontFamily: GEO }]}>BEST BALL TEAMS</Text>
+            <Text style={[st.modalText, { color: c.textMuted }]}>Tap a player to move between teams</Text>
+            <View style={st.bestBallSetupRow}>
+              <View style={st.bestBallColumn}>
+                <Text style={[st.bestBallColumnTitle, { color: c.teal }]}>Team 1</Text>
+                {bestBallTeams.team1.map((pid) => {
+                  const p = players.find((pl) => pl.id === pid);
+                  if (!p) return null;
+                  return (
+                    <Pressable
+                      key={pid}
+                      onPress={() => {
+                        if (bestBallTeams.team1.length <= 1) return;
+                        setBestBallTeams((prev) => ({
+                          team1: prev.team1.filter((id) => id !== pid),
+                          team2: [...prev.team2, pid],
+                        }));
+                      }}
+                      style={[st.bestBallPlayerChip, { backgroundColor: `${c.teal}20`, borderColor: c.teal }]}
+                    >
+                      <Avatar id={p.id} size={22} name={p.name} />
+                      <Text style={[st.bestBallPlayerName, { color: c.text }]}>{p.id === '1' ? 'You' : p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={st.bestBallColumn}>
+                <Text style={[st.bestBallColumnTitle, { color: c.gold }]}>Team 2</Text>
+                {bestBallTeams.team2.map((pid) => {
+                  const p = players.find((pl) => pl.id === pid);
+                  if (!p) return null;
+                  return (
+                    <Pressable
+                      key={pid}
+                      onPress={() => {
+                        if (bestBallTeams.team2.length <= 1) return;
+                        setBestBallTeams((prev) => ({
+                          team1: [...prev.team1, pid],
+                          team2: prev.team2.filter((id) => id !== pid),
+                        }));
+                      }}
+                      style={[st.bestBallPlayerChip, { backgroundColor: `${c.gold}20`, borderColor: c.gold }]}
+                    >
+                      <Avatar id={p.id} size={22} name={p.name} />
+                      <Text style={[st.bestBallPlayerName, { color: c.text }]}>{p.id === '1' ? 'You' : p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            <Pressable
+              onPress={() => setShowBestBallSetup(false)}
+              style={[st.modalBtn, { backgroundColor: c.teal, marginTop: 16, alignSelf: 'center' }]}
+            >
+              <Text style={st.modalBtnText}>Start Round</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feature 6: Hole Notes Modal */}
+      <Modal visible={showNoteModal} transparent animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <Text style={[st.modalTitle, { color: c.gold, fontFamily: GEO }]}>HOLE {currentHole.number} NOTES</Text>
+            <TextInput
+              value={noteText}
+              onChangeText={setNoteText}
+              placeholder="Hit 3-wood off tee, pin was back-left..."
+              placeholderTextColor={c.textMuted}
+              multiline
+              style={[st.noteInput, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
+            />
+            <View style={st.modalBtnRow}>
+              <Pressable
+                onPress={() => setShowNoteModal(false)}
+                style={[st.modalBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }]}
+              >
+                <Text style={[st.modalBtnText, { color: c.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setHoleNotes((prev) => {
+                    const next = new Map(prev);
+                    if (noteText.trim().length > 0) {
+                      next.set(currentHole.number, noteText.trim());
+                    } else {
+                      next.delete(currentHole.number);
+                    }
+                    return next;
+                  });
+                  setShowNoteModal(false);
+                }}
+                style={[st.modalBtn, { backgroundColor: c.teal }]}
+              >
+                <Text style={st.modalBtnText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feature 11: Floating Leaderboard Modal */}
+      <Modal visible={showLeaderboard} transparent animationType="fade">
+        <View style={[st.leaderboardScreen, { backgroundColor: '#1E4D2B' }]}>
+          <View style={st.leaderboardHeader}>
+            <Pressable onPress={() => setShowLeaderboard(false)} hitSlop={12}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={[st.leaderboardTitle, { color: '#D4AF37', fontFamily: GEO }]}>LIVE LEADERBOARD</Text>
+              <Text style={st.leaderboardCourse}>{courseName}</Text>
+            </View>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView bounces={false} contentContainerStyle={{ padding: 16 }}>
+            {leaderboardData.map((row, i) => {
+              const isMe = row.player.id === '1';
+              const diff = row.total - row.par;
+              return (
+                <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(42,157,143,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                  <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
+                  <Avatar id={row.player.id} size={28} name={row.player.name} />
+                  <View style={st.lbNameWrap}>
+                    <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                      {isMe ? 'You' : row.player.name}
+                    </Text>
+                    <Text style={st.lbThru}>thru {row.count}</Text>
+                  </View>
+                  <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
+                  <Text style={[st.lbToPar, { color: diff < 0 ? '#2A9D8F' : diff === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
+                    {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2079,6 +3459,585 @@ const st = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
+
+  /* Header actions (Features 11, 12, 14) */
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerActionBtn: {
+    position: 'relative',
+  },
+  feedBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#C44B4F',
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedBadgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+
+  /* Feature 2: Penalty row */
+  penaltyRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128,128,128,0.15)',
+  },
+  penaltyGroup: {
+    alignItems: 'center',
+    gap: 3,
+  },
+  penaltyLabel: {
+    fontSize: 8,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  penaltyControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  penaltyValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 16,
+    textAlign: 'center',
+  },
+
+  /* Feature 2: Hole chip indicators */
+  holeChipPenaltyDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 5,
+    height: 5,
+    backgroundColor: '#C44B4F',
+  },
+  holeChipNoteDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 5,
+    height: 5,
+  },
+
+  /* Feature 7: Score entry grid */
+  scoreGridRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  scoreGridCell: {
+    width: 38,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  scoreGridText: {
+    fontSize: 18,
+  },
+  highScoreStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  scoreLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+
+  /* Feature 6: Hole tools */
+  holeToolsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  holeToolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+  },
+  holeToolLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+
+  /* Feature 6: Note input */
+  noteInput: {
+    borderWidth: 1,
+    padding: 12,
+    minHeight: 80,
+    fontSize: 14,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+
+  /* Feature 1: Hammer */
+  hammerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  hammerBtnText: {
+    color: '#1E4D2B',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  hammerMultiplierBadge: {
+    backgroundColor: '#1E4D2B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  hammerMultiplierText: {
+    color: '#D4AF37',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  hammerMultiplierDisplay: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginVertical: 8,
+    textAlign: 'center',
+  },
+
+  /* Modals (shared) */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 340,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  modalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  /* Feature 3: Putt distance */
+  puttDistGrid: {
+    gap: 8,
+  },
+  puttDistBtn: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  puttDistBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  /* Feature 4: Best Ball */
+  bestBallBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    gap: 16,
+  },
+  bestBallTeam: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  bestBallTeamLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  bestBallTeamScore: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  bestBallVs: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  bestBallSetupRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 16,
+  },
+  bestBallColumn: {
+    flex: 1,
+    gap: 8,
+  },
+  bestBallColumnTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  bestBallPlayerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderWidth: 1,
+  },
+  bestBallPlayerName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  /* Feature 10: Confirmation */
+  confirmHeader: {
+    paddingTop: STATUS_BAR_H + 8,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  confirmTitle: {
+    color: '#D4AF37',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  confirmSub: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  confirmTotalsRow: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
+  confirmPlayerTotals: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+  },
+  confirmPlayerName: {
+    fontSize: 13,
+    fontWeight: '600',
+    width: 60,
+  },
+  confirmNineTotals: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  confirmNineItem: {
+    alignItems: 'center',
+  },
+  confirmNineLabel: {
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  confirmNineValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  /* Feature 11: Leaderboard */
+  leaderboardScreen: {
+    flex: 1,
+    paddingTop: STATUS_BAR_H,
+  },
+  leaderboardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  leaderboardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  leaderboardCourse: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  lbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  lbPos: {
+    color: '#D4AF37',
+    fontSize: 16,
+    fontWeight: '700',
+    width: 28,
+    textAlign: 'center',
+  },
+  lbNameWrap: {
+    flex: 1,
+  },
+  lbName: {
+    color: '#E8E4DE',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  lbThru: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 10,
+    marginTop: 1,
+  },
+  lbTotal: {
+    color: '#E8E4DE',
+    fontSize: 18,
+    fontWeight: '700',
+    width: 36,
+    textAlign: 'right',
+  },
+  lbToPar: {
+    fontSize: 14,
+    fontWeight: '700',
+    width: 40,
+    textAlign: 'right',
+  },
+
+  /* Feature 12: Live feed */
+  feedContainer: {
+    padding: 16,
+  },
+  feedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  feedEmpty: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 40,
+  },
+  feedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  feedItemText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  feedItemTime: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+
+  /* Feature 13: Running panel */
+  runningPanelWrap: {
+    marginBottom: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  runningPanelToggle: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  runningPanelToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  runningPanelContent: {
+    padding: 12,
+  },
+  runningGameSection: {
+    marginBottom: 10,
+  },
+  runningGameTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  runningGameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  runningGameName: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  runningGameValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  runningGameNote: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+
+  /* Feature 14: Solo mode nav */
+  soloNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 10,
+  },
+  soloNavText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  /* Feature 14: Compact player card */
+  playerCardCompact: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 8,
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  compactName: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  compactRunning: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  compactGrid: {
+    flexDirection: 'row',
+    gap: 3,
+    marginBottom: 4,
+  },
+  compactGridCell: {
+    flex: 1,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  compactGridText: {
+    fontSize: 14,
+  },
+  compactPuttsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  compactPuttsLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  compactPuttsValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 16,
+    textAlign: 'center',
+  },
+
+  /* Feature 24: Season banner */
+  seasonBanner: {
+    backgroundColor: '#D4AF37',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  seasonBannerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  seasonBannerName: {
+    color: '#1E4D2B',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  seasonBannerWeek: {
+    color: '#1E4D2B',
+    fontSize: 10,
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  seasonBannerFormat: {
+    color: '#1E4D2B',
+    fontSize: 10,
+    fontWeight: '500',
+    opacity: 0.7,
+  },
+  seasonMultiplierBadge: {
+    backgroundColor: '#1E4D2B',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  seasonMultiplierText: {
+    color: '#D4AF37',
+    fontSize: 12,
+    fontWeight: '800',
+  },
 });
 
 // ─── Post-round summary styles ────────────────────────────────────────
@@ -2397,5 +4356,52 @@ const ps = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+
+  /* ─── Feature 5: Settlement ──────────────────────────── */
+  settlementSection: {
+    marginTop: 20,
+  },
+  settlementCard: {
+    borderWidth: 1,
+    padding: 14,
+  },
+  settlementSubtitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  settlementEmpty: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  settlementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  settlementName: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  settlementAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  settleUpBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  settleUpBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

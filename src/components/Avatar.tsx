@@ -1,4 +1,5 @@
-import { Text, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Text, StyleSheet, View, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
@@ -39,16 +40,31 @@ type AvatarProps = {
   id: string;
   size?: number;
   name?: string;
+  photoUrl?: string;
 };
 
-export function Avatar({ id, size = 48, name }: AvatarProps) {
+export function Avatar({ id, size = 48, name, photoUrl }: AvatarProps) {
   const { theme } = useTheme();
   const [start, end] = pickGradient(id);
   const initials = getInitials(id, name);
   const fontSize = size * 0.38;
+  const [imageError, setImageError] = useState(false);
+
+  // Show photo if photoUrl is provided and hasn't errored
+  if (photoUrl && !imageError) {
+    return (
+      <View style={{ width: size, height: size, overflow: 'hidden' }}>
+        <Image
+          source={{ uri: photoUrl }}
+          style={{ width: size, height: size }}
+          onError={() => setImageError(true)}
+        />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
+    <View style={{ width: size, height: size, overflow: 'hidden' }}>
       <LinearGradient
         colors={[start, end]}
         start={{ x: 0, y: 0 }}

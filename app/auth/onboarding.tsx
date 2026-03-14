@@ -12,10 +12,12 @@ import {
   Animated,
   Share,
   Alert,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/lib/auth';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
@@ -112,6 +114,7 @@ function YourGameScreen({
   ghinNumber, setGhinNumber,
   homeCourse, setHomeCourse,
   userName,
+  photoUri, setPhotoUri,
 }: {
   avatarMode: AvatarMode; setAvatarMode: (v: AvatarMode) => void;
   avatarTheme: AvatarTheme; setAvatarTheme: (v: AvatarTheme) => void;
@@ -120,10 +123,23 @@ function YourGameScreen({
   ghinNumber: string; setGhinNumber: (v: string) => void;
   homeCourse: string; setHomeCourse: (v: string) => void;
   userName: string;
+  photoUri: string | null; setPhotoUri: (v: string | null) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
+
+  const handlePickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  };
 
   return (
     <ScrollView style={[styles.screenScroll, { backgroundColor: c.bg }]} showsVerticalScrollIndicator={false}>
@@ -133,12 +149,16 @@ function YourGameScreen({
       {/* Avatar picker */}
       <Text style={[styles.fieldLabel, { color: c.text }]}>Avatar</Text>
       <View style={styles.avatarPreview}>
-        <Avatar name={userName} color={themeColor} size={64} />
+        {avatarMode === 'photo' && photoUri ? (
+          <Image source={{ uri: photoUri }} style={{ width: 64, height: 64 }} />
+        ) : (
+          <Avatar name={userName} color={themeColor} size={64} />
+        )}
       </View>
 
       {/* Avatar mode */}
       <View style={styles.avatarModes}>
-        {(['initials', 'theme'] as AvatarMode[]).map((m) => (
+        {(['initials', 'theme', 'photo'] as AvatarMode[]).map((m) => (
           <Pressable
             key={m}
             onPress={() => setAvatarMode(m)}
@@ -148,7 +168,7 @@ function YourGameScreen({
             ]}
           >
             <Text style={[styles.modeBtnText, { color: avatarMode === m ? c.teal : c.textMuted }]}>
-              {m === 'initials' ? 'Initials' : 'Course Theme'}
+              {m === 'initials' ? 'Initials' : m === 'theme' ? 'Course Theme' : 'Upload Photo'}
             </Text>
           </Pressable>
         ))}
@@ -167,6 +187,16 @@ function YourGameScreen({
               ]}
             />
           ))}
+        </View>
+      )}
+
+      {/* Photo picker */}
+      {avatarMode === 'photo' && (
+        <View style={styles.photoPickerWrap}>
+          <Pressable onPress={handlePickPhoto} style={[styles.photoPickerBtn, { backgroundColor: c.teal }]}>
+            <Ionicons name="image-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.photoPickerBtnText}>Choose from Camera Roll</Text>
+          </Pressable>
         </View>
       )}
 
@@ -656,6 +686,7 @@ export default function OnboardingScreen() {
   const [ghinNumber, setGhinNumber] = useState('');
   const [homeCourse, setHomeCourse] = useState('');
   const [notifPref, setNotifPref] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const userName = user?.user_metadata?.name ?? 'Golfer';
   const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
@@ -757,6 +788,7 @@ export default function OnboardingScreen() {
           ghinNumber={ghinNumber} setGhinNumber={setGhinNumber}
           homeCourse={homeCourse} setHomeCourse={setHomeCourse}
           userName={userName}
+          photoUri={photoUri} setPhotoUri={setPhotoUri}
         />
       )}
       {step === 2 && <BuildGroupScreen />}
@@ -821,6 +853,9 @@ const styles = StyleSheet.create({
   modeBtnText: { fontSize: 13, fontWeight: '600' },
   themeColors: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 8 },
   colorCircle: { width: 36, height: 36, borderRadius: 18 },
+  photoPickerWrap: { alignItems: 'center', marginBottom: 12 },
+  photoPickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
+  photoPickerBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 
   // Golfer type
   golferCards: { flexDirection: 'row', gap: 8 },

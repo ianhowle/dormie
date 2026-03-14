@@ -32,6 +32,7 @@ export type SideGame =
   | 'hammer';
 
 export type TrackingLevel = 'basic' | 'standard' | 'detailed';
+export type RoundType = 'casual' | 'competitive' | 'matchup';
 export type HoleRange = 'front9' | 'back9' | 'full18';
 export type ScoreMode = 'gross' | 'net';
 

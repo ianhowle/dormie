@@ -23,6 +23,8 @@ import {
   type SideGame,
   type HoleRange,
   type ScoreMode,
+  type TrackingLevel,
+  type RoundType,
 } from '../../src/data/scoring';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -46,6 +48,15 @@ type Player = {
 const ALL_COURSES = [
   ...PLAYED_SORTED.map((c) => ({ id: c.id, name: c.name, par: c.par, city: c.city, state: c.state })),
   ...MOCK_COMMUNITY_COURSES.map((c) => ({ id: c.id, name: c.name, par: 72, city: c.city, state: c.state })),
+];
+
+// ─── Mock tee boxes ──────────────────────────────────────────────────
+const MOCK_TEE_BOXES = [
+  { name: 'Championship', color: '#1E4D2B', rating: 74.2, slope: 142, yards: 7200 },
+  { name: 'Blue', color: '#1B2A4A', rating: 72.1, slope: 135, yards: 6800 },
+  { name: 'White', color: '#FFFFFF', rating: 70.0, slope: 128, yards: 6400 },
+  { name: 'Gold', color: '#D4AF37', rating: 68.2, slope: 121, yards: 5900 },
+  { name: 'Red', color: '#C44B4F', rating: 66.1, slope: 115, yards: 5400 },
 ];
 
 // ─── Section header ───────────────────────────────────────────────────
@@ -448,9 +459,17 @@ export default function ScoreScreen() {
   const [sideGames, setSideGames] = useState<Set<SideGame>>(new Set());
   const [holeRange, setHoleRange] = useState<HoleRange>('full18');
   const [scoreMode, setScoreMode] = useState<ScoreMode>('gross');
+  const [trackingLevel, setTrackingLevel] = useState<TrackingLevel>('standard');
+  const [scorekeeperMode, setScorekeeperMode] = useState<'scorekeeper' | 'everyone'>('everyone');
+  const [selectedTeeBox, setSelectedTeeBox] = useState(2);
+  const [customLocation, setCustomLocation] = useState('');
+  const [customRating, setCustomRating] = useState('72.0');
+  const [customSlope, setCustomSlope] = useState('113');
+  const [roundType, setRoundType] = useState<RoundType>('casual');
 
   const isCustom = course?.id.startsWith('custom-');
   const effectivePar = isCustom ? customPar : (course?.par ?? 72);
+  const hasManualPlayers = players.some((p) => p.id.startsWith('p-'));
 
   const handleToggleSideGame = (g: SideGame) => {
     setSideGames((prev) => {
@@ -478,21 +497,33 @@ export default function ScoreScreen() {
   const handleStartRound = () => {
     if (!course) return;
     const activeFormat = SCORING_FORMATS.find((f) => f.key === format);
-    // Look up slope/rating from played courses if available
-    const played = PLAYED_SORTED.find((pc) => pc.id === course.id);
+    // Determine slope/rating based on course type
+    let slope: number;
+    let rating: number;
+    if (isCustom) {
+      slope = Number(customSlope) || 113;
+      rating = Number(customRating) || 72.0;
+    } else {
+      const tee = MOCK_TEE_BOXES[selectedTeeBox];
+      slope = tee.slope;
+      rating = tee.rating;
+    }
     router.push({
       pathname: '/scoring',
       params: {
         courseName: course.name,
         courseId: course.id,
         coursePar: String(effectivePar),
-        courseSlope: String(played?.slope ?? 113),
-        courseRating: String(effectivePar), // use par as approx rating if unknown
+        courseSlope: String(slope),
+        courseRating: String(rating),
         players: JSON.stringify(players),
         format: activeFormat?.label ?? 'Total Strokes',
         holeRange,
         scoreMode,
         sideGames: JSON.stringify([...sideGames]),
+        trackingLevel,
+        scorekeeperMode,
+        roundType,
       },
     });
   };
@@ -522,6 +553,83 @@ export default function ScoreScreen() {
             {isCustom && (
               <ParEntry par={customPar} onChange={setCustomPar} />
             )}
+            {/* Tee box selector (non-custom courses) */}
+            {course && !isCustom && (
+              <View style={st.teeBoxSection}>
+                <Text style={[st.teeBoxLabel, { color: c.textMuted }]}>Tee Box</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={st.teeBoxRow}
+                >
+                  {MOCK_TEE_BOXES.map((tee, i) => {
+                    const active = i === selectedTeeBox;
+                    return (
+                      <Pressable
+                        key={tee.name}
+                        onPress={() => setSelectedTeeBox(i)}
+                        style={[
+                          st.teeBoxChip,
+                          {
+                            backgroundColor: active ? `${c.teal}20` : c.elevated,
+                            borderColor: active ? c.teal : c.border,
+                          },
+                        ]}
+                      >
+                        <View style={[st.teeBoxDot, { backgroundColor: tee.color, borderColor: tee.color === '#FFFFFF' ? c.textMuted : tee.color }]} />
+                        <Text style={[st.teeBoxName, { color: active ? c.teal : c.text }]}>
+                          {tee.name}
+                        </Text>
+                        {active && (
+                          <View style={st.teeBoxDetails}>
+                            <Text style={[st.teeBoxStat, { color: c.textMuted, fontFamily: GEO }]}>
+                              {tee.rating} / {tee.slope} · {tee.yards}y
+                            </Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+            {/* Manual course entry (custom courses) */}
+            {isCustom && (
+              <View style={st.customFieldsWrap}>
+                <TextInput
+                  style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated }]}
+                  placeholder="Location / City"
+                  placeholderTextColor={c.textMuted}
+                  value={customLocation}
+                  onChangeText={setCustomLocation}
+                  autoCapitalize="words"
+                />
+                <View style={st.customFieldsRow}>
+                  <View style={st.customFieldHalf}>
+                    <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Rating</Text>
+                    <TextInput
+                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated }]}
+                      placeholder="72.0"
+                      placeholderTextColor={c.textMuted}
+                      value={customRating}
+                      onChangeText={setCustomRating}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <View style={st.customFieldHalf}>
+                    <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Slope</Text>
+                    <TextInput
+                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated }]}
+                      placeholder="113"
+                      placeholderTextColor={c.textMuted}
+                      value={customSlope}
+                      onChangeText={setCustomSlope}
+                      keyboardType="number-pad"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Players */}
             <SectionLabel title="PLAYERS" />
@@ -540,6 +648,37 @@ export default function ScoreScreen() {
             {/* Scoring format */}
             <SectionLabel title="FORMAT" />
             <FormatPicker selected={format} onSelect={setFormat} />
+
+            {/* Round type */}
+            <SectionLabel title="ROUND TYPE" />
+            <View style={st.roundTypeRow}>
+              {([
+                { key: 'casual' as RoundType, label: 'Casual', desc: 'Just for fun', icon: 'beer-outline' as const },
+                { key: 'competitive' as RoundType, label: 'Competitive', desc: 'Counts toward handicap', icon: 'trophy-outline' as const },
+                { key: 'matchup' as RoundType, label: 'Matchup', desc: 'Head-to-head battle', icon: 'people-outline' as const },
+              ]).map((rt) => {
+                const active = roundType === rt.key;
+                return (
+                  <Pressable
+                    key={rt.key}
+                    onPress={() => setRoundType(rt.key)}
+                    style={[
+                      st.roundTypeCard,
+                      {
+                        backgroundColor: active ? `${c.teal}20` : c.elevated,
+                        borderColor: active ? c.teal : c.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons name={rt.icon} size={18} color={active ? c.teal : c.textMuted} />
+                    <Text style={[st.roundTypeLabel, { color: active ? c.teal : c.text }]}>
+                      {rt.label}
+                    </Text>
+                    <Text style={[st.roundTypeDesc, { color: c.textMuted }]}>{rt.desc}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
             {/* Side games */}
             <SectionLabel title="SIDE GAMES" />
@@ -568,16 +707,74 @@ export default function ScoreScreen() {
               onSelect={setScoreMode}
             />
 
+            {/* Tracking level */}
+            <SectionLabel title="TRACKING" />
+            <View style={st.trackingRow}>
+              {([
+                { key: 'basic' as TrackingLevel, label: 'BASIC', desc: 'Score only', icon: 'reader-outline' as const },
+                { key: 'standard' as TrackingLevel, label: 'STANDARD', desc: 'Score + Putts', icon: 'golf-outline' as const },
+                { key: 'detailed' as TrackingLevel, label: 'DETAILED', desc: 'Score + Putts + FIR + GIR + Penalties + Putt Distance', icon: 'analytics-outline' as const },
+              ]).map((tl) => {
+                const active = trackingLevel === tl.key;
+                return (
+                  <Pressable
+                    key={tl.key}
+                    onPress={() => setTrackingLevel(tl.key)}
+                    style={[
+                      st.trackingCard,
+                      {
+                        backgroundColor: active ? `${c.teal}20` : c.elevated,
+                        borderColor: active ? c.teal : c.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons name={tl.icon} size={18} color={active ? c.teal : c.textMuted} />
+                    <Text style={[st.trackingLabel, { color: active ? c.teal : c.text, fontFamily: GEO }]}>
+                      {tl.label}
+                    </Text>
+                    <Text style={[st.trackingDesc, { color: c.textMuted }]} numberOfLines={2}>
+                      {tl.desc}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Scorekeeper mode */}
+            <SectionLabel title="SCOREKEEPER" />
+            <ToggleRow
+              options={[
+                { key: 'everyone' as 'scorekeeper' | 'everyone', label: 'Everyone Scores' },
+                { key: 'scorekeeper' as 'scorekeeper' | 'everyone', label: "I'm Scorekeeper" },
+              ]}
+              selected={scorekeeperMode}
+              onSelect={setScorekeeperMode}
+            />
+            {hasManualPlayers && scorekeeperMode === 'everyone' && (
+              <Text style={[st.scorekeeperWarning, { color: c.urgent }]}>
+                Manual players need scorekeeper mode
+              </Text>
+            )}
+
             {/* Summary line */}
             {course && (
               <View style={[st.summaryRow, { borderColor: c.border }]}>
-                <Text style={[st.summaryText, { color: c.textMuted }]}>
-                  {players.length} player{players.length !== 1 ? 's' : ''} ·{' '}
-                  Par {effectivePar} ·{' '}
-                  {holeRange === 'full18' ? '18 holes' : '9 holes'} ·{' '}
-                  {scoreMode === 'gross' ? 'Gross' : 'Net'}
-                  {sideGames.size > 0 ? ` · ${sideGames.size} side game${sideGames.size !== 1 ? 's' : ''}` : ''}
-                </Text>
+                <View style={st.summaryInner}>
+                  {roundType !== 'casual' && (
+                    <View style={[st.roundTypeBadge, { backgroundColor: roundType === 'competitive' ? `${c.gold}30` : `${c.teal}30` }]}>
+                      <Text style={[st.roundTypeBadgeText, { color: roundType === 'competitive' ? c.gold : c.teal }]}>
+                        {roundType === 'competitive' ? 'COMPETITIVE' : 'MATCHUP'}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={[st.summaryText, { color: c.textMuted }]}>
+                    {players.length} player{players.length !== 1 ? 's' : ''} ·{' '}
+                    Par {effectivePar} ·{' '}
+                    {holeRange === 'full18' ? '18 holes' : '9 holes'} ·{' '}
+                    {scoreMode === 'gross' ? 'Gross' : 'Net'}
+                    {sideGames.size > 0 ? ` · ${sideGames.size} side game${sideGames.size !== 1 ? 's' : ''}` : ''}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -857,15 +1054,141 @@ const st = StyleSheet.create({
     fontWeight: '500',
   },
 
+  /* Tee box selector */
+  teeBoxSection: {
+    marginTop: 10,
+  },
+  teeBoxLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  teeBoxRow: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  teeBoxChip: {
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    minWidth: 70,
+  },
+  teeBoxDot: {
+    width: 10,
+    height: 10,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  teeBoxName: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  teeBoxDetails: {
+    marginTop: 4,
+  },
+  teeBoxStat: {
+    fontSize: 10,
+  },
+
+  /* Custom course fields */
+  customFieldsWrap: {
+    marginTop: 10,
+    gap: 8,
+  },
+  customField: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+  },
+  customFieldsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  customFieldHalf: {
+    flex: 1,
+  },
+  customFieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+
+  /* Round type */
+  roundTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  roundTypeCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    gap: 4,
+  },
+  roundTypeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  roundTypeDesc: {
+    fontSize: 10,
+    textAlign: 'center',
+  },
+
+  /* Tracking level */
+  trackingRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  trackingCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    gap: 4,
+  },
+  trackingLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  trackingDesc: {
+    fontSize: 9,
+    textAlign: 'center',
+  },
+
+  /* Scorekeeper warning */
+  scorekeeperWarning: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+
   /* Summary */
   summaryRow: {
     borderTopWidth: 1,
     marginTop: 20,
     paddingTop: 12,
   },
+  summaryInner: {
+    alignItems: 'center',
+    gap: 6,
+  },
   summaryText: {
     fontSize: 12,
     textAlign: 'center',
+  },
+  roundTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  roundTypeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.5,
   },
 
   /* Start button */

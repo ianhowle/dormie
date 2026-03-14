@@ -665,12 +665,22 @@ function ChecklistTab({
 // ═══════════════════════════════════════════════════════════════════════
 // CHAT TAB
 // ═══════════════════════════════════════════════════════════════════════
+const TRASH_TALK_MESSAGES = [
+  'Nice par... for a bogey golfer \u{1F60F}',
+  'Your handicap is showing \u{1F923}',
+  "I'd be nervous too \u{1F62C}",
+  "That's going on the highlight reel \u{1F3AC}",
+  'Dormie. Don\'t choke. \u{1F3CC}\u{FE0F}',
+  'Pay up \u{1F4B0}',
+];
+
 function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT);
   const [inputText, setInputText] = useState('');
   const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
+  const [showTrashTalk, setShowTrashTalk] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // Fetch existing messages and subscribe to real-time updates
@@ -725,6 +735,28 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
     const text = inputText.trim();
     setInputText('');
 
+    // Optimistic local update
+    const optimisticId = `m-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId,
+        userId: userId,
+        userName: 'You',
+        text,
+        time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        reactions: [],
+      },
+    ]);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+    messagesService.send(tripId, userId, text).catch(() => {
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    });
+  };
+
+  const sendTrashTalk = (text: string) => {
+    setShowTrashTalk(false);
     // Optimistic local update
     const optimisticId = `m-${Date.now()}`;
     setMessages((prev) => [
@@ -854,6 +886,30 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
         <View style={{ height: 16 }} />
       </ScrollView>
 
+      {/* Trash talk panel */}
+      {showTrashTalk && (
+        <View style={[s.trashTalkPanel, { backgroundColor: c.elevated, borderColor: c.border }]}>
+          <View style={s.trashTalkHeader}>
+            <Ionicons name="flame" size={14} color="#D4AF37" />
+            <Text style={[s.trashTalkTitle, { color: '#D4AF37' }]}>TRASH TALK</Text>
+            <Pressable onPress={() => setShowTrashTalk(false)} hitSlop={8}>
+              <Ionicons name="close" size={16} color={c.textMuted} />
+            </Pressable>
+          </View>
+          <View style={s.trashTalkGrid}>
+            {TRASH_TALK_MESSAGES.map((msg, idx) => (
+              <Pressable
+                key={idx}
+                onPress={() => sendTrashTalk(msg)}
+                style={[s.trashTalkChip, { backgroundColor: c.cardBg, borderColor: '#D4AF37' }]}
+              >
+                <Text style={[s.trashTalkChipText, { color: c.text }]}>{msg}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
       {/* Message input */}
       <View style={[s.chatInputWrap, { backgroundColor: c.surface, borderColor: c.border }]}>
         <TextInput
@@ -865,6 +921,16 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
           multiline
           maxLength={500}
         />
+        <Pressable
+          onPress={() => setShowTrashTalk(!showTrashTalk)}
+          style={[s.trashTalkBtn, { backgroundColor: showTrashTalk ? `${'#D4AF37'}20` : c.elevated }]}
+        >
+          <Ionicons
+            name="flame-outline"
+            size={18}
+            color={showTrashTalk ? '#D4AF37' : c.textMuted}
+          />
+        </Pressable>
         <Pressable
           onPress={sendMessage}
           style={[s.sendBtn, { backgroundColor: inputText.trim() ? c.teal : c.elevated }]}
@@ -2572,6 +2638,45 @@ const s = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* Trash talk */
+  trashTalkBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trashTalkPanel: {
+    borderTopWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  trashTalkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  trashTalkTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    flex: 1,
+  },
+  trashTalkGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  trashTalkChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  trashTalkChipText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 

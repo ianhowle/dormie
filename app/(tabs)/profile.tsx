@@ -8,7 +8,9 @@ import {
   Platform,
   StatusBar,
   Alert,
+  Modal,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -179,6 +181,12 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const [notifications, setNotifications] = useState(true);
+  const [showIntegrity, setShowIntegrity] = useState(false);
+  const [favoriteCourse, setFavoriteCourse] = useState<string | null>(null);
+  const [showCoursePicker, setShowCoursePicker] = useState(false);
+
+  const COURSE_OPTIONS = ['Hermitage Golf Course', 'Gaylord Springs', 'TPC Scottsdale', 'We-Ko-Pa Saguaro', 'Grayhawk Raptor'];
+  const FAVORITE_COURSE_STATS = { bestScore: 71, avgScore: 75.2, roundsPlayed: 12 };
 
   // Use real auth data when available, fall back to mock
   const profileUser = useMemo(() => {
@@ -390,8 +398,12 @@ export default function ProfileScreen() {
           {displayRounds.map((round) => {
             const badge = sourceBadge(round.source);
             return (
-              <View
+              <Pressable
                 key={round.id}
+                onPress={() => router.push({
+                  pathname: '/round-detail',
+                  params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
+                })}
                 style={[s.roundRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
               >
                 <View style={s.roundScoreWrap}>
@@ -415,10 +427,97 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                 </View>
-                <Text style={[s.roundPar, { color: c.textMuted }]}>Par {round.par}</Text>
-              </View>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
             );
           })}
+
+          {/* ─── HANDICAP INTEGRITY MONITOR ─────────────────────── */}
+          <Pressable
+            onPress={() => setShowIntegrity(!showIntegrity)}
+            style={s.integrityHeader}
+          >
+            <LinearGradient
+              colors={['#1E4D2B', '#2D6A3F']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.integrityHeaderGradient}
+            >
+              <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" />
+              <Text style={s.integrityHeaderText}>Handicap Integrity Monitor</Text>
+              <Ionicons name={showIntegrity ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF88" />
+            </LinearGradient>
+          </Pressable>
+
+          {showIntegrity && (
+            <View style={[s.integrityBody, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              {/* Fair Play Score */}
+              <View style={s.integrityScoreRow}>
+                <Text style={[s.integrityScoreLabel, { color: c.textMuted }]}>Fair Play Score</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                  <Text style={[s.integrityScoreValue, { color: c.teal, fontFamily: GEO }]}>92</Text>
+                  <View style={[s.integrityBadge, { backgroundColor: '#2A9D8F22' }]}>
+                    <Text style={[s.integrityBadgeText, { color: c.teal }]}>CLEAN</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Score bar */}
+              <View style={[s.integrityBar, { backgroundColor: c.elevated }]}>
+                <View style={[s.integrityBarFill, { backgroundColor: c.teal, width: '92%' }]} />
+              </View>
+
+              {/* Factor breakdown */}
+              <View style={s.integrityFactors}>
+                <View style={s.integrityFactorRow}>
+                  <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Score Variance</Text>
+                  <Text style={[s.integrityFactorValue, { color: c.teal }]}>Low</Text>
+                </View>
+                <View style={s.integrityFactorRow}>
+                  <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Handicap Trend</Text>
+                  <Text style={[s.integrityFactorValue, { color: c.teal }]}>Consistent</Text>
+                </View>
+                <View style={s.integrityFactorRow}>
+                  <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Round Completion</Text>
+                  <Text style={[s.integrityFactorValue, { color: c.teal, fontFamily: GEO }]}>98%</Text>
+                </View>
+              </View>
+
+              <Text style={[s.integrityNote, { color: c.textMuted }]}>Minimum 3 rounds required</Text>
+            </View>
+          )}
+
+          {/* ─── FAVORITE COURSE ───────────────────────────────────── */}
+          {favoriteCourse && (
+            <>
+              <SectionLabel title="FAVORITE COURSE" />
+              <View style={s.favCourseCard}>
+                <LinearGradient
+                  colors={['#1E4D2B', '#2D6A3F']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.favCourseGradient}
+                >
+                  <Ionicons name="golf" size={20} color="#D4AF37" />
+                  <Text style={s.favCourseName}>{favoriteCourse}</Text>
+                  <View style={s.favCourseStats}>
+                    <View style={s.favCourseStat}>
+                      <Text style={s.favCourseStatValue}>{FAVORITE_COURSE_STATS.bestScore}</Text>
+                      <Text style={s.favCourseStatLabel}>Best Score</Text>
+                    </View>
+                    <View style={s.favCourseStat}>
+                      <Text style={s.favCourseStatValue}>{FAVORITE_COURSE_STATS.avgScore.toFixed(1)}</Text>
+                      <Text style={s.favCourseStatLabel}>Avg Score</Text>
+                    </View>
+                    <View style={s.favCourseStat}>
+                      <Text style={s.favCourseStatValue}>{FAVORITE_COURSE_STATS.roundsPlayed}</Text>
+                      <Text style={s.favCourseStatLabel}>Rounds</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+            </>
+          )}
 
           {/* ─── SETTINGS ─────────────────────────────────────────── */}
           <SectionLabel title="SETTINGS" />
@@ -473,6 +572,21 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
 
+          {/* Favorite Course */}
+          <Pressable
+            onPress={() => setShowCoursePicker(true)}
+            style={[s.settingRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+          >
+            <Ionicons name="golf" size={20} color={c.teal} />
+            <View style={{ flex: 1 }}>
+              <Text style={[s.settingText, { color: c.text }]}>Favorite Course</Text>
+              {favoriteCourse && (
+                <Text style={[s.settingSub, { color: c.textMuted }]}>{favoriteCourse}</Text>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+          </Pressable>
+
           {/* Account info */}
           <Pressable
             onPress={() => Alert.alert('Account', `Email: ${profileUser.email}\nMember since ${profileUser.memberSince}`)}
@@ -501,6 +615,39 @@ export default function ProfileScreen() {
           <View style={{ height: 40 }} />
         </View>
       </ScrollView>
+
+      {/* ─── COURSE PICKER MODAL ──────────────────────────────── */}
+      <Modal visible={showCoursePicker} transparent animationType="slide">
+        <View style={s.modalOverlay}>
+          <View style={[s.modalContent, { backgroundColor: c.cardBg }]}>
+            <View style={s.modalHeader}>
+              <Text style={[s.modalTitle, { color: c.text, fontFamily: GEO }]}>Select Favorite Course</Text>
+              <Pressable onPress={() => setShowCoursePicker(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color={c.textMuted} />
+              </Pressable>
+            </View>
+            {COURSE_OPTIONS.map((course) => (
+              <Pressable
+                key={course}
+                onPress={() => { setFavoriteCourse(course); setShowCoursePicker(false); }}
+                style={[s.modalRow, { borderColor: c.border, backgroundColor: favoriteCourse === course ? c.teal + '12' : 'transparent' }]}
+              >
+                <Ionicons name="golf" size={18} color={favoriteCourse === course ? c.teal : c.textMuted} />
+                <Text style={[s.modalRowText, { color: favoriteCourse === course ? c.teal : c.text }]}>{course}</Text>
+                {favoriteCourse === course && <Ionicons name="checkmark" size={18} color={c.teal} />}
+              </Pressable>
+            ))}
+            {favoriteCourse && (
+              <Pressable
+                onPress={() => { setFavoriteCourse(null); setShowCoursePicker(false); }}
+                style={[s.modalClearBtn, { borderColor: c.urgent }]}
+              >
+                <Text style={[s.modalClearText, { color: c.urgent }]}>Clear Favorite</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -662,4 +809,108 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   signOutText: { fontSize: 14, fontWeight: '700' },
+
+  /* Integrity Monitor */
+  integrityHeader: { marginTop: 20, marginBottom: 0 },
+  integrityHeaderGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+  },
+  integrityHeaderText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  integrityBody: {
+    borderWidth: 1,
+    borderTopWidth: 0,
+    padding: 14,
+    gap: 12,
+  },
+  integrityScoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  integrityScoreLabel: { fontSize: 13, fontWeight: '600' },
+  integrityScoreValue: { fontSize: 28, fontWeight: '800' },
+  integrityBadge: { paddingHorizontal: 8, paddingVertical: 3 },
+  integrityBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  integrityBar: { height: 8, overflow: 'hidden' },
+  integrityBarFill: { height: '100%' },
+  integrityFactors: { gap: 8 },
+  integrityFactorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  integrityFactorLabel: { fontSize: 13 },
+  integrityFactorValue: { fontSize: 13, fontWeight: '700' },
+  integrityNote: { fontSize: 11, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
+
+  /* Favorite Course hero card */
+  favCourseCard: { overflow: 'hidden' },
+  favCourseGradient: { padding: 16, gap: 8 },
+  favCourseName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: GEO,
+  },
+  favCourseStats: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  favCourseStat: { alignItems: 'center' },
+  favCourseStatValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#D4AF37',
+    fontFamily: GEO,
+  },
+  favCourseStatLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF88',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+
+  /* Course picker modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700' },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderBottomWidth: 1,
+  },
+  modalRowText: { flex: 1, fontSize: 15, fontWeight: '500' },
+  modalClearBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 12,
+    borderWidth: 1,
+  },
+  modalClearText: { fontSize: 14, fontWeight: '700' },
 });
