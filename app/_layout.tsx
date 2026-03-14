@@ -11,6 +11,12 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
+    // Log env var availability on app start
+    console.log('[Dormie] EXPO_PUBLIC_GOLF_API_KEY:', process.env.EXPO_PUBLIC_GOLF_API_KEY ? 'set' : 'NOT SET');
+    console.log('[Dormie] EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? 'set' : 'NOT SET');
+  }, []);
+
+  useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'auth';

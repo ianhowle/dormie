@@ -26,6 +26,7 @@ import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
 import { authService } from '../../src/services/auth.service';
 import { coursesService } from '../../src/services/courses.service';
+import { supabase } from '../../src/lib/supabase';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -127,6 +128,7 @@ function YourGameScreen({
   handicap, setHandicap,
   ghinNumber, setGhinNumber,
   homeCourse, setHomeCourse,
+  homeCourseId, setHomeCourseId,
   userName,
   userId,
   photoUri, setPhotoUri,
@@ -137,6 +139,7 @@ function YourGameScreen({
   handicap: string; setHandicap: (v: string) => void;
   ghinNumber: string; setGhinNumber: (v: string) => void;
   homeCourse: string; setHomeCourse: (v: string) => void;
+  homeCourseId: string; setHomeCourseId: (v: string) => void;
   userName: string;
   userId: string;
   photoUri: string | null; setPhotoUri: (v: string | null) => void;
@@ -153,6 +156,7 @@ function YourGameScreen({
 
   const handleCourseSearch = useCallback((text: string) => {
     setHomeCourse(text);
+    setHomeCourseId(''); // Clear ID when user edits text (manual entry)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (text.trim().length < 2) {
       setCourseResults([]);
@@ -163,26 +167,37 @@ function YourGameScreen({
     setShowCourseDropdown(true);
     searchTimerRef.current = setTimeout(async () => {
       try {
-        // Try external API first, then Supabase
-        let results = await coursesService.searchAPI(text.trim());
-        if (!results || (Array.isArray(results) && results.length === 0)) {
-          results = await coursesService.search(text.trim(), 5);
+        // Try GolfCourseAPI first, then Supabase fallback
+        const apiResponse = await coursesService.searchAPI(text.trim());
+        // API may return { courses: [...] } or [...] directly
+        let list: any[] = [];
+        if (apiResponse && typeof apiResponse === 'object') {
+          if (Array.isArray(apiResponse)) {
+            list = apiResponse;
+          } else if (Array.isArray(apiResponse.courses)) {
+            list = apiResponse.courses;
+          }
         }
-        const list = Array.isArray(results?.courses ?? results) ? (results?.courses ?? results) : [];
+        // Supabase fallback if API returned nothing
+        if (list.length === 0) {
+          const dbResults = await coursesService.search(text.trim(), 5);
+          list = Array.isArray(dbResults) ? dbResults : [];
+        }
         setCourseResults(list.slice(0, 5));
       } catch {
         setCourseResults([]);
       } finally {
         setCourseSearching(false);
       }
-    }, 400);
-  }, []);
+    }, 300);
+  }, [setHomeCourse, setHomeCourseId]);
 
-  const selectCourse = useCallback((name: string) => {
+  const selectCourse = useCallback((courseId: string, name: string) => {
     setHomeCourse(name);
+    setHomeCourseId(courseId);
     setShowCourseDropdown(false);
     setCourseResults([]);
-  }, []);
+  }, [setHomeCourse, setHomeCourseId]);
 
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -356,16 +371,19 @@ function YourGameScreen({
             {!courseSearching && courseResults.length === 0 && homeCourse.trim().length >= 2 && (
               <View style={styles.courseSearchingRow}>
                 <Ionicons name="golf-outline" size={16} color={c.textMuted} />
-                <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>No courses found</Text>
+                <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>
+                  No results — you can type your course name manually
+                </Text>
               </View>
             )}
             {courseResults.map((course, i) => {
               const courseName = course.name ?? course.club_name ?? '';
+              const courseId = course.id ?? '';
               const courseLocation = course.location ?? (course.city && course.state ? `${course.city}, ${course.state}` : '');
               return (
                 <Pressable
-                  key={course.id ?? i}
-                  onPress={() => selectCourse(courseName)}
+                  key={courseId || i}
+                  onPress={() => selectCourse(courseId, courseName)}
                   style={[styles.courseResultRow, i < courseResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
                 >
                   <Ionicons name="golf" size={16} color={c.teal} />
@@ -809,6 +827,7 @@ export default function OnboardingScreen() {
   const [handicap, setHandicap] = useState('');
   const [ghinNumber, setGhinNumber] = useState('');
   const [homeCourse, setHomeCourse] = useState('');
+  const [homeCourseId, setHomeCourseId] = useState('');
   const [notifPref, setNotifPref] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
@@ -843,6 +862,13 @@ export default function OnboardingScreen() {
           city: null,
           state: null,
         });
+        // Persist home course in auth user metadata
+        await supabase.auth.updateUser({
+          data: {
+            home_course: homeCourse || null,
+            home_course_id: homeCourseId || null,
+          },
+        });
       }
     } catch (err) {
       // Non-blocking — profile can be updated later
@@ -850,7 +876,7 @@ export default function OnboardingScreen() {
     }
 
     setTimeout(() => router.replace('/(tabs)'), 0);
-  }, [user, themeColor, handicap, router]);
+  }, [user, themeColor, handicap, homeCourse, homeCourseId, router]);
 
   // Step 6: trigger navigation via useEffect to avoid "Cannot update component while rendering"
   useEffect(() => {
@@ -917,6 +943,7 @@ export default function OnboardingScreen() {
           handicap={handicap} setHandicap={setHandicap}
           ghinNumber={ghinNumber} setGhinNumber={setGhinNumber}
           homeCourse={homeCourse} setHomeCourse={setHomeCourse}
+          homeCourseId={homeCourseId} setHomeCourseId={setHomeCourseId}
           userName={displayName}
           userId={user?.id ?? ''}
           photoUri={photoUri} setPhotoUri={setPhotoUri}
