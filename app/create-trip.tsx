@@ -9,7 +9,6 @@ import {
   Platform,
   StatusBar,
   KeyboardAvoidingView,
-  Alert,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';

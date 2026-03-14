@@ -9,7 +9,6 @@ import {
   Platform,
   StatusBar,
   Switch,
-  Alert,
   FlatList,
   Dimensions,
 } from 'react-native';
@@ -817,6 +816,7 @@ export default function SeasonsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       {/* Header */}
       <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
         <View style={styles.headerTop}>
@@ -895,7 +895,7 @@ export default function SeasonsScreen() {
           </Pressable>
         ) : (
           <Pressable
-            onPress={() => setStep(step + 1)}
+            onPress={() => { haptics.light(); setStep(step + 1); }}
             disabled={!canProceed}
             style={[styles.nextBtn, { backgroundColor: canProceed ? c.teal : c.elevated }]}
           >
