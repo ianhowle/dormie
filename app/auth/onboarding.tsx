@@ -315,7 +315,7 @@ function BuildGroupScreen() {
       key: 'leaderboard',
       icon: 'trophy' as const,
       title: 'Group Leaderboard',
-      desc: 'See who's on top across all your rounds',
+      desc: "See who's on top across all your rounds",
       preview: () => (
         <View style={styles.miniPreview}>
           {MOCK_NAMES.map((name, i) => (
