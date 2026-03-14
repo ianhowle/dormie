@@ -491,6 +491,7 @@ export default function ScoreScreen() {
         format: activeFormat?.label ?? 'Total Strokes',
         holeRange,
         scoreMode,
+        sideGames: JSON.stringify([...sideGames]),
       },
     });
   };
