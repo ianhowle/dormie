@@ -13,7 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import {
   getCourseDetail,
   type CourseDetailData,
@@ -468,6 +470,7 @@ export default function CourseDetailScreen() {
     <View style={[st.screen, { backgroundColor: c.bg }]}>
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         <Header course={course} />
+        <GoldDivider />
 
         <View style={st.body}>
           {/* Toggles */}

@@ -3588,16 +3588,19 @@ const st = StyleSheet.create({
   holeChipNum: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   holeChipPar: {
     fontSize: 8,
     fontWeight: '600',
     marginTop: -1,
+    fontFamily: GEO,
   },
 
   /* Scoring body */
   scoringBody: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
 
   /* Player card */
