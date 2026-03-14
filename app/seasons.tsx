@@ -13,6 +13,7 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,8 @@ import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
+import { haptics } from '../src/lib/haptics';
+import { useToast } from '../src/components/Toast';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -137,7 +140,7 @@ function PillRow<T extends string>({
         return (
           <Pressable
             key={opt}
-            onPress={() => onSelect(opt)}
+            onPress={() => { haptics.light(); onSelect(opt); }}
             style={[styles.pill, { backgroundColor: active ? accent + '22' : c.elevated, borderColor: active ? accent : 'transparent', borderWidth: 1 }]}
           >
             <Text style={[styles.pillText, { color: active ? accent : c.textMuted }]}>
@@ -184,7 +187,7 @@ function BasicsStep({
         ]).map((t) => (
           <Pressable
             key={t.key}
-            onPress={() => setSeasonType(t.key)}
+            onPress={() => { haptics.light(); setSeasonType(t.key); }}
             style={[
               styles.typeCard,
               {
@@ -227,7 +230,7 @@ function FormatStep({
       {LENGTH_PRESETS.map((p) => (
         <Pressable
           key={p.key}
-          onPress={() => setPreset(p.key)}
+          onPress={() => { haptics.light(); setPreset(p.key); }}
           style={[
             styles.presetCard,
             {
@@ -348,7 +351,7 @@ function RulesStep({
           {CUT_OPTIONS.map((opt) => (
             <Pressable
               key={opt.label}
-              onPress={() => setCutValue(opt.value)}
+              onPress={() => { haptics.light(); setCutValue(opt.value); }}
               style={[
                 styles.cutPill,
                 {

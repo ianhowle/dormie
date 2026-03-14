@@ -155,6 +155,7 @@ export default function DiscoverScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       {/* Header */}
       <View style={[s.header, { backgroundColor: c.surface }]}>
         <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
@@ -234,7 +235,7 @@ export default function DiscoverScreen() {
 
                   {/* Star / save button */}
                   <Pressable
-                    onPress={() => toggleSaved(dest.id)}
+                    onPress={() => { haptics.light(); toggleSaved(dest.id); }}
                     style={[
                       s.starBtn,
                       isSaved && { backgroundColor: 'rgba(212,175,55,0.25)' },

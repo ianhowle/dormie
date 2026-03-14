@@ -11,12 +11,15 @@ import {
   KeyboardAvoidingView,
   Alert,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
+import { haptics } from '../src/lib/haptics';
+import { useToast } from '../src/components/Toast';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { RyderCupWizard } from '../src/components/RyderCupWizard';
@@ -85,10 +88,11 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
 
   return (
     <View style={[z.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={[z.header, { backgroundColor: c.surface }]}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
             <Ionicons name="chevron-back" size={24} color={c.text} />
           </Pressable>
           <Text style={[z.headerTitle, { color: c.text, fontFamily: GEO }]}>
@@ -104,7 +108,7 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
 
           {/* Quick Trip */}
           <Pressable
-            onPress={() => onSelect('quick')}
+            onPress={() => { haptics.light(); onSelect('quick'); }}
             style={[z.typeCard, { backgroundColor: c.cardBg, borderColor: c.border }]}
           >
             <Text style={z.typeEmoji}>🏃</Text>
@@ -124,7 +128,7 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
 
           {/* Plan Ahead */}
           <Pressable
-            onPress={() => onSelect('planned')}
+            onPress={() => { haptics.light(); onSelect('planned'); }}
             style={[z.typeCard, { backgroundColor: c.cardBg, borderColor: c.border }]}
           >
             <Text style={z.typeEmoji}>📅</Text>
@@ -144,7 +148,7 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
 
           {/* Ryder Cup */}
           <Pressable
-            onPress={() => onSelect('ryder')}
+            onPress={() => { haptics.light(); onSelect('ryder'); }}
             style={[z.typeCard, { overflow: 'hidden' }]}
           >
             <LinearGradient
@@ -184,6 +188,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const c = theme.colors;
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // State
   const [name, setName] = useState('');
@@ -227,6 +232,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
 
   return (
     <View style={[z.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -238,7 +244,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
         >
           {/* Header */}
           <View style={[z.header, { backgroundColor: c.surface }]}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
               <Ionicons name="chevron-back" size={24} color={c.text} />
             </Pressable>
             <Text style={[z.headerTitle, { color: c.text, fontFamily: GEO }]}>
@@ -277,7 +283,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               {QUICK_FILL.map((dest) => (
                 <Pressable
                   key={dest}
-                  onPress={() => setLocation(dest)}
+                  onPress={() => { haptics.light(); setLocation(dest); }}
                   style={[
                     z.quickFillChip,
                     {
@@ -336,7 +342,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                 return (
                   <Pressable
                     key={n}
-                    onPress={() => setPlayerCount(n)}
+                    onPress={() => { haptics.light(); setPlayerCount(n); }}
                     style={[
                       z.countPill,
                       {
@@ -369,6 +375,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                 <Pressable
                   key={f.key}
                   onPress={() => {
+                    haptics.light();
                     setFormat(f.key);
                     setExpandedFormat(expanded ? null : f.key);
                   }}
@@ -430,7 +437,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               return (
                 <Pressable
                   key={g.key}
-                  onPress={() => toggleSideGame(g.key)}
+                  onPress={() => { haptics.light(); toggleSideGame(g.key); }}
                   onLongPress={() => setExpandedSide(expanded ? null : g.key)}
                   style={[
                     z.sideRow,
@@ -457,7 +464,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                     </Text>
                     {rules && (
                       <Pressable
-                        onPress={() => setExpandedSide(expanded ? null : g.key)}
+                        onPress={() => { haptics.light(); setExpandedSide(expanded ? null : g.key); }}
                         hitSlop={8}
                       >
                         <Ionicons
@@ -505,7 +512,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   </View>
                   {!isMe && (
                     <Pressable
-                      onPress={() => setPlayers((prev) => prev.filter((x) => x.id !== p.id))}
+                      onPress={() => { haptics.light(); setPlayers((prev) => prev.filter((x) => x.id !== p.id)); }}
                       hitSlop={8}
                     >
                       <Ionicons name="close-circle" size={18} color={c.textMuted} />
@@ -535,11 +542,11 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   maxLength={3}
                 />
                 <View style={z.addActions}>
-                  <Pressable onPress={() => setShowAddPlayer(false)}>
+                  <Pressable onPress={() => { haptics.light(); setShowAddPlayer(false); }}>
                     <Text style={[z.addCancel, { color: c.textMuted }]}>Cancel</Text>
                   </Pressable>
                   <Pressable
-                    onPress={handleAddPlayer}
+                    onPress={() => { haptics.light(); handleAddPlayer(); }}
                     style={[z.addDoneBtn, { backgroundColor: c.teal }]}
                   >
                     <Text style={z.addDoneText}>Add</Text>
@@ -548,7 +555,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               </View>
             ) : (
               <Pressable
-                onPress={() => setShowAddPlayer(true)}
+                onPress={() => { haptics.light(); setShowAddPlayer(true); }}
                 style={[z.addPlayerBtn, { borderColor: c.border }]}
               >
                 <Ionicons name="add-circle-outline" size={18} color={c.teal} />
@@ -559,6 +566,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Create button */}
             <Pressable
               onPress={async () => {
+                haptics.success();
                 if (user) {
                   try {
                     await tripsService.create({
@@ -572,9 +580,8 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                     });
                   } catch {}
                 }
-                Alert.alert('Trip Created', `${name} has been created!`, [
-                  { text: 'OK', onPress: () => router.back() },
-                ]);
+                showToast({ message: 'Trip created', type: 'gold', icon: 'airplane' });
+                router.back();
               }}
               disabled={!canCreate}
               style={[

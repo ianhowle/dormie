@@ -276,7 +276,13 @@ function ClubhouseTab({
       showsVerticalScrollIndicator={false}
     >
       {/* LATEST — chat preview */}
-      <SectionLabel title="LATEST" />
+      <View style={s.sectionWithFreshness}>
+        <SectionLabel title="LATEST" />
+        <View style={s.freshnessBar}>
+          <View style={s.freshnessDot} />
+          <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
+        </View>
+      </View>
       {MOCK_CHAT.slice(-3).map((msg) => (
         <View key={msg.id} style={[s.chatPreviewRow, { borderColor: c.border }]}>
           <Avatar id={msg.userId} size={28} name={msg.userName} />
@@ -818,6 +824,11 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Data freshness indicator */}
+      <View style={s.freshnessBar}>
+        <View style={s.freshnessDot} />
+        <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
+      </View>
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
@@ -2092,7 +2103,9 @@ export default function TripDetailScreen() {
   const handleCeremonyComplete = useCallback(() => {
     setShowCeremony(false);
     setCompetitionMode(true);
-  }, []);
+    haptics.heavy();
+    showToast({ message: 'Trip created', type: 'success', icon: 'flag-outline' });
+  }, [showToast]);
 
   // Competition mode routing
   if (competitionMode) {
@@ -2138,6 +2151,7 @@ export default function TripDetailScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       {/* ─── TOP BAR ────────────────────────────────────────────────── */}
       <View style={[s.topBar, { backgroundColor: headerBg }]}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -2161,94 +2175,103 @@ export default function TripDetailScreen() {
         </View>
       </View>
 
-      {/* ─── HERO ───────────────────────────────────────────────────── */}
-      <View style={[s.hero, { backgroundColor: heroBg }]}>
-        <View style={s.heroLeft}>
-          <Text style={[s.heroName, { color: c.text, fontFamily: GEO }]}>{trip.name}</Text>
-          <Text style={[s.heroLocation, { color: c.textMuted }]}>
-            {trip.destination} · {trip.city}, {trip.state}
-          </Text>
-          <Text style={[s.heroDateRange, { color: c.textMuted }]}>
-            {formatDateRange(trip.startDate, trip.endDate)}
-          </Text>
-        </View>
-        <View style={s.heroRight}>
-          <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
-          <Pressable
-            onPress={() => setShowCeremony(true)}
-            style={s.startTripBtn}
-          >
-            <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-            <Ionicons name="play" size={12} color="#D4AF37" />
-            <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <GoldDivider />
-
-      {/* ─── PLAYER ROW ─────────────────────────────────────────────── */}
-      <FlatList
-        data={MOCK_PLAYERS}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={s.playerRowScroll}
-        style={[s.playerRowContainer, { backgroundColor: c.bg }]}
-        renderItem={({ item }) => {
-          const rsvpCol =
-            item.rsvp === 'confirmed' ? c.teal : item.rsvp === 'pending' ? c.gold : c.urgent;
-          return (
-            <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <View style={s.playerCardAvatarWrap}>
-                <Avatar id={item.id} size={40} name={item.name} />
-                <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol }]} />
-              </View>
-              <Text style={[s.playerCardName, { color: c.text }]} numberOfLines={1}>
-                {item.name.split(' ')[0]}
-              </Text>
-              <Text style={[s.playerCardHcp, { color: c.textMuted, fontFamily: GEO }]}>
-                {item.handicap}
-              </Text>
-            </View>
-          );
-        }}
-      />
-
-      {/* ─── STICKY TAB BAR ─────────────────────────────────────────── */}
-      <View style={[s.tabBar, { backgroundColor: c.surface, borderColor: c.border }]}>
-        {TABS.map((tab) => {
-          const active = tab === activeTab;
-          return (
+      {/* ─── SCROLLABLE CONTENT WITH STICKY TAB BAR ───────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        stickyHeaderIndices={[3]}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
+        {/* Index 0: HERO */}
+        <View style={[s.hero, { backgroundColor: heroBg }]}>
+          <View style={s.heroLeft}>
+            <Text style={[s.heroName, { color: c.text, fontFamily: GEO }]}>{trip.name}</Text>
+            <Text style={[s.heroLocation, { color: c.textMuted }]}>
+              {trip.destination} · {trip.city}, {trip.state}
+            </Text>
+            <Text style={[s.heroDateRange, { color: c.textMuted }]}>
+              {formatDateRange(trip.startDate, trip.endDate)}
+            </Text>
+          </View>
+          <View style={s.heroRight}>
+            <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
             <Pressable
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[s.tabItem, active && { borderBottomColor: c.teal, borderBottomWidth: 2 }]}
+              onPress={() => setShowCeremony(true)}
+              style={s.startTripBtn}
             >
-              <Text
-                style={[
-                  s.tabText,
-                  { color: active ? c.teal : c.textMuted },
-                  active && { fontWeight: '700' },
-                ]}
-              >
-                {tab}
-              </Text>
+              <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              <Ionicons name="play" size={12} color="#D4AF37" />
+              <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
             </Pressable>
-          );
-        })}
-      </View>
+          </View>
+        </View>
 
-      {/* ─── TAB CONTENT ─────────────────────────────────────────────── */}
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        {activeTab === 'Clubhouse' && (
-          <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} />
-        )}
-        {activeTab === 'Courses' && <CoursesTab />}
-        {activeTab === 'Players' && <PlayersTab />}
-        {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
-        {activeTab === 'Chat' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
-      </View>
+        {/* Index 1: Gold Divider */}
+        <GoldDivider />
+
+        {/* Index 2: PLAYER ROW */}
+        <FlatList
+          data={MOCK_PLAYERS}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={s.playerRowScroll}
+          style={[s.playerRowContainer, { backgroundColor: c.bg }]}
+          renderItem={({ item }) => {
+            const rsvpCol =
+              item.rsvp === 'confirmed' ? c.teal : item.rsvp === 'pending' ? c.gold : c.urgent;
+            return (
+              <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                <View style={s.playerCardAvatarWrap}>
+                  <Avatar id={item.id} size={40} name={item.name} />
+                  <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol }]} />
+                </View>
+                <Text style={[s.playerCardName, { color: c.text }]} numberOfLines={1}>
+                  {item.name.split(' ')[0]}
+                </Text>
+                <Text style={[s.playerCardHcp, { color: c.textMuted, fontFamily: GEO }]}>
+                  {item.handicap}
+                </Text>
+              </View>
+            );
+          }}
+        />
+
+        {/* Index 3: STICKY TAB BAR (pinned via stickyHeaderIndices) */}
+        <View style={[s.tabBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+          {TABS.map((tab) => {
+            const active = tab === activeTab;
+            return (
+              <Pressable
+                key={tab}
+                onPress={() => handleTabSwitch(tab)}
+                style={[s.tabItem, active && { borderBottomColor: c.teal, borderBottomWidth: 2 }]}
+              >
+                <Text
+                  style={[
+                    s.tabText,
+                    { color: active ? c.teal : c.textMuted },
+                    active && { fontWeight: '700' },
+                  ]}
+                >
+                  {tab}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Index 4: TAB CONTENT */}
+        <View style={{ minHeight: 500, backgroundColor: c.bg }}>
+          {activeTab === 'Clubhouse' && (
+            <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} />
+          )}
+          {activeTab === 'Courses' && <CoursesTab />}
+          {activeTab === 'Players' && <PlayersTab />}
+          {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
+          {activeTab === 'Chat' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
+        </View>
+      </ScrollView>
 
       {/* Item 14: Floating chat button with unread badge */}
       {activeTab !== 'Chat' && (
@@ -3296,4 +3319,29 @@ const cm = StyleSheet.create({
     justifyContent: 'center',
   },
   chatBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+
+  /* Data freshness indicator */
+  freshnessBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  freshnessDot: {
+    width: 6,
+    height: 6,
+    backgroundColor: '#2A9D8F',
+  },
+  freshnessText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  sectionWithFreshness: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 });
