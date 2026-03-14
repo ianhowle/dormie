@@ -20,6 +20,7 @@ import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
 import { TripCountdownRing } from '../src/components/TripCountdownRing';
+import { RyderCupHub } from '../src/components/RyderCupHub';
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -827,6 +828,12 @@ export default function TripDetailScreen() {
   const params = useLocalSearchParams<{ tripId?: string }>();
 
   const trip = MOCK_UPCOMING_TRIPS.find((t) => t.id === params.tripId) ?? MOCK_UPCOMING_TRIPS[0];
+
+  // Ryder Cup trips get their own dedicated view
+  if (trip.isRyderCup) {
+    return <RyderCupHub trip={trip} />;
+  }
+
   const daysUntil = getDaysUntilTrip(trip.startDate);
 
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
