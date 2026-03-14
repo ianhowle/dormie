@@ -143,7 +143,7 @@ function TabBar({ tab, onSelect, colors: c }: { tab: Tab; onSelect: (t: Tab) => 
       {tabs.map((t) => {
         const active = t.key === tab;
         return (
-          <Pressable key={t.key} onPress={() => onSelect(t.key)} style={styles.tabItem}>
+          <Pressable key={t.key} onPress={() => { haptics.light(); onSelect(t.key); }} style={styles.tabItem}>
             <Text style={[styles.tabLabel, { color: active ? c.gold : c.textMuted, fontFamily: GEO }]}>
               {t.label}
             </Text>
@@ -231,7 +231,7 @@ function ChampionCeremony({
             ))}
           </View>
 
-          <Pressable onPress={onDismiss} style={styles.ceremonyDismissBtn}>
+          <Pressable onPress={() => { haptics.light(); onDismiss(); }} style={styles.ceremonyDismissBtn}>
             <Text style={[styles.ceremonyDismissText, { color: c.textMuted }]}>Dismiss</Text>
           </Pressable>
         </Animated.View>

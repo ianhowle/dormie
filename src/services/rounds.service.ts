@@ -98,4 +98,16 @@ export const roundsService = {
   async unsubscribe(channel: RealtimeChannel): Promise<void> {
     await supabase.removeChannel(channel);
   },
+
+  /** Get rounds for a user at a specific course, for personal best detection. */
+  async fetchByCourse(courseId: string, userId: string): Promise<RoundWithCourse[]> {
+    const { data, error } = await supabase
+      .from('rounds')
+      .select('*, course:courses(name, city, state, par)')
+      .eq('course_id', courseId)
+      .eq('user_id', userId)
+      .order('gross_score', { ascending: true });
+    if (error) throw error;
+    return data as RoundWithCourse[];
+  },
 };
