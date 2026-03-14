@@ -919,6 +919,7 @@ export default function OnboardingScreen() {
   // Steps 1-3 share layout with nav bar
   return (
     <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       {/* Header */}
       <View style={[styles.navBar, { borderBottomColor: c.border }]}>
         <Pressable onPress={handleBack} hitSlop={12}>

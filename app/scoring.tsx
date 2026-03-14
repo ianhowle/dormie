@@ -3545,6 +3545,17 @@ export default function ScoringScreen() {
         results={transitionBanner.results}
         onDismiss={() => setTransitionBanner((prev) => ({ ...prev, visible: false }))}
       />
+
+      {/* Elite polish: Confetti on round completion */}
+      <Confetti visible={showConfetti} onDone={() => setShowConfetti(false)} />
+
+      {/* Elite polish: Personal Best Banner */}
+      <PersonalBestBanner
+        visible={showPersonalBest}
+        courseName={courseName}
+        previousBest={prevBest}
+        onDone={() => setShowPersonalBest(false)}
+      />
     </View>
   );
 }
