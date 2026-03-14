@@ -272,7 +272,7 @@ function PlayerStatsModal({
                 </Text>
               </View>
             </View>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable onPress={() => { haptics.light(); onClose(); }} hitSlop={12}>
               <Ionicons name="close" size={24} color={c.textMuted} />
             </Pressable>
           </View>
@@ -442,7 +442,7 @@ function StandingsTab({
             )}
 
             <Pressable
-              onPress={() => onPlayerTap(p)}
+              onPress={() => { haptics.light(); onPlayerTap(p); }}
               style={[
                 styles.standingsRow,
                 { borderBottomColor: c.border, opacity: isCut ? 0.45 : 1 },
@@ -784,7 +784,7 @@ export default function SeasonDetailScreen() {
       {/* Header */}
       <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
           <Text style={[styles.headerTitle, { fontFamily: GEO }]}>FedEx Cup</Text>
