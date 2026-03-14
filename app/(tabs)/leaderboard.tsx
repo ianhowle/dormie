@@ -9,6 +9,7 @@ import {
   FlatList,
   Alert,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ import { SkeletonLeaderboard } from '../../src/components/Skeleton';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { useToast } from '../../src/components/Toast';
 import { haptics } from '../../src/lib/haptics';
+import { leaderboardRowLabel } from '../../src/lib/accessibility';
 import {
   MOCK_GROUP_RANKED,
   MOCK_SEASONS,
@@ -89,6 +91,7 @@ function ScopeToggle({
           <Pressable
             key={s}
             onPress={() => { haptics.light(); onToggle(s); }}
+            accessibilityLabel={`${s === 'group' ? 'My Group' : 'The Field'}${active ? ', selected' : ''}`}
             style={[
               styles.scopeBtn,
               active && { backgroundColor: c.cardBg },
@@ -224,6 +227,7 @@ function TabBar({
           <Pressable
             key={t}
             onPress={() => { haptics.light(); onSelect(t); }}
+            accessibilityLabel={`${t} tab${isActive ? ', selected' : ''}`}
             style={({ pressed }) => [
               styles.tab,
               isActive && { backgroundColor: 'rgba(42,157,143,0.15)' },
@@ -296,9 +300,56 @@ function PlayerRow({
       ? c.cardBg
       : c.elevated;
 
+  // Position change flash animation
+  const flashOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if ('movement' in player) {
+      const movement = (player as any).movement;
+      if (movement === 'up' || movement === 'down') {
+        flashOpacity.setValue(1);
+        Animated.timing(flashOpacity, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+  }, []);
+
+  const flashColor =
+    'movement' in player && (player as any).movement === 'up'
+      ? 'rgba(42,157,143,0.2)'
+      : 'movement' in player && (player as any).movement === 'down'
+        ? 'rgba(196,75,79,0.2)'
+        : 'transparent';
+
+  const animatedBg = flashOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['transparent', flashColor],
+  });
+
   return (
+    <View style={{ position: 'relative' }}>
+      {('movement' in player && ((player as any).movement === 'up' || (player as any).movement === 'down')) && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: animatedBg },
+          ]}
+          pointerEvents="none"
+        />
+      )}
     <Pressable
       onPress={() => router.push(`/player-detail?playerId=${player.id}`)}
+      onLongPress={() => {
+        haptics.medium();
+        Alert.alert(
+          player.name,
+          `HCP: ${player.handicap}\nAvg: ${player.avgScore.toFixed(1)}\nBest: ${player.bestRound}\nRounds: ${player.rounds}\nTo Par: ${formatToPar(player.toPar)}`,
+        );
+      }}
+      accessibilityLabel={leaderboardRowLabel(position, player.name, player.toPar, player.rounds, player.bestRound)}
       style={({ pressed }) => [
         styles.tableRow,
         { backgroundColor: bgColor },
@@ -364,10 +415,11 @@ function PlayerRow({
         </Text>
       )}
     </Pressable>
+    </View>
   );
 }
 
-function LeaderboardTable({ players, myId }: { players: LeaderboardPlayer[]; myId?: string }) {
+function LeaderboardTable({ players, myId, scope }: { players: LeaderboardPlayer[]; myId?: string; scope: LeaderboardScope }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
@@ -376,7 +428,7 @@ function LeaderboardTable({ players, myId }: { players: LeaderboardPlayer[]; myI
     <View style={styles.tableWrap}>
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionHeader, { color: c.gold }]}>
-          GROUP RANKINGS
+          {scope === 'field' ? 'THE FIELD' : 'GROUP RANKINGS'}
         </Text>
         <DataFreshness updatedAt={new Date()} isLive={false} />
       </View>
@@ -567,7 +619,7 @@ export default function LeaderboardScreen() {
         ) : (
           <View>
             {tab === 'Leaderboard' && (
-              <LeaderboardTable players={leaderboardPlayers} myId={myId} />
+              <LeaderboardTable players={leaderboardPlayers} myId={myId} scope={scope} />
             )}
             {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
             {tab === 'H2H' && <H2HTab />}

@@ -17,6 +17,11 @@ import { haptics } from '../../src/lib/haptics';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
+import { getGreeting, getGreetingSubtitle, isMastersTheme } from '../../src/lib/greeting';
+import { fetchWeather, type WeatherData } from '../../src/lib/weather';
+import { computeStreaks, type Streak } from '../../src/lib/streaks';
+import { formatWeeklyDigest, computeWeeklyDigest } from '../../src/lib/streaks';
+import { leaderboardRowLabel, statLabel } from '../../src/lib/accessibility';
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
 import {
   MOCK_QUICK_STATS,
@@ -65,13 +70,7 @@ const MOCK_NEXT_MATCHUP = {
   date: 'Mar 22, 2026',
 };
 
-// ─── Greeting ─────────────────────────────────────────────────────────
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+// ─── (greeting now imported from src/lib/greeting) ──────────────────
 
 // ─── Time ago ─────────────────────────────────────────────────────────
 function timeAgo(iso: string): string {

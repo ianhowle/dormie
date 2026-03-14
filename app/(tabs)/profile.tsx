@@ -26,6 +26,7 @@ import { scoreColor, formatToPar as formatToParUtil, toParColor as toParColorUti
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { haptics } from '../../src/lib/haptics';
+import { isSoundEnabled, setSoundEnabled } from '../../src/lib/sounds';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 
@@ -218,6 +219,7 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
   const [showDemoData, setShowDemoData] = useState(false);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(null);
   const [showCoursePicker, setShowCoursePicker] = useState(false);
 
@@ -431,47 +433,42 @@ export default function ProfileScreen() {
           {/* ─── STATS GRID ──────────────────────────────────────── */}
           <SectionLabel title="STATS" />
           <DataFreshness updatedAt={lastUpdated} />
-          <View style={s.statsGrid}>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-              <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {displayStats.totalRounds}
-              </Text>
-              <Text style={[s.statLabel, { color: c.textMuted }]}>Total Rounds</Text>
-            </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-              <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {displayStats.coursesPlayed}
-              </Text>
-              <Text style={[s.statLabel, { color: c.textMuted }]}>Courses Played</Text>
-            </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-              <Text style={[s.statValue, { color: c.gold, fontFamily: GEO }]}>
-                {displayStats.bestRound.score}
-              </Text>
-              <Text style={[s.statLabel, { color: c.textMuted }]}>Best Round</Text>
-              <Text style={[s.statSub, { color: c.textMuted }]} numberOfLines={1}>
-                {displayStats.bestRound.course}
-              </Text>
-            </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-              <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg}
-              </Text>
-              <Text style={[s.statLabel, { color: c.textMuted }]}>Scoring Average</Text>
-            </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-              <Text style={[s.statValue, { color: c.gold, fontFamily: GEO }]}>
-                {displayStats.courseRecords}
-              </Text>
-              <Text style={[s.statLabel, { color: c.textMuted }]}>Course Records</Text>
-            </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-              <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {displayStats.tripsPlayed}
-              </Text>
-              <Text style={[s.statLabel, { color: c.textMuted }]}>Trips Played</Text>
-            </View>
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+            {[
+              { value: displayStats.totalRounds, label: 'RNDS', color: c.teal },
+              { value: displayStats.coursesPlayed, label: 'COURSES', color: c.teal },
+              { value: displayStats.bestRound.score, label: 'BEST', color: c.gold },
+              { value: typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg, label: 'AVG', color: c.teal },
+              { value: profileUser.handicap.toFixed(1), label: 'HCP', color: c.teal },
+              { value: displayStats.courseRecords, label: 'RECORDS', color: c.gold },
+            ].map((stat) => (
+              <Pressable
+                key={stat.label}
+                style={({ pressed }) => [
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'baseline',
+                    gap: 4,
+                    backgroundColor: c.cardBg,
+                    borderWidth: 1,
+                    borderColor: c.border,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    ...(isDark ? cardShadowDark : cardShadowLight),
+                  },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
+                accessibilityLabel={`${stat.label}: ${stat.value}`}
+              >
+                <Text style={{ color: stat.color, fontSize: 18, fontWeight: '700', fontFamily: GEO, letterSpacing: -0.5 }}>
+                  {stat.value}
+                </Text>
+                <Text style={{ color: c.textMuted, fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>
+                  {stat.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
 
           {/* Demo data toggle for new users */}
           {!realStats && !showDemoData && (
