@@ -245,10 +245,12 @@ function ClubhouseTab({
   trip,
   checklist,
   onToggleCheck,
+  onToolPress,
 }: {
   trip: typeof MOCK_UPCOMING_TRIPS[0];
   checklist: ChecklistItem[];
   onToggleCheck: (id: string) => void;
+  onToolPress: (toolId: string) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -425,6 +427,7 @@ function ClubhouseTab({
         {TRIP_TOOLS.map((tool) => (
           <Pressable
             key={tool.id}
+            onPress={() => onToolPress(tool.id)}
             style={[s.toolCard, { backgroundColor: c.cardBg, borderColor: c.border }]}
           >
             <Ionicons name={tool.icon as any} size={22} color={tool.color} />
@@ -819,6 +822,654 @@ function ChatTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// TRIP TOOL: BUDGET CALCULATOR
+// ═══════════════════════════════════════════════════════════════════════
+function BudgetCalculator({
+  trip,
+  playerCount,
+  onBack,
+}: {
+  trip: typeof MOCK_UPCOMING_TRIPS[0];
+  playerCount: number;
+  onBack: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const [greensFees, setGreensFees] = useState('175');
+  const [lodging, setLodging] = useState('220');
+  const [travel, setTravel] = useState('450');
+  const [food, setFood] = useState('80');
+  const [other, setOther] = useState('50');
+
+  const roundCount = trip.roundsPlanned ?? 3;
+  const startD = new Date(trip.startDate);
+  const endD = new Date(trip.endDate);
+  const nights = Math.max(1, Math.round((endD.getTime() - startD.getTime()) / 86400000));
+
+  const perGreen = (parseFloat(greensFees) || 0) * roundCount;
+  const perLodge = (parseFloat(lodging) || 0) * nights;
+  const perTravel = parseFloat(travel) || 0;
+  const perFood = (parseFloat(food) || 0) * (nights + 1);
+  const perOther = parseFloat(other) || 0;
+  const perPerson = perGreen + perLodge + perTravel + perFood + perOther;
+  const groupTotal = perPerson * playerCount;
+
+  const budgetRows: { label: string; detail: string; amount: number; state: string; setter: (v: string) => void }[] = [
+    { label: 'Greens Fees', detail: `$${greensFees} × ${roundCount} rounds`, amount: perGreen, state: greensFees, setter: setGreensFees },
+    { label: 'Lodging', detail: `$${lodging} × ${nights} nights`, amount: perLodge, state: lodging, setter: setLodging },
+    { label: 'Travel', detail: 'Total (flights, rental, etc.)', amount: perTravel, state: travel, setter: setTravel },
+    { label: 'Food & Drink', detail: `$${food} × ${nights + 1} days`, amount: perFood, state: food, setter: setFood },
+    { label: 'Other', detail: 'Tips, prizes, etc.', amount: perOther, state: other, setter: setOther },
+  ];
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <View style={[tt.toolHeader, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable onPress={onBack} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.text} />
+        </Pressable>
+        <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Budget Calculator</Text>
+        <Ionicons name="cash-outline" size={20} color="#2A9D8F" />
+      </View>
+
+      <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Summary cards */}
+        <View style={tt.budgetSummaryRow}>
+          <View style={[tt.budgetSummaryCard, { backgroundColor: `${c.teal}10`, borderColor: c.teal }]}>
+            <Text style={[tt.budgetSummaryLabel, { color: c.textMuted }]}>Per Person</Text>
+            <Text style={[tt.budgetSummaryVal, { color: c.teal, fontFamily: GEO }]}>
+              ${perPerson.toLocaleString()}
+            </Text>
+          </View>
+          <View style={[tt.budgetSummaryCard, { backgroundColor: `${c.gold}10`, borderColor: c.gold }]}>
+            <Text style={[tt.budgetSummaryLabel, { color: c.textMuted }]}>Group Total</Text>
+            <Text style={[tt.budgetSummaryVal, { color: c.gold, fontFamily: GEO }]}>
+              ${groupTotal.toLocaleString()}
+            </Text>
+          </View>
+        </View>
+        <Text style={[tt.budgetMeta, { color: c.textMuted }]}>
+          {playerCount} players · {roundCount} rounds · {nights} nights
+        </Text>
+
+        {/* Editable inputs */}
+        {budgetRows.map((row) => (
+          <View key={row.label} style={[tt.budgetRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[tt.budgetRowLabel, { color: c.text }]}>{row.label}</Text>
+              <Text style={[tt.budgetRowDetail, { color: c.textMuted }]}>{row.detail}</Text>
+            </View>
+            <View style={tt.budgetInputWrap}>
+              <Text style={[tt.budgetDollar, { color: c.textMuted }]}>$</Text>
+              <TextInput
+                value={row.state}
+                onChangeText={row.setter}
+                keyboardType="numeric"
+                style={[tt.budgetInput, { color: c.text, borderColor: c.border }]}
+              />
+            </View>
+            <Text style={[tt.budgetRowAmount, { color: c.teal, fontFamily: GEO }]}>
+              ${row.amount.toLocaleString()}
+            </Text>
+          </View>
+        ))}
+
+        {/* Breakdown */}
+        <View style={[tt.breakdownCard, { borderColor: c.border }]}>
+          <Text style={[tt.breakdownTitle, { color: c.gold, fontFamily: GEO }]}>BREAKDOWN</Text>
+          {budgetRows.map((row) => (
+            <View key={row.label} style={[tt.breakdownRow, { borderColor: c.border }]}>
+              <Text style={[tt.breakdownLabel, { color: c.textMuted }]}>{row.label}</Text>
+              <Text style={[tt.breakdownVal, { color: c.text, fontFamily: GEO }]}>${row.amount.toLocaleString()}</Text>
+            </View>
+          ))}
+          <View style={[tt.breakdownRow, { borderColor: c.teal }]}>
+            <Text style={[tt.breakdownLabel, { color: c.teal, fontWeight: '700' }]}>Total Per Person</Text>
+            <Text style={[tt.breakdownVal, { color: c.teal, fontFamily: GEO, fontSize: 18 }]}>${perPerson.toLocaleString()}</Text>
+          </View>
+        </View>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TRIP TOOL: PACKING LIST
+// ═══════════════════════════════════════════════════════════════════════
+type PackingItem = { id: string; text: string; checked: boolean };
+type PackingCategory = { title: string; icon: string; items: PackingItem[] };
+
+const INITIAL_PACKING: PackingCategory[] = [
+  {
+    title: 'Golf',
+    icon: 'golf-outline',
+    items: [
+      { id: 'pg1', text: 'Clubs', checked: false },
+      { id: 'pg2', text: 'Golf shoes', checked: false },
+      { id: 'pg3', text: 'Glove', checked: false },
+      { id: 'pg4', text: 'Balls (1 doz+)', checked: false },
+      { id: 'pg5', text: 'Tees', checked: false },
+      { id: 'pg6', text: 'Rangefinder', checked: false },
+      { id: 'pg7', text: 'Rain gear', checked: false },
+      { id: 'pg8', text: 'Hat / visor', checked: false },
+      { id: 'pg9', text: 'Towel', checked: false },
+      { id: 'pg10', text: 'Divot tool', checked: false },
+    ],
+  },
+  {
+    title: 'Clothing',
+    icon: 'shirt-outline',
+    items: [
+      { id: 'pc1', text: 'Polos (3-4)', checked: false },
+      { id: 'pc2', text: 'Shorts / pants', checked: false },
+      { id: 'pc3', text: 'Belt', checked: false },
+      { id: 'pc4', text: 'Dinner outfit', checked: false },
+      { id: 'pc5', text: 'Jacket / pullover', checked: false },
+      { id: 'pc6', text: 'Sunglasses', checked: false },
+    ],
+  },
+  {
+    title: 'Essentials',
+    icon: 'briefcase-outline',
+    items: [
+      { id: 'pe1', text: 'Phone charger', checked: false },
+      { id: 'pe2', text: 'Sunscreen', checked: false },
+      { id: 'pe3', text: 'Pain relievers', checked: false },
+      { id: 'pe4', text: 'Snacks', checked: false },
+      { id: 'pe5', text: 'Water bottle', checked: false },
+      { id: 'pe6', text: 'Cash for bets', checked: false },
+    ],
+  },
+];
+
+function PackingList({ onBack }: { onBack: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [categories, setCategories] = useState(INITIAL_PACKING);
+
+  const toggleItem = (catIdx: number, itemId: string) => {
+    setCategories((prev) =>
+      prev.map((cat, ci) =>
+        ci === catIdx
+          ? { ...cat, items: cat.items.map((it) => (it.id === itemId ? { ...it, checked: !it.checked } : it)) }
+          : cat,
+      ),
+    );
+  };
+
+  const allItems = categories.flatMap((cat) => cat.items);
+  const checked = allItems.filter((it) => it.checked).length;
+  const total = allItems.length;
+  const pct = total > 0 ? checked / total : 0;
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <View style={[tt.toolHeader, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable onPress={onBack} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.text} />
+        </Pressable>
+        <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Packing List</Text>
+        <Ionicons name="bag-outline" size={20} color="#D4AF37" />
+      </View>
+
+      <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false}>
+        {/* Progress bar */}
+        <View style={[tt.packProgress, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <View style={tt.packProgressHeader}>
+            <Text style={[tt.packProgressText, { color: c.text, fontFamily: GEO }]}>
+              {checked} / {total}
+            </Text>
+            <Text style={[tt.packProgressPct, { color: pct === 1 ? c.teal : c.gold, fontFamily: GEO }]}>
+              {Math.round(pct * 100)}%
+            </Text>
+          </View>
+          <View style={[tt.packTrack, { backgroundColor: c.elevated }]}>
+            <View style={[tt.packFill, { width: `${pct * 100}%`, backgroundColor: pct === 1 ? c.teal : c.gold }]} />
+          </View>
+        </View>
+
+        {categories.map((cat, catIdx) => {
+          const catChecked = cat.items.filter((it) => it.checked).length;
+          return (
+            <View key={cat.title}>
+              <View style={tt.packCatHeader}>
+                <Ionicons name={cat.icon as any} size={16} color={c.gold} />
+                <Text style={[tt.packCatTitle, { color: c.gold, fontFamily: GEO }]}>{cat.title.toUpperCase()}</Text>
+                <Text style={[tt.packCatCount, { color: c.textMuted }]}>
+                  {catChecked}/{cat.items.length}
+                </Text>
+              </View>
+              {cat.items.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => toggleItem(catIdx, item.id)}
+                  style={[tt.packRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+                >
+                  <View
+                    style={[
+                      tt.packCheck,
+                      {
+                        borderColor: item.checked ? c.teal : c.textMuted,
+                        backgroundColor: item.checked ? c.teal : 'transparent',
+                      },
+                    ]}
+                  >
+                    {item.checked && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  </View>
+                  <Text
+                    style={[
+                      tt.packItemText,
+                      { color: item.checked ? c.textMuted : c.text },
+                      item.checked && { textDecorationLine: 'line-through' },
+                    ]}
+                  >
+                    {item.text}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          );
+        })}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TRIP TOOL: TEE TIME GROUPS
+// ═══════════════════════════════════════════════════════════════════════
+function TeeTimeGroups({
+  players,
+  courses,
+  onBack,
+}: {
+  players: TripPlayer[];
+  courses: TripCourse[];
+  onBack: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  // Auto-group into foursomes
+  const buildGroups = (course: TripCourse) => {
+    const shuffled = [...players].sort(() => 0.5 - Math.random());
+    const groups: { time: string; players: TripPlayer[] }[] = [];
+    const baseHour = parseInt(course.teeTime.split(':')[0], 10);
+    const baseMin = parseInt(course.teeTime.split(':')[1], 10);
+
+    for (let i = 0; i < shuffled.length; i += 4) {
+      const groupPlayers = shuffled.slice(i, i + 4);
+      const offset = (i / 4) * 10; // 10 min stagger
+      const totalMin = baseHour * 60 + baseMin + offset;
+      const hr = Math.floor(totalMin / 60);
+      const mn = totalMin % 60;
+      const hr12 = hr > 12 ? hr - 12 : hr;
+      const ampm = hr >= 12 ? 'PM' : 'AM';
+      groups.push({
+        time: `${hr12}:${mn.toString().padStart(2, '0')} ${ampm}`,
+        players: groupPlayers,
+      });
+    }
+    return groups;
+  };
+
+  // Seed the groups once per course
+  const [courseGroups] = useState(() =>
+    courses.reduce(
+      (acc, course) => {
+        acc[course.id] = buildGroups(course);
+        return acc;
+      },
+      {} as Record<string, { time: string; players: TripPlayer[] }[]>,
+    ),
+  );
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <View style={[tt.toolHeader, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable onPress={onBack} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.text} />
+        </Pressable>
+        <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Tee Time Groups</Text>
+        <Ionicons name="people-outline" size={20} color="#5B7FA5" />
+      </View>
+
+      <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false}>
+        {courses.map((course) => (
+          <View key={course.id}>
+            <View style={tt.teeCourseBanner}>
+              <LinearGradient
+                colors={course.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={tt.teeDayBadge}>
+                <Text style={[tt.teeDayText, { fontFamily: GEO }]}>DAY {course.day}</Text>
+              </View>
+              <Text style={[tt.teeCourseName, { fontFamily: GEO }]}>{course.name}</Text>
+            </View>
+
+            {(courseGroups[course.id] ?? []).map((group, gi) => (
+              <View key={gi} style={[tt.teeGroupCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                <View style={tt.teeGroupHeader}>
+                  <Text style={[tt.teeGroupNum, { color: c.gold, fontFamily: GEO }]}>GROUP {gi + 1}</Text>
+                  <Text style={[tt.teeGroupTime, { color: c.teal, fontFamily: GEO }]}>{group.time}</Text>
+                </View>
+                {group.players.map((p) => (
+                  <View key={p.id} style={[tt.teePlayerRow, { borderColor: c.border }]}>
+                    <Avatar id={p.id} size={28} name={p.name} />
+                    <Text style={[tt.teePlayerName, { color: c.text }]}>{p.name}</Text>
+                    <Text style={[tt.teePlayerHcp, { color: c.textMuted, fontFamily: GEO }]}>{p.handicap}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        ))}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TRIP TOOL: RSVP PREVIEW
+// ═══════════════════════════════════════════════════════════════════════
+function RSVPPreview({
+  trip,
+  players,
+  courses,
+  onBack,
+}: {
+  trip: typeof MOCK_UPCOMING_TRIPS[0];
+  players: TripPlayer[];
+  courses: TripCourse[];
+  onBack: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const MASTERS_GREEN = '#1E4D2B';
+
+  const formatDate = (d: string) => {
+    const date = new Date(d);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <View style={[tt.toolHeader, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable onPress={onBack} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.text} />
+        </Pressable>
+        <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>RSVP Preview</Text>
+        <Ionicons name="mail-outline" size={20} color="#8B6DAF" />
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        {/* Masters green hero */}
+        <LinearGradient
+          colors={[MASTERS_GREEN, '#2D6A3F']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={tt.rsvpHero}
+        >
+          <Text style={[tt.rsvpBrand, { fontFamily: GEO }]}>DORMIE</Text>
+          <Text style={[tt.rsvpTripName, { fontFamily: GEO }]}>{trip.name}</Text>
+          <Text style={tt.rsvpLocation}>{trip.destination}</Text>
+          <Text style={tt.rsvpLocation}>{trip.city}, {trip.state}</Text>
+          <View style={tt.rsvpDatesRow}>
+            <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.7)" />
+            <Text style={tt.rsvpDates}>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</Text>
+          </View>
+        </LinearGradient>
+
+        {/* Course list */}
+        <View style={tt.rsvpSection}>
+          <Text style={[tt.rsvpSectionTitle, { color: c.gold, fontFamily: GEO }]}>COURSES</Text>
+          {courses.map((course) => (
+            <View key={course.id} style={[tt.rsvpCourseRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Ionicons name="golf-outline" size={16} color={c.teal} />
+              <View style={{ flex: 1 }}>
+                <Text style={[tt.rsvpCourseName, { color: c.text }]}>{course.name}</Text>
+                <Text style={[tt.rsvpCourseTime, { color: c.textMuted }]}>Day {course.day} · {course.teeTime}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Who's going */}
+        <View style={tt.rsvpSection}>
+          <Text style={[tt.rsvpSectionTitle, { color: c.gold, fontFamily: GEO }]}>WHO'S GOING</Text>
+          {players.map((p) => {
+            const rsvpColor = p.rsvp === 'confirmed' ? c.teal : p.rsvp === 'pending' ? c.gold : c.urgent;
+            const rsvpLabel = p.rsvp === 'confirmed' ? 'IN' : p.rsvp === 'pending' ? 'PENDING' : 'OUT';
+            return (
+              <View key={p.id} style={[tt.rsvpPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                <Avatar id={p.id} size={32} name={p.name} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[tt.rsvpPlayerName, { color: c.text }]}>{p.name}</Text>
+                  <Text style={[tt.rsvpPlayerHcp, { color: c.textMuted }]}>{p.handicap} HCP</Text>
+                </View>
+                <View style={[tt.rsvpBadge, { backgroundColor: `${rsvpColor}15`, borderColor: rsvpColor }]}>
+                  <Text style={[tt.rsvpBadgeText, { color: rsvpColor }]}>{rsvpLabel}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* RSVP buttons */}
+        <View style={tt.rsvpSection}>
+          <Pressable style={[tt.rsvpBtn, { backgroundColor: MASTERS_GREEN }]}>
+            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+            <Text style={[tt.rsvpBtnText, { fontFamily: GEO }]}>I'm In</Text>
+          </Pressable>
+          <Pressable style={[tt.rsvpBtn, { backgroundColor: `${c.gold}20`, borderWidth: 1, borderColor: c.gold }]}>
+            <Ionicons name="help-circle" size={18} color={c.gold} />
+            <Text style={[tt.rsvpBtnText, { color: c.gold, fontFamily: GEO }]}>Maybe</Text>
+          </Pressable>
+          <Pressable style={[tt.rsvpBtn, { backgroundColor: `${c.urgent}15`, borderWidth: 1, borderColor: c.urgent }]}>
+            <Ionicons name="close-circle" size={18} color={c.urgent} />
+            <Text style={[tt.rsvpBtnText, { color: c.urgent, fontFamily: GEO }]}>Can't Make It</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TRIP TOOL: TRIP AWARDS
+// ═══════════════════════════════════════════════════════════════════════
+type TripAward = {
+  id: string;
+  title: string;
+  icon: string;
+  winner: string;
+  detail: string;
+  auto: boolean;
+  isChampion?: boolean;
+};
+
+const MOCK_AWARDS: TripAward[] = [
+  { id: 'ta1', title: 'Trip Champion', icon: 'trophy', winner: 'Tommy Fleetwood', detail: 'Lowest total score: 213 (71-71-71)', auto: true, isChampion: true },
+  { id: 'ta2', title: 'Best Single Round', icon: 'ribbon', winner: 'Tommy Fleetwood', detail: '68 at TPC Scottsdale — Stadium', auto: true },
+  { id: 'ta3', title: 'Most Improved', icon: 'trending-up', winner: 'Jake Sullivan', detail: 'Improved 8 strokes from R1 to R3', auto: false },
+  { id: 'ta4', title: 'Side Game King', icon: 'cash', winner: 'Ian McGowan', detail: 'Won 4 of 6 side games', auto: false },
+  { id: 'ta5', title: 'Clutch Player', icon: 'flash', winner: 'Drew Patterson', detail: 'Eagle on 18 to win Skins', auto: false },
+  { id: 'ta6', title: 'Best Dressed', icon: 'shirt', winner: 'Ian McGowan', detail: 'Voted by the group', auto: false },
+  { id: 'ta7', title: 'Worst Shot Award', icon: 'skull', winner: 'Jake Sullivan', detail: 'Topped driver into the lake on #7', auto: false },
+];
+
+function TripAwards({ onBack }: { onBack: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <View style={[tt.toolHeader, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable onPress={onBack} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.text} />
+        </Pressable>
+        <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Trip Awards</Text>
+        <Ionicons name="trophy-outline" size={20} color="#C47B3B" />
+      </View>
+
+      <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false}>
+        {MOCK_AWARDS.map((award) => (
+          <View
+            key={award.id}
+            style={[
+              tt.awardRow,
+              {
+                backgroundColor: award.isChampion ? `${c.gold}10` : c.cardBg,
+                borderColor: award.isChampion ? c.gold : c.border,
+              },
+            ]}
+          >
+            <View style={[tt.awardIcon, { backgroundColor: award.isChampion ? `${c.gold}20` : c.elevated }]}>
+              <Ionicons
+                name={award.icon as any}
+                size={22}
+                color={award.isChampion ? c.gold : '#C47B3B'}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[tt.awardTitle, { color: award.isChampion ? c.gold : c.text, fontFamily: GEO }]}>
+                {award.title}
+              </Text>
+              <Text style={[tt.awardWinner, { color: c.teal }]}>{award.winner}</Text>
+              <Text style={[tt.awardDetail, { color: c.textMuted }]}>{award.detail}</Text>
+            </View>
+            {award.auto && (
+              <View style={[tt.autoBadge, { backgroundColor: `${c.teal}15` }]}>
+                <Text style={[tt.autoBadgeText, { color: c.teal }]}>AUTO</Text>
+              </View>
+            )}
+          </View>
+        ))}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TRIP TOOL: WEATHER
+// ═══════════════════════════════════════════════════════════════════════
+type WeatherDay = {
+  day: number;
+  date: string;
+  high: number;
+  low: number;
+  condition: string;
+  icon: string;
+  wind: string;
+  rainPct: number;
+};
+
+function generateMockWeather(startDate: string, nights: number): WeatherDay[] {
+  const conditions: { cond: string; icon: string }[] = [
+    { cond: 'Sunny', icon: 'sunny' },
+    { cond: 'Partly Cloudy', icon: 'partly-sunny' },
+    { cond: 'Mostly Sunny', icon: 'sunny-outline' },
+    { cond: 'Cloudy', icon: 'cloud' },
+    { cond: 'AM Showers', icon: 'rainy' },
+  ];
+  const days: WeatherDay[] = [];
+  const base = new Date(startDate);
+  for (let i = 0; i <= nights; i++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() + i);
+    const ci = Math.floor(Math.random() * conditions.length);
+    const high = 82 + Math.floor(Math.random() * 16);
+    days.push({
+      day: i + 1,
+      date: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      high,
+      low: high - 15 - Math.floor(Math.random() * 8),
+      condition: conditions[ci].cond,
+      icon: conditions[ci].icon,
+      wind: `${5 + Math.floor(Math.random() * 15)} mph ${['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.floor(Math.random() * 8)]}`,
+      rainPct: ci >= 3 ? 30 + Math.floor(Math.random() * 40) : Math.floor(Math.random() * 15),
+    });
+  }
+  return days;
+}
+
+function WeatherForecast({
+  trip,
+  onBack,
+}: {
+  trip: typeof MOCK_UPCOMING_TRIPS[0];
+  onBack: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const startD = new Date(trip.startDate);
+  const endD = new Date(trip.endDate);
+  const nights = Math.max(1, Math.round((endD.getTime() - startD.getTime()) / 86400000));
+  const [weather] = useState(() => generateMockWeather(trip.startDate, nights));
+
+  return (
+    <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <View style={[tt.toolHeader, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable onPress={onBack} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.text} />
+        </Pressable>
+        <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Weather</Text>
+        <Ionicons name="partly-sunny-outline" size={20} color="#4A9B8E" />
+      </View>
+
+      <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false}>
+        <Text style={[tt.weatherLocation, { color: c.textMuted }]}>
+          {trip.city}, {trip.state}
+        </Text>
+
+        {weather.map((day) => (
+          <View key={day.day} style={[tt.weatherCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={tt.weatherTop}>
+              <View>
+                <Text style={[tt.weatherDayLabel, { color: c.gold, fontFamily: GEO }]}>DAY {day.day}</Text>
+                <Text style={[tt.weatherDate, { color: c.textMuted }]}>{day.date}</Text>
+              </View>
+              <View style={tt.weatherTempRow}>
+                <Ionicons name={day.icon as any} size={28} color={day.condition.includes('Sunny') || day.condition.includes('sunny') ? '#D4AF37' : c.textMuted} />
+                <View style={tt.weatherTemps}>
+                  <Text style={[tt.weatherHigh, { color: c.text, fontFamily: GEO }]}>{day.high}°</Text>
+                  <Text style={[tt.weatherLow, { color: c.textMuted, fontFamily: GEO }]}>{day.low}°</Text>
+                </View>
+              </View>
+            </View>
+            <View style={[tt.weatherBottom, { borderColor: c.border }]}>
+              <Text style={[tt.weatherCond, { color: c.text }]}>{day.condition}</Text>
+              <View style={tt.weatherMetaRow}>
+                <View style={tt.weatherMetaItem}>
+                  <Ionicons name="flag-outline" size={12} color={c.textMuted} />
+                  <Text style={[tt.weatherMetaText, { color: c.textMuted }]}>{day.wind}</Text>
+                </View>
+                <View style={tt.weatherMetaItem}>
+                  <Ionicons name="water-outline" size={12} color={day.rainPct > 30 ? c.urgent : c.teal} />
+                  <Text style={[tt.weatherMetaText, { color: day.rainPct > 30 ? c.urgent : c.teal }]}>
+                    {day.rainPct}%
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        ))}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════
 export default function TripDetailScreen() {
@@ -838,6 +1489,7 @@ export default function TripDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
   const [checklist, setChecklist] = useState(MOCK_CHECKLIST);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
 
   const toggleCheck = useCallback((id: string) => {
     setChecklist((prev) =>
@@ -851,6 +1503,28 @@ export default function TripDetailScreen() {
     const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
     return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`;
   };
+
+  // Trip tool routing
+  const closeTool = () => setActiveTool(null);
+
+  if (activeTool === 'tt1') {
+    return <BudgetCalculator trip={trip} playerCount={MOCK_PLAYERS.length} onBack={closeTool} />;
+  }
+  if (activeTool === 'tt2') {
+    return <PackingList onBack={closeTool} />;
+  }
+  if (activeTool === 'tt3') {
+    return <TeeTimeGroups players={MOCK_PLAYERS} courses={MOCK_COURSES} onBack={closeTool} />;
+  }
+  if (activeTool === 'tt4') {
+    return <RSVPPreview trip={trip} players={MOCK_PLAYERS} courses={MOCK_COURSES} onBack={closeTool} />;
+  }
+  if (activeTool === 'tt5') {
+    return <TripAwards onBack={closeTool} />;
+  }
+  if (activeTool === 'tt6') {
+    return <WeatherForecast trip={trip} onBack={closeTool} />;
+  }
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
@@ -946,7 +1620,7 @@ export default function TripDetailScreen() {
       {/* ─── TAB CONTENT ─────────────────────────────────────────────── */}
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         {activeTab === 'Clubhouse' && (
-          <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} />
+          <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} />
         )}
         {activeTab === 'Courses' && <CoursesTab />}
         {activeTab === 'Players' && <PlayersTab />}
@@ -1370,4 +2044,245 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+});
+
+// ─── Trip Tool Styles ───────────────────────────────────────────────
+const tt = StyleSheet.create({
+  /* Shared tool header */
+  toolHeader: {
+    paddingTop: STATUS_BAR_H,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+  },
+  toolTitle: { fontSize: 16, fontWeight: '700' },
+  toolBody: { paddingHorizontal: 16, paddingTop: 12 },
+
+  /* Budget */
+  budgetSummaryRow: { flexDirection: 'row', gap: 8 },
+  budgetSummaryCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 1,
+  },
+  budgetSummaryLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  budgetSummaryVal: { fontSize: 28, fontWeight: '800', marginTop: 4 },
+  budgetMeta: { fontSize: 11, textAlign: 'center', marginTop: 8, marginBottom: 16 },
+  budgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  budgetRowLabel: { fontSize: 14, fontWeight: '600' },
+  budgetRowDetail: { fontSize: 10, marginTop: 2 },
+  budgetInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  budgetDollar: { fontSize: 14 },
+  budgetInput: {
+    width: 60,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  budgetRowAmount: { fontSize: 14, fontWeight: '700', minWidth: 60, textAlign: 'right' },
+  breakdownCard: { borderWidth: 1, marginTop: 16, padding: 14 },
+  breakdownTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 2, marginBottom: 10 },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+  },
+  breakdownLabel: { fontSize: 12 },
+  breakdownVal: { fontSize: 13, fontWeight: '700' },
+
+  /* Packing list */
+  packProgress: { padding: 14, borderWidth: 1, marginBottom: 16 },
+  packProgressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  packProgressText: { fontSize: 16, fontWeight: '700' },
+  packProgressPct: { fontSize: 16, fontWeight: '700' },
+  packTrack: { height: 6, width: '100%' },
+  packFill: { height: 6 },
+  packCatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  packCatTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 2 },
+  packCatCount: { fontSize: 10, marginLeft: 'auto' },
+  packRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  packCheck: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  packItemText: { fontSize: 14, flex: 1 },
+
+  /* Tee time groups */
+  teeCourseBanner: {
+    padding: 14,
+    overflow: 'hidden',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  teeDayBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  teeDayText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  teeCourseName: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  teeGroupCard: { borderWidth: 1, padding: 12, marginBottom: 8 },
+  teeGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  teeGroupNum: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  teeGroupTime: { fontSize: 14, fontWeight: '700' },
+  teePlayerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+  },
+  teePlayerName: { fontSize: 13, fontWeight: '600', flex: 1 },
+  teePlayerHcp: { fontSize: 12, fontWeight: '700' },
+
+  /* RSVP preview */
+  rsvpHero: {
+    paddingTop: 32,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  rsvpBrand: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 6,
+    marginBottom: 12,
+  },
+  rsvpTripName: { color: '#fff', fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  rsvpLocation: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 },
+  rsvpDatesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  rsvpDates: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+  rsvpSection: { paddingHorizontal: 16, marginTop: 16 },
+  rsvpSectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 2, marginBottom: 8 },
+  rsvpCourseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  rsvpCourseName: { fontSize: 13, fontWeight: '600' },
+  rsvpCourseTime: { fontSize: 10, marginTop: 2 },
+  rsvpPlayerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  rsvpPlayerName: { fontSize: 13, fontWeight: '600' },
+  rsvpPlayerHcp: { fontSize: 10, marginTop: 1 },
+  rsvpBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+  },
+  rsvpBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  rsvpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  rsvpBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  /* Awards */
+  awardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  awardIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  awardTitle: { fontSize: 13, fontWeight: '700' },
+  awardWinner: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  awardDetail: { fontSize: 11, marginTop: 2 },
+  autoBadge: { paddingHorizontal: 8, paddingVertical: 3 },
+  autoBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+
+  /* Weather */
+  weatherLocation: { fontSize: 12, marginBottom: 12 },
+  weatherCard: { borderWidth: 1, marginBottom: 8, overflow: 'hidden' },
+  weatherTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+  },
+  weatherDayLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  weatherDate: { fontSize: 12, marginTop: 2 },
+  weatherTempRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  weatherTemps: { alignItems: 'flex-end' },
+  weatherHigh: { fontSize: 24, fontWeight: '700' },
+  weatherLow: { fontSize: 14 },
+  weatherBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
+  weatherCond: { fontSize: 13, fontWeight: '600' },
+  weatherMetaRow: { flexDirection: 'row', gap: 12 },
+  weatherMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  weatherMetaText: { fontSize: 11, fontWeight: '600' },
 });
