@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
+import { CourseImage } from './CourseImage';
 import {
   PLAYED_SORTED,
   MOCK_COMMUNITY_COURSES,
@@ -56,30 +56,33 @@ function PlayedCourseCard({ course }: { course: PlayedCourse }) {
       onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
       style={({ pressed }) => [s.card, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : cardShadowLight]}
     >
-      {/* Gradient image header */}
-      <LinearGradient
-        colors={course.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      {/* Course image header (falls back to gradient) */}
+      <CourseImage
+        courseName={course.name}
+        location={`${course.city} ${course.state}`}
+        gradient={course.gradient}
         style={s.cardHeader}
       >
-        <View style={s.cardHeaderText}>
-          <Text style={s.cardName} numberOfLines={1}>
-            {course.name}
-          </Text>
-          <Text style={s.cardLocation}>
-            {course.city}, {course.state}
-          </Text>
-        </View>
-        {course.recordScore !== null && (
-          <View style={s.recordBadge}>
-            <Text style={[s.recordScore, { fontFamily: GEO }]}>
-              {course.recordScore}
+        <View style={s.cardImageOverlay} />
+        <View style={s.cardHeaderContent}>
+          <View style={s.cardHeaderText}>
+            <Text style={s.cardName} numberOfLines={1}>
+              {course.name}
             </Text>
-            <Text style={s.recordLabel}>REC</Text>
+            <Text style={s.cardLocation}>
+              {course.city}, {course.state}
+            </Text>
           </View>
-        )}
-      </LinearGradient>
+          {course.recordScore !== null && (
+            <View style={s.recordBadge}>
+              <Text style={[s.recordScore, { fontFamily: GEO }]}>
+                {course.recordScore}
+              </Text>
+              <Text style={s.recordLabel}>REC</Text>
+            </View>
+          )}
+        </View>
+      </CourseImage>
 
       {/* Stats row */}
       <View style={s.cardBody}>
@@ -288,7 +291,14 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   cardHeader: {
-    height: 50,
+    height: 80,
+  },
+  cardImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  cardHeaderContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',

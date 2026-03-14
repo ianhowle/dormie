@@ -18,6 +18,7 @@ import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import { Avatar } from '../../src/components/Avatar';
+import { DestinationImage } from '../../src/components/CourseImage';
 import GoldDivider from '../../src/components/GoldDivider';
 import { TripCountdownRing } from '../../src/components/TripCountdownRing';
 import { useAuth } from '../../src/lib/auth';
@@ -25,6 +26,7 @@ import { tripsService } from '../../src/services/trips.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
+import { getDreamImage } from '../../src/services/courseImages.service';
 import type { TripWithMembers } from '../../src/lib/database.types';
 import {
   MOCK_TRIP_STATS,
@@ -167,21 +169,22 @@ function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
-            <LinearGradient
-              colors={d.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <DestinationImage
+              name={d.name}
+              imageUrl={getDreamImage(d.name)}
+              gradient={d.gradient}
               style={s.dreamGradient}
             >
-              {/* Item 16: Stronger dark overlay gradient for text readability */}
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.7)']}
                 locations={[0, 0.4, 1]}
                 style={s.dreamOverlay}
               />
-              <Text style={[s.dreamName, { fontFamily: GEO }]}>{d.name}</Text>
-              <Text style={s.dreamLocation}>{d.city}, {d.state}</Text>
-            </LinearGradient>
+              <View style={s.dreamTextWrap}>
+                <Text style={[s.dreamName, { fontFamily: GEO }]}>{d.name}</Text>
+                <Text style={s.dreamLocation}>{d.city}, {d.state}</Text>
+              </View>
+            </DestinationImage>
             <View style={[s.dreamFooter, { backgroundColor: c.cardBg }]}>
               <Text style={[s.dreamAction, { color: c.teal }]}>Plan Trip →</Text>
             </View>
@@ -236,6 +239,8 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
       : c.teal;
   const borderColor = isCompetition ? MASTERS_GREEN : c.border;
 
+  const tripImage = getDreamImage(trip.city);
+
   return (
     <Pressable
       onPress={() => { haptics.light(); router.push(`/trip-detail?tripId=${trip.id}`); }}
@@ -252,10 +257,20 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
         pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
       ]}
     >
-      <View style={s.tripCardBody}>
+      {tripImage && (
+        <DestinationImage
+          name={trip.city}
+          imageUrl={tripImage}
+          gradient={trip.gradient}
+          style={s.tripImageBg}
+        >
+          <View style={s.tripImageOverlay} />
+        </DestinationImage>
+      )}
+      <View style={[s.tripCardBody, tripImage && { zIndex: 1 }]}>
         <View style={s.tripCardTop}>
           <View style={s.tripCardTitleRow}>
-            <Text style={[s.tripName, { color: c.text }]} numberOfLines={1}>
+            <Text style={[s.tripName, { color: tripImage ? '#fff' : c.text }]} numberOfLines={1}>
               {trip.name}
             </Text>
             {isCompetition && (
@@ -269,7 +284,7 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
               </View>
             )}
           </View>
-          <Text style={[s.tripLocation, { color: c.textMuted }]}>
+          <Text style={[s.tripLocation, { color: tripImage ? 'rgba(255,255,255,0.7)' : c.textMuted }]}>
             {trip.city}, {trip.state} · {trip.roundsPlanned} round{trip.roundsPlanned !== 1 ? 's' : ''}
           </Text>
         </View>
@@ -366,16 +381,18 @@ function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
-            <LinearGradient
-              colors={d.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <DestinationImage
+              name={d.name}
+              imageUrl={getDreamImage(d.name)}
+              gradient={d.gradient}
               style={s.exploreGradient}
             >
               <View style={s.dreamOverlay} />
-              <Text style={[s.exploreName, { fontFamily: GEO }]}>{d.name}</Text>
-              <Text style={s.exploreTagline}>{d.tagline}</Text>
-            </LinearGradient>
+              <View style={s.dreamTextWrap}>
+                <Text style={[s.exploreName, { fontFamily: GEO }]}>{d.name}</Text>
+                <Text style={s.exploreTagline}>{d.tagline}</Text>
+              </View>
+            </DestinationImage>
           </Pressable>
         ))}
       </ScrollView>
@@ -610,11 +627,16 @@ const s = StyleSheet.create({
   },
   dreamGradient: {
     height: 110,
-    justifyContent: 'flex-end',
-    padding: 14,
   },
   dreamOverlay: {
     ...StyleSheet.absoluteFillObject,
+  },
+  dreamTextWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
   },
   dreamName: {
     color: '#fff',
@@ -659,6 +681,13 @@ const s = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
     borderRadius: 0,
+  },
+  tripImageBg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  tripImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   tripCardBody: {
     padding: 14,
@@ -761,8 +790,6 @@ const s = StyleSheet.create({
   },
   exploreGradient: {
     height: 100,
-    justifyContent: 'flex-end',
-    padding: 14,
   },
   exploreName: {
     color: '#fff',

@@ -9,14 +9,14 @@ import {
   Platform,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
-import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
+import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import { haptics } from '../src/lib/haptics';
 import { Avatar } from '../src/components/Avatar';
+import { CourseImage } from '../src/components/CourseImage';
 import GoldDivider from '../src/components/GoldDivider';
 import {
   getCourseDetail,
@@ -148,13 +148,13 @@ function Header({ course }: { course: CourseDetailData }) {
   const router = useRouter();
 
   return (
-    <LinearGradient
-      colors={course.gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <CourseImage
+      courseName={course.name}
+      location={`${course.city} ${course.state}`}
+      gradient={course.gradient}
       style={st.header}
     >
-      {/* Dark overlay */}
+      {/* Dark overlay for text readability */}
       <View style={st.headerOverlay} />
 
       {/* Back button */}
@@ -183,7 +183,7 @@ function Header({ course }: { course: CourseDetailData }) {
         <HeaderStat label="RATING" value={course.rating.toFixed(1)} />
         <HeaderStat label="ROUNDS" value={String(course.totalRounds)} />
       </View>
-    </LinearGradient>
+    </CourseImage>
   );
 }
 
@@ -519,7 +519,7 @@ const st = StyleSheet.create({
   },
   headerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   backBtn: {
     width: 36,
