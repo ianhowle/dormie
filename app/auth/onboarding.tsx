@@ -668,6 +668,7 @@ function NotificationsScreen({
 
   return (
     <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <View style={styles.notifCenter}>
         <Ionicons name="notifications" size={48} color={c.gold} />
         <Text style={[styles.notifTitle, { color: c.text }]}>Stay in the game</Text>
@@ -773,6 +774,7 @@ function LaunchMontage({ userName, onComplete }: { userName: string; onComplete:
   if (showFinal) {
     return (
       <Animated.View style={[styles.screenFull, { backgroundColor: '#141210', opacity: finalOpacity }]}>
+        <ExpoStatusBar style="light" />
         <View style={styles.finalCenter}>
           <Animated.Text style={[styles.finalLogo, { opacity: pulseAnim }]}>
             DORMIE
@@ -789,6 +791,7 @@ function LaunchMontage({ userName, onComplete }: { userName: string; onComplete:
 
   return (
     <View style={[styles.screenFull, { backgroundColor: '#F5F1E8' }]}>
+      <ExpoStatusBar style="light" />
       {/* Confetti */}
       {confetti.map((p, i) => (
         <View

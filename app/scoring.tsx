@@ -2883,6 +2883,26 @@ export default function ScoringScreen() {
               source: 'app',
               played_at: new Date().toISOString(),
             });
+
+            // Elite polish: haptic, toast, confetti on round save
+            haptics.success();
+            showToast({ message: 'Round saved', type: 'success', icon: 'checkmark-circle' });
+            setShowConfetti(true);
+
+            // Personal best detection: check previous rounds at this course
+            try {
+              const previousRounds = await roundsService.fetchByCourse(finalCourseId, user.id);
+              const previousBest = previousRounds
+                .filter((r) => r.id !== finalCourseId) // exclude current
+                .reduce((best, r) => Math.min(best, r.gross_score), Infinity);
+              if (previousBest !== Infinity && grossTotal < previousBest) {
+                setPrevBest(previousBest);
+                setShowPersonalBest(true);
+              }
+            } catch {
+              // Personal best check is non-critical
+            }
+
             Alert.alert('Round Saved', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) has been saved.`);
             router.dismissAll();
           } catch (err) {
@@ -2901,6 +2921,7 @@ export default function ScoringScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <ScoringHeader
         courseName={courseName}
         holeNumber={currentHole.number}

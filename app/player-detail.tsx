@@ -8,11 +8,13 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
+import { haptics } from '../src/lib/haptics';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { MY_ID } from '../src/data/leaderboard';
@@ -55,7 +57,7 @@ function ProfileHeader({ player }: { player: PlayerDetailData }) {
     <View style={[st.profileSection, { backgroundColor: c.surface }]}>
       {/* Back button */}
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => { haptics.light(); router.back(); }}
         style={st.backBtn}
         hitSlop={12}
       >
@@ -79,7 +81,7 @@ function ProfileHeader({ player }: { player: PlayerDetailData }) {
 
       {/* Add to group button (only for non-group players) */}
       {!player.isInGroup && !isMe && (
-        <Pressable style={[st.addBtn, { borderColor: c.teal }]}>
+        <Pressable onPress={() => { haptics.light(); }} style={[st.addBtn, { borderColor: c.teal }]}>
           <Ionicons name="add" size={16} color={c.teal} />
           <Text style={[st.addBtnText, { color: c.teal }]}>Add to Group</Text>
         </Pressable>
@@ -242,7 +244,7 @@ export default function PlayerDetailScreen() {
   if (!player) {
     return (
       <View style={[st.notFound, { backgroundColor: c.bg }]}>
-        <Pressable onPress={() => router.back()} style={st.notFoundBack}>
+        <Pressable onPress={() => { haptics.light(); router.back(); }} style={st.notFoundBack}>
           <Ionicons name="chevron-back" size={24} color={c.text} />
           <Text style={[st.notFoundText, { color: c.text }]}>Player not found</Text>
         </Pressable>

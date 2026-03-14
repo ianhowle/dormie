@@ -232,6 +232,7 @@ export function CaptainsPairings({
   const handlePlayerTap = useCallback((playerId: string) => {
     if (!isCaptain) return;
     if (assignedIds.has(playerId)) return;
+    haptics.light();
 
     // Find first empty slot
     for (const p of teamPairings) {
@@ -261,6 +262,7 @@ export function CaptainsPairings({
   }, [isCaptain, pairings, onPairingsChange]);
 
   const handleSuggest = useCallback(() => {
+    haptics.light();
     const slotsNeeded = teamPairings.length;
     const suggestions = suggestOptimalPairings(teamPlayers, slotsNeeded);
 
