@@ -378,7 +378,7 @@ export default function ProfileScreen() {
 
           <View style={s.profileRow}>
             <View style={{ position: 'relative' }}>
-              <Avatar id={profileUser.id} size={80} name={profileUser.name} />
+              <Avatar id={profileUser.id} size={80} name={profileUser.name} accessibilityLabel={`${profileUser.name} profile photo`} />
               <Pressable
                 style={s.avatarEditBtn}
                 onPress={() =>
@@ -665,6 +665,9 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => { haptics.light(); toggleTheme(); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            accessibilityLabel={isDark ? 'Dark Mode' : 'Light Mode'}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isDark }}
           >
             <Ionicons
               name={isDark ? 'moon' : 'sunny'}

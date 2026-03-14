@@ -233,16 +233,31 @@ function LogoMenu({
 }
 
 // ─── Greeting section — Masters green gradient + pinstripes ──────────
-function GreetingSection({ name, groupName }: { name: string; groupName: string }) {
+function GreetingSection({ name, groupName, weather }: { name: string; groupName: string; weather: WeatherData | null }) {
+  const mastersGradient: [string, string] = ['#2A2318', '#1A1510'];
+  const gradientColors = isMastersTheme() ? mastersGradient : (greenHeaderGradient as unknown as string[]);
+  const subtitle = getGreetingSubtitle();
+
   return (
     <LinearGradient
-      colors={greenHeaderGradient as unknown as string[]}
+      colors={gradientColors}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={st.greetingSection}
     >
       <Pinstripes />
-      <Text style={st.greetingText}>{getGreeting()}, {name}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={st.greetingText}>{getGreeting(name)}</Text>
+        {weather && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4 }}>
+            <Ionicons name={weather.icon as any} size={14} color="rgba(255,255,255,0.8)" />
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '600' }}>{weather.temp}{'\u00B0'} {weather.condition}</Text>
+          </View>
+        )}
+      </View>
+      {subtitle && (
+        <Text style={{ color: '#D4AF37', fontSize: 12, fontStyle: 'italic', fontFamily: 'Georgia', marginTop: 4 }}>{subtitle}</Text>
+      )}
       <Text style={st.greetingGroup}>{groupName}</Text>
     </LinearGradient>
   );
@@ -650,6 +665,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const firstName = user?.user_metadata?.name?.split(' ')[0];
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
   const [showMenu, setShowMenu] = useState(false);
