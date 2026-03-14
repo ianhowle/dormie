@@ -131,9 +131,9 @@ export const MOCK_COMPLETED_TRIPS: Trip[] = [
 ];
 
 export const MOCK_DREAM_DESTINATIONS: DreamDestination[] = [
-  { id: 'd1', name: 'Pebble Beach', city: 'Pebble Beach', state: 'CA', gradient: ['#0B3D0B', '#1A6B3A'] },
-  { id: 'd2', name: 'Bandon Dunes', city: 'Bandon', state: 'OR', gradient: ['#0A2A4A', '#1A4A7A'] },
-  { id: 'd3', name: 'Pinehurst No. 2', city: 'Pinehurst', state: 'NC', gradient: ['#8B3A0A', '#C4601A'] },
+  { id: 'd1', name: 'Pebble Beach', city: 'Pebble Beach', state: 'CA', gradient: ['#0A3D6B', '#1E6B4A'] },
+  { id: 'd2', name: 'Bandon Dunes', city: 'Bandon', state: 'OR', gradient: ['#1A4D2B', '#8B7B4A'] },
+  { id: 'd3', name: 'Pinehurst No. 2', city: 'Pinehurst', state: 'NC', gradient: ['#6B3A1A', '#2D5A2D'] },
 ];
 
 export const MOCK_BUCKET_COURSES: BucketCourse[] = [
@@ -143,8 +143,8 @@ export const MOCK_BUCKET_COURSES: BucketCourse[] = [
 ];
 
 export const MOCK_EXPLORE_DESTINATIONS: ExploreDestination[] = [
-  { id: 'e1', name: 'Scottsdale', tagline: '12 courses nearby', gradient: ['#8B6B3A', '#C4994A'] },
-  { id: 'e2', name: 'Hilton Head', tagline: '8 courses nearby', gradient: ['#2D3A2D', '#4A5C4A'] },
-  { id: 'e3', name: 'Palm Springs', tagline: '15 courses nearby', gradient: ['#5A4A2A', '#8A7A5A'] },
-  { id: 'e4', name: 'Austin', tagline: '6 courses nearby', gradient: ['#3A2A5A', '#6A5A8A'] },
+  { id: 'e1', name: 'Scottsdale', tagline: '12 courses nearby', gradient: ['#C4601A', '#E8944A'] },
+  { id: 'e2', name: 'Hilton Head', tagline: '8 courses nearby', gradient: ['#1A6B5A', '#3A9B7A'] },
+  { id: 'e3', name: 'Palm Springs', tagline: '15 courses nearby', gradient: ['#8B6B0A', '#D4A83A'] },
+  { id: 'e4', name: 'Austin', tagline: '6 courses nearby', gradient: ['#5A2A0A', '#A0603A'] },
 ];

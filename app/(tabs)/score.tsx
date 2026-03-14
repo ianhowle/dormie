@@ -847,6 +847,7 @@ export default function ScoreScreen() {
               New Round
             </Text>
           </LinearGradient>
+          <GoldDivider />
 
           <View style={st.body}>
             {/* Course */}
@@ -1149,8 +1150,8 @@ const st = StyleSheet.create({
 
   /* Header */
   header: {
-    paddingTop: STATUS_BAR_H + 8,
-    paddingBottom: 16,
+    paddingTop: STATUS_BAR_H + 40,
+    paddingBottom: 24,
     paddingHorizontal: 20,
     overflow: 'hidden',
   },
@@ -1347,8 +1348,8 @@ const st = StyleSheet.create({
   /* Format pills */
   pillsScroll: {
     gap: 8,
-    paddingLeft: 2,
-    paddingRight: 16,
+    paddingLeft: 20,
+    paddingRight: 24,
   },
   pill: {
     paddingHorizontal: 14,

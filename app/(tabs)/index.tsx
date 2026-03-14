@@ -7,7 +7,7 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
 import { GEO, SANS } from '../../src/theme/fonts';
-import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient, tickerShadowDark, tickerShadowLight } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { SkeletonFeed, SkeletonStats } from '../../src/components/Skeleton';
@@ -272,6 +272,7 @@ function GreetingSection({ name, groupName, weather }: { name: string; groupName
         </View>
       )}
       <Text style={st.greetingGroup}>{groupName}</Text>
+      <Text style={st.goLowText}>GO LOW</Text>
     </LinearGradient>
   );
 }
@@ -289,7 +290,7 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
   if (standings.length === 0) return null;
 
   return (
-    <View style={st.tickerBar}>
+    <View style={[st.tickerBar, tickerShadowDark]}>
       {/* STANDINGS label */}
       <View style={st.tickerLabelWrap}>
         <Text style={st.tickerLabel}>STANDINGS</Text>
@@ -523,10 +524,10 @@ function QuickStatsRow({ stats }: { stats: QuickStats }) {
   const isDark = theme.isDark;
 
   const items = [
-    { label: 'HANDICAP', value: stats.handicap.toFixed(1), color: c.gold, isHandicap: true },
-    { label: 'THIS MONTH', value: String(stats.monthRounds), color: c.gold, isHandicap: false },
-    { label: 'BEST RECENT', value: String(stats.bestRecent), color: c.gold, isHandicap: false },
-    { label: 'STREAK', value: stats.streak, color: c.gold, isHandicap: false },
+    { label: 'HANDICAP', value: stats.handicap ? stats.handicap.toFixed(1) : '--', color: c.gold, isHandicap: true },
+    { label: 'THIS MONTH', value: stats.monthRounds > 0 ? String(stats.monthRounds) : '--', color: c.gold, isHandicap: false },
+    { label: 'BEST RECENT', value: stats.bestRecent > 0 ? String(stats.bestRecent) : '--', color: c.gold, isHandicap: false },
+    { label: 'STREAK', value: stats.streak || '--', color: c.gold, isHandicap: false },
   ];
 
   return (
@@ -875,6 +876,12 @@ export default function HomeScreen() {
         {/* ESPN ticker */}
         <ESPNTicker standings={standings} />
 
+        {/* Quick stats row — always visible, between ticker and content */}
+        <QuickStatsRow stats={quickStats} />
+
+        {/* Action buttons — right after stats */}
+        <QuickActions />
+
         {/* Monthly digest card — 1st-3rd of month, real data */}
         {shouldShowMonthlyDigest() && !monthlyDismissed && monthlyDigest && (
           <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
@@ -946,9 +953,6 @@ export default function HomeScreen() {
           {/* Next Matchup — only with demo mode */}
           {showDemoData && <NextMatchupCard />}
 
-          {/* Quick stats */}
-          {(hasRealData || showDemoData) && <QuickStatsRow stats={quickStats} />}
-
           {/* Strokes behind leader callout — only with demo mode */}
           {showDemoData && (
             <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
@@ -973,12 +977,6 @@ export default function HomeScreen() {
               </ScrollView>
             </>
           )}
-
-          {/* Quick actions */}
-          <QuickActions />
-
-          {/* Motivational micro-copy */}
-          <Text style={{ color: c.textMuted, fontSize: 10, fontWeight: '600', letterSpacing: 2, textAlign: 'center', marginTop: 8, fontFamily: GEO }}>GO LOW</Text>
 
           {/* My Groups (Item 5) */}
           <MyGroupsSection
@@ -1253,20 +1251,31 @@ const st = StyleSheet.create({
     marginTop: 4,
     letterSpacing: 0.5,
   },
+  goLowText: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 3,
+    fontFamily: 'Georgia',
+    marginTop: 8,
+  },
 
-  /* ESPN Ticker */
+  /* ESPN Ticker — prominent floating Masters green card */
   tickerBar: {
     backgroundColor: '#1E4D2B',
     flexDirection: 'row',
     alignItems: 'center',
-    height: 32,
+    height: 44,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
   },
   tickerLabelWrap: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
   tickerLabel: {
     color: '#D4AF37',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
     fontFamily: 'Georgia',

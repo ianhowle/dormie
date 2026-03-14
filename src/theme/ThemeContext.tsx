@@ -32,8 +32,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [userOverride, setUserOverride] = useState<ThemeMode | null>(null);
   const transitionOpacity = useRef(new Animated.Value(1)).current;
 
-  // Use user override if set, otherwise follow system
-  const mode: ThemeMode = userOverride ?? (systemScheme === 'light' ? 'light' : 'dark');
+  // Use user override if set, otherwise default to dark (dark-mode-first design)
+  const mode: ThemeMode = userOverride ?? 'dark';
 
   const toggleTheme = () => {
     // Fade out

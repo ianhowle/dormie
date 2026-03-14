@@ -79,7 +79,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: c.teal,
         tabBarInactiveTintColor: c.textMuted,
         tabBarStyle: {
-          backgroundColor: theme.isDark ? '#1E1B18' : '#FFFFFF',
+          backgroundColor: theme.isDark ? '#1E1B18' : '#FAF8F4',
           borderTopColor: c.border,
           borderTopWidth: 1,
           ...(theme.isDark ? cardShadowDark : cardShadowLight),
@@ -146,7 +146,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="leaderboard"
         options={{
-          title: 'Leaderboard',
+          title: 'Board',
           tabBarIcon: ({ color, focused }) => (
             <View>
               <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color} />

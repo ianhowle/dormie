@@ -377,7 +377,7 @@ function PlayerRow({
             {player.name}
           </Text>
           <Text style={[styles.playerSub, { color: c.textMuted, fontFamily: SANS }]}>
-            {player.handicap} HCP · {player.courses} courses
+            {player.handicap} HCP · {player.courses} crs
           </Text>
         </View>
       </View>
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(212, 175, 55, 0.10)',
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.20)',
+    borderColor: 'rgba(212, 175, 55, 0.30)',
   },
   yourInfo: {
     flex: 1,
@@ -831,11 +831,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   colHero: {
-    width: 52,
+    width: 48,
     textAlign: 'right',
   },
   colStat: {
-    width: 40,
+    width: 36,
     textAlign: 'right',
     fontSize: 12,
   },
