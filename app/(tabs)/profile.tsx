@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,13 @@ import {
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeContext';
+import { useAuth } from '../../src/lib/auth';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
-// ─── Mock data ───────────────────────────────────────────────────────
+// ─── Mock data (fallback when no real data) ──────────────────────────
 const MOCK_USER = {
   id: '1',
   name: 'Ian McGowan',
@@ -170,8 +171,23 @@ function HandicapChart({ data }: { data: number[] }) {
 export default function ProfileScreen() {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
+  const { user, signOut } = useAuth();
 
   const [notifications, setNotifications] = useState(true);
+
+  // Use real auth data when available, fall back to mock
+  const profileUser = useMemo(() => {
+    if (user) {
+      return {
+        ...profileUser,
+        id: user.id,
+        name: user.user_metadata?.name ?? profileUser.name,
+        email: user.email ?? profileUser.email,
+        memberSince: new Date(user.created_at).getFullYear().toString(),
+      };
+    }
+    return profileUser;
+  }, [user]);
 
   const toPar = (score: number, par: number) => {
     const diff = score - par;
@@ -200,19 +216,19 @@ export default function ProfileScreen() {
           <Text style={[s.brand, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
 
           <View style={s.profileRow}>
-            <Avatar id={MOCK_USER.id} size={80} name={MOCK_USER.name} />
+            <Avatar id={profileUser.id} size={80} name={profileUser.name} />
             <View style={s.profileInfo}>
               <Text style={[s.profileName, { color: c.text, fontFamily: GEO }]}>
-                {MOCK_USER.name}
+                {profileUser.name}
               </Text>
               <View style={s.handicapRow}>
                 <Text style={[s.handicapLabel, { color: c.textMuted }]}>HCP INDEX</Text>
                 <Text style={[s.handicapValue, { color: c.teal, fontFamily: GEO }]}>
-                  {MOCK_USER.handicap.toFixed(1)}
+                  {profileUser.handicap.toFixed(1)}
                 </Text>
               </View>
               <Text style={[s.location, { color: c.textMuted }]}>
-                {MOCK_USER.city}, {MOCK_USER.state}
+                {profileUser.city}, {profileUser.state}
               </Text>
             </View>
           </View>
@@ -387,13 +403,13 @@ export default function ProfileScreen() {
 
           {/* Account info */}
           <Pressable
-            onPress={() => Alert.alert('Account', `Email: ${MOCK_USER.email}\nMember since ${MOCK_USER.memberSince}`)}
+            onPress={() => Alert.alert('Account', `Email: ${profileUser.email}\nMember since ${profileUser.memberSince}`)}
             style={[s.settingRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
           >
             <Ionicons name="person-outline" size={20} color={c.textMuted} />
             <View style={{ flex: 1 }}>
               <Text style={[s.settingText, { color: c.text }]}>Account</Text>
-              <Text style={[s.settingSub, { color: c.textMuted }]}>{MOCK_USER.email}</Text>
+              <Text style={[s.settingSub, { color: c.textMuted }]}>{profileUser.email}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
           </Pressable>
@@ -402,7 +418,7 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign Out', style: 'destructive' },
+              { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
             ])}
             style={[s.signOutBtn, { borderColor: c.urgent }]}
           >

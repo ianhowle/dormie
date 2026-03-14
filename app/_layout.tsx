@@ -14,12 +14,16 @@ function RootLayoutNav() {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'auth' && segments[1] === 'onboarding';
 
     if (!session && !inAuthGroup) {
+      // Not signed in and not on auth screen → go to splash
       router.replace('/auth/splash');
-    } else if (session && inAuthGroup) {
+    } else if (session && inAuthGroup && !inOnboarding) {
+      // Signed in but on auth screen (not onboarding) → go to tabs
       router.replace('/(tabs)');
     }
+    // If in onboarding, let the user complete it before redirecting
   }, [session, loading, segments]);
 
   return (
