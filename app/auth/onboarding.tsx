@@ -13,6 +13,8 @@ import {
   Share,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +25,7 @@ import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
 import { authService } from '../../src/services/auth.service';
+import { coursesService } from '../../src/services/courses.service';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -105,6 +108,17 @@ function WelcomeScreen({ onNext, onToggleTheme }: { onNext: () => void; onToggle
   );
 }
 
+// ─── Avatar initials helper (shared with Avatar component logic) ─────
+function getAvatarInitials(name: string): string {
+  if (!name || name === 'Golfer') return '?';
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 // ─── SCREEN 1: YOUR GAME ─────────────────────────────────────────────
 function YourGameScreen({
   avatarMode, setAvatarMode,
@@ -114,6 +128,7 @@ function YourGameScreen({
   ghinNumber, setGhinNumber,
   homeCourse, setHomeCourse,
   userName,
+  userId,
   photoUri, setPhotoUri,
 }: {
   avatarMode: AvatarMode; setAvatarMode: (v: AvatarMode) => void;
@@ -123,11 +138,51 @@ function YourGameScreen({
   ghinNumber: string; setGhinNumber: (v: string) => void;
   homeCourse: string; setHomeCourse: (v: string) => void;
   userName: string;
+  userId: string;
   photoUri: string | null; setPhotoUri: (v: string | null) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
+
+  // Course search state
+  const [courseResults, setCourseResults] = useState<any[]>([]);
+  const [courseSearching, setCourseSearching] = useState(false);
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCourseSearch = useCallback((text: string) => {
+    setHomeCourse(text);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (text.trim().length < 2) {
+      setCourseResults([]);
+      setShowCourseDropdown(false);
+      return;
+    }
+    setCourseSearching(true);
+    setShowCourseDropdown(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        // Try external API first, then Supabase
+        let results = await coursesService.searchAPI(text.trim());
+        if (!results || (Array.isArray(results) && results.length === 0)) {
+          results = await coursesService.search(text.trim(), 5);
+        }
+        const list = Array.isArray(results?.courses ?? results) ? (results?.courses ?? results) : [];
+        setCourseResults(list.slice(0, 5));
+      } catch {
+        setCourseResults([]);
+      } finally {
+        setCourseSearching(false);
+      }
+    }, 400);
+  }, []);
+
+  const selectCourse = useCallback((name: string) => {
+    setHomeCourse(name);
+    setShowCourseDropdown(false);
+    setCourseResults([]);
+  }, []);
 
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -141,131 +196,193 @@ function YourGameScreen({
     }
   };
 
+  const initials = getAvatarInitials(userName);
+
+  // Render avatar preview based on mode
+  const renderAvatarPreview = () => {
+    if (avatarMode === 'photo' && photoUri) {
+      return <Image source={{ uri: photoUri }} style={{ width: 64, height: 64 }} />;
+    }
+    if (avatarMode === 'theme') {
+      return (
+        <View style={{ width: 64, height: 64, backgroundColor: themeColor, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 24, fontFamily: GEO, fontWeight: '700', color: '#E8E4DE' }}>
+            {initials}
+          </Text>
+        </View>
+      );
+    }
+    // 'initials' mode — use gradient Avatar
+    return <Avatar id={userId || 'user'} name={userName} size={64} />;
+  };
+
   return (
-    <ScrollView style={[styles.screenScroll, { backgroundColor: c.bg }]} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.stepTitle, { color: c.text }]}>Your Game</Text>
-      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 1 of 3</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={100}
+    >
+      <ScrollView
+        style={[styles.screenScroll, { backgroundColor: c.bg }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[styles.stepTitle, { color: c.text }]}>Your Game</Text>
+        <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 1 of 3</Text>
 
-      {/* Avatar picker */}
-      <Text style={[styles.fieldLabel, { color: c.text }]}>Avatar</Text>
-      <View style={styles.avatarPreview}>
-        {avatarMode === 'photo' && photoUri ? (
-          <Image source={{ uri: photoUri }} style={{ width: 64, height: 64 }} />
-        ) : (
-          <Avatar id={userName || 'user'} name={userName} size={64} />
-        )}
-      </View>
+        {/* Avatar picker */}
+        <Text style={[styles.fieldLabel, { color: c.text }]}>Avatar</Text>
+        <View style={styles.avatarPreview}>
+          {renderAvatarPreview()}
+        </View>
 
-      {/* Avatar mode */}
-      <View style={styles.avatarModes}>
-        {(['initials', 'theme', 'photo'] as AvatarMode[]).map((m) => (
-          <Pressable
-            key={m}
-            onPress={() => setAvatarMode(m)}
-            style={[
-              styles.modeBtn,
-              { backgroundColor: avatarMode === m ? c.teal + '22' : c.elevated, borderColor: avatarMode === m ? c.teal : c.border, borderWidth: 1 },
-            ]}
-          >
-            <Text style={[styles.modeBtnText, { color: avatarMode === m ? c.teal : c.textMuted }]}>
-              {m === 'initials' ? 'Initials' : m === 'theme' ? 'Course Theme' : 'Upload Photo'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Theme color picker */}
-      {avatarMode === 'theme' && (
-        <View style={styles.themeColors}>
-          {AVATAR_THEMES.map((t) => (
+        {/* Avatar mode */}
+        <View style={styles.avatarModes}>
+          {(['initials', 'theme', 'photo'] as AvatarMode[]).map((m) => (
             <Pressable
-              key={t.key}
-              onPress={() => setAvatarTheme(t.key)}
+              key={m}
+              onPress={() => setAvatarMode(m)}
               style={[
-                styles.colorCircle,
-                { backgroundColor: t.color, borderColor: avatarTheme === t.key ? '#FFFFFF' : 'transparent', borderWidth: 2 },
+                styles.modeBtn,
+                { backgroundColor: avatarMode === m ? c.teal + '22' : c.elevated, borderColor: avatarMode === m ? c.teal : c.border, borderWidth: 1 },
               ]}
-            />
+            >
+              <Text style={[styles.modeBtnText, { color: avatarMode === m ? c.teal : c.textMuted }]}>
+                {m === 'initials' ? 'Initials' : m === 'theme' ? 'Course Theme' : 'Upload Photo'}
+              </Text>
+            </Pressable>
           ))}
         </View>
-      )}
 
-      {/* Photo picker */}
-      {avatarMode === 'photo' && (
-        <View style={styles.photoPickerWrap}>
-          <Pressable onPress={handlePickPhoto} style={[styles.photoPickerBtn, { backgroundColor: c.teal }]}>
-            <Ionicons name="image-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.photoPickerBtnText}>Choose from Camera Roll</Text>
-          </Pressable>
+        {/* Theme color picker */}
+        {avatarMode === 'theme' && (
+          <View style={styles.themeColors}>
+            {AVATAR_THEMES.map((t) => (
+              <Pressable
+                key={t.key}
+                onPress={() => setAvatarTheme(t.key)}
+                style={[
+                  styles.colorCircle,
+                  { backgroundColor: t.color, borderColor: avatarTheme === t.key ? '#FFFFFF' : 'transparent', borderWidth: 2 },
+                ]}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Photo picker */}
+        {avatarMode === 'photo' && (
+          <View style={styles.photoPickerWrap}>
+            <Pressable onPress={handlePickPhoto} style={[styles.photoPickerBtn, { backgroundColor: c.teal }]}>
+              <Ionicons name="image-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.photoPickerBtnText}>Choose from Camera Roll</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Golfer type */}
+        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>What kind of golfer?</Text>
+        <View style={styles.golferCards}>
+          {GOLFER_TYPES.map((g) => (
+            <Pressable
+              key={g.key}
+              onPress={() => setGolferType(g.key)}
+              style={[
+                styles.golferCard,
+                {
+                  backgroundColor: golferType === g.key ? c.teal + '12' : c.elevated,
+                  borderColor: golferType === g.key ? c.teal : c.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <Text style={styles.golferEmoji}>{g.icon}</Text>
+              <Text style={[styles.golferLabel, { color: golferType === g.key ? c.teal : c.text }]}>{g.label}</Text>
+              <Text style={[styles.golferDesc, { color: c.textMuted }]}>{g.desc}</Text>
+            </Pressable>
+          ))}
         </View>
-      )}
 
-      {/* Golfer type */}
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>What kind of golfer?</Text>
-      <View style={styles.golferCards}>
-        {GOLFER_TYPES.map((g) => (
-          <Pressable
-            key={g.key}
-            onPress={() => setGolferType(g.key)}
-            style={[
-              styles.golferCard,
-              {
-                backgroundColor: golferType === g.key ? c.teal + '12' : c.elevated,
-                borderColor: golferType === g.key ? c.teal : c.border,
-                borderWidth: 1,
-              },
-            ]}
-          >
-            <Text style={styles.golferEmoji}>{g.icon}</Text>
-            <Text style={[styles.golferLabel, { color: golferType === g.key ? c.teal : c.text }]}>{g.label}</Text>
-            <Text style={[styles.golferDesc, { color: c.textMuted }]}>{g.desc}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Handicap */}
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Handicap Index</Text>
-      <TextInput
-        value={handicap}
-        onChangeText={setHandicap}
-        placeholder="e.g., 12.4"
-        placeholderTextColor={c.textMuted}
-        style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-        keyboardType="numeric"
-      />
-      <Pressable onPress={() => setHandicap('')}>
-        <Text style={[styles.helperLink, { color: c.teal }]}>I don't know my handicap</Text>
-      </Pressable>
-
-      {/* GHIN */}
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>GHIN Number</Text>
-      <View style={styles.ghinRow}>
+        {/* Handicap */}
+        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Handicap Index</Text>
         <TextInput
-          value={ghinNumber}
-          onChangeText={setGhinNumber}
-          placeholder="Optional"
+          value={handicap}
+          onChangeText={setHandicap}
+          placeholder="e.g., 12.4"
           placeholderTextColor={c.textMuted}
-          style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border, flex: 1 }]}
+          style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
           keyboardType="numeric"
         />
-        {ghinNumber.length > 0 && (
-          <Pressable style={[styles.verifyBtn, { backgroundColor: c.teal }]}>
-            <Text style={styles.verifyBtnText}>Verify</Text>
-          </Pressable>
-        )}
-      </View>
+        <Pressable onPress={() => setHandicap('')}>
+          <Text style={[styles.helperLink, { color: c.teal }]}>I don't know my handicap</Text>
+        </Pressable>
 
-      {/* Home course */}
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Home Course</Text>
-      <TextInput
-        value={homeCourse}
-        onChangeText={setHomeCourse}
-        placeholder="Search courses..."
-        placeholderTextColor={c.textMuted}
-        style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-      />
-      <View style={{ height: 40 }} />
-    </ScrollView>
+        {/* GHIN */}
+        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>GHIN Number</Text>
+        <View style={styles.ghinRow}>
+          <TextInput
+            value={ghinNumber}
+            onChangeText={setGhinNumber}
+            placeholder="Optional"
+            placeholderTextColor={c.textMuted}
+            style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border, flex: 1 }]}
+            keyboardType="numeric"
+          />
+          {ghinNumber.length > 0 && (
+            <Pressable style={[styles.verifyBtn, { backgroundColor: c.teal }]}>
+              <Text style={styles.verifyBtnText}>Verify</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Home course with search */}
+        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Home Course</Text>
+        <TextInput
+          value={homeCourse}
+          onChangeText={handleCourseSearch}
+          placeholder="Search courses..."
+          placeholderTextColor={c.textMuted}
+          style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
+          onFocus={() => { if (courseResults.length > 0) setShowCourseDropdown(true); }}
+        />
+        {showCourseDropdown && (
+          <View style={[styles.courseDropdown, { backgroundColor: c.elevated, borderColor: c.border }]}>
+            {courseSearching && (
+              <View style={styles.courseSearchingRow}>
+                <ActivityIndicator size="small" color={c.teal} />
+                <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>Searching courses...</Text>
+              </View>
+            )}
+            {!courseSearching && courseResults.length === 0 && homeCourse.trim().length >= 2 && (
+              <View style={styles.courseSearchingRow}>
+                <Ionicons name="golf-outline" size={16} color={c.textMuted} />
+                <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>No courses found</Text>
+              </View>
+            )}
+            {courseResults.map((course, i) => {
+              const courseName = course.name ?? course.club_name ?? '';
+              const courseLocation = course.location ?? (course.city && course.state ? `${course.city}, ${course.state}` : '');
+              return (
+                <Pressable
+                  key={course.id ?? i}
+                  onPress={() => selectCourse(courseName)}
+                  style={[styles.courseResultRow, i < courseResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
+                >
+                  <Ionicons name="golf" size={16} color={c.teal} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.courseResultName, { color: c.text }]} numberOfLines={1}>{courseName}</Text>
+                    {courseLocation ? (
+                      <Text style={[styles.courseResultLocation, { color: c.textMuted }]} numberOfLines={1}>{courseLocation}</Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        <View style={{ height: 60 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -308,7 +425,13 @@ function BuildGroupScreen() {
     }
   }, [expanded, seasonAnim]);
 
-  const MOCK_NAMES = ['Drew P.', 'Jake S.', 'Tommy F.', 'Mike C.', 'Sam R.'];
+  const MOCK_LEADERBOARD = [
+    { id: '2', name: 'Drew P.', score: 75 },
+    { id: '3', name: 'Jake S.', score: 77 },
+    { id: '4', name: 'Tommy F.', score: 79 },
+    { id: '5', name: 'Mike C.', score: 81 },
+    { id: '6', name: 'Sam R.', score: 83 },
+  ];
 
   const cards = [
     {
@@ -318,17 +441,18 @@ function BuildGroupScreen() {
       desc: "See who's on top across all your rounds",
       preview: () => (
         <View style={styles.miniPreview}>
-          {MOCK_NAMES.map((name, i) => (
+          {MOCK_LEADERBOARD.map((p, i) => (
             <Animated.View
-              key={name}
+              key={p.id}
               style={[
                 styles.miniRow,
                 { backgroundColor: c.elevated, opacity: leaderboardAnims[i], transform: [{ translateY: leaderboardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
               ]}
             >
               <Text style={[styles.miniRank, { color: i === 0 ? c.gold : c.textMuted, fontFamily: GEO }]}>{i + 1}</Text>
-              <Text style={[styles.miniName, { color: c.text }]}>{name}</Text>
-              <Text style={[styles.miniVal, { color: c.gold, fontFamily: GEO }]}>{75 + i * 2}</Text>
+              <Avatar id={p.id} name={p.name} size={22} />
+              <Text style={[styles.miniName, { color: c.text }]}>{p.name}</Text>
+              <Text style={[styles.miniVal, { color: i === 0 ? c.gold : c.teal, fontFamily: GEO }]}>{p.score}</Text>
             </Animated.View>
           ))}
         </View>
@@ -688,7 +812,8 @@ export default function OnboardingScreen() {
   const [notifPref, setNotifPref] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
-  const userName = user?.user_metadata?.name ?? 'Golfer';
+  const userName = user?.user_metadata?.name || user?.user_metadata?.full_name || '';
+  const displayName = userName || 'Golfer';
   const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
 
   const handleNext = useCallback(() => {
@@ -724,8 +849,15 @@ export default function OnboardingScreen() {
       console.warn('Failed to save onboarding data:', err);
     }
 
-    router.replace('/(tabs)');
+    setTimeout(() => router.replace('/(tabs)'), 0);
   }, [user, themeColor, handicap, router]);
+
+  // Step 6: trigger navigation via useEffect to avoid "Cannot update component while rendering"
+  useEffect(() => {
+    if (step === 6) {
+      handleComplete();
+    }
+  }, [step, handleComplete]);
 
   // Screens that manage their own navigation
   if (step === 0) {
@@ -742,12 +874,10 @@ export default function OnboardingScreen() {
   }
 
   if (step === 5) {
-    return <LaunchMontage userName={userName} onComplete={handleNext} />;
+    return <LaunchMontage userName={displayName} onComplete={handleNext} />;
   }
 
   if (step === 6) {
-    // Final — just complete
-    handleComplete();
     return null;
   }
 
@@ -787,7 +917,8 @@ export default function OnboardingScreen() {
           handicap={handicap} setHandicap={setHandicap}
           ghinNumber={ghinNumber} setGhinNumber={setGhinNumber}
           homeCourse={homeCourse} setHomeCourse={setHomeCourse}
-          userName={userName}
+          userName={displayName}
+          userId={user?.id ?? ''}
           photoUri={photoUri} setPhotoUri={setPhotoUri}
         />
       )}
@@ -891,6 +1022,14 @@ const styles = StyleSheet.create({
   seasonBar: { height: 6, marginTop: 6, overflow: 'hidden' },
   seasonFill: { height: '100%' },
   miniSeasonSub: { fontSize: 11, marginTop: 4 },
+
+  // Course search dropdown
+  courseDropdown: { borderWidth: 1, marginTop: -1 },
+  courseSearchingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12 },
+  courseSearchingText: { fontSize: 13 },
+  courseResultRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
+  courseResultName: { fontSize: 14, fontWeight: '500' },
+  courseResultLocation: { fontSize: 12, marginTop: 1 },
 
   // Invite
   inviteSection: { padding: 16, marginTop: 16, alignItems: 'center', gap: 10 },
