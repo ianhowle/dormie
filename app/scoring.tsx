@@ -929,6 +929,7 @@ function NavButtons({
       <Pressable
         onPress={onPrev}
         disabled={!canPrev}
+        accessibilityLabel="Previous hole"
         style={({ pressed }) => [
           st.navBtn,
           { backgroundColor: c.elevated, borderColor: c.border, opacity: canPrev ? 1 : 0.3 },
@@ -2893,6 +2894,7 @@ export default function ScoringScreen() {
 
             // Elite polish: haptic, toast, confetti on round save
             haptics.success();
+            sounds.chime();
             showToast({ message: 'Round saved', type: 'success', icon: 'checkmark-circle' });
             setShowConfetti(true);
 
@@ -2913,7 +2915,17 @@ export default function ScoringScreen() {
             Alert.alert('Score Posted', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) is on the board.`);
             router.dismissAll();
           } catch (err) {
-            Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save round');
+            const roundData = {
+              user_id: user.id,
+              course_id: courseId,
+              course_name: courseName,
+              gross_score: holeScores.reduce((sum, h) => sum + h.gross, 0),
+              hole_scores: holeScores,
+              source: 'app' as const,
+              played_at: new Date().toISOString(),
+            };
+            await queueOfflineAction({ type: 'save_round', payload: roundData });
+            showToast({ message: 'Saved offline — will sync when connected', type: 'info' });
           }
         }}
       />
