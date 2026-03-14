@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import { MOCK_H2H, type CourseH2H } from '../src/data/h2h';
 
 const MY_NAME = 'Ian McGowan';
@@ -19,8 +21,17 @@ function CourseRow({ course }: { course: CourseH2H }) {
   const theyWon = course.theirBest < course.myBest;
   const tied = course.myBest === course.theirBest;
 
+  const isDark = theme.isDark;
+
   return (
-    <View style={[s.courseRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+    <Pressable
+      style={({ pressed }) => [
+        s.courseRow,
+        { backgroundColor: c.cardBg, borderColor: c.border },
+        ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+        pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+      ]}
+    >
       <Text style={[s.courseName, { color: c.text }]} numberOfLines={1}>
         {course.courseName}
       </Text>
@@ -51,7 +62,7 @@ function CourseRow({ course }: { course: CourseH2H }) {
           {course.theirBest}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -162,6 +173,8 @@ export default function H2HDetailScreen() {
           )}
         </View>
 
+        <GoldDivider style={{ marginBottom: 24 }} />
+
         {/* Course by course */}
         <Text style={[s.sectionHeader, { color: c.gold, fontFamily: GEO }]}>
           COURSE BY COURSE
@@ -219,7 +232,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 20,
   },
@@ -238,8 +251,8 @@ const s = StyleSheet.create({
     flex: 1,
   },
   allTimeLabel: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 4,
   },
@@ -250,6 +263,7 @@ const s = StyleSheet.create({
   faceoffWins: {
     fontSize: 44,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   faceoffDash: {
     fontSize: 28,
@@ -258,6 +272,7 @@ const s = StyleSheet.create({
   faceoffLosses: {
     fontSize: 44,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   halved: {
     fontSize: 12,
@@ -272,8 +287,8 @@ const s = StyleSheet.create({
   /* Win bar */
   winBar: {
     height: 6,
-    marginHorizontal: 24,
-    marginBottom: 28,
+    marginHorizontal: 20,
+    marginBottom: 20,
     flexDirection: 'row',
   },
   winBarFill: {
@@ -282,18 +297,19 @@ const s = StyleSheet.create({
 
   /* Section */
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
 
   /* Column labels */
   colLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     marginBottom: 8,
   },
   colLabel: {
@@ -305,9 +321,9 @@ const s = StyleSheet.create({
 
   /* Course row */
   courseRow: {
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   courseName: {
@@ -324,9 +340,11 @@ const s = StyleSheet.create({
   courseScore: {
     fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   courseScoreWin: {
     fontSize: 28,
+    letterSpacing: -1,
   },
   courseVs: {
     fontSize: 12,

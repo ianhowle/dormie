@@ -13,8 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { GEO } from '../../src/theme/fonts';
+import { GEO, SANS } from '../../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import { Avatar } from '../../src/components/Avatar';
+import GoldDivider from '../../src/components/GoldDivider';
 import { TripCountdownRing } from '../../src/components/TripCountdownRing';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
@@ -48,32 +50,45 @@ function SectionLabel({ title }: { title: string }) {
 function Header() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[s.header, { backgroundColor: c.surface, paddingTop: insets.top + 8 }]}>
+    <LinearGradient
+      colors={greenHeaderGradient}
+      style={[s.header, { paddingTop: insets.top + 8 }]}
+    >
       <View>
-        <Text style={[s.dormieLabel, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
-        <Text style={[s.headerTitle, { color: c.text, fontFamily: GEO }]}>Trips</Text>
+        <Text style={[s.dormieLabel, { color: 'rgba(255,255,255,0.6)', fontFamily: GEO }]}>DORMIE</Text>
+        <Text style={[s.headerTitle, { color: 'rgba(255,255,255,0.8)', fontFamily: GEO }]}>Trips</Text>
       </View>
       <View style={s.headerActions}>
         <Pressable
           onPress={() => router.push('/discover')}
-          style={[s.headerBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+          style={({ pressed }) => [
+            s.headerBtn,
+            { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)' },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
         >
-          <Ionicons name="compass-outline" size={15} color={c.textMuted} />
-          <Text style={[s.headerBtnText, { color: c.textMuted }]}>Discover</Text>
+          <Ionicons name="compass-outline" size={15} color="rgba(255,255,255,0.8)" />
+          <Text style={[s.headerBtnText, { color: 'rgba(255,255,255,0.8)' }]}>Discover</Text>
         </Pressable>
         <Pressable
           onPress={() => router.push('/create-trip')}
-          style={[s.headerBtn, { backgroundColor: `${c.teal}18`, borderColor: c.teal }]}
+          style={({ pressed }) => [
+            s.headerBtn,
+            { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
         >
-          <Ionicons name="add" size={15} color={c.teal} />
-          <Text style={[s.headerBtnText, { color: c.teal }]}>New Trip</Text>
+          <Ionicons name="add" size={15} color="#1E4D2B" />
+          <Text style={[s.headerBtnText, { color: '#1E4D2B' }]}>New Trip</Text>
         </Pressable>
       </View>
-    </View>
+      <GoldDivider style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} />
+    </LinearGradient>
   );
 }
 
@@ -81,12 +96,13 @@ function Header() {
 function TripStatsBanner() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const stats = MOCK_TRIP_STATS;
   const diff = stats.regularAvg - stats.tripAvg;
   const playsSmarter = diff > 0;
 
   return (
-    <View style={[s.statsBanner, { backgroundColor: `${c.teal}10`, borderColor: c.teal }]}>
+    <View style={[s.statsBanner, { backgroundColor: `${c.teal}10`, borderColor: c.teal, borderWidth: 1 }, ...(isDark ? [cardShadowDark] : [cardShadowLight])]}>
       <View style={s.statsRow}>
         <BannerStat label="TRIPS" value={String(stats.totalTrips)} c={c} />
         <BannerStat label="WINS" value={String(stats.wins)} c={c} />
@@ -123,6 +139,7 @@ function BannerStat({
 function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   if (destinations.length === 0) return null;
 
@@ -135,7 +152,15 @@ function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
         contentContainerStyle={s.dreamScroll}
       >
         {destinations.map((d) => (
-          <Pressable key={d.id} style={s.dreamCard}>
+          <Pressable
+            key={d.id}
+            style={({ pressed }) => [
+              s.dreamCard,
+              { borderWidth: 1, borderColor: c.border },
+              ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+            ]}
+          >
             <LinearGradient
               colors={d.gradient}
               start={{ x: 0, y: 0 }}
@@ -186,6 +211,7 @@ function AvatarStack({ playerIds, max }: { playerIds: string[]; max?: number }) 
 function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
   const daysAway = showDays ? getDaysUntilTrip(trip.startDate) : 0;
 
@@ -207,9 +233,17 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
   return (
     <Pressable
       onPress={() => router.push(`/trip-detail?tripId=${trip.id}`)}
-      style={[
+      style={({ pressed }) => [
         s.tripCard,
-        { backgroundColor: cardBg, borderColor, borderLeftWidth: 3, borderLeftColor },
+        {
+          backgroundColor: cardBg,
+          borderColor,
+          borderWidth: 1,
+          borderLeftWidth: 3,
+          borderLeftColor,
+        },
+        ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+        pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
       ]}
     >
       <View style={s.tripCardBody}>
@@ -253,7 +287,7 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
       {trip.champion && (
         <View style={[s.championRow, { borderColor: c.border }]}>
           <Ionicons name="trophy" size={14} color={c.gold} />
-          <Text style={[s.championText, { color: c.gold }]}>
+          <Text style={[s.championText, { color: c.gold, fontFamily: GEO }]}>
             {trip.champion}
           </Text>
         </View>
@@ -266,6 +300,7 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
 function BucketList({ courses }: { courses: BucketCourse[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   if (courses.length === 0) return null;
 
@@ -275,11 +310,20 @@ function BucketList({ courses }: { courses: BucketCourse[] }) {
       {courses.map((course) => (
         <View
           key={course.id}
-          style={[s.bucketRow, { backgroundColor: c.cardBg, borderColor: c.gold }]}
+          style={[
+            s.bucketRow,
+            {
+              backgroundColor: c.cardBg,
+              borderColor: c.gold,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+            },
+            ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+          ]}
         >
           <Ionicons name="star" size={14} color={c.gold} />
           <View style={s.bucketInfo}>
-            <Text style={[s.bucketName, { color: c.text }]}>{course.name}</Text>
+            <Text style={[s.bucketName, { color: c.text, fontFamily: SANS }]}>{course.name}</Text>
             <Text style={[s.bucketLocation, { color: c.textMuted }]}>
               {course.city}, {course.state}
             </Text>
@@ -294,6 +338,7 @@ function BucketList({ courses }: { courses: BucketCourse[] }) {
 function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
 
   return (
@@ -308,7 +353,12 @@ function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
           <Pressable
             key={d.id}
             onPress={() => router.push('/discover')}
-            style={s.exploreCard}
+            style={({ pressed }) => [
+              s.exploreCard,
+              { borderWidth: 1, borderColor: c.border },
+              ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+            ]}
           >
             <LinearGradient
               colors={d.gradient}
@@ -331,6 +381,7 @@ function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
 export default function TripsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const { user } = useAuth();
   const router = useRouter();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
@@ -350,13 +401,25 @@ export default function TripsScreen() {
           {/* Empty state for new users */}
           {realTrips.length === 0 && !showDemoData && (
             <View style={[s.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Ionicons name="airplane-outline" size={40} color={c.textMuted} />
-              <Text style={[s.emptyTitle, { color: c.text }]}>No trips yet</Text>
-              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Plan your first golf trip</Text>
-              <Pressable onPress={() => router.push('/create-trip')} style={[s.emptyBtn, { backgroundColor: c.teal }]}>
+              <Text style={s.emptyEmoji}>✈️</Text>
+              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>No trips yet</Text>
+              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Plan your first golf trip with friends</Text>
+              <Pressable
+                onPress={() => router.push('/create-trip')}
+                style={({ pressed }) => [
+                  s.emptyBtn,
+                  { backgroundColor: c.teal },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
+              >
                 <Text style={s.emptyBtnText}>New Trip</Text>
               </Pressable>
-              <Pressable onPress={() => setShowDemoData(true)}>
+              <Pressable
+                onPress={() => setShowDemoData(true)}
+                style={({ pressed }) => [
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
                 <Text style={[s.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
               </Pressable>
             </View>
@@ -365,12 +428,16 @@ export default function TripsScreen() {
           {/* Trip stats */}
           {(realTrips.length > 0 || showDemoData) && <TripStatsBanner />}
 
+          {/* Gold divider after stats */}
+          {(realTrips.length > 0 || showDemoData) && <GoldDivider style={{ marginTop: 24 }} />}
+
           {/* Dream board */}
           {(realTrips.length > 0 || showDemoData) && <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />}
 
           {/* Upcoming */}
           {(realTrips.length > 0 || showDemoData) && MOCK_UPCOMING_TRIPS.length > 0 && (
             <>
+              <GoldDivider style={{ marginTop: 24 }} />
               <SectionLabel title="UPCOMING" />
               {MOCK_UPCOMING_TRIPS.map((trip) => (
                 <TripCard key={trip.id} trip={trip} showDays />
@@ -381,6 +448,7 @@ export default function TripsScreen() {
           {/* Completed */}
           {(realTrips.length > 0 || showDemoData) && MOCK_COMPLETED_TRIPS.length > 0 && (
             <>
+              <GoldDivider style={{ marginTop: 24 }} />
               <SectionLabel title="COMPLETED" />
               {MOCK_COMPLETED_TRIPS.map((trip) => (
                 <TripCard key={trip.id} trip={trip} />
@@ -389,10 +457,20 @@ export default function TripsScreen() {
           )}
 
           {/* Bucket list */}
-          {(realTrips.length > 0 || showDemoData) && <BucketList courses={MOCK_BUCKET_COURSES} />}
+          {(realTrips.length > 0 || showDemoData) && (
+            <>
+              <GoldDivider style={{ marginTop: 24 }} />
+              <BucketList courses={MOCK_BUCKET_COURSES} />
+            </>
+          )}
 
           {/* Explore */}
-          {(realTrips.length > 0 || showDemoData) && <ExploreRow destinations={MOCK_EXPLORE_DESTINATIONS} />}
+          {(realTrips.length > 0 || showDemoData) && (
+            <>
+              <GoldDivider style={{ marginTop: 24 }} />
+              <ExploreRow destinations={MOCK_EXPLORE_DESTINATIONS} />
+            </>
+          )}
         </View>
 
         <View style={{ height: 32 }} />
@@ -405,9 +483,9 @@ export default function TripsScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1 },
 
-  /* Header */
+  /* Header — green gradient */
   header: {
-    paddingBottom: 16,
+    paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -435,6 +513,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
+    borderRadius: 0,
   },
   headerBtnText: {
     fontSize: 12,
@@ -442,22 +521,23 @@ const s = StyleSheet.create({
   },
 
   /* Body */
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 20 },
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginTop: 24,
     marginBottom: 10,
   },
 
   /* Stats banner */
   statsBanner: {
-    borderWidth: 1,
     padding: 16,
     marginTop: 8,
+    borderRadius: 0,
   },
   statsRow: {
     flexDirection: 'row',
@@ -467,36 +547,39 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   bannerStatValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   bannerStatLabel: {
-    fontSize: 8,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 0.8,
     marginTop: 4,
   },
   callout: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 12,
     fontStyle: 'italic',
+    fontFamily: SANS,
   },
 
   /* Dream board */
   dreamScroll: {
     gap: 10,
-    paddingRight: 16,
+    paddingRight: 20,
   },
   dreamCard: {
     width: 160,
     overflow: 'hidden',
+    borderRadius: 0,
   },
   dreamGradient: {
     height: 110,
     justifyContent: 'flex-end',
-    padding: 10,
+    padding: 14,
   },
   dreamOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -513,7 +596,7 @@ const s = StyleSheet.create({
   },
   dreamFooter: {
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
   },
   dreamAction: {
     fontSize: 11,
@@ -541,9 +624,9 @@ const s = StyleSheet.create({
 
   /* Trip card */
   tripCard: {
-    borderWidth: 1,
     marginBottom: 10,
     overflow: 'hidden',
+    borderRadius: 0,
   },
   tripCardBody: {
     padding: 14,
@@ -564,6 +647,7 @@ const s = StyleSheet.create({
   rcBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
+    borderRadius: 0,
   },
   rcBadgeText: {
     fontSize: 9,
@@ -571,8 +655,9 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
   tripLocation: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 3,
+    fontFamily: SANS,
   },
   tripCardBottom: {
     flexDirection: 'row',
@@ -583,10 +668,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 0,
   },
   daysNum: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   daysLabel: {
     fontSize: 7,
@@ -614,10 +701,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
+    borderRadius: 0,
   },
   bucketInfo: {
     flex: 1,
@@ -627,23 +713,24 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
   bucketLocation: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
 
   /* Explore */
   exploreScroll: {
     gap: 10,
-    paddingRight: 16,
+    paddingRight: 20,
   },
   exploreCard: {
     width: 140,
     overflow: 'hidden',
+    borderRadius: 0,
   },
   exploreGradient: {
     height: 100,
     justifyContent: 'flex-end',
-    padding: 10,
+    padding: 14,
   },
   exploreName: {
     color: '#fff',
@@ -660,24 +747,29 @@ const s = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     borderWidth: 1,
+    borderStyle: 'dashed',
     padding: 32,
     marginTop: 12,
     gap: 10,
+    borderRadius: 0,
+  },
+  emptyEmoji: {
+    fontSize: 32,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    fontFamily: 'Georgia',
     marginTop: 8,
   },
   emptyDesc: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
   emptyBtn: {
     paddingHorizontal: 24,
     paddingVertical: 12,
     marginTop: 8,
+    borderRadius: 0,
   },
   emptyBtnText: {
     color: '#FFFFFF',

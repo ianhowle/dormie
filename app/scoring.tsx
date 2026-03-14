@@ -17,7 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, tickerShadowDark, tickerShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import { DormieMoment } from '../src/components/DormieMoment';
 import { SideGameToast, detectSideGameEvents } from '../src/components/SideGameToast';
 import { HoleTransitionBanner } from '../src/components/HoleTransitionBanner';
@@ -193,7 +195,7 @@ function ScoringHeader({
 
   return (
     <LinearGradient
-      colors={['#1E4D2B', '#2D6A3F']}
+      colors={[...greenHeaderGradient]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={st.header}
@@ -1777,7 +1779,7 @@ function ShareCard({
     <View style={ps.shareSection}>
       {/* Preview card */}
       <LinearGradient
-        colors={['#1E4D2B', '#2D6A3F']}
+        colors={[...greenHeaderGradient]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={ps.sharePreview}
@@ -1865,7 +1867,7 @@ function PostRoundSummary({
     <View style={[ps.screen, { backgroundColor: c.bg }]}>
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <LinearGradient colors={['#1E4D2B', '#2D6A3F']} style={ps.header}>
+        <LinearGradient colors={[...greenHeaderGradient]} style={ps.header}>
           <View style={st.headerOverlay} />
           <Text style={[ps.headerTitle, { fontFamily: GEO }]}>Round Complete</Text>
           <Text style={ps.headerSub}>{courseName} · {holes.length} holes · Par {totalPar}</Text>
@@ -2681,7 +2683,7 @@ export default function ScoringScreen() {
 
     return (
       <View style={[st.screen, { backgroundColor: c.bg }]}>
-        <LinearGradient colors={['#1E4D2B', '#2D6A3F']} style={st.confirmHeader}>
+        <LinearGradient colors={[...greenHeaderGradient]} style={st.confirmHeader}>
           <View style={st.headerOverlay} />
           <Text style={[st.confirmTitle, { fontFamily: GEO }]}>CONFIRM SCORECARD</Text>
           <Text style={st.confirmSub}>Review all scores before saving</Text>

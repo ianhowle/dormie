@@ -14,8 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { GEO } from '../../src/theme/fonts';
+import { GEO, SANS } from '../../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import { Avatar } from '../../src/components/Avatar';
+import GoldDivider from '../../src/components/GoldDivider';
 import { CoursesTab } from '../../src/components/CoursesTab';
 import { H2HTab } from '../../src/components/H2HTab';
 import { RecordsTab } from '../../src/components/RecordsTab';
@@ -71,9 +73,10 @@ function ScopeToggle({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
-    <View style={[styles.scopeRow, { backgroundColor: c.elevated }]}>
+    <View style={[styles.scopeRow, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }, ...[isDark ? cardShadowDark : cardShadowLight]]}>
       {(['group', 'field'] as const).map((s) => {
         const active = s === scope;
         return (
@@ -88,7 +91,7 @@ function ScopeToggle({
             <Text
               style={[
                 styles.scopeLabel,
-                { color: active ? c.text : c.textMuted },
+                { color: active ? c.text : c.textMuted, fontFamily: SANS },
               ]}
             >
               {s === 'group' ? 'My Group' : 'The Field'}
@@ -104,6 +107,7 @@ function ScopeToggle({
 function SeasonCarousel({ seasons }: { seasons: Season[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const [idx, setIdx] = useState(0);
   const s = seasons[idx];
   if (!s) return null;
@@ -115,7 +119,8 @@ function SeasonCarousel({ seasons }: { seasons: Season[] }) {
       <View
         style={[
           styles.seasonCard,
-          { backgroundColor: c.cardBg, borderColor: c.border },
+          { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1 },
+          isDark ? cardShadowDark : cardShadowLight,
         ]}
       >
         {/* Gold accent bar */}
@@ -139,10 +144,10 @@ function SeasonCarousel({ seasons }: { seasons: Season[] }) {
               <Text style={[styles.seasonName, { color: c.gold, fontFamily: GEO }]}>
                 {s.name}
               </Text>
-              <Text style={[styles.seasonMeta, { color: c.textMuted }]}>
+              <Text style={[styles.seasonMeta, { color: c.textMuted, fontFamily: SANS }]}>
                 Week {s.currentWeek} of {s.totalWeeks}
                 {'  ·  '}
-                You're #{s.yourPosition} of {s.totalPlayers}
+                You're <Text style={{ fontFamily: GEO, fontWeight: '700' }}>#{s.yourPosition}</Text> of {s.totalPlayers}
               </Text>
             </View>
             {seasons.length > 1 && (
@@ -213,15 +218,16 @@ function TabBar({
           <Pressable
             key={t}
             onPress={() => onSelect(t)}
-            style={[
+            style={({ pressed }) => [
               styles.tab,
-              isActive && { backgroundColor: `${c.teal}18` },
+              isActive && { backgroundColor: 'rgba(42,157,143,0.15)' },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
             <Text
               style={[
                 styles.tabLabel,
-                { color: isActive ? c.teal : c.textMuted },
+                { color: isActive ? c.teal : c.textMuted, fontFamily: SANS },
               ]}
             >
               {t}
@@ -287,14 +293,15 @@ function PlayerRow({
   return (
     <Pressable
       onPress={() => router.push(`/player-detail?playerId=${player.id}`)}
-      style={[
+      style={({ pressed }) => [
         styles.tableRow,
         { backgroundColor: bgColor },
-        isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
+        isMe && { borderLeftWidth: 2, borderLeftColor: c.greenDark, backgroundColor: `${c.greenDark}0D` },
+        pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
       ]}
     >
       {/* Position */}
-      <Text style={[styles.colPos, { color: c.textMuted, fontFamily: GEO }]}>
+      <Text style={[styles.colPos, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
         {positionLabel(position)}
       </Text>
 
@@ -305,14 +312,14 @@ function PlayerRow({
           <Text
             style={[
               styles.playerName,
-              { color: isMe ? c.teal : c.text },
+              { color: isMe ? c.teal : c.text, fontFamily: SANS },
               isMe && { fontWeight: '700' },
             ]}
             numberOfLines={1}
           >
             {player.name}
           </Text>
-          <Text style={[styles.playerSub, { color: c.textMuted }]}>
+          <Text style={[styles.playerSub, { color: c.textMuted, fontFamily: SANS }]}>
             {player.handicap} HCP · {player.courses} courses
           </Text>
         </View>
@@ -323,30 +330,30 @@ function PlayerRow({
         style={[
           styles.colHero,
           styles.heroNumber,
-          { color: toParColor(player.toPar, c), fontFamily: GEO },
+          { color: toParColor(player.toPar, c), fontFamily: GEO, fontWeight: '700', letterSpacing: -1 },
         ]}
       >
         {formatToPar(player.toPar)}
       </Text>
 
       {/* Best */}
-      <Text style={[styles.colStat, { color: c.teal, fontFamily: GEO }]}>
+      <Text style={[styles.colStat, { color: c.teal, fontFamily: GEO, fontWeight: '700' }]}>
         {player.bestRound}
       </Text>
 
       {/* Rounds */}
-      <Text style={[styles.colStat, { color: c.textMuted, fontFamily: GEO }]}>
+      <Text style={[styles.colStat, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
         {player.rounds}
       </Text>
 
       {/* Average */}
-      <Text style={[styles.colStat, { color: c.textMuted, fontFamily: GEO }]}>
+      <Text style={[styles.colStat, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
         {player.avgScore.toFixed(1)}
       </Text>
 
       {/* Movement */}
       {'movement' in player && (
-        <Text style={[styles.colMovement, { color: movementColor((player as any).movement), fontFamily: GEO }]}>
+        <Text style={[styles.colMovement, { color: movementColor((player as any).movement), fontFamily: GEO, fontWeight: '700' }]}>
           {movementArrow((player as any).movement)}
         </Text>
       )}
@@ -357,14 +364,16 @@ function PlayerRow({
 function LeaderboardTable({ players, myId }: { players: LeaderboardPlayer[]; myId?: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={styles.tableWrap}>
-      <Text style={[styles.sectionHeader, { color: c.gold, fontFamily: GEO }]}>
+      <Text style={[styles.sectionHeader, { color: c.gold }]}>
         GROUP RANKINGS
       </Text>
-      <View style={[styles.table, { borderColor: c.border }]}>
+      <View style={[styles.table, { borderColor: c.border, borderWidth: 1, backgroundColor: c.cardBg }, isDark ? cardShadowDark : cardShadowLight]}>
         <TableHeader />
+        <GoldDivider />
         {players.map((p, i) => (
           <PlayerRow
             key={p.id}
@@ -382,6 +391,7 @@ function LeaderboardTable({ players, myId }: { players: LeaderboardPlayer[]; myI
 export default function LeaderboardScreen() {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const insets = useSafeAreaInsets();
   const [scope, setScope] = useState<LeaderboardScope>('group');
   const [tab, setTab] = useState<Tab>('Leaderboard');
@@ -426,7 +436,7 @@ export default function LeaderboardScreen() {
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
       {/* ── Header ── */}
       <LinearGradient
-        colors={['#1E4D2B', '#2D6A3F']}
+        colors={greenHeaderGradient as unknown as string[]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 8 }]}
@@ -438,7 +448,11 @@ export default function LeaderboardScreen() {
             <Text style={styles.dormieLabel}>DORMIE</Text>
             <Text style={styles.headerTitle}>Leaderboard</Text>
           </View>
-          <Pressable onPress={toggleTheme} hitSlop={12} style={styles.themeBtn}>
+          <Pressable
+            onPress={toggleTheme}
+            hitSlop={12}
+            style={({ pressed }) => [styles.themeBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+          >
             <Ionicons
               name={theme.isDark ? 'sunny' : 'moon'}
               size={20}
@@ -451,16 +465,20 @@ export default function LeaderboardScreen() {
         <View style={styles.yourCard}>
           <Avatar id={me.id} size={40} name={me.name} />
           <View style={styles.yourInfo}>
-            <Text style={styles.yourPos}>#{myPos} in Group</Text>
+            <Text style={styles.yourPos}>
+              <Text style={{ fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }}>#{myPos}</Text> in Group
+            </Text>
             <Text style={styles.yourMeta}>
               {me.courses} courses · {me.rounds} rounds · {me.bestRound} best
             </Text>
           </View>
-          <Text style={[styles.yourAvg, { fontFamily: GEO }]}>
+          <Text style={[styles.yourAvg, { fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }]}>
             {me.rounds === 0 ? '--' : formatToPar(me.toPar)}
           </Text>
         </View>
       </LinearGradient>
+
+      <GoldDivider />
 
       {/* ── Scope toggle ── */}
       <ScopeToggle scope={scope} onToggle={setScope} />
@@ -473,15 +491,21 @@ export default function LeaderboardScreen() {
 
       {/* ── Empty state for new users ── */}
       {myRounds.length === 0 && friends.length === 0 && !showDemoData && (
-        <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-          <Ionicons name="people-outline" size={40} color={c.textMuted} />
+        <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border, borderStyle: 'dashed' as any }, isDark ? cardShadowDark : cardShadowLight]}>
+          <Text style={styles.emptyEmoji}>🏌️</Text>
           <Text style={[styles.emptyTitle, { color: c.text }]}>No leaderboard yet</Text>
           <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Invite your crew to unlock the leaderboard</Text>
-          <Pressable onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')} style={[styles.emptyBtn, { backgroundColor: c.teal }]}>
+          <Pressable
+            onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')}
+            style={({ pressed }) => [styles.emptyBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+          >
             <Text style={styles.emptyBtnText}>Invite Friends</Text>
           </Pressable>
-          <Pressable onPress={() => setShowDemoData(true)}>
-            <Text style={[styles.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+          <Pressable
+            onPress={() => setShowDemoData(true)}
+            style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+          >
+            <Text style={[styles.demoToggle, { color: c.teal }]}>Show demo data</Text>
           </Pressable>
         </View>
       )}
@@ -514,7 +538,7 @@ const styles = StyleSheet.create({
   /* Header */
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 20,
     overflow: 'hidden',
   },
   headerTop: {
@@ -546,7 +570,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
     backgroundColor: 'rgba(212, 175, 55, 0.10)',
-    padding: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.20)',
   },
@@ -555,13 +579,14 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   yourPos: {
-    color: '#D4AF37',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Georgia',
   },
   yourMeta: {
-    color: 'rgba(232, 228, 222, 0.7)',
-    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
     marginTop: 2,
   },
   yourAvg: {
@@ -573,7 +598,7 @@ const styles = StyleSheet.create({
   /* Scope toggle */
   scopeRow: {
     flexDirection: 'row',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 12,
     padding: 3,
   },
@@ -589,11 +614,11 @@ const styles = StyleSheet.create({
 
   /* Season carousel */
   seasonWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     marginTop: 12,
+    marginBottom: 24,
   },
   seasonCard: {
-    borderWidth: 1,
     overflow: 'hidden',
   },
   seasonGoldBar: {
@@ -615,7 +640,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   seasonMeta: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 2,
   },
   progressTrack: {
@@ -640,9 +665,8 @@ const styles = StyleSheet.create({
   /* Tab bar */
   tabBar: {
     flexDirection: 'row',
-    marginTop: 12,
     borderBottomWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   tab: {
     flex: 1,
@@ -664,17 +688,19 @@ const styles = StyleSheet.create({
 
   /* Table */
   tableWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 16,
+    marginBottom: 24,
   },
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
-    marginBottom: 10,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+    fontFamily: 'Georgia',
   },
   table: {
-    borderWidth: 1,
     overflow: 'hidden',
   },
   tableRow: {
@@ -684,7 +710,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   colHeader: {
-    color: '#E8E4DE',
+    color: 'rgba(255,255,255,0.6)',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1,
@@ -741,18 +767,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     padding: 32,
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 20,
     gap: 10,
   },
+  emptyEmoji: {
+    fontSize: 32,
+  },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: 'Georgia',
     marginTop: 8,
   },
   emptyDesc: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
   emptyBtn: {

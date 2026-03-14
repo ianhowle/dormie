@@ -209,7 +209,7 @@ function CourseSearch({
             >
               <Text style={[st.dropdownName, { color: c.text }]}>{cr.name}</Text>
               <Text style={[st.dropdownMeta, { color: c.textMuted }]}>
-                {cr.city}, {cr.state} · Par {cr.par}
+                {cr.city}, {cr.state} · Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{cr.par}</Text>
               </Text>
             </Pressable>
           ))}
@@ -247,18 +247,26 @@ function ParEntry({
 
   return (
     <View style={st.parRow}>
-      <Text style={[st.parLabel, { color: c.textMuted }]}>Course Par</Text>
+      <Text style={[st.parLabel, { color: c.textMuted, fontFamily: SANS }]}>Course Par</Text>
       <View style={st.parControls}>
         <Pressable
           onPress={() => onChange(Math.max(54, par - 1))}
-          style={[st.parBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+          style={({ pressed }) => [
+            st.parBtn,
+            { backgroundColor: c.elevated, borderColor: c.border },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
         >
           <Ionicons name="remove" size={16} color={c.text} />
         </Pressable>
-        <Text style={[st.parValue, { color: c.text, fontFamily: GEO }]}>{par}</Text>
+        <Text style={[st.parValue, { color: c.text, fontFamily: GEO, fontWeight: '700' }]}>{par}</Text>
         <Pressable
           onPress={() => onChange(Math.min(80, par + 1))}
-          style={[st.parBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+          style={({ pressed }) => [
+            st.parBtn,
+            { backgroundColor: c.elevated, borderColor: c.border },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
         >
           <Ionicons name="add" size={16} color={c.text} />
         </Pressable>
@@ -279,6 +287,7 @@ function PlayersSection({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.dark;
 
   return (
     <View>
@@ -287,26 +296,41 @@ function PlayersSection({
         return (
           <View
             key={p.id}
-            style={[st.playerRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+            style={[
+              st.playerRow,
+              { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1 },
+              ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+            ]}
           >
             <Avatar id={p.id} size={32} name={p.name} />
             <View style={st.playerInfo}>
-              <Text style={[st.playerName, { color: isMe ? c.teal : c.text }]}>
+              <Text style={[st.playerName, { color: isMe ? c.teal : c.text, fontFamily: SANS }]}>
                 {isMe ? 'You' : p.name}
               </Text>
               <Text style={[st.playerHcp, { color: c.textMuted }]}>
-                {p.handicap} HCP
+                <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{p.handicap}</Text> HCP
               </Text>
             </View>
             {!isMe && (
-              <Pressable onPress={() => onRemove(p.id)} hitSlop={8}>
+              <Pressable
+                onPress={() => onRemove(p.id)}
+                hitSlop={8}
+                style={({ pressed }) => pressed ? { opacity: 0.7, transform: [{ scale: 0.98 }] } : undefined}
+              >
                 <Ionicons name="close-circle" size={18} color={c.textMuted} />
               </Pressable>
             )}
           </View>
         );
       })}
-      <Pressable onPress={onAdd} style={[st.addPlayerBtn, { borderColor: c.border }]}>
+      <Pressable
+        onPress={onAdd}
+        style={({ pressed }) => [
+          st.addPlayerBtn,
+          { borderColor: c.border },
+          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+        ]}
+      >
         <Ionicons name="add-circle-outline" size={18} color={c.teal} />
         <Text style={[st.addPlayerText, { color: c.teal }]}>Add Player</Text>
       </Pressable>
@@ -328,9 +352,9 @@ function AddPlayerInline({
   const [hcp, setHcp] = useState('');
 
   return (
-    <View style={[st.addForm, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+    <View style={[st.addForm, { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1 }]}>
       <TextInput
-        style={[st.addInput, { color: c.text, borderColor: c.border }]}
+        style={[st.addInput, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: SANS }]}
         placeholder="Player name"
         placeholderTextColor={c.textMuted}
         value={name}
@@ -338,7 +362,7 @@ function AddPlayerInline({
         autoCapitalize="words"
       />
       <TextInput
-        style={[st.addInput, st.addHcpInput, { color: c.text, borderColor: c.border }]}
+        style={[st.addInput, st.addHcpInput, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
         placeholder="HCP"
         placeholderTextColor={c.textMuted}
         value={hcp}
@@ -347,7 +371,10 @@ function AddPlayerInline({
         maxLength={3}
       />
       <View style={st.addActions}>
-        <Pressable onPress={onCancel} style={st.addCancelBtn}>
+        <Pressable
+          onPress={onCancel}
+          style={({ pressed }) => [st.addCancelBtn, pressed && { opacity: 0.7 }]}
+        >
           <Text style={[st.addCancelText, { color: c.textMuted }]}>Cancel</Text>
         </Pressable>
         <Pressable
@@ -356,7 +383,11 @@ function AddPlayerInline({
               onDone(name.trim(), Number(hcp) || 0);
             }
           }}
-          style={[st.addDoneBtn, { backgroundColor: c.teal }]}
+          style={({ pressed }) => [
+            st.addDoneBtn,
+            { backgroundColor: c.greenDark },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
         >
           <Text style={st.addDoneText}>Add</Text>
         </Pressable>
@@ -421,10 +452,10 @@ function AddPlayerModal({
           </View>
 
           {/* Search */}
-          <View style={[st.modalSearchWrap, { backgroundColor: c.elevated, borderColor: c.border }]}>
+          <View style={[st.modalSearchWrap, { backgroundColor: c.elevated, borderColor: c.border, borderWidth: 1 }]}>
             <Ionicons name="search" size={16} color={c.textMuted} />
             <TextInput
-              style={[st.modalSearchInput, { color: c.text }]}
+              style={[st.modalSearchInput, { color: c.text, fontFamily: SANS }]}
               placeholder="Search friends..."
               placeholderTextColor={c.textMuted}
               value={search}
@@ -447,12 +478,18 @@ function AddPlayerModal({
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => { onAddFriend(item); handleClose(); }}
-                style={[st.modalFriendRow, { borderColor: c.border }]}
+                style={({ pressed }) => [
+                  st.modalFriendRow,
+                  { borderColor: c.border },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
               >
                 <Avatar id={item.id} size={32} name={item.name} />
                 <View style={st.playerInfo}>
-                  <Text style={[st.playerName, { color: c.text }]}>{item.name}</Text>
-                  <Text style={[st.playerHcp, { color: c.textMuted }]}>{item.handicap} HCP</Text>
+                  <Text style={[st.playerName, { color: c.text, fontFamily: SANS }]}>{item.name}</Text>
+                  <Text style={[st.playerHcp, { color: c.textMuted }]}>
+                    <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{item.handicap}</Text> HCP
+                  </Text>
                 </View>
                 <Ionicons name="add-circle-outline" size={20} color={c.teal} />
               </Pressable>
@@ -474,9 +511,9 @@ function AddPlayerModal({
               <Text style={[st.modalManualText, { color: c.gold }]}>Add Manual Player</Text>
             </Pressable>
           ) : (
-            <View style={[st.addForm, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[st.addForm, { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1 }]}>
               <TextInput
-                style={[st.addInput, { color: c.text, borderColor: c.border }]}
+                style={[st.addInput, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: SANS }]}
                 placeholder="Player name"
                 placeholderTextColor={c.textMuted}
                 value={manualName}
@@ -484,7 +521,7 @@ function AddPlayerModal({
                 autoCapitalize="words"
               />
               <TextInput
-                style={[st.addInput, st.addHcpInput, { color: c.text, borderColor: c.border }]}
+                style={[st.addInput, st.addHcpInput, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
                 placeholder="HCP"
                 placeholderTextColor={c.textMuted}
                 value={manualHcp}
@@ -493,10 +530,20 @@ function AddPlayerModal({
                 maxLength={3}
               />
               <View style={st.addActions}>
-                <Pressable onPress={() => setShowManualForm(false)} style={st.addCancelBtn}>
+                <Pressable
+                  onPress={() => setShowManualForm(false)}
+                  style={({ pressed }) => [st.addCancelBtn, pressed && { opacity: 0.7 }]}
+                >
                   <Text style={[st.addCancelText, { color: c.textMuted }]}>Cancel</Text>
                 </Pressable>
-                <Pressable onPress={handleAddManual} style={[st.addDoneBtn, { backgroundColor: c.teal }]}>
+                <Pressable
+                  onPress={handleAddManual}
+                  style={({ pressed }) => [
+                    st.addDoneBtn,
+                    { backgroundColor: c.greenDark },
+                    pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
                   <Text style={st.addDoneText}>Add</Text>
                 </Pressable>
               </View>
@@ -533,18 +580,19 @@ function FormatPicker({
             <Pressable
               key={f.key}
               onPress={() => onSelect(f.key)}
-              style={[
+              style={({ pressed }) => [
                 st.pill,
                 {
-                  backgroundColor: active ? `${c.teal}20` : c.elevated,
+                  backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
                   borderColor: active ? c.teal : c.border,
                 },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
               <Text
                 style={[
                   st.pillText,
-                  { color: active ? c.teal : c.textMuted },
+                  { color: active ? c.teal : c.textMuted, fontFamily: SANS },
                   active && { fontWeight: '700' },
                 ]}
               >
@@ -586,18 +634,19 @@ function SideGamePicker({
             <Pressable
               key={g.key}
               onPress={() => onToggle(g.key)}
-              style={[
+              style={({ pressed }) => [
                 st.sidePill,
                 {
-                  backgroundColor: active ? `${c.teal}20` : c.elevated,
+                  backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
                   borderColor: active ? c.teal : c.border,
                 },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
               <Text
                 style={[
                   st.sidePillText,
-                  { color: active ? c.teal : c.textMuted },
+                  { color: active ? c.teal : c.textMuted, fontFamily: SANS },
                   active && { fontWeight: '700' },
                 ]}
               >
@@ -630,22 +679,23 @@ function ToggleRow<T extends string>({
   const c = theme.colors;
 
   return (
-    <View style={[st.toggleRow, { borderColor: c.border }]}>
+    <View style={[st.toggleRow, { borderColor: c.border, borderWidth: 1 }]}>
       {options.map((opt) => {
         const active = opt.key === selected;
         return (
           <Pressable
             key={opt.key}
             onPress={() => onSelect(opt.key)}
-            style={[
+            style={({ pressed }) => [
               st.toggleBtn,
-              active && { backgroundColor: `${c.teal}20` },
+              active && { backgroundColor: 'rgba(42,157,143,0.08)' },
+              pressed && { opacity: 0.7 },
             ]}
           >
             <Text
               style={[
                 st.toggleLabel,
-                { color: active ? c.teal : c.textMuted },
+                { color: active ? c.teal : c.textMuted, fontFamily: SANS },
                 active && { fontWeight: '700' },
               ]}
             >
@@ -726,6 +776,7 @@ export default function ScoreScreen() {
     }
   }, [course, isCustom]);
 
+  const isDark = theme.dark;
   const canStart = course !== null;
 
   const handleStartRound = () => {
