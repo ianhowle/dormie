@@ -28,6 +28,7 @@ import { RyderCupHub } from '../src/components/RyderCupHub';
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
 import { useAuth } from '../src/lib/auth';
 import { haptics } from '../src/lib/haptics';
+import { sounds } from '../src/lib/sounds';
 import { useToast } from '../src/components/Toast';
 import { messagesService } from '../src/services/messages.service';
 import { tripsService } from '../src/services/trips.service';
@@ -320,6 +321,7 @@ function ClubhouseTab({
           haptics.medium();
           showToast({ message: 'Invite sent', type: 'success', icon: 'copy-outline' });
         }}
+        accessibilityLabel="Trip invite code"
         style={[s.inviteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
       >
         <Text style={[s.inviteCode, { color: c.gold, fontFamily: GEO }]}>{trip.inviteCode}</Text>
@@ -571,7 +573,7 @@ function PlayersTab() {
       showsVerticalScrollIndicator={false}
     >
       {MOCK_PLAYERS.map((p) => (
-        <View key={p.id} style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        <View key={p.id} style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${p.name}, ${p.handicap} handicap, ${p.rsvp}`}>
           <Avatar id={p.id} size={44} name={p.name} />
           <View style={{ flex: 1 }}>
             <View style={s.playerNameRow}>
@@ -747,6 +749,7 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
     if (!inputText.trim()) return;
     const text = inputText.trim();
     setInputText('');
+    sounds.pop();
 
     // Optimistic local update
     const optimisticId = `m-${Date.now()}`;
@@ -2221,7 +2224,7 @@ export default function TripDetailScreen() {
             const rsvpCol =
               item.rsvp === 'confirmed' ? c.teal : item.rsvp === 'pending' ? c.gold : c.urgent;
             return (
-              <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${item.name}, ${item.handicap} handicap, ${item.rsvp}`}>
                 <View style={s.playerCardAvatarWrap}>
                   <Avatar id={item.id} size={40} name={item.name} />
                   <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol }]} />
@@ -2245,6 +2248,7 @@ export default function TripDetailScreen() {
               <Pressable
                 key={tab}
                 onPress={() => handleTabSwitch(tab)}
+                accessibilityLabel={`${tab} tab${active ? ', selected' : ''}`}
                 style={[s.tabItem, active && { borderBottomColor: c.teal, borderBottomWidth: 2 }]}
               >
                 <Text
