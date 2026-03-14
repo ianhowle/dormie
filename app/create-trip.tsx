@@ -766,14 +766,14 @@ const z = StyleSheet.create({
     width: 18,
     height: 18,
     borderWidth: 2,
-    borderRadius: 9,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
     backgroundColor: '#fff',
   },
   formatLabel: {

@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 8,
   },
-  colorDot: { width: 8, height: 8, borderRadius: 4 },
+  colorDot: { width: 8, height: 8, borderRadius: 0 },
   playerName: { flex: 1, fontSize: 14, fontWeight: '600', minWidth: 70 },
   indicators: { flexDirection: 'row', gap: 4 },
   indicator: { paddingHorizontal: 4, paddingVertical: 1 },

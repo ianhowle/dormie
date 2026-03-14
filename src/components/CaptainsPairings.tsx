@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   teamToggle: { flexDirection: 'row', padding: 4, marginBottom: 16 },
   teamToggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 6 },
   teamToggleText: { fontSize: 14, fontWeight: '600' },
-  teamDot: { width: 8, height: 8, borderRadius: 4 },
+  teamDot: { width: 8, height: 8, borderRadius: 0 },
 
   sectionLabel: { fontSize: 14, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 },
 

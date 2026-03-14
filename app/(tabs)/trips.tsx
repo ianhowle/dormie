@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
@@ -47,9 +48,10 @@ function Header() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[s.header, { backgroundColor: c.surface }]}>
+    <View style={[s.header, { backgroundColor: c.surface, paddingTop: insets.top + 8 }]}>
       <View>
         <Text style={[s.dormieLabel, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
         <Text style={[s.headerTitle, { color: c.text, fontFamily: GEO }]}>Trips</Text>
@@ -362,7 +364,6 @@ const s = StyleSheet.create({
 
   /* Header */
   header: {
-    paddingTop: STATUS_BAR_H + 8,
     paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -450,13 +451,13 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   dreamGradient: {
-    height: 90,
+    height: 110,
     justifyContent: 'flex-end',
     padding: 10,
   },
   dreamOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   dreamName: {
     color: '#fff',
@@ -598,7 +599,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   exploreGradient: {
-    height: 80,
+    height: 100,
     justifyContent: 'flex-end',
     padding: 10,
   },

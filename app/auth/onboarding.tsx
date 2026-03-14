@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
   // Nav bar
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: STATUS_BAR_H + 8, paddingBottom: 12, borderBottomWidth: 1 },
   progressDots: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  progressDot: { height: 6, borderRadius: 3 },
+  progressDot: { height: 6, borderRadius: 0 },
   skipText: { fontSize: 14, fontWeight: '500' },
 
   // Step titles
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
   modeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
   modeBtnText: { fontSize: 13, fontWeight: '600' },
   themeColors: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 8 },
-  colorCircle: { width: 36, height: 36, borderRadius: 18 },
+  colorCircle: { width: 36, height: 36, borderRadius: 0 },
   photoPickerWrap: { alignItems: 'center', marginBottom: 12 },
   photoPickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
   photoPickerBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },

@@ -9,18 +9,16 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
+        headerShown: false,
         tabBarActiveTintColor: c.teal,
         tabBarInactiveTintColor: c.textMuted,
         tabBarStyle: {
-          backgroundColor: c.surface,
+          backgroundColor: theme.isDark ? '#1E1B18' : '#FFFFFF',
           borderTopColor: c.border,
+          borderTopWidth: 1,
         },
-        headerStyle: {
-          backgroundColor: c.bg,
-        },
-        headerTintColor: c.text,
-        headerTitleStyle: {
+        tabBarLabelStyle: {
+          fontSize: 10,
           fontWeight: '600',
         },
       }}
@@ -29,8 +27,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -38,8 +36,8 @@ export default function TabLayout() {
         name="score"
         options={{
           title: 'Score',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="golf" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'flag' : 'flag-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -47,8 +45,8 @@ export default function TabLayout() {
         name="trips"
         options={{
           title: 'Trips',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="airplane" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'airplane' : 'airplane-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -56,9 +54,8 @@ export default function TabLayout() {
         name="leaderboard"
         options={{
           title: 'Leaderboard',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trophy" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -66,8 +63,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
           ),
         }}
       />

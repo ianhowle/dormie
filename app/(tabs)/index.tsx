@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
@@ -52,78 +53,229 @@ function feedIcon(type: FeedItem['type']): keyof typeof Ionicons.glyphMap {
   }
 }
 
-// ─── ESPN Ticker ─────────────────────────────────────────────────────
-function ESPNTicker({ items }: { items: { label: string; value: string; color: string }[] }) {
-  const { theme } = useTheme();
-  if (items.length === 0) return null;
+// ─── Pinstripe overlay ───────────────────────────────────────────────
+function Pinstripes() {
+  const lines = Array.from({ length: 40 });
   return (
-    <View style={{ backgroundColor: '#1E4D2B', paddingVertical: 6 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 16 }}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {lines.map((_, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            top: -200,
+            left: i * 18 - 100,
+            width: 1,
+            height: 800,
+            backgroundColor: '#fff',
+            opacity: 0.03,
+            transform: [{ rotate: '35deg' }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─── Header bar: Logo button | DORMIE | Dark mode toggle ─────────────
+function HeaderBar({ onLogoPress, showMenu }: { onLogoPress: () => void; showMenu: boolean }) {
+  const { theme, toggleTheme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <View style={[st.headerBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+      {/* Logo button — flagstick on green square */}
+      <Pressable onPress={onLogoPress} style={st.logoBtn}>
+        <View style={st.logoBg}>
+          <Ionicons name="flag" size={16} color="#D4AF37" />
+        </View>
+      </Pressable>
+
+      {/* Centered DORMIE */}
+      <Text style={[st.headerDormie, { color: c.text, fontFamily: GEO }]}>DORMIE</Text>
+
+      {/* Dark mode toggle */}
+      <Pressable onPress={toggleTheme} hitSlop={12} style={st.themeToggle}>
+        <Ionicons name={theme.isDark ? 'sunny' : 'moon'} size={20} color={c.textMuted} />
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Logo menu dropdown ──────────────────────────────────────────────
+function LogoMenu({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const router = useRouter();
+
+  if (!visible) return null;
+
+  const items = [
+    { label: 'Change Group', icon: 'swap-horizontal-outline' as const, onPress: () => {} },
+    { label: 'Create New Group', icon: 'add-circle-outline' as const, onPress: () => {} },
+    { label: 'Invite Player', icon: 'person-add-outline' as const, onPress: () => {} },
+    { label: 'Play a Round', icon: 'golf-outline' as const, onPress: () => router.push('/(tabs)/score') },
+    { label: 'Settings', icon: 'settings-outline' as const, onPress: () => {} },
+  ];
+
+  return (
+    <>
+      <Pressable style={st.menuOverlay} onPress={onClose} />
+      <View style={[st.menuDropdown, { backgroundColor: c.cardBg, borderColor: c.border }]}>
         {items.map((item, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: '#D4AF37', fontSize: 10, fontWeight: '700', letterSpacing: 0.5, fontFamily: 'Georgia' }}>{item.label}</Text>
-            <Text style={{ color: item.color, fontSize: 10, fontWeight: '700', fontFamily: 'Georgia' }}>{item.value}</Text>
-          </View>
+          <Pressable
+            key={item.label}
+            onPress={() => { item.onPress(); onClose(); }}
+            style={[st.menuItem, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
+          >
+            <Ionicons name={item.icon} size={16} color={c.textMuted} />
+            <Text style={[st.menuItemText, { color: c.text }]}>{item.label}</Text>
+          </Pressable>
         ))}
+        {/* MY GROUPS section */}
+        <View style={[st.menuGroupHeader, { borderTopWidth: 1, borderTopColor: c.border }]}>
+          <Text style={[st.menuGroupLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
+        </View>
+        <Pressable style={st.menuItem}>
+          <View style={[st.menuGroupDot, { backgroundColor: c.teal }]} />
+          <Text style={[st.menuItemText, { color: c.teal }]}>The Dormie Boys</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
+// ─── Greeting section — Masters green gradient + pinstripes ──────────
+function GreetingSection({ name }: { name: string }) {
+  return (
+    <LinearGradient
+      colors={['#1E4D2B', '#2D6A3F']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={st.greetingSection}
+    >
+      <Pinstripes />
+      <Text style={st.greetingText}>{getGreeting()}, {name}</Text>
+    </LinearGradient>
+  );
+}
+
+// ─── ESPN Ticker — Masters green bar with player pills ───────────────
+type StandingPill = {
+  rank: number;
+  name: string;
+  toPar: string;
+  movement: 'up' | 'down' | 'same';
+  isMe: boolean;
+};
+
+function ESPNTicker({ standings }: { standings: StandingPill[] }) {
+  if (standings.length === 0) return null;
+
+  return (
+    <View style={st.tickerBar}>
+      {/* STANDINGS label */}
+      <View style={st.tickerLabelWrap}>
+        <Text style={st.tickerLabel}>STANDINGS</Text>
+      </View>
+      <View style={st.tickerDivider} />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={st.tickerScroll}
+      >
+        {standings.map((p, i) => {
+          const arrowChar = p.movement === 'up' ? '\u25B2' : p.movement === 'down' ? '\u25BC' : '\u2013';
+          const arrowColor = p.movement === 'up' ? '#2A9D8F' : p.movement === 'down' ? '#C44B4F' : '#6B6560';
+          return (
+            <View
+              key={i}
+              style={[st.tickerPill, p.isMe && st.tickerPillMe]}
+            >
+              <Text style={st.tickerRank}>{p.rank}</Text>
+              <Text style={[st.tickerArrow, { color: arrowColor }]}>{arrowChar}</Text>
+              <Text style={[st.tickerName, p.isMe && st.tickerNameMe]}>{p.name}</Text>
+              <Text style={st.tickerScore}>{p.toPar}</Text>
+            </View>
+          );
+        })}
       </ScrollView>
     </View>
   );
 }
 
-// ─── Header ───────────────────────────────────────────────────────────
-function Header({ name }: { name: string }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-
-  return (
-    <View style={[st.header, { backgroundColor: c.surface }]}>
-      <Text style={[st.dormieLabel, { color: c.gold, fontFamily: GEO }]}>
-        DORMIE
-      </Text>
-      <Text style={[st.greeting, { color: c.text, fontFamily: GEO }]}>
-        {getGreeting()}, {name}
-      </Text>
-    </View>
-  );
-}
-
-// ─── Quick stats ──────────────────────────────────────────────────────
+// ─── Quick stats row ─────────────────────────────────────────────────
 function QuickStatsRow({ stats }: { stats: QuickStats }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const s = stats;
+
+  const items = [
+    { label: 'HANDICAP', value: stats.handicap.toFixed(1), color: c.gold },
+    { label: 'THIS MONTH', value: String(stats.monthRounds), color: c.gold },
+    { label: 'BEST RECENT', value: String(stats.bestRecent), color: c.gold },
+    { label: 'STREAK', value: stats.streak, color: c.gold },
+  ];
 
   return (
     <View style={st.statsRow}>
-      <View style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-        <Text style={[st.statValue, { color: c.teal, fontFamily: GEO, fontSize: 22 }]}>
-          {s.handicap.toFixed(1)}
-        </Text>
-        <Text style={[st.statLabel, { color: c.textMuted }]}>HANDICAP</Text>
-      </View>
-      <View style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-        <Text style={[st.statValue, { color: c.gold, fontFamily: GEO }]}>
-          {s.monthRounds}
-        </Text>
-        <Text style={[st.statLabel, { color: c.textMuted }]}>THIS MONTH</Text>
-      </View>
-      <View style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-        <Text style={[st.statValue, { color: c.gold, fontFamily: GEO }]}>
-          {s.bestRecent}
-        </Text>
-        <Text style={[st.statLabel, { color: c.textMuted }]}>BEST RECENT</Text>
-      </View>
-      <View style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-        <Text style={[st.statValue, { color: c.gold, fontFamily: GEO }]}>
-          {s.streak}
-        </Text>
-        <Text style={[st.statLabel, { color: c.textMuted }]}>STREAK</Text>
-      </View>
+      {items.map((item) => (
+        <View key={item.label} style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <Text style={[st.statValue, { color: item.color, fontFamily: GEO }]}>
+            {item.value}
+          </Text>
+          <Text style={[st.statLabel, { color: c.textMuted }]}>{item.label}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
-// ─── Feed card ────────────────────────────────────────────────────────
+// ─── Quick actions row ───────────────────────────────────────────────
+function QuickActions() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const router = useRouter();
+
+  return (
+    <View style={st.actionsRow}>
+      <Pressable
+        onPress={() => router.push('/(tabs)/score')}
+        style={[st.actionBtn, { backgroundColor: c.teal }]}
+      >
+        <Ionicons name="add-circle-outline" size={18} color="#fff" />
+        <Text style={st.actionPrimaryText}>Log Round</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/(tabs)/trips')}
+        style={[st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }]}
+      >
+        <Ionicons name="airplane-outline" size={18} color={c.gold} />
+        <Text style={[st.actionSecText, { color: c.gold }]}>New Trip</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/(tabs)/leaderboard')}
+        style={[st.actionBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }]}
+      >
+        <Ionicons name="trophy-outline" size={18} color={c.textMuted} />
+        <Text style={[st.actionSecText, { color: c.textMuted }]}>Leaderboard</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Section header ──────────────────────────────────────────────────
+function SectionHeader({ title }: { title: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <Text style={[st.sectionTitle, { color: c.gold, fontFamily: GEO }]}>
+      {title}
+    </Text>
+  );
+}
+
+// ─── Feed card ───────────────────────────────────────────────────────
 function FeedCard({ item }: { item: FeedItem }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -144,7 +296,7 @@ function FeedCard({ item }: { item: FeedItem }) {
           </Text>
         </View>
         <Text style={[st.feedDesc, { color: c.textMuted }]} numberOfLines={2}>
-          {isMe ? item.description : item.description}
+          {item.description}
         </Text>
       </View>
       <Ionicons
@@ -157,40 +309,7 @@ function FeedCard({ item }: { item: FeedItem }) {
   );
 }
 
-// ─── Quick actions ────────────────────────────────────────────────────
-function QuickActions() {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const router = useRouter();
-
-  return (
-    <View style={st.actionsRow}>
-      <Pressable
-        onPress={() => router.push('/(tabs)/score')}
-        style={[st.actionBtn, { backgroundColor: c.teal }]}
-      >
-        <Ionicons name="add-circle-outline" size={18} color="#fff" />
-        <Text style={st.actionPrimaryText}>Log Round</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push('/(tabs)/trips')}
-        style={[st.actionBtn, { backgroundColor: `${c.gold}20`, borderWidth: 1, borderColor: c.gold }]}
-      >
-        <Ionicons name="airplane-outline" size={18} color={c.gold} />
-        <Text style={[st.actionSecText, { color: c.gold }]}>New Trip</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push('/(tabs)/leaderboard')}
-        style={[st.actionBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }]}
-      >
-        <Ionicons name="trophy-outline" size={18} color={c.textMuted} />
-        <Text style={[st.actionSecText, { color: c.textMuted }]}>Leaderboard</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-// ─── Upcoming card ────────────────────────────────────────────────────
+// ─── Upcoming card ───────────────────────────────────────────────────
 function UpcomingCard({ item }: { item: UpcomingItem }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -234,19 +353,7 @@ function UpcomingCard({ item }: { item: UpcomingItem }) {
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────
-function SectionHeader({ title }: { title: string }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-
-  return (
-    <Text style={[st.sectionTitle, { color: c.gold, fontFamily: GEO }]}>
-      {title}
-    </Text>
-  );
-}
-
-// ─── Main screen ──────────────────────────────────────────────────────
+// ─── Main screen ─────────────────────────────────────────────────────
 export default function HomeScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -254,6 +361,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -274,14 +382,14 @@ export default function HomeScreen() {
       handicap: user?.user_metadata?.handicap_index ?? MOCK_QUICK_STATS.handicap,
       monthRounds: thisMonth.length || MOCK_QUICK_STATS.monthRounds,
       bestRecent: scores.length > 0 ? Math.min(...scores) : MOCK_QUICK_STATS.bestRecent,
-      streak: MOCK_QUICK_STATS.streak, // keep mock for now
+      streak: MOCK_QUICK_STATS.streak,
     };
   }, [realRounds, user]);
 
   // Build feed from real rounds
   const feedItems: FeedItem[] = useMemo(() => {
     if (realRounds.length === 0) return MOCK_FEED;
-    return realRounds.slice(0, 6).map((r, i) => ({
+    return realRounds.slice(0, 6).map((r) => ({
       id: r.id,
       type: 'round_posted' as const,
       playerId: r.user_id,
@@ -291,19 +399,28 @@ export default function HomeScreen() {
     }));
   }, [realRounds, user]);
 
-  // ESPN ticker items from quick stats
-  const tickerItems = useMemo(() => [
-    { label: 'HCP', value: quickStats.handicap.toFixed(1), color: '#2A9D8F' },
-    { label: 'THIS MONTH', value: String(quickStats.monthRounds), color: '#E8E4DE' },
-    { label: 'BEST', value: String(quickStats.bestRecent), color: '#D4AF37' },
-    ...(pendingRequests.length > 0 ? [{ label: 'FRIEND REQUESTS', value: String(pendingRequests.length), color: '#C44B4F' }] : []),
-  ], [quickStats, pendingRequests]);
+  // ESPN ticker standings
+  const standings: StandingPill[] = useMemo(() => [
+    { rank: 1, name: 'McGowan', toPar: '-2.1', movement: 'same' as const, isMe: true },
+    { rank: 2, name: 'Fletcher', toPar: '+0.4', movement: 'up' as const, isMe: false },
+    { rank: 3, name: 'Patterson', toPar: '+1.2', movement: 'down' as const, isMe: false },
+    { rank: 4, name: 'Collins', toPar: '+2.8', movement: 'same' as const, isMe: false },
+    { rank: 5, name: 'Davis', toPar: '+3.1', movement: 'up' as const, isMe: false },
+    { rank: 6, name: 'Brooks', toPar: '+4.5', movement: 'down' as const, isMe: false },
+  ], []);
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
+      {/* Fixed header bar */}
+      <HeaderBar onLogoPress={() => setShowMenu(!showMenu)} showMenu={showMenu} />
+      <LogoMenu visible={showMenu} onClose={() => setShowMenu(false)} />
+
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-        <Header name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'} />
-        <ESPNTicker items={tickerItems} />
+        {/* Masters green greeting */}
+        <GreetingSection name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'} />
+
+        {/* ESPN ticker */}
+        <ESPNTicker standings={standings} />
 
         <View style={st.body}>
           {/* Quick stats */}
@@ -346,35 +463,168 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Bottom spacing */}
         <View style={{ height: 32 }} />
       </ScrollView>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────
 const st = StyleSheet.create({
   screen: {
     flex: 1,
   },
 
-  /* Header */
-  header: {
-    paddingTop: STATUS_BAR_H + 8,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+  /* Header bar */
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: STATUS_BAR_H + 4,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    zIndex: 10,
   },
-  dormieLabel: {
+  logoBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoBg: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#1E4D2B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerDormie: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 4,
+  },
+  themeToggle: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  /* Logo menu */
+  menuOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 99,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    top: STATUS_BAR_H + 50,
+    left: 16,
+    width: 220,
+    borderWidth: 1,
+    zIndex: 100,
+    elevation: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  menuGroupHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  menuGroupLabel: {
     fontSize: 9,
     fontWeight: '700',
-    fontStyle: 'italic',
-    letterSpacing: 3,
+    letterSpacing: 2,
   },
-  greeting: {
+  menuGroupDot: {
+    width: 8,
+    height: 8,
+  },
+
+  /* Greeting section */
+  greetingSection: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    overflow: 'hidden',
+  },
+  greetingText: {
+    color: '#E8E4DE',
     fontSize: 20,
     fontWeight: '700',
-    marginTop: 4,
+    fontFamily: 'Georgia',
+  },
+
+  /* ESPN Ticker */
+  tickerBar: {
+    backgroundColor: '#1E4D2B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 32,
+  },
+  tickerLabelWrap: {
+    paddingHorizontal: 10,
+  },
+  tickerLabel: {
+    color: '#D4AF37',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    fontFamily: 'Georgia',
+  },
+  tickerDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: 'rgba(232, 228, 222, 0.2)',
+  },
+  tickerScroll: {
+    paddingHorizontal: 8,
+    gap: 4,
+    alignItems: 'center',
+  },
+  tickerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  tickerPillMe: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  tickerRank: {
+    color: 'rgba(232, 228, 222, 0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    fontFamily: 'Georgia',
+  },
+  tickerArrow: {
+    fontSize: 7,
+  },
+  tickerName: {
+    color: '#E8E4DE',
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'Georgia',
+  },
+  tickerNameMe: {
+    color: '#FFFFFF',
+  },
+  tickerScore: {
+    color: '#D4AF37',
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'Georgia',
+    marginLeft: 2,
   },
 
   /* Body */
@@ -386,7 +636,7 @@ const st = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: 12,
   },
   statBox: {
     flex: 1,

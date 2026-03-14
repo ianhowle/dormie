@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   breakdownSegment: { height: '100%' },
   breakdownLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 0 },
   legendText: { fontSize: 12, color: '#FFFFFF99' },
 
   // Stats grid

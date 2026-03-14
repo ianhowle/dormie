@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 16, justifyContent: 'center' },
-  progressDot: { borderRadius: 5 },
+  progressDot: { borderRadius: 0 },
   progressLabel: { textAlign: 'center', fontSize: 12, marginTop: 6 },
   leaderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, marginTop: 12 },
   leaderName: { fontSize: 16, fontWeight: '600' },

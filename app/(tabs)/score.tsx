@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
@@ -28,6 +29,30 @@ import {
 } from '../../src/data/scoring';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
+
+// ─── Pinstripe overlay ───────────────────────────────────────────────
+function Pinstripes() {
+  const lines = Array.from({ length: 40 });
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {lines.map((_, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            top: -200,
+            left: i * 18 - 100,
+            width: 1,
+            height: 800,
+            backgroundColor: '#fff',
+            opacity: 0.03,
+            transform: [{ rotate: '35deg' }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────
 type SelectedCourse = {
@@ -379,15 +404,15 @@ function SideGamePicker({
             style={[
               st.sidePill,
               {
-                backgroundColor: active ? `${c.gold}20` : c.elevated,
-                borderColor: active ? c.gold : c.border,
+                backgroundColor: active ? `${c.teal}20` : c.elevated,
+                borderColor: active ? c.teal : c.border,
               },
             ]}
           >
             <Text
               style={[
                 st.sidePillText,
-                { color: active ? c.gold : c.textMuted },
+                { color: active ? c.teal : c.textMuted },
                 active && { fontWeight: '700' },
               ]}
             >
@@ -540,11 +565,18 @@ export default function ScoreScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View style={[st.header, { backgroundColor: c.surface }]}>
-            <Text style={[st.headerTitle, { color: c.text, fontFamily: GEO }]}>
+          <LinearGradient
+            colors={['#1E4D2B', '#2D6A3F']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={st.header}
+          >
+            <Pinstripes />
+            <Text style={[st.headerDormie, { fontFamily: GEO }]}>DORMIE</Text>
+            <Text style={[st.headerTitle, { fontFamily: GEO }]}>
               New Round
             </Text>
-          </View>
+          </LinearGradient>
 
           <View style={st.body}>
             {/* Course */}
@@ -784,15 +816,16 @@ export default function ScoreScreen() {
               disabled={!canStart}
               style={[
                 st.startBtn,
-                { backgroundColor: canStart ? '#1E4D2B' : c.elevated },
-                !canStart && { opacity: 0.5 },
+                canStart
+                  ? { backgroundColor: '#1E4D2B' }
+                  : { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#D4AF37' },
               ]}
             >
               <Text
                 style={[
                   st.startBtnText,
                   {
-                    color: canStart ? '#D4AF37' : c.textMuted,
+                    color: '#D4AF37',
                     fontFamily: GEO,
                   },
                 ]}
@@ -820,10 +853,20 @@ const st = StyleSheet.create({
     paddingTop: STATUS_BAR_H + 8,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    overflow: 'hidden',
+  },
+  headerDormie: {
+    color: '#D4AF37',
+    fontSize: 7,
+    letterSpacing: 3,
+    fontStyle: 'italic',
+    fontWeight: '600',
+    marginBottom: 2,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   /* Body */
@@ -1006,6 +1049,7 @@ const st = StyleSheet.create({
   /* Format pills */
   pillsScroll: {
     gap: 8,
+    paddingLeft: 2,
     paddingRight: 16,
   },
   pill: {

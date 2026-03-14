@@ -1866,7 +1866,7 @@ const h = StyleSheet.create({
   teamBadgeDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: 0,
   },
   teamBadgeLabel: {
     color: '#fff',
@@ -1980,7 +1980,7 @@ const h = StyleSheet.create({
   liveDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: 0,
   },
   statusText: {
     fontSize: 9,
@@ -2017,7 +2017,7 @@ const h = StyleSheet.create({
   sessionScoreDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
   },
   sessionScoreVal: {
     fontSize: 18,
@@ -2092,7 +2092,7 @@ const h = StyleSheet.create({
     right: -3,
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: 0,
     borderWidth: 2,
     borderColor: '#1A1816',
   },
@@ -2265,7 +2265,7 @@ const h = StyleSheet.create({
   teamDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
   },
   settingsPlayerName: { fontSize: 13, fontWeight: '600' },
   settingsPlayerHcp: { fontSize: 10, marginTop: 1 },
@@ -2323,7 +2323,7 @@ const d = StyleSheet.create({
     borderWidth: 1,
     marginTop: 12,
   },
-  snakeDot: { width: 10, height: 10, borderRadius: 5 },
+  snakeDot: { width: 10, height: 10, borderRadius: 0 },
   snakeText: { fontSize: 13, fontWeight: '600' },
   teamColumnsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   teamColumn: { flex: 1, borderWidth: 2, overflow: 'hidden' },
@@ -2514,7 +2514,7 @@ const ms = StyleSheet.create({
     borderBottomWidth: 1,
     marginBottom: 10,
   },
-  teamDotLg: { width: 10, height: 10, borderRadius: 5 },
+  teamDotLg: { width: 10, height: 10, borderRadius: 0 },
   teamScoreLabel: { fontSize: 13, fontWeight: '600', flex: 1 },
   scoreTypeLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
   scoreControls: {
@@ -2574,7 +2574,7 @@ const ms = StyleSheet.create({
   runningLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
   runningScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 6 },
   runningSide: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  teamDotSm: { width: 8, height: 8, borderRadius: 4 },
+  teamDotSm: { width: 8, height: 8, borderRadius: 0 },
   runningVal: { fontSize: 24, fontWeight: '700' },
   runningDash: { fontSize: 14 },
   halvedText: { fontSize: 10, marginTop: 4 },

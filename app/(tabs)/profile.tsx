@@ -67,6 +67,30 @@ const HANDICAP_TREND = [
   9.6, 9.2, 8.9, 8.7, 8.4, 8.6, 8.3, 8.1, 8.4, 8.2,
 ];
 
+// ─── Pinstripe overlay ───────────────────────────────────────────────
+function Pinstripes() {
+  const lines = Array.from({ length: 40 });
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {lines.map((_, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            top: -200,
+            left: i * 18 - 100,
+            width: 1,
+            height: 800,
+            backgroundColor: '#fff',
+            opacity: 0.03,
+            transform: [{ rotate: '35deg' }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 // ─── Section label ───────────────────────────────────────────────────
 function SectionLabel({ title }: { title: string }) {
   const { theme } = useTheme();
@@ -443,6 +467,7 @@ export default function ProfileScreen() {
               end={{ x: 1, y: 0 }}
               style={s.integrityHeaderGradient}
             >
+              <Pinstripes />
               <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" />
               <Text style={s.integrityHeaderText}>Handicap Integrity Monitor</Text>
               <Ionicons name={showIntegrity ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF88" />
@@ -498,6 +523,7 @@ export default function ProfileScreen() {
                   end={{ x: 1, y: 1 }}
                   style={s.favCourseGradient}
                 >
+                  <Pinstripes />
                   <Ionicons name="golf" size={20} color="#D4AF37" />
                   <Text style={s.favCourseName}>{favoriteCourse}</Text>
                   <View style={s.favCourseStats}>
@@ -658,7 +684,7 @@ const s = StyleSheet.create({
 
   /* Header */
   header: {
-    paddingTop: STATUS_BAR_H + 8,
+    paddingTop: STATUS_BAR_H + 4,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
@@ -666,7 +692,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   brand: {
     fontSize: 9,
@@ -817,6 +843,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 14,
+    overflow: 'hidden',
   },
   integrityHeaderText: {
     flex: 1,
@@ -853,7 +880,7 @@ const s = StyleSheet.create({
 
   /* Favorite Course hero card */
   favCourseCard: { overflow: 'hidden' },
-  favCourseGradient: { padding: 16, gap: 8 },
+  favCourseGradient: { padding: 16, gap: 8, overflow: 'hidden' },
   favCourseName: {
     fontSize: 18,
     fontWeight: '700',

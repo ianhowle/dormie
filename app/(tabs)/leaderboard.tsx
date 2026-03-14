@@ -455,7 +455,7 @@ export default function LeaderboardScreen() {
             </Text>
           </View>
           <Text style={[styles.yourAvg, { fontFamily: GEO }]}>
-            {formatToPar(me.toPar)}
+            {me.rounds === 0 ? '--' : formatToPar(me.toPar)}
           </Text>
         </View>
       </LinearGradient>
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 5,
     height: 5,
-    borderRadius: 2.5,
+    // sharp edges — no borderRadius
   },
 
   /* Tab bar */
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
   playerSub: {

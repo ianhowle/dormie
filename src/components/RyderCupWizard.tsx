@@ -1622,12 +1622,12 @@ const w = StyleSheet.create({
     width: 18,
     height: 18,
     borderWidth: 2,
-    borderRadius: 9,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  radioDot: { width: 8, height: 8, borderRadius: 0, backgroundColor: '#fff' },
   winLabel: { fontSize: 14, fontWeight: '600' },
   winDesc: { fontSize: 11, marginTop: 2 },
   stepperRow: {
@@ -1890,7 +1890,7 @@ const w = StyleSheet.create({
   reviewTeamDot: {
     width: 14,
     height: 14,
-    borderRadius: 7,
+    borderRadius: 0,
   },
   reviewTeamName: {
     color: '#fff',

@@ -2289,7 +2289,7 @@ const s = StyleSheet.create({
     right: -2,
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: 0,
     borderWidth: 2,
     borderColor: '#1A1816',
   },
@@ -2528,7 +2528,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  rsvpDot: { width: 6, height: 6, borderRadius: 3 },
+  rsvpDot: { width: 6, height: 6, borderRadius: 0 },
   rsvpText: { fontSize: 10, fontWeight: '600' },
   fullPlayerHcp: { fontSize: 11, marginTop: 2 },
   playerStatsRow: {
@@ -2958,7 +2958,7 @@ const cm = StyleSheet.create({
   liveIndicator: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
     backgroundColor: '#2A9D8F',
   },
   ceremonyLive: {
@@ -3005,7 +3005,7 @@ const cm = StyleSheet.create({
   compLiveDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: 0,
     backgroundColor: '#2A9D8F',
   },
   compLiveText: {
@@ -3147,7 +3147,7 @@ const cm = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 6,
   },
-  allCourseDot: { width: 8, height: 8, borderRadius: 4 },
+  allCourseDot: { width: 8, height: 8, borderRadius: 0 },
   allCourseName: { fontSize: 13, fontWeight: '600' },
   allCourseMeta: { fontSize: 10, marginTop: 2 },
   allCourseStatus: { paddingHorizontal: 8, paddingVertical: 3 },
@@ -3197,7 +3197,7 @@ const cm = StyleSheet.create({
     right: 4,
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: 0,
     backgroundColor: '#C44B4F',
     alignItems: 'center',
     justifyContent: 'center',

@@ -910,7 +910,7 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, justifyContent: 'center' },
-  progressDot: { height: 6, borderRadius: 3 },
+  progressDot: { height: 6, borderRadius: 0 },
 
   stepContent: { padding: 16 },
   fieldLabel: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
