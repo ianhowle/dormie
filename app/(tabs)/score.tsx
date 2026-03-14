@@ -752,6 +752,7 @@ export default function ScoreScreen() {
   };
 
   const handleAddPlayer = (name: string, hcp: number) => {
+    haptics.selection();
     setPlayers((prev) => [
       ...prev,
       { id: `p-${Date.now()}`, name, handicap: hcp },
@@ -760,6 +761,7 @@ export default function ScoreScreen() {
   };
 
   const handleAddFriend = (friend: { id: string; name: string; handicap: number }) => {
+    haptics.selection();
     setPlayers((prev) => [...prev, friend]);
   };
 
@@ -783,6 +785,8 @@ export default function ScoreScreen() {
 
   const handleStartRound = () => {
     if (!course) return;
+    haptics.medium();
+    showToast({ message: 'Round started', type: 'success', icon: 'flag' });
     const activeFormat = SCORING_FORMATS.find((f) => f.key === format);
     // Determine slope/rating based on course type
     let slope: number;
@@ -816,8 +820,11 @@ export default function ScoreScreen() {
     });
   };
 
+  const { showToast } = useToast();
+
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <KeyboardAvoidingView
         style={st.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

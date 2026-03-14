@@ -18,7 +18,9 @@ import { useAuth } from '../../src/lib/auth';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { authService } from '../../src/services/auth.service';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import { haptics } from '../../src/lib/haptics';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 const TOP_ZONE = SCREEN_H * 0.3;
@@ -122,6 +124,7 @@ export default function SignUpScreen() {
   const firstName = fullName.trim().split(' ')[0] || 'Golfer';
 
   const handleSignUp = async () => {
+    haptics.light();
     if (!fullName.trim() || !email || !password) {
       showErrorMsg('Please fill in all required fields.');
       return;
@@ -164,6 +167,7 @@ export default function SignUpScreen() {
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
+        <ExpoStatusBar style="light" />
         {/* Top 30% — Masters green gradient */}
         <LinearGradient
           colors={[...greenHeaderGradient]}
@@ -285,7 +289,7 @@ export default function SignUpScreen() {
           {/* Login link */}
           <View style={styles.loginRow}>
             <Text style={[styles.loginLabel, { color: c.textMuted }]}>Already have an account?</Text>
-            <Pressable onPress={() => router.push('/auth/login')}>
+            <Pressable onPress={() => { haptics.light(); router.push('/auth/login'); }}>
               <Text style={[styles.loginLink, { color: c.teal }]}>Sign in</Text>
             </Pressable>
           </View>

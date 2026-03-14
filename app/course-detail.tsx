@@ -8,12 +8,14 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
+import { haptics } from '../src/lib/haptics';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import {
@@ -75,7 +77,7 @@ function ScopeToggle({
         return (
           <Pressable
             key={s}
-            onPress={() => onToggle(s)}
+            onPress={() => { haptics.light(); onToggle(s); }}
             style={[
               st.toggleBtn,
               active && { backgroundColor: `${c.teal}20` },
@@ -117,7 +119,7 @@ function ScoreModeToggle({
         return (
           <Pressable
             key={m}
-            onPress={() => onToggle(m)}
+            onPress={() => { haptics.light(); onToggle(m); }}
             style={[
               st.miniToggleBtn,
               active && { backgroundColor: `${c.teal}20` },
@@ -157,7 +159,7 @@ function Header({ course }: { course: CourseDetailData }) {
 
       {/* Back button */}
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => { haptics.light(); router.back(); }}
         style={st.backBtn}
         hitSlop={12}
       >
@@ -438,7 +440,7 @@ function NotPlayedState({ course }: { course: CourseDetailData }) {
         <Text style={[st.promptSub, { color: c.textMuted }]}>
           Log a round at {course.name} to see your stats and join the leaderboard.
         </Text>
-        <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+        <Pressable onPress={() => { haptics.light(); }} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
           <Text style={{ color: c.teal, fontSize: 13, fontWeight: '700', marginTop: 4 }}>Log a Round</Text>
         </Pressable>
       </View>
@@ -461,7 +463,7 @@ export default function CourseDetailScreen() {
   if (!course) {
     return (
       <View style={[st.notFound, { backgroundColor: c.bg }]}>
-        <Pressable onPress={() => router.back()} style={st.notFoundBack}>
+        <Pressable onPress={() => { haptics.light(); router.back(); }} style={st.notFoundBack}>
           <Ionicons name="chevron-back" size={24} color={c.text} />
           <Text style={[st.notFoundText, { color: c.text }]}>Course not found</Text>
         </Pressable>
@@ -473,6 +475,7 @@ export default function CourseDetailScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         <Header course={course} />
         <GoldDivider />

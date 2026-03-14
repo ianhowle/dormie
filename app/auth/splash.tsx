@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { GEO } from '../../src/theme/fonts';
 import { cardShadowDark } from '../../src/theme/colors';
+import { haptics } from '../../src/lib/haptics';
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -18,7 +20,8 @@ export default function SplashScreen() {
   }, [pulseAnim]);
 
   return (
-    <Pressable style={styles.container} onPress={() => router.push('/auth/login')}>
+    <Pressable style={styles.container} onPress={() => { haptics.light(); router.push('/auth/login'); }}>
+      <ExpoStatusBar style="light" />
       <Animated.View style={[styles.center, { opacity: pulseAnim }]}>
         <Text style={styles.logo}>DORMIE</Text>
         <View style={styles.divider} />
@@ -26,13 +29,13 @@ export default function SplashScreen() {
       <View style={styles.buttons}>
         <Pressable
           style={({ pressed }) => [styles.primary, pressed && styles.pressedState]}
-          onPress={() => router.push('/auth/login')}
+          onPress={() => { haptics.light(); router.push('/auth/login'); }}
         >
           <Text style={styles.primaryText}>Log In</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.secondary, pressed && styles.pressedState]}
-          onPress={() => router.push('/auth/signup')}
+          onPress={() => { haptics.light(); router.push('/auth/signup'); }}
         >
           <Text style={styles.secondaryText}>Sign Up</Text>
         </Pressable>

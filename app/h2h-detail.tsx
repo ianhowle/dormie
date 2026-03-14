@@ -1,10 +1,12 @@
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
+import { haptics } from '../src/lib/haptics';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { MOCK_H2H, type CourseH2H } from '../src/data/h2h';

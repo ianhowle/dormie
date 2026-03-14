@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';

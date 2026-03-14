@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import GoldDivider from './GoldDivider';
 
@@ -103,6 +104,8 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
     detailOpacity.setValue(0);
     dividerWidth.setValue(0);
     tapOpacity.setValue(0);
+
+    haptics.heavy();
 
     Animated.sequence([
       Animated.timing(overlayOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),

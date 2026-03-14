@@ -17,7 +17,9 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/lib/auth';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import { haptics } from '../../src/lib/haptics';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const TOP_ZONE = SCREEN_H * 0.4;
@@ -68,6 +70,7 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    haptics.light();
     if (!email || !password) {
       showError('Please fill in all fields.');
       return;
@@ -94,6 +97,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
+        <ExpoStatusBar style="light" />
         {/* Top 40% — Masters green gradient with branding */}
         <LinearGradient
           colors={[...greenHeaderGradient]}
@@ -185,7 +189,7 @@ export default function LoginScreen() {
           {/* Sign up link */}
           <View style={styles.signupRow}>
             <Text style={[styles.signupLabel, { color: c.textMuted }]}>Don't have an account?</Text>
-            <Pressable onPress={() => router.push('/auth/signup')}>
+            <Pressable onPress={() => { haptics.light(); router.push('/auth/signup'); }}>
               <Text style={[styles.signupLink, { color: c.teal }]}>Create one</Text>
             </Pressable>
           </View>

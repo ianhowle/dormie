@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../theme/colors';
 import GoldDivider from './GoldDivider';
@@ -444,6 +445,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
   }, [player, toPar]);
 
   const handleSave = useCallback(() => {
+    haptics.success();
     onSaveRound(player.playerId);
     Alert.alert('Round Saved', 'Your round has been saved successfully.');
   }, [player.playerId, onSaveRound]);
@@ -466,7 +468,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
             {players.map((p, i) => (
               <Pressable
                 key={p.playerId}
-                onPress={() => setActivePlayerIdx(i)}
+                onPress={() => { haptics.light(); setActivePlayerIdx(i); }}
                 style={[
                   styles.playerTab,
                   i === activePlayerIdx && { backgroundColor: '#FFFFFF18' },
@@ -558,7 +560,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
           <Text style={[styles.sectionTitle, { color: c.gold }]}>SHARE</Text>
           <View style={styles.shareRow}>
             <Pressable
-              onPress={() => { setShareFormat('story'); setShareVisible(true); }}
+              onPress={() => { haptics.light(); setShareFormat('story'); setShareVisible(true); }}
               style={({ pressed }) => [styles.shareFormatBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Ionicons name="phone-portrait-outline" size={24} color={c.text} />
@@ -566,7 +568,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
               <Text style={[styles.shareFormatRatio, { color: c.textMuted }]}>9:16</Text>
             </Pressable>
             <Pressable
-              onPress={() => { setShareFormat('feed'); setShareVisible(true); }}
+              onPress={() => { haptics.light(); setShareFormat('feed'); setShareVisible(true); }}
               style={({ pressed }) => [styles.shareFormatBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Ionicons name="square-outline" size={24} color={c.text} />
