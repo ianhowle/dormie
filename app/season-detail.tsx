@@ -190,11 +190,7 @@ function ChampionCeremony({
 
           <Text style={styles.ceremonyTrophy}>🏆</Text>
           <Text style={[styles.ceremonyLabel, { color: '#D4AF37' }]}>CHAMPION</Text>
-          <View style={styles.ceremonyDivider}>
-            <View style={[styles.dividerLine, { backgroundColor: '#D4AF37' }]} />
-            <Ionicons name="diamond" size={12} color="#D4AF37" style={{ marginHorizontal: 8 }} />
-            <View style={[styles.dividerLine, { backgroundColor: '#D4AF37' }]} />
-          </View>
+          <GoldDivider style={{ marginVertical: 12 }} />
           <Text style={[styles.ceremonyName, { color: '#FFFFFF' }]}>{champion.name}</Text>
           <Text style={[styles.ceremonyPoints, { color: '#D4AF37' }]}>{champion.points} points</Text>
           <View style={styles.ceremonyStats}>
@@ -215,6 +211,7 @@ function ChampionCeremony({
           </View>
 
           {/* Top 3 Final Standings */}
+          <GoldDivider style={{ marginTop: 24, marginBottom: 8 }} />
           <View style={styles.ceremonyStandings}>
             <Text style={[styles.ceremonyStandingsTitle, { color: '#D4AF37' }]}>FINAL STANDINGS</Text>
             {topThree.map((p, i) => (

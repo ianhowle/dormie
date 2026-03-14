@@ -4984,10 +4984,11 @@ const ps = StyleSheet.create({
     padding: 14,
   },
   settlementSubtitle: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
   settlementEmpty: {
     fontSize: 14,
@@ -5008,8 +5009,9 @@ const ps = StyleSheet.create({
     flex: 1,
   },
   settlementAmount: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   settleUpBtn: {
     marginTop: 12,

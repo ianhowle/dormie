@@ -137,11 +137,11 @@ const s = StyleSheet.create({
     marginLeft: 10,
   },
   cardName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   cardSub: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
 
