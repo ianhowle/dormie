@@ -707,6 +707,17 @@ export default function HomeScreen() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    fetchWeather().then(setWeather).catch(() => {});
+  }, []);
+
+  const activeStreaks = useMemo(() => computeStreaks({
+    recentScores: [78, 76, 79, 74, 77, 76, 75],
+    handicapTrend: [9.2, 8.9, 8.7, 8.4, 8.2],
+    h2hResults: [{ opponent: 'Tyler', wins: 4, losses: 1 }],
+    roundDates: [new Date(), new Date(Date.now() - 7 * 86400000), new Date(Date.now() - 14 * 86400000), new Date(Date.now() - 21 * 86400000)],
+  }), []);
+
   // Build real quick stats
   const quickStats = useMemo(() => {
     if (realRounds.length === 0) return MOCK_QUICK_STATS;
@@ -777,8 +788,9 @@ export default function HomeScreen() {
       >
         {/* Masters green greeting with active group name (Item 1) */}
         <GreetingSection
-          name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'}
+          name={firstName ?? 'Golfer'}
           groupName={activeGroup.name}
+          weather={weather}
         />
 
         {/* Gold divider below green header */}

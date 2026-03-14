@@ -694,6 +694,9 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => { haptics.light(); setNotifications(!notifications); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            accessibilityLabel="Notifications"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: notifications }}
           >
             <Ionicons
               name={notifications ? 'notifications' : 'notifications-off'}
@@ -714,10 +717,31 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
 
+          {/* Sound Effects toggle */}
+          <Pressable
+            onPress={() => {
+              haptics.light();
+              const next = !soundOn;
+              setSoundOn(next);
+              setSoundEnabled(next);
+            }}
+            style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            accessibilityLabel="Sound Effects"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: soundOn }}
+          >
+            <Ionicons name={soundOn ? 'volume-high' : 'volume-mute'} size={20} color={soundOn ? c.teal : c.textMuted} />
+            <Text style={[s.settingText, { color: c.text }]}>Sound Effects</Text>
+            <View style={[s.toggleTrack, { backgroundColor: soundOn ? '#1E4D2B' : c.elevated, borderColor: soundOn ? '#1E4D2B' : c.border }]}>
+              <View style={[s.toggleKnob, soundOn && s.toggleKnobOn]} />
+            </View>
+          </Pressable>
+
           {/* Favorite Course */}
           <Pressable
             onPress={() => { haptics.light(); setShowCoursePicker(true); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            accessibilityLabel={`Favorite Course${favoriteCourse ? `: ${favoriteCourse}` : ''}`}
           >
             <Ionicons name="golf" size={20} color={c.teal} />
             <View style={{ flex: 1 }}>
