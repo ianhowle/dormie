@@ -12,6 +12,7 @@ import {
   Animated,
   Modal,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
+import { haptics } from '../src/lib/haptics';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
