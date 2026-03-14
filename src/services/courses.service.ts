@@ -1,37 +1,72 @@
 import { supabase } from '../lib/supabase';
+import type { Course, CourseInsert, CourseLeaderboardEntry } from '../lib/database.types';
 
 const GOLF_API_KEY = process.env.EXPO_PUBLIC_GOLF_API_KEY;
 
 export const coursesService = {
-  async searchLocal(query: string) {
-    return supabase
+  /** Fuzzy search courses by name in Supabase. */
+  async search(query: string, limit = 20): Promise<Course[]> {
+    const { data, error } = await supabase
       .from('courses')
       .select('*')
       .ilike('name', `%${query}%`)
-      .limit(20);
+      .limit(limit);
+    if (error) throw error;
+    return data as Course[];
   },
 
-  async searchAPI(query: string) {
-    // External golf course API search
-    const response = await fetch(
-      `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}`,
-      { headers: { Authorization: `Bearer ${GOLF_API_KEY}` } }
-    );
-    return response.json();
+  /** Get a single course by ID. */
+  async getById(courseId: string): Promise<Course> {
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('id', courseId)
+      .single();
+    if (error) throw error;
+    return data as Course;
   },
 
-  async getCourse(courseId: string) {
-    return supabase.from('courses').select('*').eq('id', courseId).single();
-  },
-
-  async getCourseTeeBoxes(courseId: string) {
-    return supabase.from('tee_boxes').select('*').eq('course_id', courseId);
-  },
-
-  async getCourseLeaderboard(courseId: string, groupId?: string) {
-    return supabase.rpc('get_course_leaderboard', {
+  /** Get course leaderboard via RPC. */
+  async getLeaderboard(courseId: string): Promise<CourseLeaderboardEntry[]> {
+    const { data, error } = await supabase.rpc('get_course_leaderboard', {
       p_course_id: courseId,
-      ...(groupId && { p_group_id: groupId }),
     });
+    if (error) throw error;
+    return data as CourseLeaderboardEntry[];
+  },
+
+  /** Insert a course if it doesn't already exist (by name+location). Returns the course. */
+  async ensureCourse(course: CourseInsert): Promise<Course> {
+    const { data: existing } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('name', course.name)
+      .eq('location', course.location)
+      .maybeSingle();
+
+    if (existing) return existing as Course;
+
+    const { data, error } = await supabase
+      .from('courses')
+      .insert(course)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Course;
+  },
+
+  /** Search external golf course API. */
+  async searchAPI(query: string) {
+    if (!GOLF_API_KEY) return [];
+    try {
+      const response = await fetch(
+        `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}`,
+        { headers: { Authorization: `Bearer ${GOLF_API_KEY}` } }
+      );
+      if (!response.ok) return [];
+      return response.json();
+    } catch {
+      return [];
+    }
   },
 };
