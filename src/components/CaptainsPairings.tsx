@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -354,10 +355,10 @@ const styles = StyleSheet.create({
   teamToggleText: { fontSize: 14, fontWeight: '600' },
   teamDot: { width: 8, height: 8, borderRadius: 0 },
 
-  sectionLabel: { fontSize: 14, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 },
+  sectionLabel: { fontSize: 10, fontWeight: '600', marginBottom: 8, letterSpacing: 2, textTransform: 'uppercase' },
 
   // Pairing slot
-  pairingSlot: { padding: 12, marginBottom: 8 },
+  pairingSlot: { padding: 14, marginBottom: 8 },
   pairingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   pairingFormat: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   pairingAvg: { fontSize: 13 },

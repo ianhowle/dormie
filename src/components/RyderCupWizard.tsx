@@ -1836,8 +1836,8 @@ const w = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  trackerLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  trackerCount: { fontSize: 32, fontWeight: '700', marginTop: 4 },
+  trackerLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2 },
+  trackerCount: { fontSize: 32, fontWeight: '700', marginTop: 4, letterSpacing: -1 },
   trackerNeeded: { fontSize: 12, fontWeight: '600', marginTop: 4 },
   playerRow: {
     flexDirection: 'row',
