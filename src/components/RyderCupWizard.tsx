@@ -1672,12 +1672,14 @@ const w = StyleSheet.create({
     width: 44,
     height: 24,
     borderWidth: 1,
+    borderRadius: 10,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   toggleKnob: {
     width: 18,
     height: 18,
+    borderRadius: 8,
     backgroundColor: '#fff',
   },
   toggleKnobOn: {
@@ -1689,8 +1691,8 @@ const w = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
-  totalPtsLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  totalPtsVal: { fontSize: 32, fontWeight: '700', marginTop: 4 },
+  totalPtsLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2 },
+  totalPtsVal: { fontSize: 32, fontWeight: '700', marginTop: 4, letterSpacing: -1 },
 
   /* Courses */
   emptyText: { fontSize: 13, fontStyle: 'italic', marginBottom: 8 },
@@ -1774,7 +1776,7 @@ const w = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   sessionPtsLabel: { fontSize: 11 },
-  sessionPtsVal: { fontSize: 18, fontWeight: '700' },
+  sessionPtsVal: { fontSize: 18, fontWeight: '700', letterSpacing: -1 },
   addSessionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
