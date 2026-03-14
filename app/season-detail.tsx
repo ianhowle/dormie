@@ -781,6 +781,7 @@ export default function SeasonDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       {/* Header */}
       <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
         <View style={styles.headerTop}>
@@ -854,7 +855,7 @@ export default function SeasonDetailScreen() {
       {/* Advance week */}
       {canAdvance && (
         <View style={styles.advanceContainer}>
-          <Pressable onPress={handleAdvanceWeek} style={[styles.advanceBtn, { backgroundColor: c.gold }]}>
+          <Pressable onPress={() => { haptics.light(); handleAdvanceWeek(); }} style={[styles.advanceBtn, { backgroundColor: c.gold }]}>
             <Text style={[styles.advanceBtnText, { fontFamily: GEO }]}>
               {currentWeek === weeks.length ? 'Complete Season' : `Advance to Week ${currentWeek + 1}`}
             </Text>

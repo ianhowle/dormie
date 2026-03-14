@@ -14,6 +14,7 @@ import {
   Clipboard,
   Modal,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -26,6 +27,8 @@ import { TripCountdownRing } from '../src/components/TripCountdownRing';
 import { RyderCupHub } from '../src/components/RyderCupHub';
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
 import { useAuth } from '../src/lib/auth';
+import { haptics } from '../src/lib/haptics';
+import { useToast } from '../src/components/Toast';
 import { messagesService } from '../src/services/messages.service';
 import { tripsService } from '../src/services/trips.service';
 import type { TripMessageWithUser } from '../src/lib/database.types';
@@ -308,7 +311,8 @@ function ClubhouseTab({
       <Pressable
         onPress={() => {
           Clipboard.setString(trip.inviteCode);
-          Alert.alert('Copied!', `Invite code ${trip.inviteCode} copied to clipboard.`);
+          haptics.medium();
+          showToast({ message: 'Invite sent', type: 'success', icon: 'copy-outline' });
         }}
         style={[s.inviteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
       >
@@ -2056,11 +2060,20 @@ export default function TripDetailScreen() {
 
   const daysUntil = getDaysUntilTrip(trip.startDate);
 
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
   const [checklist, setChecklist] = useState(MOCK_CHECKLIST);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [showCeremony, setShowCeremony] = useState(false);
   const [competitionMode, setCompetitionMode] = useState(false);
+  const [chatLastActive, setChatLastActive] = useState<Date>(new Date());
+
+  // Haptic-enhanced tab switching
+  const handleTabSwitch = useCallback((tab: Tab) => {
+    haptics.light();
+    setActiveTab(tab);
+    if (tab === 'Chat') setChatLastActive(new Date());
+  }, []);
 
   const toggleCheck = useCallback((id: string) => {
     setChecklist((prev) =>
