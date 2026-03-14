@@ -4870,6 +4870,7 @@ const ps = StyleSheet.create({
   gameLineValue: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   gamesEmpty: {
     alignItems: 'center',
@@ -4926,10 +4927,11 @@ const ps = StyleSheet.create({
   },
   sharePlayerScore: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     width: 40,
     textAlign: 'right',
+    fontFamily: GEO,
   },
   sharePlayerToPar: {
     fontSize: 14,

@@ -111,12 +111,13 @@ const s = StyleSheet.create({
     paddingTop: 16,
   },
   header: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 10,
     marginTop: 2,
     marginBottom: 14,
   },
@@ -124,7 +125,7 @@ const s = StyleSheet.create({
   /* Card */
   card: {
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 10,
   },
   cardTop: {

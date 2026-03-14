@@ -17,7 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 
@@ -781,7 +783,7 @@ export default function SeasonDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       {/* Header */}
-      <LinearGradient colors={[c.greenDark, c.greenDark + 'CC']} style={styles.header}>
+      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -830,6 +832,7 @@ export default function SeasonDetailScreen() {
           </View>
         )}
       </LinearGradient>
+      <GoldDivider />
 
       <TabBar tab={tab} onSelect={setTab} colors={c} />
 
