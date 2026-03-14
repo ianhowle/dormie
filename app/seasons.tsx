@@ -406,11 +406,11 @@ function RulesStep({
           <View style={styles.dnsRow}>
             <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Min rounds to qualify</Text>
             <View style={styles.stepperRow}>
-              <Pressable onPress={() => setDnsMinRounds(Math.max(1, dnsMinRounds - 1))}>
+              <Pressable onPress={() => { haptics.light(); setDnsMinRounds(Math.max(1, dnsMinRounds - 1)); }}>
                 <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
               </Pressable>
               <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{dnsMinRounds}</Text>
-              <Pressable onPress={() => setDnsMinRounds(dnsMinRounds + 1)}>
+              <Pressable onPress={() => { haptics.light(); setDnsMinRounds(dnsMinRounds + 1); }}>
                 <Ionicons name="add-circle-outline" size={24} color={c.teal} />
               </Pressable>
             </View>
@@ -418,11 +418,11 @@ function RulesStep({
           <View style={styles.dnsRow}>
             <Text style={[styles.dnsLabel, { color: c.textMuted }]}>DNS cap (max pts)</Text>
             <View style={styles.stepperRow}>
-              <Pressable onPress={() => setDnsCap(Math.max(1, dnsCap - 1))}>
+              <Pressable onPress={() => { haptics.light(); setDnsCap(Math.max(1, dnsCap - 1)); }}>
                 <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
               </Pressable>
               <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{dnsCap}</Text>
-              <Pressable onPress={() => setDnsCap(dnsCap + 1)}>
+              <Pressable onPress={() => { haptics.light(); setDnsCap(dnsCap + 1); }}>
                 <Ionicons name="add-circle-outline" size={24} color={c.teal} />
               </Pressable>
             </View>
@@ -435,11 +435,11 @@ function RulesStep({
       <View style={[styles.multiplierRow, { backgroundColor: c.elevated }]}>
         <Text style={[styles.multiplierLabel, { color: c.textMuted }]}>Playoff weeks</Text>
         <View style={styles.stepperRow}>
-          <Pressable onPress={() => setPlayoffMultiplier(Math.max(1, playoffMultiplier - 0.5))}>
+          <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(Math.max(1, playoffMultiplier - 0.5)); }}>
             <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
           </Pressable>
           <Text style={[styles.stepperVal, { color: c.urgent, fontFamily: GEO }]}>{playoffMultiplier}×</Text>
-          <Pressable onPress={() => setPlayoffMultiplier(playoffMultiplier + 0.5)}>
+          <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(playoffMultiplier + 0.5); }}>
             <Ionicons name="add-circle-outline" size={24} color={c.urgent} />
           </Pressable>
         </View>
