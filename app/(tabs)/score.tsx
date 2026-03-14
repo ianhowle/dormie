@@ -943,9 +943,15 @@ export default function ScoreScreen() {
               onClose={() => setShowAddPlayerModal(false)}
             />
 
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
+
             {/* Scoring format */}
             <SectionLabel title="FORMAT" />
             <FormatPicker selected={format} onSelect={setFormat} />
+
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
 
             {/* Round type */}
             <SectionLabel title="ROUND TYPE" />
@@ -960,27 +966,37 @@ export default function ScoreScreen() {
                   <Pressable
                     key={rt.key}
                     onPress={() => setRoundType(rt.key)}
-                    style={[
+                    style={({ pressed }) => [
                       st.roundTypeCard,
                       {
-                        backgroundColor: active ? `${c.teal}20` : c.elevated,
+                        backgroundColor: active ? 'rgba(42,157,143,0.05)' : c.elevated,
                         borderColor: active ? c.teal : c.border,
+                        borderWidth: 1,
                       },
+                      active && { borderLeftWidth: 2, borderLeftColor: c.teal },
+                      ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+                      pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                     ]}
                   >
                     <Ionicons name={rt.icon} size={18} color={active ? c.teal : c.textMuted} />
-                    <Text style={[st.roundTypeLabel, { color: active ? c.teal : c.text }]}>
+                    <Text style={[st.roundTypeLabel, { color: active ? c.teal : c.text, fontFamily: SANS }]}>
                       {rt.label}
                     </Text>
-                    <Text style={[st.roundTypeDesc, { color: c.textMuted }]}>{rt.desc}</Text>
+                    <Text style={[st.roundTypeDesc, { color: c.textMuted, fontFamily: SANS }]}>{rt.desc}</Text>
                   </Pressable>
                 );
               })}
             </View>
 
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
+
             {/* Side games */}
             <SectionLabel title="SIDE GAMES" />
             <SideGamePicker selected={sideGames} onToggle={handleToggleSideGame} lastToggled={lastToggledSideGame} />
+
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
 
             {/* Hole range */}
             <SectionLabel title="HOLES" />

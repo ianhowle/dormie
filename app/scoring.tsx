@@ -3538,22 +3538,26 @@ const st = StyleSheet.create({
   },
   headerHoleNum: {
     color: '#fff',
-    fontSize: 44,
+    fontSize: 48,
     fontWeight: '700',
+    letterSpacing: -1,
+    fontFamily: GEO,
   },
   headerParBadge: {
     alignItems: 'center',
   },
   headerParLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   headerParValue: {
     color: '#D4AF37',
     fontSize: 20,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   headerFormat: {
     color: 'rgba(212,175,55,0.7)',
@@ -3570,7 +3574,7 @@ const st = StyleSheet.create({
     maxHeight: 58,
   },
   holeStripContent: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
     paddingVertical: 8,
     gap: 6,
   },

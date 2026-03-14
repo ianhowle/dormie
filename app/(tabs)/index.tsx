@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
-import { GEO } from '../../src/theme/fonts';
+import { GEO, SANS } from '../../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
@@ -125,11 +127,12 @@ function HeaderBar({
 }) {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={[st.headerBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
       {/* Logo button — flagstick on green square */}
-      <Pressable onPress={onLogoPress} style={st.logoBtn}>
+      <Pressable onPress={onLogoPress} style={({ pressed }) => [st.logoBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
         <View style={st.logoBg}>
           <Ionicons name="flag" size={16} color="#D4AF37" />
         </View>
@@ -148,7 +151,7 @@ function HeaderBar({
             </View>
           </View>
         )}
-        <Pressable onPress={toggleTheme} hitSlop={12} style={st.themeToggle}>
+        <Pressable onPress={toggleTheme} hitSlop={12} style={({ pressed }) => [st.themeToggle, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
           <Ionicons name={theme.isDark ? 'sunny' : 'moon'} size={20} color={c.textMuted} />
         </Pressable>
       </View>
@@ -170,6 +173,7 @@ function LogoMenu({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
 
   if (!visible) return null;
@@ -184,15 +188,15 @@ function LogoMenu({
   return (
     <>
       <Pressable style={st.menuOverlay} onPress={onClose} />
-      <View style={[st.menuDropdown, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+      <View style={[st.menuDropdown, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
         {items.map((item, i) => (
           <Pressable
             key={item.label}
             onPress={() => { item.onPress(); onClose(); }}
-            style={[st.menuItem, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
+            style={({ pressed }) => [st.menuItem, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
           >
             <Ionicons name={item.icon} size={16} color={c.textMuted} />
-            <Text style={[st.menuItemText, { color: c.text }]}>{item.label}</Text>
+            <Text style={[st.menuItemText, { color: c.text, fontFamily: SANS }]}>{item.label}</Text>
           </Pressable>
         ))}
         {/* MY GROUPS section — tappable to switch active group */}
@@ -205,13 +209,14 @@ function LogoMenu({
             <Pressable
               key={group.id}
               onPress={() => { onGroupSelect(group.id); onClose(); }}
-              style={[
+              style={({ pressed }) => [
                 st.menuItem,
-                isActive && { borderLeftWidth: 3, borderLeftColor: '#2A9D8F' },
+                isActive && { borderLeftWidth: 3, borderLeftColor: '#2A9D8F', backgroundColor: 'rgba(42,157,143,0.15)' },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
               <View style={[st.menuGroupDot, { backgroundColor: group.color }]} />
-              <Text style={[st.menuItemText, { color: isActive ? '#2A9D8F' : c.text, flex: 1 }]}>
+              <Text style={[st.menuItemText, { color: isActive ? '#2A9D8F' : c.text, flex: 1, fontFamily: SANS }]}>
                 {group.name}
               </Text>
               {isActive && <Ionicons name="checkmark" size={14} color="#2A9D8F" />}
@@ -227,7 +232,7 @@ function LogoMenu({
 function GreetingSection({ name, groupName }: { name: string; groupName: string }) {
   return (
     <LinearGradient
-      colors={['#1E4D2B', '#2D6A3F']}
+      colors={greenHeaderGradient as unknown as string[]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={st.greetingSection}
@@ -287,15 +292,17 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
 function SeasonStandingsSection({ groupName }: { groupName: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={st.seasonSection}>
       <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>SEASON STANDINGS</Text>
+      <GoldDivider style={{ marginBottom: 12 }} />
       <View style={st.seasonSubRow}>
-        <Text style={[st.seasonSubText, { color: c.textMuted }]}>Round 4 of 12</Text>
-        <Text style={[st.seasonSubText, { color: c.textMuted }]}>{groupName}</Text>
+        <Text style={[st.seasonSubText, { color: c.textMuted, fontFamily: SANS }]}>Round 4 of 12</Text>
+        <Text style={[st.seasonSubText, { color: c.textMuted, fontFamily: SANS }]}>{groupName}</Text>
       </View>
-      <View style={[st.seasonList, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+      <View style={[st.seasonList, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
         {MOCK_SEASON_STANDINGS.map((s, i) => (
           <View
             key={s.rank}
@@ -308,7 +315,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
             <Text style={[st.seasonRank, { color: s.rank === 1 ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>
               {s.rank}
             </Text>
-            <Text style={[st.seasonName, { color: s.rank === 1 ? '#2A9D8F' : c.text }]}>
+            <Text style={[st.seasonName, { color: s.rank === 1 ? '#2A9D8F' : c.text, fontFamily: SANS }]}>
               {s.name}
             </Text>
             <Text style={[st.seasonPoints, { color: c.gold, fontFamily: GEO }]}>
@@ -325,6 +332,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
 function RoundResultCard() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const r = MOCK_ROUND_RESULT;
   const isWin = r.result === 'WIN';
 
@@ -333,11 +341,12 @@ function RoundResultCard() {
       <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>
         ROUND {r.round} RESULT
       </Text>
-      <View style={[st.resultCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+      <GoldDivider style={{ marginBottom: 12 }} />
+      <View style={[st.resultCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
         {/* User side */}
         <View style={st.resultSide}>
           <Avatar id="1" size={44} name="McGowan" />
-          <Text style={[st.resultPlayerName, { color: c.text }]}>McGowan</Text>
+          <Text style={[st.resultPlayerName, { color: c.text, fontFamily: SANS }]}>McGowan</Text>
           <View style={st.resultScores}>
             <Text style={[st.resultScoreLabel, { color: c.textMuted }]}>GROSS</Text>
             <Text style={[st.resultScoreValue, { color: c.text, fontFamily: GEO }]}>
@@ -357,13 +366,13 @@ function RoundResultCard() {
           <View style={[st.resultBadge, { backgroundColor: isWin ? '#2A9D8F' : '#C44B4F' }]}>
             <Text style={st.resultBadgeText}>{r.result}</Text>
           </View>
-          <Text style={[st.resultMargin, { color: c.textMuted }]}>{r.margin}</Text>
+          <Text style={[st.resultMargin, { color: c.textMuted, fontFamily: SANS }]}>{r.margin}</Text>
         </View>
 
         {/* Opponent side */}
         <View style={st.resultSide}>
           <Avatar id={r.opponentId} size={44} name={r.opponentName} />
-          <Text style={[st.resultPlayerName, { color: c.text }]}>{r.opponentName}</Text>
+          <Text style={[st.resultPlayerName, { color: c.text, fontFamily: SANS }]}>{r.opponentName}</Text>
           <View style={st.resultScores}>
             <Text style={[st.resultScoreLabel, { color: c.textMuted }]}>GROSS</Text>
             <Text style={[st.resultScoreValue, { color: c.text, fontFamily: GEO }]}>
@@ -386,6 +395,7 @@ function RoundResultCard() {
 function NextMatchupCard() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const m = MOCK_NEXT_MATCHUP;
 
   return (
@@ -393,26 +403,27 @@ function NextMatchupCard() {
       <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>
         NEXT MATCHUP {'\u2022'} ROUND {m.round}
       </Text>
-      <View style={[st.matchupCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+      <GoldDivider style={{ marginBottom: 12 }} />
+      <View style={[st.matchupCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
         {/* User side */}
         <View style={st.matchupSide}>
           <Avatar id="1" size={40} name="McGowan" />
-          <Text style={[st.matchupName, { color: c.text }]}>McGowan</Text>
-          <Text style={[st.matchupPos, { color: c.textMuted }]}>#{m.userPosition}</Text>
+          <Text style={[st.matchupName, { color: c.text, fontFamily: SANS }]}>McGowan</Text>
+          <Text style={[st.matchupPos, { color: c.textMuted, fontFamily: GEO }]}>#{m.userPosition}</Text>
           <Text style={[st.matchupPts, { color: '#2A9D8F', fontFamily: GEO }]}>{m.userPoints} pts</Text>
         </View>
 
         {/* VS */}
         <View style={st.matchupCenter}>
           <Text style={[st.matchupVs, { color: c.textMuted, fontFamily: GEO }]}>VS</Text>
-          <Text style={[st.matchupDate, { color: c.textMuted }]}>{m.date}</Text>
+          <Text style={[st.matchupDate, { color: c.textMuted, fontFamily: SANS }]}>{m.date}</Text>
         </View>
 
         {/* Opponent side */}
         <View style={st.matchupSide}>
           <Avatar id={m.opponentId} size={40} name={m.opponentName} />
-          <Text style={[st.matchupName, { color: c.text }]}>{m.opponentName}</Text>
-          <Text style={[st.matchupPos, { color: c.textMuted }]}>#{m.opponentPosition}</Text>
+          <Text style={[st.matchupName, { color: c.text, fontFamily: SANS }]}>{m.opponentName}</Text>
+          <Text style={[st.matchupPos, { color: c.textMuted, fontFamily: GEO }]}>#{m.opponentPosition}</Text>
           <Text style={[st.matchupPts, { color: '#2A9D8F', fontFamily: GEO }]}>{m.opponentPoints} pts</Text>
         </View>
       </View>
@@ -430,10 +441,12 @@ function MyGroupsSection({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={st.groupsSection}>
       <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
+      <GoldDivider style={{ marginBottom: 12 }} />
       {MOCK_GROUPS.map((group) => {
         const isActive = group.id === activeGroupId;
         const initial = group.name.charAt(0).toUpperCase();
@@ -441,7 +454,7 @@ function MyGroupsSection({
           <Pressable
             key={group.id}
             onPress={() => onGroupSelect(group.id)}
-            style={[
+            style={({ pressed }) => [
               st.groupCard,
               {
                 backgroundColor: c.cardBg,
@@ -449,14 +462,17 @@ function MyGroupsSection({
                 borderLeftWidth: isActive ? 3 : 1,
                 borderLeftColor: isActive ? '#2A9D8F' : c.border,
               },
+              isDark ? cardShadowDark : cardShadowLight,
+              isActive && { backgroundColor: 'rgba(42,157,143,0.15)' },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
             <View style={[st.groupInitialBox, { backgroundColor: group.color }]}>
               <Text style={st.groupInitial}>{initial}</Text>
             </View>
             <View style={st.groupInfo}>
-              <Text style={[st.groupName, { color: c.text }]}>{group.name}</Text>
-              <Text style={[st.groupMembers, { color: c.textMuted }]}>
+              <Text style={[st.groupName, { color: c.text, fontFamily: SANS }]}>{group.name}</Text>
+              <Text style={[st.groupMembers, { color: c.textMuted, fontFamily: SANS }]}>
                 {group.memberCount} members
               </Text>
             </View>
@@ -472,19 +488,20 @@ function MyGroupsSection({
 function QuickStatsRow({ stats }: { stats: QuickStats }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   const items = [
-    { label: 'HANDICAP', value: stats.handicap.toFixed(1), color: c.gold },
-    { label: 'THIS MONTH', value: String(stats.monthRounds), color: c.gold },
-    { label: 'BEST RECENT', value: String(stats.bestRecent), color: c.gold },
-    { label: 'STREAK', value: stats.streak, color: c.gold },
+    { label: 'HANDICAP', value: stats.handicap.toFixed(1), color: c.gold, isHandicap: true },
+    { label: 'THIS MONTH', value: String(stats.monthRounds), color: c.gold, isHandicap: false },
+    { label: 'BEST RECENT', value: String(stats.bestRecent), color: c.gold, isHandicap: false },
+    { label: 'STREAK', value: stats.streak, color: c.gold, isHandicap: false },
   ];
 
   return (
     <View style={st.statsRow}>
       {items.map((item) => (
-        <View key={item.label} style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-          <Text style={[st.statValue, { color: item.color, fontFamily: GEO }]}>
+        <View key={item.label} style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+          <Text style={[st.statValue, { color: item.color, fontFamily: GEO, fontSize: item.isHandicap ? 28 : 18, letterSpacing: item.isHandicap ? -1 : 0 }]}>
             {item.value}
           </Text>
           <Text style={[st.statLabel, { color: c.textMuted }]}>{item.label}</Text>
@@ -504,24 +521,24 @@ function QuickActions() {
     <View style={st.actionsRow}>
       <Pressable
         onPress={() => router.push('/(tabs)/score')}
-        style={[st.actionBtn, { backgroundColor: c.teal }]}
+        style={({ pressed }) => [st.actionBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="add-circle-outline" size={18} color="#fff" />
-        <Text style={st.actionPrimaryText}>Log Round</Text>
+        <Text style={[st.actionPrimaryText, { fontFamily: SANS }]}>Log Round</Text>
       </Pressable>
       <Pressable
         onPress={() => router.push('/(tabs)/trips')}
-        style={[st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }]}
+        style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="airplane-outline" size={18} color={c.gold} />
-        <Text style={[st.actionSecText, { color: c.gold }]}>New Trip</Text>
+        <Text style={[st.actionSecText, { color: c.gold, fontFamily: SANS }]}>New Trip</Text>
       </Pressable>
       <Pressable
         onPress={() => router.push('/(tabs)/leaderboard')}
-        style={[st.actionBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }]}
+        style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
-        <Ionicons name="trophy-outline" size={18} color={c.textMuted} />
-        <Text style={[st.actionSecText, { color: c.textMuted }]}>Leaderboard</Text>
+        <Ionicons name="trophy-outline" size={18} color={c.teal} />
+        <Text style={[st.actionSecText, { color: c.teal, fontFamily: SANS }]}>Leaderboard</Text>
       </Pressable>
     </View>
   );
@@ -543,23 +560,24 @@ function SectionHeader({ title }: { title: string }) {
 function FeedCard({ item }: { item: FeedItem }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const isMe = item.playerId === '1';
 
   return (
-    <View style={[st.feedCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+    <Pressable style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
       <View style={st.feedLeft}>
         <Avatar id={item.playerId} size={36} name={item.playerName} />
       </View>
       <View style={st.feedContent}>
         <View style={st.feedTopRow}>
-          <Text style={[st.feedName, { color: c.text }]} numberOfLines={1}>
+          <Text style={[st.feedName, { color: c.text, fontFamily: SANS }]} numberOfLines={1}>
             {isMe ? 'You' : item.playerName}
           </Text>
-          <Text style={[st.feedTime, { color: c.textMuted }]}>
+          <Text style={[st.feedTime, { color: c.textMuted, fontFamily: SANS }]}>
             {timeAgo(item.timestamp)}
           </Text>
         </View>
-        <Text style={[st.feedDesc, { color: c.textMuted }]} numberOfLines={2}>
+        <Text style={[st.feedDesc, { color: c.textMuted, fontFamily: SANS }]} numberOfLines={2}>
           {item.description}
         </Text>
       </View>
@@ -569,7 +587,7 @@ function FeedCard({ item }: { item: FeedItem }) {
         color={c.textMuted}
         style={st.feedIcon}
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -577,17 +595,20 @@ function FeedCard({ item }: { item: FeedItem }) {
 function UpcomingCard({ item }: { item: UpcomingItem }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const isTrip = item.type === 'trip';
 
   return (
-    <View
-      style={[
+    <Pressable
+      style={({ pressed }) => [
         st.upcomingCard,
         {
           backgroundColor: c.cardBg,
           borderColor: isTrip ? c.teal : c.gold,
           borderLeftWidth: 3,
         },
+        isDark ? cardShadowDark : cardShadowLight,
+        pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
       ]}
     >
       <View style={st.upcomingInfo}>
@@ -597,11 +618,11 @@ function UpcomingCard({ item }: { item: UpcomingItem }) {
             size={14}
             color={isTrip ? c.teal : c.gold}
           />
-          <Text style={[st.upcomingTitle, { color: c.text }]} numberOfLines={1}>
+          <Text style={[st.upcomingTitle, { color: c.text, fontFamily: SANS }]} numberOfLines={1}>
             {item.title}
           </Text>
         </View>
-        <Text style={[st.upcomingSub, { color: c.textMuted }]}>
+        <Text style={[st.upcomingSub, { color: c.textMuted, fontFamily: SANS }]}>
           {item.subtitle}
         </Text>
       </View>
@@ -613,7 +634,7 @@ function UpcomingCard({ item }: { item: UpcomingItem }) {
           days
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -621,6 +642,7 @@ function UpcomingCard({ item }: { item: UpcomingItem }) {
 export default function HomeScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
   const { user } = useAuth();
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
@@ -702,6 +724,9 @@ export default function HomeScreen() {
           groupName={activeGroup.name}
         />
 
+        {/* Gold divider below green header */}
+        <GoldDivider />
+
         {/* ESPN ticker */}
         <ESPNTicker standings={standings} />
 
@@ -730,14 +755,14 @@ export default function HomeScreen() {
           {/* Empty state for new users */}
           {realRounds.length === 0 && !showDemoData && (
             <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Ionicons name="golf-outline" size={40} color={c.textMuted} />
+              <Text style={st.emptyEmoji}>&#9971;</Text>
               <Text style={[st.emptyTitle, { color: c.text }]}>No rounds yet</Text>
-              <Text style={[st.emptyDesc, { color: c.textMuted }]}>Log your first round to see your stats</Text>
-              <Pressable onPress={() => router.push('/(tabs)/score')} style={[st.emptyBtn, { backgroundColor: c.teal }]}>
-                <Text style={st.emptyBtnText}>Log Round</Text>
+              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Log your first round to see your stats</Text>
+              <Pressable onPress={() => router.push('/(tabs)/score')} style={({ pressed }) => [st.emptyBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+                <Text style={[st.emptyBtnText, { fontFamily: SANS }]}>Log Round</Text>
               </Pressable>
-              <Pressable onPress={() => setShowDemoData(true)}>
-                <Text style={[st.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+              <Pressable onPress={() => setShowDemoData(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <Text style={[st.demoToggle, { color: c.textMuted, fontFamily: SANS }]}>Show demo data</Text>
               </Pressable>
             </View>
           )}
@@ -746,12 +771,13 @@ export default function HomeScreen() {
           {pendingRequests.length > 0 && (
             <>
               <SectionHeader title="FRIEND REQUESTS" />
+              <GoldDivider style={{ marginBottom: 12 }} />
               <Pressable
                 onPress={() => router.push('/(tabs)/leaderboard')}
-                style={[st.feedCard, { backgroundColor: c.cardBg, borderColor: c.urgent, borderLeftWidth: 3 }]}
+                style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.urgent, borderLeftWidth: 3 }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Ionicons name="people" size={20} color={c.urgent} style={{ marginRight: 10 }} />
-                <Text style={[st.feedName, { color: c.text }]}>
+                <Text style={[st.feedName, { color: c.text, fontFamily: SANS }]}>
                   {pendingRequests.length} pending friend request{pendingRequests.length > 1 ? 's' : ''}
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
@@ -763,6 +789,7 @@ export default function HomeScreen() {
           {(realRounds.length > 0 || showDemoData) && (
             <>
               <SectionHeader title="LATEST" />
+              <GoldDivider style={{ marginBottom: 12 }} />
               {feedItems.map((item) => (
                 <FeedCard key={item.id} item={item} />
               ))}
@@ -773,6 +800,7 @@ export default function HomeScreen() {
           {(realRounds.length > 0 || showDemoData) && MOCK_UPCOMING.length > 0 && (
             <>
               <SectionHeader title="UPCOMING" />
+              <GoldDivider style={{ marginBottom: 12 }} />
               {MOCK_UPCOMING.map((item) => (
                 <UpcomingCard key={item.id} item={item} />
               ))}
@@ -799,7 +827,7 @@ const st = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: STATUS_BAR_H + 4,
     paddingBottom: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     zIndex: 10,
   },
@@ -866,7 +894,7 @@ const st = StyleSheet.create({
   menuDropdown: {
     position: 'absolute',
     top: STATUS_BAR_H + 50,
-    left: 16,
+    left: 20,
     width: 220,
     borderWidth: 1,
     zIndex: 100,
@@ -889,9 +917,10 @@ const st = StyleSheet.create({
     paddingBottom: 4,
   },
   menuGroupLabel: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   menuGroupDot: {
     width: 8,
@@ -900,12 +929,12 @@ const st = StyleSheet.create({
 
   /* Greeting section */
   greetingSection: {
-    paddingVertical: 16,
+    paddingVertical: 20,
     paddingHorizontal: 20,
     overflow: 'hidden',
   },
   greetingText: {
-    color: '#E8E4DE',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 20,
     fontWeight: '700',
     fontFamily: 'Georgia',
@@ -957,7 +986,7 @@ const st = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   tickerRank: {
-    color: 'rgba(232, 228, 222, 0.5)',
+    color: 'rgba(255,255,255,0.6)',
     fontSize: 9,
     fontWeight: '700',
     fontFamily: 'Georgia',
@@ -966,7 +995,7 @@ const st = StyleSheet.create({
     fontSize: 7,
   },
   tickerName: {
-    color: '#E8E4DE',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 10,
     fontWeight: '700',
     fontFamily: 'Georgia',
@@ -984,18 +1013,19 @@ const st = StyleSheet.create({
 
   /* Body */
   body: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
 
   /* Season Standings (Item 2) */
   seasonSection: {
-    marginTop: 16,
+    marginTop: 24,
   },
   seasonLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
-    marginBottom: 8,
+    textTransform: 'uppercase',
+    marginBottom: 12,
   },
   seasonSubRow: {
     flexDirection: 'row',
@@ -1003,7 +1033,7 @@ const st = StyleSheet.create({
     marginBottom: 8,
   },
   seasonSubText: {
-    fontSize: 11,
+    fontSize: 10,
   },
   seasonList: {
     borderWidth: 1,
@@ -1031,7 +1061,7 @@ const st = StyleSheet.create({
 
   /* Round Result Card (Item 3) */
   resultSection: {
-    marginTop: 20,
+    marginTop: 24,
   },
   resultCard: {
     flexDirection: 'row',
@@ -1058,8 +1088,9 @@ const st = StyleSheet.create({
     letterSpacing: 1,
   },
   resultScoreValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   resultCenter: {
     alignItems: 'center',
@@ -1083,7 +1114,7 @@ const st = StyleSheet.create({
 
   /* Next Matchup Card (Item 4) */
   matchupSection: {
-    marginTop: 20,
+    marginTop: 24,
   },
   matchupCard: {
     flexDirection: 'row',
@@ -1130,7 +1161,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   groupInitialBox: {
@@ -1154,7 +1185,7 @@ const st = StyleSheet.create({
     fontWeight: '700',
   },
   groupMembers: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 2,
   },
 
@@ -1162,7 +1193,7 @@ const st = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 20,
+    marginTop: 24,
   },
   statBox: {
     flex: 1,
@@ -1173,6 +1204,7 @@ const st = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   statLabel: {
     fontSize: 7,
@@ -1208,11 +1240,12 @@ const st = StyleSheet.create({
 
   /* Section */
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginTop: 24,
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   /* Feed card */
@@ -1220,7 +1253,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   feedLeft: {
@@ -1244,7 +1277,7 @@ const st = StyleSheet.create({
     fontSize: 10,
   },
   feedDesc: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 3,
     lineHeight: 16,
   },
@@ -1257,7 +1290,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   upcomingInfo: {
@@ -1274,7 +1307,7 @@ const st = StyleSheet.create({
     flex: 1,
   },
   upcomingSub: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 3,
   },
   countdownBadge: {
@@ -1284,8 +1317,9 @@ const st = StyleSheet.create({
     marginLeft: 10,
   },
   countdownNum: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   countdownLabel: {
     fontSize: 8,
@@ -1298,18 +1332,22 @@ const st = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     borderWidth: 1,
+    borderStyle: 'dashed',
     padding: 32,
-    marginTop: 20,
+    marginTop: 24,
     gap: 10,
   },
+  emptyEmoji: {
+    fontSize: 32,
+  },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: 'Georgia',
     marginTop: 8,
   },
   emptyDesc: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
   emptyBtn: {

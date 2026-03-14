@@ -21,6 +21,8 @@ import { Avatar } from '../../src/components/Avatar';
 import { roundsService } from '../../src/services/rounds.service';
 import type { RoundWithCourse } from '../../src/lib/database.types';
 import { scoreColor, formatToPar as formatToParUtil, toParColor as toParColorUtil } from '../../src/lib/scoring-utils';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import GoldDivider from '../../src/components/GoldDivider';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -95,7 +97,7 @@ function Pinstripes() {
 function SectionLabel({ title }: { title: string }) {
   const { theme } = useTheme();
   return (
-    <Text style={[s.sectionLabel, { color: theme.colors.gold, fontFamily: GEO }]}>{title}</Text>
+    <Text style={[s.sectionLabel, { color: theme.colors.gold }]}>{title}</Text>
   );
 }
 
@@ -200,6 +202,7 @@ function HandicapChart({ data }: { data: number[] }) {
 // ═══════════════════════════════════════════════════════════════════════
 export default function ProfileScreen() {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme.isDark;
   const c = theme.colors;
   const { user, signOut } = useAuth();
   const router = useRouter();
@@ -212,6 +215,8 @@ export default function ProfileScreen() {
 
   const COURSE_OPTIONS = ['Hermitage Golf Course', 'Gaylord Springs', 'TPC Scottsdale', 'We-Ko-Pa Saguaro', 'Grayhawk Raptor'];
   const FAVORITE_COURSE_STATS = { bestScore: 71, avgScore: 75.2, roundsPlayed: 12 };
+
+  const cardShadow = isDark ? cardShadowDark : cardShadowLight;
 
   // Use real auth data when available, fall back to mock
   const profileUser = useMemo(() => {
@@ -326,7 +331,11 @@ export default function ProfileScreen() {
         <View style={[s.header, { backgroundColor: c.surface }]}>
           <View style={s.brandRow}>
             <Text style={[s.brand, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
-            <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={12}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+            >
               <Ionicons name="settings-outline" size={20} color={c.textMuted} />
             </Pressable>
           </View>
@@ -377,10 +386,10 @@ export default function ProfileScreen() {
 
           <Pressable
             onPress={() => Alert.alert('Edit Profile', 'Profile editing would open here.')}
-            style={[s.editBtn, { borderColor: c.border }]}
+            style={({ pressed }) => [s.editBtn, { borderColor: c.gold, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
-            <Ionicons name="pencil-outline" size={14} color={c.teal} />
-            <Text style={[s.editBtnText, { color: c.teal }]}>Edit Profile</Text>
+            <Ionicons name="pencil-outline" size={14} color={c.gold} />
+            <Text style={[s.editBtnText, { color: c.gold }]}>Edit Profile</Text>
           </Pressable>
         </View>
 
@@ -388,19 +397,19 @@ export default function ProfileScreen() {
           {/* ─── STATS GRID ──────────────────────────────────────── */}
           <SectionLabel title="STATS" />
           <View style={s.statsGrid}>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
                 {displayStats.totalRounds}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Total Rounds</Text>
             </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
                 {displayStats.coursesPlayed}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Courses Played</Text>
             </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.gold, fontFamily: GEO }]}>
                 {displayStats.bestRound.score}
               </Text>
@@ -409,19 +418,19 @@ export default function ProfileScreen() {
                 {displayStats.bestRound.course}
               </Text>
             </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
                 {typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Scoring Average</Text>
             </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.gold, fontFamily: GEO }]}>
                 {displayStats.courseRecords}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Course Records</Text>
             </View>
-            <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
                 {displayStats.tripsPlayed}
               </Text>
@@ -431,16 +440,21 @@ export default function ProfileScreen() {
 
           {/* Demo data toggle for new users */}
           {!realStats && !showDemoData && (
-            <Pressable onPress={() => setShowDemoData(true)} style={s.demoToggleWrap}>
-              <Text style={[s.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+            <Pressable
+              onPress={() => setShowDemoData(true)}
+              style={({ pressed }) => [s.demoToggleWrap, { opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            >
+              <Text style={[s.demoToggle, { color: c.teal }]}>Show demo data</Text>
             </Pressable>
           )}
+
+          <GoldDivider style={{ marginTop: 24 }} />
 
           {/* ─── HANDICAP TREND ───────────────────────────────────── */}
           {displayHandicapTrend.length > 0 && (
             <>
               <SectionLabel title="HANDICAP TREND" />
-              <View style={[s.chartCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <View style={[s.chartCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
                 <View style={s.chartHeader}>
                   <View>
                     <Text style={[s.chartCurrentLabel, { color: c.textMuted }]}>Current</Text>
@@ -454,7 +468,7 @@ export default function ProfileScreen() {
                       size={14}
                       color={c.teal}
                     />
-                    <Text style={[s.chartTrendText, { color: c.teal }]}>
+                    <Text style={[s.chartTrendText, { color: c.teal, fontFamily: GEO }]}>
                       {((displayHandicapTrend[0] ?? 0) - (displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0)).toFixed(1)} improvement
                     </Text>
                   </View>
@@ -463,11 +477,25 @@ export default function ProfileScreen() {
                   <HandicapChart data={displayHandicapTrend} />
                 </View>
               </View>
+              <GoldDivider style={{ marginTop: 24 }} />
             </>
           )}
 
           {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
           {displayRounds.length > 0 && <SectionLabel title="RECENT ROUNDS" />}
+          {displayRounds.length === 0 && !loadingRounds && (
+            <View style={[s.emptyState, { borderColor: c.border }]}>
+              <Text style={s.emptyEmoji}>&#9971;</Text>
+              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>No Rounds Yet</Text>
+              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Post your first round to start tracking stats.</Text>
+              <Pressable
+                onPress={() => router.push('/score')}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+              >
+                <Text style={[s.emptyCta, { color: c.teal }]}>Score a Round</Text>
+              </Pressable>
+            </View>
+          )}
           {displayRounds.map((round) => {
             const badge = sourceBadge(round.source);
             return (
@@ -477,7 +505,7 @@ export default function ProfileScreen() {
                   pathname: '/round-detail',
                   params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
                 })}
-                style={[s.roundRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+                style={({ pressed }) => [s.roundRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
               >
                 <View style={s.roundScoreWrap}>
                   <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
@@ -505,13 +533,15 @@ export default function ProfileScreen() {
             );
           })}
 
+          {displayRounds.length > 0 && <GoldDivider style={{ marginTop: 18 }} />}
+
           {/* ─── HANDICAP INTEGRITY MONITOR ─────────────────────── */}
           <Pressable
             onPress={() => setShowIntegrity(!showIntegrity)}
-            style={s.integrityHeader}
+            style={({ pressed }) => [s.integrityHeader, { opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <LinearGradient
-              colors={['#1E4D2B', '#2D6A3F']}
+              colors={greenHeaderGradient as unknown as string[]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.integrityHeaderGradient}
@@ -519,12 +549,13 @@ export default function ProfileScreen() {
               <Pinstripes />
               <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" />
               <Text style={s.integrityHeaderText}>Handicap Integrity Monitor</Text>
-              <Ionicons name={showIntegrity ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF88" />
+              <Ionicons name={showIntegrity ? 'chevron-up' : 'chevron-down'} size={18} color="rgba(255,255,255,0.6)" />
             </LinearGradient>
           </Pressable>
+          <GoldDivider />
 
           {showIntegrity && (
-            <View style={[s.integrityBody, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={[s.integrityBody, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, borderTopWidth: 0, ...cardShadow }]}>
               {/* Fair Play Score */}
               <View style={s.integrityScoreRow}>
                 <Text style={[s.integrityScoreLabel, { color: c.textMuted }]}>Fair Play Score</Text>
@@ -565,9 +596,9 @@ export default function ProfileScreen() {
           {favoriteCourse && (
             <>
               <SectionLabel title="FAVORITE COURSE" />
-              <View style={s.favCourseCard}>
+              <View style={[s.favCourseCard, { ...cardShadow }]}>
                 <LinearGradient
-                  colors={['#1E4D2B', '#2D6A3F']}
+                  colors={greenHeaderGradient as unknown as string[]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={s.favCourseGradient}
@@ -591,6 +622,7 @@ export default function ProfileScreen() {
                   </View>
                 </LinearGradient>
               </View>
+              <GoldDivider style={{ marginTop: 24 }} />
             </>
           )}
 
@@ -600,33 +632,33 @@ export default function ProfileScreen() {
           {/* Dark / Light toggle */}
           <Pressable
             onPress={toggleTheme}
-            style={[s.settingRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+            style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons
-              name={theme.isDark ? 'moon' : 'sunny'}
+              name={isDark ? 'moon' : 'sunny'}
               size={20}
-              color={theme.isDark ? c.gold : c.teal}
+              color={isDark ? c.gold : c.teal}
             />
             <Text style={[s.settingText, { color: c.text }]}>
-              {theme.isDark ? 'Dark Mode' : 'Light Mode'}
+              {isDark ? 'Dark Mode' : 'Light Mode'}
             </Text>
             <View
               style={[
                 s.toggleTrack,
                 {
-                  backgroundColor: theme.isDark ? c.teal : c.elevated,
-                  borderColor: theme.isDark ? c.teal : c.border,
+                  backgroundColor: isDark ? '#1E4D2B' : c.elevated,
+                  borderColor: isDark ? '#1E4D2B' : c.border,
                 },
               ]}
             >
-              <View style={[s.toggleKnob, theme.isDark && s.toggleKnobOn]} />
+              <View style={[s.toggleKnob, isDark && s.toggleKnobOn]} />
             </View>
           </Pressable>
 
           {/* Notifications toggle */}
           <Pressable
             onPress={() => setNotifications(!notifications)}
-            style={[s.settingRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+            style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons
               name={notifications ? 'notifications' : 'notifications-off'}
@@ -638,8 +670,8 @@ export default function ProfileScreen() {
               style={[
                 s.toggleTrack,
                 {
-                  backgroundColor: notifications ? c.teal : c.elevated,
-                  borderColor: notifications ? c.teal : c.border,
+                  backgroundColor: notifications ? '#1E4D2B' : c.elevated,
+                  borderColor: notifications ? '#1E4D2B' : c.border,
                 },
               ]}
             >
@@ -650,7 +682,7 @@ export default function ProfileScreen() {
           {/* Favorite Course */}
           <Pressable
             onPress={() => setShowCoursePicker(true)}
-            style={[s.settingRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+            style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons name="golf" size={20} color={c.teal} />
             <View style={{ flex: 1 }}>
@@ -665,7 +697,7 @@ export default function ProfileScreen() {
           {/* Account info */}
           <Pressable
             onPress={() => Alert.alert('Account', `Email: ${profileUser.email}\nMember since ${profileUser.memberSince}`)}
-            style={[s.settingRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+            style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons name="person-outline" size={20} color={c.textMuted} />
             <View style={{ flex: 1 }}>
@@ -681,7 +713,7 @@ export default function ProfileScreen() {
               { text: 'Cancel', style: 'cancel' },
               { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
             ])}
-            style={[s.signOutBtn, { borderColor: c.urgent }]}
+            style={({ pressed }) => [s.signOutBtn, { borderColor: c.urgent, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons name="log-out-outline" size={18} color={c.urgent} />
             <Text style={[s.signOutText, { color: c.urgent }]}>Sign Out</Text>
@@ -694,10 +726,14 @@ export default function ProfileScreen() {
       {/* ─── COURSE PICKER MODAL ──────────────────────────────── */}
       <Modal visible={showCoursePicker} transparent animationType="slide">
         <View style={s.modalOverlay}>
-          <View style={[s.modalContent, { backgroundColor: c.cardBg }]}>
+          <View style={[s.modalContent, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
             <View style={s.modalHeader}>
               <Text style={[s.modalTitle, { color: c.text, fontFamily: GEO }]}>Select Favorite Course</Text>
-              <Pressable onPress={() => setShowCoursePicker(false)} hitSlop={12}>
+              <Pressable
+                onPress={() => setShowCoursePicker(false)}
+                hitSlop={12}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+              >
                 <Ionicons name="close" size={24} color={c.textMuted} />
               </Pressable>
             </View>
@@ -705,7 +741,7 @@ export default function ProfileScreen() {
               <Pressable
                 key={course}
                 onPress={() => { setFavoriteCourse(course); setShowCoursePicker(false); }}
-                style={[s.modalRow, { borderColor: c.border, backgroundColor: favoriteCourse === course ? c.teal + '12' : 'transparent' }]}
+                style={({ pressed }) => [s.modalRow, { borderColor: c.border, backgroundColor: favoriteCourse === course ? `${c.teal}26` : 'transparent', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
               >
                 <Ionicons name="golf" size={18} color={favoriteCourse === course ? c.teal : c.textMuted} />
                 <Text style={[s.modalRowText, { color: favoriteCourse === course ? c.teal : c.text }]}>{course}</Text>
@@ -715,7 +751,7 @@ export default function ProfileScreen() {
             {favoriteCourse && (
               <Pressable
                 onPress={() => { setFavoriteCourse(null); setShowCoursePicker(false); }}
-                style={[s.modalClearBtn, { borderColor: c.urgent }]}
+                style={({ pressed }) => [s.modalClearBtn, { borderColor: c.urgent, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
               >
                 <Text style={[s.modalClearText, { color: c.urgent }]}>Clear Favorite</Text>
               </Pressable>
@@ -761,6 +797,7 @@ const s = StyleSheet.create({
     width: 24,
     height: 24,
     backgroundColor: '#2A9D8F',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -772,8 +809,8 @@ const s = StyleSheet.create({
     gap: 6,
     marginTop: 4,
   },
-  handicapLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  handicapValue: { fontSize: 24, fontWeight: '800' },
+  handicapLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase' },
+  handicapValue: { fontSize: 28, fontWeight: '700', letterSpacing: -1 },
   location: { fontSize: 13, marginTop: 4 },
   editBtn: {
     flexDirection: 'row',
@@ -787,15 +824,16 @@ const s = StyleSheet.create({
   editBtnText: { fontSize: 13, fontWeight: '600' },
 
   /* Body */
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 20 },
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginTop: 24,
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   /* Stats grid */
@@ -809,16 +847,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 6,
-    borderWidth: 1,
   },
-  statValue: { fontSize: 22, fontWeight: '700' },
-  statLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5, marginTop: 4, textAlign: 'center' },
-  statSub: { fontSize: 8, marginTop: 2, textAlign: 'center' },
+  statValue: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+  statLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5, marginTop: 4, textAlign: 'center' },
+  statSub: { fontSize: 10, marginTop: 2, textAlign: 'center' },
 
   /* Handicap chart */
   chartCard: {
-    borderWidth: 1,
-    padding: 14,
+    padding: 16,
     overflow: 'hidden',
   },
   chartHeader: {
@@ -827,8 +863,8 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  chartCurrentLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  chartCurrentValue: { fontSize: 28, fontWeight: '800', marginTop: 2 },
+  chartCurrentLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase' },
+  chartCurrentValue: { fontSize: 28, fontWeight: '700', marginTop: 2, letterSpacing: -1 },
   chartTrendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -844,35 +880,50 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 6,
   },
   roundScoreWrap: { alignItems: 'center', width: 44 },
-  roundScore: { fontSize: 22, fontWeight: '700' },
+  roundScore: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   roundToPar: { fontSize: 11, fontWeight: '700', marginTop: -2 },
   roundCourse: { fontSize: 13, fontWeight: '600' },
   roundMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
-  roundDate: { fontSize: 11 },
+  roundDate: { fontSize: 10 },
   sourceBadge: { paddingHorizontal: 6, paddingVertical: 2 },
   sourceBadgeText: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
   roundPar: { fontSize: 11, fontWeight: '600' },
+
+  /* Empty state */
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    marginTop: 8,
+  },
+  emptyEmoji: { fontSize: 32, marginBottom: 8 },
+  emptyTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  emptyDesc: { fontSize: 12, textAlign: 'center', marginBottom: 12 },
+  emptyCta: { fontSize: 13, fontWeight: '700' },
 
   /* Settings */
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 6,
   },
-  settingText: { fontSize: 14, fontWeight: '600', flex: 1 },
-  settingSub: { fontSize: 11, marginTop: 2 },
+  settingText: { fontSize: 13, fontWeight: '600', flex: 1 },
+  settingSub: { fontSize: 10, marginTop: 2 },
   toggleTrack: {
     width: 44,
     height: 24,
     borderWidth: 1,
+    borderRadius: 10,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
@@ -880,6 +931,7 @@ const s = StyleSheet.create({
     width: 18,
     height: 18,
     backgroundColor: '#fff',
+    borderRadius: 8,
   },
   toggleKnobOn: {
     alignSelf: 'flex-end',
@@ -896,24 +948,23 @@ const s = StyleSheet.create({
   signOutText: { fontSize: 14, fontWeight: '700' },
 
   /* Integrity Monitor */
-  integrityHeader: { marginTop: 20, marginBottom: 0 },
+  integrityHeader: { marginTop: 24, marginBottom: 0 },
   integrityHeaderGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    padding: 14,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     overflow: 'hidden',
   },
   integrityHeaderText: {
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: 'rgba(255,255,255,0.8)',
   },
   integrityBody: {
-    borderWidth: 1,
-    borderTopWidth: 0,
-    padding: 14,
+    padding: 16,
     gap: 12,
   },
   integrityScoreRow: {
@@ -922,7 +973,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   integrityScoreLabel: { fontSize: 13, fontWeight: '600' },
-  integrityScoreValue: { fontSize: 28, fontWeight: '800' },
+  integrityScoreValue: { fontSize: 28, fontWeight: '700', letterSpacing: -1 },
   integrityBadge: { paddingHorizontal: 8, paddingVertical: 3 },
   integrityBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   integrityBar: { height: 8, overflow: 'hidden' },
@@ -935,15 +986,15 @@ const s = StyleSheet.create({
   },
   integrityFactorLabel: { fontSize: 13 },
   integrityFactorValue: { fontSize: 13, fontWeight: '700' },
-  integrityNote: { fontSize: 11, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
+  integrityNote: { fontSize: 10, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
 
   /* Favorite Course hero card */
   favCourseCard: { overflow: 'hidden' },
-  favCourseGradient: { padding: 16, gap: 8, overflow: 'hidden' },
+  favCourseGradient: { paddingVertical: 20, paddingHorizontal: 20, gap: 8, overflow: 'hidden' },
   favCourseName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: GEO,
   },
   favCourseStats: {
@@ -953,17 +1004,19 @@ const s = StyleSheet.create({
   },
   favCourseStat: { alignItems: 'center' },
   favCourseStatValue: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#D4AF37',
     fontFamily: GEO,
+    letterSpacing: -0.5,
   },
   favCourseStatLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF88',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 2,
     marginTop: 2,
+    textTransform: 'uppercase',
   },
 
   /* Course picker modal */
@@ -975,7 +1028,7 @@ const s = StyleSheet.create({
   modalContent: {
     paddingTop: 20,
     paddingBottom: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -988,10 +1041,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
-  modalRowText: { flex: 1, fontSize: 15, fontWeight: '500' },
+  modalRowText: { flex: 1, fontSize: 13, fontWeight: '500' },
   modalClearBtn: {
     alignItems: 'center',
     paddingVertical: 12,
@@ -1006,7 +1060,7 @@ const s = StyleSheet.create({
     marginTop: 16,
   },
   demoToggle: {
-    fontSize: 12,
-    textDecorationLine: 'underline',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

@@ -320,7 +320,7 @@ const st = StyleSheet.create({
 
   /* Body */
   body: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
 
   /* Stats row */
@@ -340,9 +340,9 @@ const st = StyleSheet.create({
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
     marginTop: 4,
     textTransform: 'uppercase',
   },
@@ -367,10 +367,11 @@ const st = StyleSheet.create({
     marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
 
   /* Table */
