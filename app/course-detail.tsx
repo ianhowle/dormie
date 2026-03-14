@@ -196,7 +196,7 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
 function YourHistoryCard({ course }: { course: CourseDetailData }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const h = course.myHistory!;
+  const h = course.myHistory ?? { best: 0, avg: 0, worst: 0, rounds: 0, scores: [] };
 
   return (
     <View style={st.sectionWrap}>
@@ -244,7 +244,7 @@ function HistoryStat({
 function ScoresList({ course }: { course: CourseDetailData }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const scores = course.myHistory!.scores;
+  const scores = course.myHistory?.scores ?? [];
 
   return (
     <View style={st.sectionWrap}>
@@ -416,7 +416,7 @@ function NotPlayedState({ course }: { course: CourseDetailData }) {
               </View>
               <View style={st.communityStat}>
                 <Text style={[st.communityValue, { color: c.text, fontFamily: GEO }]}>
-                  {course.communityAvg!.toFixed(1)}
+                  {(course.communityAvg ?? 0).toFixed(1)}
                 </Text>
                 <Text style={[st.communityLabel, { color: c.textMuted }]}>AVG SCORE</Text>
               </View>

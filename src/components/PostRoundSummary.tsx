@@ -416,12 +416,21 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
   const [shareFormat, setShareFormat] = useState<'story' | 'feed'>('story');
 
   const player = players[activePlayerIdx];
+
+  if (!player) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+        <Text style={{ color: c.textMuted, fontSize: 16 }}>No player data available.</Text>
+      </View>
+    );
+  }
+
   const toPar = formatToPar(player.grossScore, player.coursePar);
-  const counts = useMemo(() => categorizeScores(player.holes), [player.holes]);
-  const stats = useMemo(() => computeStats(player.holes), [player.holes]);
-  const puttBuckets = useMemo(() => computePuttBuckets(player.holes), [player.holes]);
-  const front9 = player.holes.length >= 9 ? splitNine(player.holes, 'front') : null;
-  const back9 = player.holes.length >= 18 ? splitNine(player.holes, 'back') : null;
+  const counts = useMemo(() => categorizeScores(player.holes ?? []), [player.holes]);
+  const stats = useMemo(() => computeStats(player.holes ?? []), [player.holes]);
+  const puttBuckets = useMemo(() => computePuttBuckets(player.holes ?? []), [player.holes]);
+  const front9 = (player.holes?.length ?? 0) >= 9 ? splitNine(player.holes, 'front') : null;
+  const back9 = (player.holes?.length ?? 0) >= 18 ? splitNine(player.holes, 'back') : null;
 
   const handleShare = useCallback(async () => {
     try {
@@ -461,7 +470,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
                   i === activePlayerIdx && { backgroundColor: '#FFFFFF18' },
                 ]}
               >
-                <Avatar name={p.name} color={p.avatarColor} size={24} />
+                <Avatar id={p.playerId} name={p.name} size={24} />
                 <Text style={[styles.playerTabName, { color: i === activePlayerIdx ? '#FFFFFF' : '#FFFFFF88' }]}>
                   {p.name.split(' ')[0]}
                 </Text>

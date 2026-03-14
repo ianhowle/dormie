@@ -152,7 +152,7 @@ function YourGameScreen({
         {avatarMode === 'photo' && photoUri ? (
           <Image source={{ uri: photoUri }} style={{ width: 64, height: 64 }} />
         ) : (
-          <Avatar name={userName} color={themeColor} size={64} />
+          <Avatar id={userName || 'user'} name={userName} size={64} />
         )}
       </View>
 

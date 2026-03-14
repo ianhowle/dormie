@@ -139,7 +139,7 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
                 <Avatar
                   id={cr.recordHolder === MY_NAME ? '1' : cr.id}
                   size={22}
-                  name={cr.recordHolder!}
+                  name={cr.recordHolder ?? '?'}
                 />
                 <Text
                   style={[
@@ -149,7 +149,7 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
                   ]}
                   numberOfLines={1}
                 >
-                  {isMe ? 'You' : cr.recordHolder!.split(' ')[0]}
+                  {isMe ? 'You' : (cr.recordHolder ?? '?').split(' ')[0]}
                 </Text>
               </View>
 
@@ -159,12 +159,12 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
                   s.colToPar,
                   s.toParNum,
                   {
-                    color: toParColor(cr.recordScore!, cr.par, c),
+                    color: toParColor(cr.recordScore ?? cr.par, cr.par, c),
                     fontFamily: GEO,
                   },
                 ]}
               >
-                {formatToPar(cr.recordScore!, cr.par)}
+                {formatToPar(cr.recordScore ?? cr.par, cr.par)}
               </Text>
 
               {/* Score */}
@@ -213,7 +213,7 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
         {hasCommunity ? (
           <Text style={[s.bucketStats, { color: c.teal }]}>
             {course.communityRounds} Dormie rounds · Avg:{' '}
-            {course.communityAvg!.toFixed(0)}
+            {(course.communityAvg ?? 0).toFixed(0)}
           </Text>
         ) : (
           <Text style={[s.bucketNoData, { color: c.textMuted }]}>

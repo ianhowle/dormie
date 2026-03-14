@@ -94,7 +94,7 @@ function PlayerCard({
         },
       ]}
     >
-      <Avatar name={player.name} color={player.avatarColor} size={compact ? 28 : 32} />
+      <Avatar id={player.id} name={player.name} size={compact ? 28 : 32} />
       <View style={{ flex: 1 }}>
         <Text
           style={[
@@ -149,7 +149,7 @@ function PairingSlot({
         onPress={() => onRemove(pairing.id, slot)}
         style={[styles.assignedSlot, { backgroundColor: teamColor + '12' }]}
       >
-        <Avatar name={player.name} color={player.avatarColor} size={24} />
+        <Avatar id={player.id} name={player.name} size={24} />
         <Text style={[styles.assignedName, { color: c.text }]} numberOfLines={1}>
           {player.name}
         </Text>

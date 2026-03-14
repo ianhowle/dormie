@@ -408,9 +408,17 @@ export default function LeaderboardScreen() {
 
   const myId = user?.id ?? MY_ID;
 
-  const me = leaderboardPlayers.find((p) => p.id === myId)!;
+  const me = leaderboardPlayers.find((p) => p.id === myId) ?? {
+    id: myId,
+    name: user?.user_metadata?.name ?? 'You',
+    courses: 0,
+    rounds: 0,
+    bestRound: '--',
+    toPar: 0,
+    movement: 'same' as const,
+  };
   const myPos =
-    leaderboardPlayers.findIndex((p) => p.id === myId) + 1;
+    leaderboardPlayers.findIndex((p) => p.id === myId) + 1 || leaderboardPlayers.length + 1;
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>

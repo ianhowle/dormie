@@ -232,7 +232,7 @@ function PlayerStatsModal({
         <View style={[styles.modalContent, { backgroundColor: c.cardBg }]}>
           <View style={styles.modalHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Avatar name={player.name} color={player.avatarColor} size={40} />
+              <Avatar id={player.playerId} name={player.name} size={40} />
               <View>
                 <Text style={[styles.modalPlayerName, { color: c.text }]}>{player.name}</Text>
                 <Text style={[styles.modalPlayerHcp, { color: c.textMuted }]}>
@@ -381,7 +381,7 @@ function StandingsTab({
               </Text>
 
               <View style={styles.srPlayer}>
-                <Avatar name={p.name} color={p.avatarColor} size={28} />
+                <Avatar id={p.playerId} name={p.name} size={28} />
                 <View>
                   <Text style={[styles.srName, { color: isCut ? c.textMuted : c.text }]} numberOfLines={1}>
                     {p.name}
@@ -438,7 +438,7 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
           <View key={p.playerId} style={[styles.bracketRow, { borderBottomColor: c.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={[styles.bracketSeed, { color: c.gold, fontFamily: GEO }]}>{i + 1}</Text>
-              <Avatar name={p.name} color={p.avatarColor} size={24} />
+              <Avatar id={p.playerId} name={p.name} size={24} />
               <Text style={[styles.bracketName, { color: c.text }]}>{p.name}</Text>
             </View>
             <Text style={[styles.bracketPts, { color: c.gold, fontFamily: GEO }]}>{p.points}</Text>
@@ -640,7 +640,7 @@ export default function SeasonDetailScreen() {
         {standings[0] && (
           <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Avatar name={standings[0].name} color={standings[0].avatarColor} size={36} />
+              <Avatar id={standings[0].playerId} name={standings[0].name} size={36} />
               <View>
                 <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{standings[0].name}</Text>
                 <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Season Leader</Text>

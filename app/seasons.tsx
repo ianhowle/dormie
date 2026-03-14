@@ -593,7 +593,7 @@ function MembersStep({
               },
             ]}
           >
-            <Avatar name={f.name} color={f.avatarColor} size={36} />
+            <Avatar id={f.id} name={f.name} size={36} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.memberName, { color: selected ? c.teal : c.text }]}>
                 {f.name}

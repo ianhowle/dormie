@@ -108,8 +108,8 @@ export default function RoundDetailScreen() {
           <View style={styles.headerContent}>
             <Text style={styles.headerScore}>{score}</Text>
             <Text style={styles.headerToPar}>{toParStr}</Text>
-            <Text style={styles.headerCourse} numberOfLines={1}>{params.course}</Text>
-            <Text style={styles.headerDate}>{params.date}</Text>
+            <Text style={styles.headerCourse} numberOfLines={1}>{params.course ?? 'Unknown Course'}</Text>
+            <Text style={styles.headerDate}>{params.date ?? ''}</Text>
           </View>
         </LinearGradient>
 

@@ -374,7 +374,7 @@ export default function ProfileScreen() {
               <View>
                 <Text style={[s.chartCurrentLabel, { color: c.textMuted }]}>Current</Text>
                 <Text style={[s.chartCurrentValue, { color: c.teal, fontFamily: GEO }]}>
-                  {displayHandicapTrend[displayHandicapTrend.length - 1].toFixed(1)}
+                  {(displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0).toFixed(1)}
                 </Text>
               </View>
               <View style={s.chartTrendBadge}>
@@ -384,7 +384,7 @@ export default function ProfileScreen() {
                   color={c.teal}
                 />
                 <Text style={[s.chartTrendText, { color: c.teal }]}>
-                  {(displayHandicapTrend[0] - displayHandicapTrend[displayHandicapTrend.length - 1]).toFixed(1)} improvement
+                  {((displayHandicapTrend[0] ?? 0) - (displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0)).toFixed(1)} improvement
                 </Text>
               </View>
             </View>
