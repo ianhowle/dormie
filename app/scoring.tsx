@@ -3761,15 +3761,16 @@ const st = StyleSheet.create({
     borderWidth: 0,
   },
   navBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
 
   /* Section title (shared) */
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginTop: 24,
     marginBottom: 10,
   },
@@ -3866,14 +3867,16 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   miniStatValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   miniStatLabel: {
-    fontSize: 7,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
     marginTop: 3,
+    textTransform: 'uppercase',
   },
 
   /* Done button */
@@ -3928,7 +3931,7 @@ const st = StyleSheet.create({
     gap: 3,
   },
   penaltyLabel: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
@@ -3942,6 +3945,7 @@ const st = StyleSheet.create({
     fontWeight: '700',
     minWidth: 16,
     textAlign: 'center',
+    fontFamily: GEO,
   },
 
   /* Feature 2: Hole chip indicators */
@@ -4074,9 +4078,11 @@ const st = StyleSheet.create({
     letterSpacing: 2,
     textAlign: 'center',
     marginBottom: 8,
+    fontFamily: GEO,
+    textTransform: 'uppercase',
   },
   modalText: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -4126,13 +4132,15 @@ const st = StyleSheet.create({
     flex: 1,
   },
   bestBallTeamLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   bestBallTeamScore: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   bestBallVs: {
     fontSize: 11,
@@ -4168,8 +4176,8 @@ const st = StyleSheet.create({
   /* Feature 10: Confirmation */
   confirmHeader: {
     paddingTop: STATUS_BAR_H + 8,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   confirmTitle: {
@@ -4208,12 +4216,13 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   confirmNineLabel: {
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   confirmNineValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
 
@@ -4225,13 +4234,14 @@ const st = StyleSheet.create({
   leaderboardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   leaderboardTitle: {
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 2,
+    fontFamily: GEO,
   },
   leaderboardCourse: {
     color: 'rgba(255,255,255,0.6)',
@@ -4247,10 +4257,11 @@ const st = StyleSheet.create({
   },
   lbPos: {
     color: '#D4AF37',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     width: 28,
     textAlign: 'center',
+    fontFamily: GEO,
   },
   lbNameWrap: {
     flex: 1,
@@ -4267,27 +4278,30 @@ const st = StyleSheet.create({
   },
   lbTotal: {
     color: '#E8E4DE',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     width: 36,
     textAlign: 'right',
+    fontFamily: GEO,
   },
   lbToPar: {
     fontSize: 14,
     fontWeight: '700',
     width: 40,
     textAlign: 'right',
+    fontFamily: GEO,
   },
 
   /* Feature 12: Live feed */
   feedContainer: {
-    padding: 16,
+    padding: 20,
   },
   feedTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 12,
+    textTransform: 'uppercase',
   },
   feedEmpty: {
     fontSize: 14,
@@ -4309,6 +4323,7 @@ const st = StyleSheet.create({
   feedItemTime: {
     fontSize: 10,
     fontWeight: '600',
+    fontFamily: GEO,
   },
 
   /* Feature 13: Running panel */
@@ -4334,9 +4349,10 @@ const st = StyleSheet.create({
   },
   runningGameTitle: {
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontWeight: '600',
+    letterSpacing: 2,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
   runningGameRow: {
     flexDirection: 'row',
@@ -4351,6 +4367,7 @@ const st = StyleSheet.create({
   runningGameValue: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   runningGameNote: {
     fontSize: 10,
@@ -4406,6 +4423,8 @@ const st = StyleSheet.create({
   },
   compactGridText: {
     fontSize: 14,
+    fontFamily: GEO,
+    fontWeight: '700',
   },
   compactPuttsRow: {
     flexDirection: 'row',
@@ -4422,6 +4441,7 @@ const st = StyleSheet.create({
     fontWeight: '700',
     minWidth: 16,
     textAlign: 'center',
+    fontFamily: GEO,
   },
 
   /* Feature 24: Season banner */
@@ -4500,8 +4520,8 @@ const st = StyleSheet.create({
   /* Item 8: Side game ticker */
   sideGameTicker: {
     backgroundColor: '#1E4D2B',
-    paddingVertical: 6,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
   },
   sideGameTickerCollapsed: {
     flexDirection: 'row',
@@ -4525,8 +4545,9 @@ const st = StyleSheet.create({
   sideGameTickerTitle: {
     color: '#D4AF37',
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   sideGameTickerLine: {
     color: 'rgba(255,255,255,0.7)',
@@ -4543,9 +4564,10 @@ const st = StyleSheet.create({
   tagSectionTitle: {
     color: '#D4AF37',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
   tagRow: {
     flexDirection: 'row',
@@ -4634,6 +4656,8 @@ const ps = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
+    fontFamily: GEO,
+    letterSpacing: -1,
   },
   headerSub: {
     color: 'rgba(255,255,255,0.6)',
@@ -4644,19 +4668,21 @@ const ps = StyleSheet.create({
     color: 'rgba(212,175,55,0.7)',
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1,
+    letterSpacing: 2,
     marginTop: 4,
+    textTransform: 'uppercase',
   },
 
   /* Body */
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 20 },
 
   /* Section title */
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
-    marginTop: 20,
+    textTransform: 'uppercase',
+    marginTop: 24,
     marginBottom: 10,
   },
 
@@ -4670,13 +4696,14 @@ const ps = StyleSheet.create({
   },
   stHeader: {
     color: '#E8E4DE',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
-  stColPos: { width: 32, textAlign: 'center' },
+  stColPos: { width: 32, textAlign: 'center', fontFamily: GEO },
   stColName: { flex: 1, paddingRight: 4 },
-  stColNum: { width: 48, textAlign: 'right', fontSize: 14 },
+  stColNum: { width: 48, textAlign: 'right', fontSize: 14, fontFamily: GEO },
 
   /* Tab bar */
   tabBar: {
@@ -4691,7 +4718,7 @@ const ps = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 
   /* ─── Scorecard tab ──────────────────────────────────── */
@@ -4712,6 +4739,7 @@ const ps = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     paddingVertical: 6,
+    fontFamily: GEO,
   },
   scCellTotal: {
     width: 72,
@@ -4720,14 +4748,16 @@ const ps = StyleSheet.create({
   },
   scHeaderText: {
     color: '#E8E4DE',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1,
     textAlign: 'center',
+    fontFamily: GEO,
   },
   scParText: {
     fontSize: 10,
     textAlign: 'center',
+    fontFamily: GEO,
   },
   scPlayerLabel: {
     fontSize: 10,
@@ -4761,8 +4791,9 @@ const ps = StyleSheet.create({
     flex: 1,
   },
   statPlayerScore: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   statGrid: {
     flexDirection: 'row',
@@ -4775,17 +4806,19 @@ const ps = StyleSheet.create({
     minWidth: 80,
   },
   statItemLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 2,
     marginBottom: 3,
+    textTransform: 'uppercase',
   },
   statItemValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   statItemSub: {
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 1,
   },
   parAvgRow: {
@@ -4798,28 +4831,31 @@ const ps = StyleSheet.create({
     alignItems: 'center',
   },
   parAvgLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 2,
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   parAvgValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+    fontFamily: GEO,
   },
 
   /* ─── Games tab ──────────────────────────────────────── */
   gameCard: {
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 8,
     marginTop: 8,
   },
   gameTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
   gameLine: {
     flexDirection: 'row',

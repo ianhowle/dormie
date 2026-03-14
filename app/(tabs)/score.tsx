@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   FlatList,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -150,7 +149,7 @@ function CourseSearch({
     ).slice(0, 6);
   }, [query]);
 
-  const isDark = theme.dark;
+  const isDark = theme.isDark;
 
   if (selected) {
     return (
@@ -287,7 +286,7 @@ function PlayersSection({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const isDark = theme.dark;
+  const isDark = theme.isDark;
 
   return (
     <View>
@@ -776,7 +775,7 @@ export default function ScoreScreen() {
     }
   }, [course, isCustom]);
 
-  const isDark = theme.dark;
+  const isDark = theme.isDark;
   const canStart = course !== null;
 
   const handleStartRound = () => {
@@ -1178,14 +1177,13 @@ const st = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     padding: 0,
   },
   dropdown: {
@@ -1193,8 +1191,8 @@ const st = StyleSheet.create({
     borderTopWidth: 0,
   },
   dropdownItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
   dropdownName: {
@@ -1202,7 +1200,7 @@ const st = StyleSheet.create({
     fontWeight: '600',
   },
   dropdownMeta: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
   customOption: {
@@ -1220,8 +1218,8 @@ const st = StyleSheet.create({
   selectedCourse: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    padding: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   selectedInfo: {
     flex: 1,
@@ -1231,7 +1229,7 @@ const st = StyleSheet.create({
     fontWeight: '600',
   },
   selectedMeta: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 2,
   },
 
@@ -1268,8 +1266,8 @@ const st = StyleSheet.create({
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    padding: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 6,
     gap: 10,
   },
@@ -1300,16 +1298,15 @@ const st = StyleSheet.create({
 
   /* Add player form */
   addForm: {
-    borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginTop: 6,
     gap: 8,
   },
   addInput: {
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 13,
   },
   addHcpInput: {
     width: 80,
@@ -1356,6 +1353,7 @@ const st = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
     fontStyle: 'italic',
+    lineHeight: 16,
   },
 
   /* Side games */
@@ -1377,7 +1375,6 @@ const st = StyleSheet.create({
   /* Toggle row */
   toggleRow: {
     flexDirection: 'row',
-    borderWidth: 1,
   },
   toggleBtn: {
     flex: 1,
@@ -1433,9 +1430,9 @@ const st = StyleSheet.create({
   },
   customField: {
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 13,
   },
   customFieldsRow: {
     flexDirection: 'row',
@@ -1458,9 +1455,8 @@ const st = StyleSheet.create({
   roundTypeCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     gap: 4,
   },
   roundTypeLabel: {
@@ -1470,6 +1466,7 @@ const st = StyleSheet.create({
   roundTypeDesc: {
     fontSize: 10,
     textAlign: 'center',
+    lineHeight: 14,
   },
 
   /* Tracking level */
@@ -1480,9 +1477,8 @@ const st = StyleSheet.create({
   trackingCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     gap: 4,
   },
   trackingLabel: {
@@ -1504,9 +1500,8 @@ const st = StyleSheet.create({
 
   /* Summary */
   summaryRow: {
-    borderTopWidth: 1,
-    marginTop: 20,
-    paddingTop: 12,
+    marginTop: 24,
+    paddingTop: 14,
   },
   summaryInner: {
     alignItems: 'center',
@@ -1540,7 +1535,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
@@ -1552,9 +1547,8 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     margin: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 8,
   },
   modalSearchInput: {
@@ -1597,7 +1591,7 @@ const st = StyleSheet.create({
 
   /* Start button */
   startBtn: {
-    marginTop: 16,
+    marginTop: 24,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',

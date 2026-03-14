@@ -18,7 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 
@@ -812,7 +814,7 @@ export default function SeasonsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       {/* Header */}
-      <LinearGradient colors={[c.greenDark, c.greenDark + 'CC']} style={styles.header}>
+      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => (step > 0 ? setStep(step - 1) : router.back())} hitSlop={12}>
             <Ionicons name={step > 0 ? 'arrow-back' : 'close'} size={24} color="#FFFFFF" />
@@ -839,6 +841,7 @@ export default function SeasonsScreen() {
           ))}
         </View>
       </LinearGradient>
+      <GoldDivider />
 
       {/* Step content */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -906,16 +909,16 @@ export default function SeasonsScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingTop: STATUS_BAR_H + 8, paddingHorizontal: 16, paddingBottom: 16 },
+  header: { paddingTop: STATUS_BAR_H + 8, paddingHorizontal: 20, paddingBottom: 20 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, justifyContent: 'center' },
   progressDot: { height: 6, borderRadius: 0 },
 
-  stepContent: { padding: 16 },
+  stepContent: { padding: 20 },
   fieldLabel: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
   fieldDesc: { fontSize: 13, marginBottom: 4 },
-  input: { paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, borderWidth: 1 },
+  input: { paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, borderWidth: 1 },
 
   // Type cards
   typeCards: { flexDirection: 'row', gap: 10 },
@@ -936,7 +939,7 @@ const styles = StyleSheet.create({
 
   // Points table
   pointsPreview: { marginTop: 12, padding: 12 },
-  pointsPreviewTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8, textAlign: 'center' },
+  pointsPreviewTitle: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase' as const },
   pointsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   pointsCell: { alignItems: 'center' },
   pointsPos: { fontSize: 10 },
@@ -986,7 +989,7 @@ const styles = StyleSheet.create({
   reviewCard: { padding: 14, marginBottom: 8 },
   reviewCardTitle: { fontSize: 20 },
   reviewCardSub: { fontSize: 13, marginTop: 4 },
-  reviewLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  reviewLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase' as const },
   reviewVal: { fontSize: 14, marginTop: 4 },
   reviewRules: { marginTop: 6, gap: 4 },
   reviewRule: { fontSize: 13 },

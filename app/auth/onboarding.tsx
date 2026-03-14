@@ -247,7 +247,7 @@ function YourGameScreen({
         <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 1 of 3</Text>
 
         {/* Avatar picker */}
-        <Text style={[styles.fieldLabel, { color: c.text }]}>Avatar</Text>
+        <Text style={[styles.fieldLabel, { color: c.gold }]}>Avatar</Text>
         <View style={styles.avatarPreview}>
           {renderAvatarPreview()}
         </View>
@@ -289,7 +289,7 @@ function YourGameScreen({
         {/* Photo picker */}
         {avatarMode === 'photo' && (
           <View style={styles.photoPickerWrap}>
-            <Pressable onPress={handlePickPhoto} style={[styles.photoPickerBtn, { backgroundColor: c.teal }]}>
+            <Pressable onPress={handlePickPhoto} style={({ pressed }) => [styles.photoPickerBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
               <Ionicons name="image-outline" size={18} color="#FFFFFF" />
               <Text style={styles.photoPickerBtnText}>Choose from Camera Roll</Text>
             </Pressable>
@@ -556,12 +556,12 @@ function BuildGroupScreen() {
       })}
 
       {/* Invite section */}
-      <View style={[styles.inviteSection, { backgroundColor: c.elevated }]}>
+      <View style={[styles.inviteSection, { backgroundColor: c.elevated, borderColor: c.border }]}>
         <Ionicons name="people" size={24} color={c.teal} />
         <Text style={[styles.inviteCta, { color: c.text }]}>
           Invite your first crew member to unlock the leaderboard
         </Text>
-        <Pressable onPress={handleShareInvite} style={[styles.inviteBtn, { backgroundColor: c.teal }]}>
+        <Pressable onPress={handleShareInvite} style={({ pressed }) => [styles.inviteBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
           <Ionicons name="share-outline" size={16} color="#FFFFFF" />
           <Text style={styles.inviteBtnText}>Share Invite Link</Text>
         </Pressable>
@@ -675,7 +675,7 @@ function NotificationsScreen({
               key={i}
               style={[
                 styles.notifPill,
-                { backgroundColor: c.elevated, opacity: pillAnims[i], transform: [{ translateY: pillAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
+                { backgroundColor: c.elevated, borderColor: c.border, opacity: pillAnims[i], transform: [{ translateY: pillAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
               ]}
             >
               <Text style={[styles.notifPillText, { color: c.text }]}>{pill}</Text>
@@ -687,7 +687,7 @@ function NotificationsScreen({
       <View style={styles.notifButtons}>
         <Pressable
           onPress={() => setNotifPref(true)}
-          style={[styles.notifPrimary, { backgroundColor: c.gold }]}
+          style={({ pressed }) => [styles.notifPrimary, { backgroundColor: c.gold }, pressed && styles.pressedState]}
         >
           <Ionicons name="notifications" size={18} color="#000000" />
           <Text style={styles.notifPrimaryText}>Turn On Notifications</Text>
@@ -775,7 +775,7 @@ function LaunchMontage({ userName, onComplete }: { userName: string; onComplete:
             DORMIE
           </Animated.Text>
           <Text style={[styles.finalWelcome, { color: c.text }]}>Welcome, {userName.split(' ')[0]}.</Text>
-          <Pressable onPress={onComplete} style={styles.enterBtn}>
+          <Pressable onPress={onComplete} style={({ pressed }) => [styles.enterBtn, pressed && styles.pressedState]}>
             <Text style={styles.enterBtnText}>Enter Dormie</Text>
             <Ionicons name="arrow-forward" size={18} color="#000000" />
           </Pressable>
@@ -955,7 +955,7 @@ export default function OnboardingScreen() {
 
       {/* Bottom button */}
       <View style={[styles.bottomBar, { borderTopColor: c.border }]}>
-        <Pressable onPress={handleNext} style={[styles.continueBtn, { backgroundColor: step === 3 ? c.gold : c.teal }]}>
+        <Pressable onPress={handleNext} style={({ pressed }) => [styles.continueBtn, { backgroundColor: step === 3 ? c.gold : c.teal }, pressed && styles.pressedState]}>
           <Text style={[styles.continueBtnText, { color: step === 3 ? '#000000' : '#FFFFFF', fontFamily: GEO }]}>
             {step === 3 ? "Let's Play" : 'Continue'}
           </Text>
@@ -973,9 +973,9 @@ const styles = StyleSheet.create({
 
   // Welcome
   welcomeTop: { height: SCREEN_H * 0.45, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  welcomeBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 60, paddingHorizontal: 24 },
+  welcomeBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 60, paddingHorizontal: 20 },
   welcomeCenter: { alignItems: 'center' },
-  welcomeLogo: { fontSize: 32, fontFamily: GEO, fontStyle: 'italic', color: '#D4AF37', letterSpacing: 5 },
+  welcomeLogo: { fontSize: 32, fontFamily: GEO, fontStyle: 'italic', color: '#D4AF37', letterSpacing: 5, fontWeight: '700' },
   welcomeDivider: { width: 60, height: 1, backgroundColor: '#D4AF37', marginVertical: 14 },
   welcomeTagline: { fontSize: 15, fontFamily: GEO, fontStyle: 'italic', color: '#FFFFFF' },
   welcomeSub: { fontSize: 13, color: '#FFFFFF88', marginTop: 6 },
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
   // Step titles
   stepTitle: { fontSize: 22, fontFamily: GEO, fontWeight: '700', marginTop: 20 },
   stepSubtitle: { fontSize: 10, marginTop: 4, marginBottom: 16 },
-  stepDesc: { fontSize: 14, lineHeight: 20, marginBottom: 16 },
+  stepDesc: { fontSize: 13, lineHeight: 20, marginBottom: 16 },
 
   // Fields
   fieldLabel: { fontSize: 10, fontWeight: '600', marginBottom: 8, letterSpacing: 2, textTransform: 'uppercase' as const },
@@ -1034,9 +1034,9 @@ const styles = StyleSheet.create({
   groupCardDesc: { fontSize: 12, marginTop: 2 },
   miniPreview: { paddingHorizontal: 14, paddingBottom: 12, gap: 4 },
   miniRow: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  miniRank: { width: 20, fontSize: 14 },
+  miniRank: { width: 20, fontSize: 14, fontWeight: '700' },
   miniName: { flex: 1, fontSize: 13 },
-  miniVal: { fontSize: 14 },
+  miniVal: { fontSize: 14, fontWeight: '700' },
 
   // H2H preview
   h2hBar: { height: 8, overflow: 'hidden' },
@@ -1061,7 +1061,7 @@ const styles = StyleSheet.create({
 
   // Invite
   inviteSection: { padding: 16, marginTop: 16, alignItems: 'center', gap: 10, borderWidth: 1 },
-  inviteCta: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  inviteCta: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
   inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10 },
   inviteBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 
@@ -1069,18 +1069,18 @@ const styles = StyleSheet.create({
   featureTabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   featureTab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
   featureTabText: { fontSize: 14, fontWeight: '600' },
-  featureCard: { padding: 20, gap: 12 },
+  featureCard: { padding: 16, gap: 12 },
   featureHeadline: { fontSize: 18, fontWeight: '700', fontFamily: GEO },
   bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bulletText: { fontSize: 14 },
+  bulletText: { fontSize: 13 },
 
   // Notifications
-  notifCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  notifCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   notifTitle: { fontSize: 22, fontFamily: GEO, fontWeight: '700', marginTop: 16, marginBottom: 20 },
   pillsContainer: { width: '100%', gap: 8, marginTop: 8 },
-  notifPill: { paddingVertical: 12, paddingHorizontal: 16 },
-  notifPillText: { fontSize: 14 },
-  notifButtons: { paddingHorizontal: 24, paddingBottom: 60, gap: 12 },
+  notifPill: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1 },
+  notifPillText: { fontSize: 13 },
+  notifButtons: { paddingHorizontal: 20, paddingBottom: 60, gap: 12 },
   notifPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
   notifPrimaryText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
   notifSkip: { fontSize: 14, textAlign: 'center', paddingVertical: 8 },
@@ -1092,14 +1092,17 @@ const styles = StyleSheet.create({
   montageLine2: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', fontFamily: GEO, marginTop: 4, textAlign: 'center' },
 
   // Final
-  finalCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  finalCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   finalLogo: { fontSize: 36, fontFamily: GEO, fontStyle: 'italic', color: '#D4AF37', letterSpacing: 5 },
   finalWelcome: { fontSize: 18, fontFamily: GEO, marginTop: 16 },
   enterBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4AF37', paddingVertical: 16, paddingHorizontal: 32, gap: 8, marginTop: 40 },
   enterBtnText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
 
+  // Micro-interaction
+  pressedState: { opacity: 0.7, transform: [{ scale: 0.98 }] },
+
   // Bottom bar
   bottomBar: { padding: 16, borderTopWidth: 1 },
-  continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
+  continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
   continueBtnText: { fontSize: 16, fontWeight: '700' },
 });

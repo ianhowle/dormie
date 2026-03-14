@@ -239,7 +239,7 @@ function SideGameResults({ sideGames, colors: c }: { sideGames: SideGameResult[]
 
   return (
     <View style={styles.sideGamesSection}>
-      <Text style={[styles.sectionTitle, { color: c.text }]}>Side Games</Text>
+      <Text style={[styles.sectionTitle, { color: c.gold }]}>SIDE GAMES</Text>
       {sideGames.map((sg) => (
         <View key={sg.game} style={[styles.sideGameCard, { backgroundColor: c.elevated }]}>
           <Text style={[styles.sideGameLabel, { color: c.gold }]}>{sg.label}</Text>
@@ -397,7 +397,7 @@ function ShareCardModal({
 
           {/* Share buttons */}
           <View style={styles.shareActions}>
-            <Pressable onPress={onShare} style={[styles.shareBtn, { backgroundColor: c.teal }]}>
+            <Pressable onPress={onShare} style={({ pressed }) => [styles.shareBtn, { backgroundColor: c.greenDark, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
               <Ionicons name="share-outline" size={18} color="#FFFFFF" />
               <Text style={styles.shareBtnText}>Share</Text>
             </Pressable>
@@ -517,28 +517,37 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Scoring breakdown */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Scoring Breakdown</Text>
+          <Text style={[styles.sectionTitle, { color: c.gold }]}>SCORING BREAKDOWN</Text>
           <BreakdownBar counts={counts} total={player.holes.length} />
         </View>
 
+        <GoldDivider style={{ marginVertical: 8, marginHorizontal: 16 }} />
+
         {/* Hole-by-hole */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Hole by Hole</Text>
+          <Text style={[styles.sectionTitle, { color: c.gold }]}>HOLE BY HOLE</Text>
           <HoleStrip holes={player.holes} colors={c} />
         </View>
 
+        <GoldDivider style={{ marginVertical: 8, marginHorizontal: 16 }} />
+
         {/* Stats grid */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Stats</Text>
+          <Text style={[styles.sectionTitle, { color: c.gold }]}>STATS</Text>
           <StatsGrid stats={stats} colors={c} />
         </View>
 
+        <GoldDivider style={{ marginVertical: 8, marginHorizontal: 16 }} />
+
         {/* Putt distance breakdown */}
         {puttBuckets.some((b) => b.total > 0) && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: c.text }]}>Putting by Distance</Text>
-            <PuttBreakdown buckets={puttBuckets} colors={c} />
-          </View>
+          <>
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: c.gold }]}>PUTTING BY DISTANCE</Text>
+              <PuttBreakdown buckets={puttBuckets} colors={c} />
+            </View>
+            <GoldDivider style={{ marginVertical: 8, marginHorizontal: 16 }} />
+          </>
         )}
 
         {/* Side games */}
@@ -546,11 +555,11 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
 
         {/* Share & Save */}
         <View style={styles.actionSection}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Share</Text>
+          <Text style={[styles.sectionTitle, { color: c.gold }]}>SHARE</Text>
           <View style={styles.shareRow}>
             <Pressable
               onPress={() => { setShareFormat('story'); setShareVisible(true); }}
-              style={[styles.shareFormatBtn, { backgroundColor: c.elevated }]}
+              style={({ pressed }) => [styles.shareFormatBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Ionicons name="phone-portrait-outline" size={24} color={c.text} />
               <Text style={[styles.shareFormatLabel, { color: c.text }]}>Story</Text>
@@ -558,7 +567,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
             </Pressable>
             <Pressable
               onPress={() => { setShareFormat('feed'); setShareVisible(true); }}
-              style={[styles.shareFormatBtn, { backgroundColor: c.elevated }]}
+              style={({ pressed }) => [styles.shareFormatBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Ionicons name="square-outline" size={24} color={c.text} />
               <Text style={[styles.shareFormatLabel, { color: c.text }]}>Feed</Text>
@@ -569,9 +578,9 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
 
         {/* Save round button */}
         <View style={styles.saveSection}>
-          <Pressable onPress={handleSave} style={[styles.saveBtn, { backgroundColor: c.gold }]}>
-            <Ionicons name="save" size={20} color="#000000" />
-            <Text style={[styles.saveBtnText, { fontFamily: GEO }]}>Save Round</Text>
+          <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveBtn, { backgroundColor: c.greenDark, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+            <Ionicons name="save" size={20} color="#FFFFFF" />
+            <Text style={[styles.saveBtnText, { fontFamily: GEO, color: '#FFFFFF' }]}>Save Round</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -592,27 +601,27 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   // Hero
-  hero: { paddingTop: 54, paddingHorizontal: 16, paddingBottom: 20 },
+  hero: { paddingTop: 54, paddingHorizontal: 16, paddingBottom: 24 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   playerTabs: { marginTop: 12, flexDirection: 'row' },
   playerTab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, marginRight: 4 },
   playerTabName: { fontSize: 13, fontWeight: '600' },
   heroScoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 16 },
-  heroGross: { fontSize: 48, fontWeight: '700' },
+  heroGross: { fontSize: 64, fontWeight: '700', letterSpacing: -1 },
   heroMeta: {},
   heroToPar: { fontSize: 20, fontWeight: '600' },
   heroNet: { fontSize: 14, marginTop: 2 },
   heroCourse: { fontSize: 14, marginTop: 4 },
   splitRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 16 },
   splitItem: { alignItems: 'center' },
-  splitLabel: { fontSize: 11, fontWeight: '600' },
-  splitVal: { fontSize: 20, fontWeight: '700', marginTop: 2 },
+  splitLabel: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+  splitVal: { fontSize: 24, fontWeight: '700', marginTop: 2, letterSpacing: -1 },
   splitDivider: { width: 1, height: 28 },
 
   // Sections
   section: { padding: 16, paddingBottom: 8 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 10, letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 10, fontWeight: '600', marginBottom: 10, letterSpacing: 2, textTransform: 'uppercase' },
 
   // Breakdown bar
   breakdownContainer: {},
@@ -621,22 +630,22 @@ const styles = StyleSheet.create({
   breakdownLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 0 },
-  legendText: { fontSize: 12, color: '#FFFFFF99' },
+  legendText: { fontSize: 10, color: '#FFFFFF99' },
 
   // Stats grid
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statCell: { width: (SCREEN_W - 56) / 3, paddingVertical: 12, alignItems: 'center' },
-  statVal: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 11, marginTop: 2 },
+  statCell: { width: (SCREEN_W - 56) / 3, paddingVertical: 14, alignItems: 'center' },
+  statVal: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
+  statLabel: { fontSize: 10, marginTop: 2 },
 
   // Putt breakdown
   puttBreakdown: {},
   puttBucketRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, gap: 8 },
-  puttBucketLabel: { width: 70, fontSize: 12 },
+  puttBucketLabel: { width: 70, fontSize: 10 },
   puttBucketBar: { flex: 1, height: 6, backgroundColor: '#FFFFFF11', position: 'relative' },
   puttBucketFill: { height: '100%', position: 'absolute', left: 0, top: 0 },
   puttBenchmark: { position: 'absolute', top: -2, width: 1, height: 10 },
-  puttBucketVal: { width: 40, textAlign: 'right', fontSize: 13 },
+  puttBucketVal: { width: 40, textAlign: 'right', fontSize: 13, fontWeight: '700' },
 
   // Hole strip
   holeStrip: { flexDirection: 'row' },
@@ -647,18 +656,18 @@ const styles = StyleSheet.create({
 
   // Side games
   sideGamesSection: { padding: 16, paddingBottom: 8 },
-  sideGameCard: { padding: 12, marginBottom: 8 },
-  sideGameLabel: { fontSize: 14, fontWeight: '700', marginBottom: 6 },
+  sideGameCard: { padding: 14, marginBottom: 8 },
+  sideGameLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginBottom: 6, textTransform: 'uppercase' },
   sideGameRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  sideGamePlayer: { fontSize: 14 },
+  sideGamePlayer: { fontSize: 13 },
   sideGameAmt: { fontSize: 16 },
 
   // Settlement
-  settlementCard: { padding: 14, marginTop: 8 },
-  settlementTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5, marginBottom: 8, textAlign: 'center' },
+  settlementCard: { padding: 16, marginTop: 8 },
+  settlementTitle: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginBottom: 8, textAlign: 'center' },
   settlementRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  settlementName: { fontSize: 14, fontWeight: '500' },
-  settlementAmt: { fontSize: 18 },
+  settlementName: { fontSize: 13, fontWeight: '500' },
+  settlementAmt: { fontSize: 18, letterSpacing: -1 },
 
   // Share
   actionSection: { padding: 16 },
@@ -675,7 +684,7 @@ const styles = StyleSheet.create({
   shareCard: { alignSelf: 'center', overflow: 'hidden' },
   shareCardInner: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   shareCardApp: { color: '#D4AF37', fontSize: 12, fontWeight: '800', letterSpacing: 3 },
-  shareCardScore: { color: '#D4AF37', fontSize: 64, fontWeight: '700', marginTop: 8 },
+  shareCardScore: { color: '#D4AF37', fontSize: 64, fontWeight: '700', marginTop: 8, letterSpacing: -1 },
   shareCardToPar: { color: '#FFFFFFCC', fontSize: 20, fontWeight: '600', marginTop: 4 },
   shareCardCourse: { color: '#FFFFFF88', fontSize: 14, marginTop: 8 },
   shareHoleRow: { flexDirection: 'row', marginTop: 12, gap: 2 },
@@ -689,5 +698,5 @@ const styles = StyleSheet.create({
   // Save
   saveSection: { padding: 16, paddingBottom: 40 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#000000' },
+  saveBtnText: { fontSize: 16, fontWeight: '700' },
 });

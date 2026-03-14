@@ -430,14 +430,17 @@ function NotPlayedState({ course }: { course: CourseDetailData }) {
       )}
 
       {/* Prompt */}
-      <View style={[st.promptCard, { backgroundColor: c.elevated, borderColor: c.border }]}>
-        <Ionicons name="golf-outline" size={32} color={c.textMuted} />
-        <Text style={[st.promptTitle, { color: c.text }]}>
+      <View style={[st.promptCard, { backgroundColor: c.elevated, borderColor: c.border, borderStyle: 'dashed' }]}>
+        <Text style={{ fontSize: 32 }}>{'\u{26F3}'}</Text>
+        <Text style={[st.promptTitle, { color: c.text, fontFamily: GEO }]}>
           Haven't played here yet
         </Text>
         <Text style={[st.promptSub, { color: c.textMuted }]}>
           Log a round at {course.name} to see your stats and join the leaderboard.
         </Text>
+        <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+          <Text style={{ color: c.teal, fontSize: 13, fontWeight: '700', marginTop: 4 }}>Log a Round</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -508,8 +511,8 @@ const st = StyleSheet.create({
   /* Header */
   header: {
     paddingTop: STATUS_BAR_H,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
   headerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -549,10 +552,11 @@ const st = StyleSheet.create({
   },
   headerStatLabel: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
     marginTop: 2,
+    textTransform: 'uppercase',
   },
 
   /* Body */
@@ -763,11 +767,11 @@ const st = StyleSheet.create({
     gap: 8,
   },
   promptTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   promptSub: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
   },

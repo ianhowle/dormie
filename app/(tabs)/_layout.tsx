@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeContext';
+import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
 
 export default function TabLayout() {
   const { theme } = useTheme();
@@ -16,10 +17,12 @@ export default function TabLayout() {
           backgroundColor: theme.isDark ? '#1E1B18' : '#FFFFFF',
           borderTopColor: c.border,
           borderTopWidth: 1,
+          ...(theme.isDark ? cardShadowDark : cardShadowLight),
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
+          letterSpacing: 0.5,
         },
       }}
     >

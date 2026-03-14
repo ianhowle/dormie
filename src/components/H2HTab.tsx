@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
 import { MOCK_H2H, type H2HMatchup } from '../data/h2h';
 
@@ -22,7 +23,7 @@ function MatchupCard({ matchup }: { matchup: H2HMatchup }) {
 
   return (
     <Pressable
-      style={[s.card, { backgroundColor: c.cardBg, borderColor: c.border }]}
+      style={({ pressed }) => [s.card, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : cardShadowLight]}
       onPress={() =>
         router.push({
           pathname: '/h2h-detail',

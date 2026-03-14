@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import {
   PLAYED_SORTED,
   MOCK_COMMUNITY_COURSES,
@@ -53,7 +54,7 @@ function PlayedCourseCard({ course }: { course: PlayedCourse }) {
   return (
     <Pressable
       onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
-      style={[s.card, { backgroundColor: c.cardBg, borderColor: c.border }]}
+      style={({ pressed }) => [s.card, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : cardShadowLight]}
     >
       {/* Gradient image header */}
       <LinearGradient
@@ -127,7 +128,7 @@ function CommunityRow({ course }: { course: CommunityCourse }) {
   return (
     <Pressable
       onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
-      style={[s.communityRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+      style={({ pressed }) => [s.communityRow, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
     >
       <View style={s.communityInfo}>
         <Text style={[s.communityName, { color: c.text }]} numberOfLines={1}>
@@ -272,11 +273,12 @@ const s = StyleSheet.create({
 
   /* Section */
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 10,
     marginTop: 8,
+    textTransform: 'uppercase',
   },
 
   /* Played course card */
@@ -326,8 +328,8 @@ const s = StyleSheet.create({
   cardBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
   statsRow: {
     flex: 1,
@@ -342,7 +344,7 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 1,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -367,22 +369,22 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   communityInfo: {
     flex: 1,
   },
   communityName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   communityLocation: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
   communityStats: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 4,
   },

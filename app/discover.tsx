@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
+import GoldDivider from '../src/components/GoldDivider';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -205,16 +207,19 @@ export default function DiscoverScreen() {
           </View>
         )}
 
+        {savedDestinations.length > 0 && <GoldDivider style={{ marginBottom: 4 }} />}
+
         {/* Destinations */}
         <View style={s.body}>
           <SectionLabel title="DESTINATIONS" />
 
           {DISCOVER_DESTINATIONS.map((dest) => {
             const isSaved = savedIds.has(dest.id);
+            const isDark = theme.isDark;
             return (
               <View
                 key={dest.id}
-                style={[s.destCard, { borderColor: c.border }]}
+                style={[s.destCard, { borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}
               >
                 {/* Gradient image area */}
                 <LinearGradient
@@ -309,17 +314,18 @@ const s = StyleSheet.create({
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginTop: 20,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
 
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 20 },
 
   /* Dream board */
-  dreamSection: { paddingHorizontal: 16 },
+  dreamSection: { paddingHorizontal: 20 },
   dreamScroll: { gap: 10, paddingRight: 16 },
   dreamCard: { width: 160, overflow: 'hidden' },
   dreamGradient: {
@@ -377,7 +383,7 @@ const s = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
-  destBody: { padding: 14 },
+  destBody: { padding: 16 },
   destDesc: { fontSize: 13, lineHeight: 18 },
   destMetaRow: {
     flexDirection: 'row',

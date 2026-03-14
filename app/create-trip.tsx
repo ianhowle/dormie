@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import { RyderCupWizard } from '../src/components/RyderCupWizard';
 import { useAuth } from '../src/lib/auth';
 import { tripsService } from '../src/services/trips.service';
@@ -249,7 +251,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Trip name */}
             <SectionLabel title="TRIP NAME" />
             <TextInput
-              style={[z.input, { color: c.text, borderColor: c.border, fontFamily: GEO }]}
+              style={[z.input, { color: c.text, backgroundColor: c.elevated, borderColor: c.border, fontFamily: GEO }]}
               placeholder="e.g. Scottsdale 2026"
               placeholderTextColor={c.textMuted}
               value={name}
@@ -260,7 +262,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Location */}
             <SectionLabel title="LOCATION" />
             <TextInput
-              style={[z.input, { color: c.text, borderColor: c.border }]}
+              style={[z.input, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
               placeholder="City or destination"
               placeholderTextColor={c.textMuted}
               value={location}
@@ -302,7 +304,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                 <SectionLabel title="DATES" />
                 <View style={z.dateRow}>
                   <TextInput
-                    style={[z.input, z.dateInput, { color: c.text, borderColor: c.border }]}
+                    style={[z.input, z.dateInput, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
                     placeholder="Start (YYYY-MM-DD)"
                     placeholderTextColor={c.textMuted}
                     value={startDate}
@@ -311,7 +313,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   />
                   <Text style={[z.dateTo, { color: c.textMuted }]}>to</Text>
                   <TextInput
-                    style={[z.input, z.dateInput, { color: c.text, borderColor: c.border }]}
+                    style={[z.input, z.dateInput, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
                     placeholder="End (YYYY-MM-DD)"
                     placeholderTextColor={c.textMuted}
                     value={endDate}
@@ -478,7 +480,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Stakes */}
             <SectionLabel title="STAKES (OPTIONAL)" />
             <TextInput
-              style={[z.input, { color: c.text, borderColor: c.border }]}
+              style={[z.input, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
               placeholder="e.g. $5 per skin, $20 Nassau"
               placeholderTextColor={c.textMuted}
               value={stakes}
@@ -634,7 +636,7 @@ const z = StyleSheet.create({
   },
 
   /* Body */
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 20 },
 
   /* Type prompt */
   typePrompt: {
@@ -685,18 +687,19 @@ const z = StyleSheet.create({
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginTop: 24,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
 
   /* Input */
   input: {
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 15,
   },
 
@@ -896,6 +899,7 @@ const z = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1,
+    color: '#FFFFFF',
   },
 
 });
