@@ -527,6 +527,7 @@ function PlayerScoreInput({
             <Pressable
               key={n}
               onPress={() => setGross(n)}
+              accessibilityLabel={scoreCellLabel(n, holePar, n)}
               style={({ pressed }) => [
                 st.compactGridCell,
                 {
@@ -642,6 +643,7 @@ function PlayerScoreInput({
           <Pressable
             key={n}
             onPress={() => setGross(n)}
+            accessibilityLabel={scoreCellLabel(n, holePar, n)}
             style={({ pressed }) => [
               st.scoreGridCell,
               {
@@ -3104,6 +3106,7 @@ export default function ScoringScreen() {
           bounces={false}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={st.scoringBody}
+          accessibilityHint="Swipe left or right to change holes"
         >
           {/* Feature 6: Hole notes button */}
           <View style={st.holeToolsRow}>
