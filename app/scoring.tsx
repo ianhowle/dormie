@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -23,10 +24,14 @@ import GoldDivider from '../src/components/GoldDivider';
 import { DormieMoment } from '../src/components/DormieMoment';
 import { SideGameToast, detectSideGameEvents } from '../src/components/SideGameToast';
 import { HoleTransitionBanner } from '../src/components/HoleTransitionBanner';
+import { Confetti } from '../src/components/Confetti';
+import { PersonalBestBanner } from '../src/components/PersonalBestBanner';
 import type { SideGameEvent } from '../src/components/SideGameToast';
 import type { PlayerHoleResult } from '../src/components/HoleTransitionBanner';
 import type { MomentType } from '../src/components/DormieMoment';
 import { useAuth } from '../src/lib/auth';
+import { haptics } from '../src/lib/haptics';
+import { useToast } from '../src/components/Toast';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
 import { scoreColor, formatToPar as fmtToPar, toParColor as toParColorUtil, scoreName as scoreNameUtil } from '../src/lib/scoring-utils';

@@ -9,10 +9,12 @@ import {
   StatusBar,
   Alert,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
@@ -23,6 +25,9 @@ import type { RoundWithCourse } from '../../src/lib/database.types';
 import { scoreColor, formatToPar as formatToParUtil, toParColor as toParColorUtil } from '../../src/lib/scoring-utils';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
+import { haptics } from '../../src/lib/haptics';
+import { useToast } from '../../src/components/Toast';
+import { DataFreshness } from '../../src/components/DataFreshness';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -206,7 +211,10 @@ export default function ProfileScreen() {
   const c = theme.colors;
   const { user, signOut } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
 
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
   const [showDemoData, setShowDemoData] = useState(false);
@@ -236,14 +244,28 @@ export default function ProfileScreen() {
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [loadingRounds, setLoadingRounds] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
+  const fetchRounds = useCallback(() => {
+    if (!user) return Promise.resolve();
     setLoadingRounds(true);
-    roundsService.getByUser(user.id, 20)
-      .then(setRealRounds)
+    return roundsService.getByUser(user.id, 20)
+      .then((rounds) => {
+        setRealRounds(rounds);
+        setLastUpdated(new Date());
+      })
       .catch(() => {})
       .finally(() => setLoadingRounds(false));
   }, [user]);
+
+  useEffect(() => {
+    fetchRounds();
+  }, [fetchRounds]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchRounds();
+    setRefreshing(false);
+    showToast({ message: 'Profile updated', type: 'success' });
+  }, [fetchRounds, showToast]);
 
   // Compute real stats from rounds
   const realStats = useMemo(() => {
@@ -326,7 +348,19 @@ export default function ProfileScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
+      <ScrollView
+        bounces={true}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={c.teal}
+            colors={[c.teal]}
+          />
+        }
+      >
         {/* ─── HEADER ──────────────────────────────────────────────── */}
         <View style={[s.header, { backgroundColor: c.surface }]}>
           <View style={s.brandRow}>
@@ -396,6 +430,7 @@ export default function ProfileScreen() {
         <View style={s.body}>
           {/* ─── STATS GRID ──────────────────────────────────────── */}
           <SectionLabel title="STATS" />
+          <DataFreshness updatedAt={lastUpdated} />
           <View style={s.statsGrid}>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
@@ -485,9 +520,9 @@ export default function ProfileScreen() {
           {displayRounds.length > 0 && <SectionLabel title="RECENT ROUNDS" />}
           {displayRounds.length === 0 && !loadingRounds && (
             <View style={[s.emptyState, { borderColor: c.border }]}>
-              <Text style={s.emptyEmoji}>&#9971;</Text>
-              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>No Rounds Yet</Text>
-              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Post your first round to start tracking stats.</Text>
+              <Text style={s.emptyEmoji}>⛳</Text>
+              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>Your scorecard awaits</Text>
+              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Every great golfer started with Round 1</Text>
               <Pressable
                 onPress={() => router.push('/score')}
                 style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
@@ -631,7 +666,7 @@ export default function ProfileScreen() {
 
           {/* Dark / Light toggle */}
           <Pressable
-            onPress={toggleTheme}
+            onPress={() => { haptics.light(); toggleTheme(); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons
@@ -657,7 +692,7 @@ export default function ProfileScreen() {
 
           {/* Notifications toggle */}
           <Pressable
-            onPress={() => setNotifications(!notifications)}
+            onPress={() => { haptics.light(); setNotifications(!notifications); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons
@@ -681,7 +716,7 @@ export default function ProfileScreen() {
 
           {/* Favorite Course */}
           <Pressable
-            onPress={() => setShowCoursePicker(true)}
+            onPress={() => { haptics.light(); setShowCoursePicker(true); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons name="golf" size={20} color={c.teal} />
@@ -696,7 +731,7 @@ export default function ProfileScreen() {
 
           {/* Account info */}
           <Pressable
-            onPress={() => Alert.alert('Account', `Email: ${profileUser.email}\nMember since ${profileUser.memberSince}`)}
+            onPress={() => { haptics.light(); Alert.alert('Account', `Email: ${profileUser.email}\nMember since ${profileUser.memberSince}`); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons name="person-outline" size={20} color={c.textMuted} />
@@ -709,10 +744,13 @@ export default function ProfileScreen() {
 
           {/* Sign out */}
           <Pressable
-            onPress={() => Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
-            ])}
+            onPress={() => {
+              haptics.medium();
+              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
+              ]);
+            }}
             style={({ pressed }) => [s.signOutBtn, { borderColor: c.urgent, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <Ionicons name="log-out-outline" size={18} color={c.urgent} />
@@ -740,7 +778,7 @@ export default function ProfileScreen() {
             {COURSE_OPTIONS.map((course) => (
               <Pressable
                 key={course}
-                onPress={() => { setFavoriteCourse(course); setShowCoursePicker(false); }}
+                onPress={() => { setFavoriteCourse(course); setShowCoursePicker(false); showToast({ message: 'Favorite course saved', type: 'gold', icon: 'golf' }); }}
                 style={({ pressed }) => [s.modalRow, { borderColor: c.border, backgroundColor: favoriteCourse === course ? `${c.teal}26` : 'transparent', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
               >
                 <Ionicons name="golf" size={18} color={favoriteCourse === course ? c.teal : c.textMuted} />

@@ -12,6 +12,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -22,6 +23,8 @@ import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
 import { coursesService } from '../../src/services/courses.service';
+import { haptics } from '../../src/lib/haptics';
+import { useToast } from '../../src/components/Toast';
 import {
   SCORING_FORMATS,
   SIDE_GAMES,
@@ -578,7 +581,7 @@ function FormatPicker({
           return (
             <Pressable
               key={f.key}
-              onPress={() => onSelect(f.key)}
+              onPress={() => { haptics.light(); onSelect(f.key); }}
               style={({ pressed }) => [
                 st.pill,
                 {
@@ -632,7 +635,7 @@ function SideGamePicker({
           return (
             <Pressable
               key={g.key}
-              onPress={() => onToggle(g.key)}
+              onPress={() => { haptics.light(); onToggle(g.key); }}
               style={({ pressed }) => [
                 st.sidePill,
                 {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Platform,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,6 +22,9 @@ import GoldDivider from '../../src/components/GoldDivider';
 import { TripCountdownRing } from '../../src/components/TripCountdownRing';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
+import { haptics } from '../../src/lib/haptics';
+import { useToast } from '../../src/components/Toast';
+import { DataFreshness } from '../../src/components/DataFreshness';
 import type { TripWithMembers } from '../../src/lib/database.types';
 import {
   MOCK_TRIP_STATS,
@@ -154,6 +159,7 @@ function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
         {destinations.map((d) => (
           <Pressable
             key={d.id}
+            onPress={() => haptics.light()}
             style={({ pressed }) => [
               s.dreamCard,
               { borderWidth: 1, borderColor: c.border },
@@ -232,7 +238,7 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/trip-detail?tripId=${trip.id}`)}
+      onPress={() => { haptics.light(); router.push(`/trip-detail?tripId=${trip.id}`); }}
       style={({ pressed }) => [
         s.tripCard,
         {
@@ -386,15 +392,38 @@ export default function TripsScreen() {
   const router = useRouter();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
   const [showDemoData, setShowDemoData] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!user) return;
     tripsService.getByUser(user.id).then(setRealTrips).catch(() => {});
   }, [user]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (user) {
+        const trips = await tripsService.getByUser(user.id);
+        setRealTrips(trips);
+      }
+      setLastRefreshed(new Date());
+      showToast({ message: 'Trips updated', type: 'success' });
+    } catch {}
+    setRefreshing(false);
+  }, [user, showToast]);
+
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+      <ExpoStatusBar style="light" />
+      <ScrollView
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.teal} />
+        }
+      >
         <Header />
 
         <View style={s.body}>
@@ -402,8 +431,8 @@ export default function TripsScreen() {
           {realTrips.length === 0 && !showDemoData && (
             <View style={[s.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={s.emptyEmoji}>✈️</Text>
-              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>No trips yet</Text>
-              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Plan your first golf trip with friends</Text>
+              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>Where to next?</Text>
+              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Plan your first golf trip</Text>
               <Pressable
                 onPress={() => router.push('/create-trip')}
                 style={({ pressed }) => [
@@ -438,7 +467,10 @@ export default function TripsScreen() {
           {(realTrips.length > 0 || showDemoData) && MOCK_UPCOMING_TRIPS.length > 0 && (
             <>
               <GoldDivider style={{ marginTop: 24 }} />
-              <SectionLabel title="UPCOMING" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <SectionLabel title="UPCOMING" />
+                <DataFreshness lastUpdated={lastRefreshed} />
+              </View>
               {MOCK_UPCOMING_TRIPS.map((trip) => (
                 <TripCard key={trip.id} trip={trip} showDays />
               ))}

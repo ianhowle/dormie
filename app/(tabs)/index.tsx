@@ -1,14 +1,19 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
+import { SkeletonFeed, SkeletonStats } from '../../src/components/Skeleton';
+import { DataFreshness } from '../../src/components/DataFreshness';
+import { useToast } from '../../src/components/Toast';
+import { haptics } from '../../src/lib/haptics';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
@@ -132,7 +137,7 @@ function HeaderBar({
   return (
     <View style={[st.headerBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
       {/* Logo button — flagstick on green square */}
-      <Pressable onPress={onLogoPress} style={({ pressed }) => [st.logoBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+      <Pressable onPress={() => { haptics.light(); onLogoPress(); }} style={({ pressed }) => [st.logoBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
         <View style={st.logoBg}>
           <Ionicons name="flag" size={16} color="#D4AF37" />
         </View>
@@ -192,7 +197,7 @@ function LogoMenu({
         {items.map((item, i) => (
           <Pressable
             key={item.label}
-            onPress={() => { item.onPress(); onClose(); }}
+            onPress={() => { haptics.light(); item.onPress(); onClose(); }}
             style={({ pressed }) => [st.menuItem, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
           >
             <Ionicons name={item.icon} size={16} color={c.textMuted} />
@@ -208,7 +213,7 @@ function LogoMenu({
           return (
             <Pressable
               key={group.id}
-              onPress={() => { onGroupSelect(group.id); onClose(); }}
+              onPress={() => { haptics.light(); onGroupSelect(group.id); onClose(); }}
               style={({ pressed }) => [
                 st.menuItem,
                 isActive && { borderLeftWidth: 3, borderLeftColor: '#2A9D8F', backgroundColor: 'rgba(42,157,143,0.15)' },
@@ -453,7 +458,7 @@ function MyGroupsSection({
         return (
           <Pressable
             key={group.id}
-            onPress={() => onGroupSelect(group.id)}
+            onPress={() => { haptics.light(); onGroupSelect(group.id); }}
             style={({ pressed }) => [
               st.groupCard,
               {
@@ -520,21 +525,21 @@ function QuickActions() {
   return (
     <View style={st.actionsRow}>
       <Pressable
-        onPress={() => router.push('/(tabs)/score')}
+        onPress={() => { haptics.light(); router.push('/(tabs)/score'); }}
         style={({ pressed }) => [st.actionBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="add-circle-outline" size={18} color="#fff" />
         <Text style={[st.actionPrimaryText, { fontFamily: SANS }]}>Log Round</Text>
       </Pressable>
       <Pressable
-        onPress={() => router.push('/(tabs)/trips')}
+        onPress={() => { haptics.light(); router.push('/(tabs)/trips'); }}
         style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="airplane-outline" size={18} color={c.gold} />
         <Text style={[st.actionSecText, { color: c.gold, fontFamily: SANS }]}>New Trip</Text>
       </Pressable>
       <Pressable
-        onPress={() => router.push('/(tabs)/leaderboard')}
+        onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
         style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="trophy-outline" size={18} color={c.teal} />
@@ -645,22 +650,46 @@ export default function HomeScreen() {
   const isDark = theme.isDark;
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
   const [showMenu, setShowMenu] = useState(false);
   const [showDemoData, setShowDemoData] = useState(false);
   const [activeGroup, setActiveGroup] = useState(MOCK_GROUPS[0]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   const handleGroupSelect = useCallback((id: string) => {
     const group = MOCK_GROUPS.find((g) => g.id === id);
     if (group) setActiveGroup(group);
   }, []);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
-    roundsService.getByUser(user.id, 10).then(setRealRounds).catch(() => {});
-    friendsService.getPendingRequests(user.id).then(setPendingRequests).catch(() => {});
+    try {
+      const [rounds, requests] = await Promise.all([
+        roundsService.getByUser(user.id, 10).catch(() => [] as RoundWithCourse[]),
+        friendsService.getPendingRequests(user.id).catch(() => [] as FriendshipWithUser[]),
+      ]);
+      setRealRounds(rounds);
+      setPendingRequests(requests);
+      setLastUpdated(new Date());
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+    showToast({ message: 'Feed updated', type: 'success' });
+  }, [fetchData, showToast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Build real quick stats
   const quickStats = useMemo(() => {
@@ -704,6 +733,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       {/* Fixed header bar with friend request badge (Item 6) */}
       <HeaderBar
         onLogoPress={() => setShowMenu(!showMenu)}
@@ -717,7 +747,18 @@ export default function HomeScreen() {
         onGroupSelect={handleGroupSelect}
       />
 
-      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={c.teal}
+            colors={['#2A9D8F']}
+          />
+        }
+      >
         {/* Masters green greeting with active group name (Item 1) */}
         <GreetingSection
           name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'}
@@ -727,9 +768,20 @@ export default function HomeScreen() {
         {/* Gold divider below green header */}
         <GoldDivider />
 
+        {/* Data freshness indicator */}
+        <View style={st.freshnessWrap}>
+          <DataFreshness updatedAt={lastUpdated} />
+        </View>
+
         {/* ESPN ticker */}
         <ESPNTicker standings={standings} />
 
+        {loading ? (
+          <View style={st.body}>
+            <SkeletonStats />
+            <SkeletonFeed />
+          </View>
+        ) : (
         <View style={st.body}>
           {/* Season Standings (Item 2) */}
           <SeasonStandingsSection groupName={activeGroup.name} />
@@ -752,18 +804,36 @@ export default function HomeScreen() {
             onGroupSelect={handleGroupSelect}
           />
 
-          {/* Empty state for new users */}
+          {/* Empty state for new users — no rounds */}
           {realRounds.length === 0 && !showDemoData && (
             <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Text style={st.emptyEmoji}>&#9971;</Text>
-              <Text style={[st.emptyTitle, { color: c.text }]}>No rounds yet</Text>
-              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Log your first round to see your stats</Text>
-              <Pressable onPress={() => router.push('/(tabs)/score')} style={({ pressed }) => [st.emptyBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+              <Text style={st.emptyEmoji}>{'\u26F3'}</Text>
+              <Text style={[st.emptyTitle, { color: c.text }]}>Your scorecard awaits</Text>
+              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Every great golfer started with Round 1</Text>
+              <Pressable onPress={() => { haptics.light(); router.push('/(tabs)/score'); }} style={({ pressed }) => [st.emptyBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
                 <Text style={[st.emptyBtnText, { fontFamily: SANS }]}>Log Round</Text>
               </Pressable>
               <Pressable onPress={() => setShowDemoData(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[st.demoToggle, { color: c.textMuted, fontFamily: SANS }]}>Show demo data</Text>
               </Pressable>
+            </View>
+          )}
+
+          {/* Empty state — no friends */}
+          {pendingRequests.length === 0 && realRounds.length === 0 && !showDemoData && (
+            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Text style={st.emptyEmoji}>{'\uD83D\uDC65'}</Text>
+              <Text style={[st.emptyTitle, { color: c.text }]}>Golf is better with your crew</Text>
+              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Share your invite link to get started</Text>
+            </View>
+          )}
+
+          {/* Empty state — no trips */}
+          {realRounds.length === 0 && !showDemoData && MOCK_UPCOMING.length === 0 && (
+            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Text style={st.emptyEmoji}>{'\u2708\uFE0F'}</Text>
+              <Text style={[st.emptyTitle, { color: c.text }]}>Where to next?</Text>
+              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Plan your first golf trip</Text>
             </View>
           )}
 
@@ -773,7 +843,7 @@ export default function HomeScreen() {
               <SectionHeader title="FRIEND REQUESTS" />
               <GoldDivider style={{ marginBottom: 12 }} />
               <Pressable
-                onPress={() => router.push('/(tabs)/leaderboard')}
+                onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
                 style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.urgent, borderLeftWidth: 3 }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Ionicons name="people" size={20} color={c.urgent} style={{ marginRight: 10 }} />
@@ -807,6 +877,7 @@ export default function HomeScreen() {
             </>
           )}
         </View>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -1009,6 +1080,14 @@ const st = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'Georgia',
     marginLeft: 2,
+  },
+
+  /* Data freshness */
+  freshnessWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+    alignItems: 'flex-end',
   },
 
   /* Body */

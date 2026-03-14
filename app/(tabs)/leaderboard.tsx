@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,13 @@ import {
   Dimensions,
   FlatList,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
@@ -21,6 +23,10 @@ import GoldDivider from '../../src/components/GoldDivider';
 import { CoursesTab } from '../../src/components/CoursesTab';
 import { H2HTab } from '../../src/components/H2HTab';
 import { RecordsTab } from '../../src/components/RecordsTab';
+import { SkeletonLeaderboard } from '../../src/components/Skeleton';
+import { DataFreshness } from '../../src/components/DataFreshness';
+import { useToast } from '../../src/components/Toast';
+import { haptics } from '../../src/lib/haptics';
 import {
   MOCK_GROUP_RANKED,
   MOCK_SEASONS,
@@ -82,7 +88,7 @@ function ScopeToggle({
         return (
           <Pressable
             key={s}
-            onPress={() => onToggle(s)}
+            onPress={() => { haptics.light(); onToggle(s); }}
             style={[
               styles.scopeBtn,
               active && { backgroundColor: c.cardBg },
@@ -217,7 +223,7 @@ function TabBar({
         return (
           <Pressable
             key={t}
-            onPress={() => onSelect(t)}
+            onPress={() => { haptics.light(); onSelect(t); }}
             style={({ pressed }) => [
               styles.tab,
               isActive && { backgroundColor: 'rgba(42,157,143,0.15)' },
@@ -368,9 +374,12 @@ function LeaderboardTable({ players, myId }: { players: LeaderboardPlayer[]; myI
 
   return (
     <View style={styles.tableWrap}>
-      <Text style={[styles.sectionHeader, { color: c.gold }]}>
-        GROUP RANKINGS
-      </Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeader, { color: c.gold }]}>
+          GROUP RANKINGS
+        </Text>
+        <DataFreshness updatedAt={new Date()} isLive={false} />
+      </View>
       <View style={[styles.table, { borderColor: c.border, borderWidth: 1, backgroundColor: c.cardBg }, isDark ? cardShadowDark : cardShadowLight]}>
         <TableHeader />
         <GoldDivider />
@@ -401,12 +410,33 @@ export default function LeaderboardScreen() {
   const [friends, setFriends] = useState<FriendshipWithUser[]>([]);
   const [myRounds, setMyRounds] = useState<RoundWithCourse[]>([]);
   const [showDemoData, setShowDemoData] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const { showToast } = useToast();
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [f, r] = await Promise.all([
+        friendsService.getActiveFriends(user.id),
+        roundsService.getByUser(user.id, 50),
+      ]);
+      setFriends(f);
+      setMyRounds(r);
+    } catch {}
+    setDataLoaded(true);
+  }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    friendsService.getActiveFriends(user.id).then(setFriends).catch(() => {});
-    roundsService.getByUser(user.id, 50).then(setMyRounds).catch(() => {});
-  }, [user]);
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+    showToast({ message: 'Leaderboard updated', type: 'success' });
+  }, [loadData, showToast]);
 
   // Build leaderboard from real data when available
   const leaderboardPlayers = useMemo(() => {
@@ -432,99 +462,119 @@ export default function LeaderboardScreen() {
   const myPos =
     leaderboardPlayers.findIndex((p) => p.id === myId) + 1 || leaderboardPlayers.length + 1;
 
+  // The tab bar is child index 3 within the ScrollView:
+  // 0 = header gradient, 1 = gold divider, 2 = scope + season wrapper, 3 = tab bar
+  const STICKY_TAB_INDEX = 3;
+
+  const isMockData = leaderboardPlayers === MOCK_GROUP_RANKED;
+
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
-      {/* ── Header ── */}
-      <LinearGradient
-        colors={greenHeaderGradient as unknown as string[]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 8 }]}
+      <ExpoStatusBar style="light" />
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[STICKY_TAB_INDEX]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={c.teal}
+            colors={[c.teal]}
+          />
+        }
       >
-        <Pinstripes />
-
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.dormieLabel}>DORMIE</Text>
-            <Text style={styles.headerTitle}>Leaderboard</Text>
-          </View>
-          <Pressable
-            onPress={toggleTheme}
-            hitSlop={12}
-            style={({ pressed }) => [styles.themeBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-          >
-            <Ionicons
-              name={theme.isDark ? 'sunny' : 'moon'}
-              size={20}
-              color="#E8E4DE"
-            />
-          </Pressable>
-        </View>
-
-        {/* Your position card */}
-        <View style={styles.yourCard}>
-          <Avatar id={me.id} size={40} name={me.name} />
-          <View style={styles.yourInfo}>
-            <Text style={styles.yourPos}>
-              <Text style={{ fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }}>#{myPos}</Text> in Group
-            </Text>
-            <Text style={styles.yourMeta}>
-              {me.courses} courses · {me.rounds} rounds · {me.bestRound} best
-            </Text>
-          </View>
-          <Text style={[styles.yourAvg, { fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }]}>
-            {me.rounds === 0 ? '--' : formatToPar(me.toPar)}
-          </Text>
-        </View>
-      </LinearGradient>
-
-      <GoldDivider />
-
-      {/* ── Scope toggle ── */}
-      <ScopeToggle scope={scope} onToggle={setScope} />
-
-      {/* ── Season carousel ── */}
-      <SeasonCarousel seasons={MOCK_SEASONS} />
-
-      {/* ── Tab bar ── */}
-      <TabBar active={tab} onSelect={setTab} />
-
-      {/* ── Empty state for new users ── */}
-      {myRounds.length === 0 && friends.length === 0 && !showDemoData && (
-        <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border, borderStyle: 'dashed' as any }, isDark ? cardShadowDark : cardShadowLight]}>
-          <Text style={styles.emptyEmoji}>🏌️</Text>
-          <Text style={[styles.emptyTitle, { color: c.text }]}>No leaderboard yet</Text>
-          <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Invite your crew to unlock the leaderboard</Text>
-          <Pressable
-            onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')}
-            style={({ pressed }) => [styles.emptyBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-          >
-            <Text style={styles.emptyBtnText}>Invite Friends</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setShowDemoData(true)}
-            style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-          >
-            <Text style={[styles.demoToggle, { color: c.teal }]}>Show demo data</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* ── Tab content ── */}
-      {(myRounds.length > 0 || friends.length > 0 || showDemoData) && (
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentInner}
-          showsVerticalScrollIndicator={false}
+        {/* ── Child 0: Header ── */}
+        <LinearGradient
+          colors={greenHeaderGradient as unknown as string[]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.header, { paddingTop: insets.top + 8 }]}
         >
-          {tab === 'Leaderboard' && (
-            <LeaderboardTable players={leaderboardPlayers} myId={myId} />
-          )}
-          {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
-          {tab === 'H2H' && <H2HTab />}
-          {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
-        </ScrollView>
-      )}
+          <Pinstripes />
+
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.dormieLabel}>DORMIE</Text>
+              <Text style={styles.headerTitle}>Leaderboard</Text>
+            </View>
+            <Pressable
+              onPress={toggleTheme}
+              hitSlop={12}
+              style={({ pressed }) => [styles.themeBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+            >
+              <Ionicons
+                name={theme.isDark ? 'sunny' : 'moon'}
+                size={20}
+                color="#E8E4DE"
+              />
+            </Pressable>
+          </View>
+
+          {/* Your position card */}
+          <View style={styles.yourCard}>
+            <Avatar id={me.id} size={40} name={me.name} />
+            <View style={styles.yourInfo}>
+              <Text style={styles.yourPos}>
+                <Text style={{ fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }}>#{myPos}</Text> in Group
+              </Text>
+              <Text style={styles.yourMeta}>
+                {me.courses} courses · {me.rounds} rounds · {me.bestRound} best
+              </Text>
+            </View>
+            <Text style={[styles.yourAvg, { fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }]}>
+              {me.rounds === 0 ? '--' : formatToPar(me.toPar)}
+            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* ── Child 1: Gold divider ── */}
+        <GoldDivider />
+
+        {/* ── Child 2: Scope toggle + Season carousel ── */}
+        <View>
+          <ScopeToggle scope={scope} onToggle={setScope} />
+          <SeasonCarousel seasons={MOCK_SEASONS} />
+        </View>
+
+        {/* ── Child 3: Tab bar (STICKY) ── */}
+        <View style={{ backgroundColor: c.bg }}>
+          <TabBar active={tab} onSelect={setTab} />
+        </View>
+
+        {/* ── Tab content ── */}
+        {!dataLoaded && isMockData ? (
+          <SkeletonLeaderboard />
+        ) : myRounds.length === 0 && friends.length === 0 && !showDemoData ? (
+          <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border, borderStyle: 'dashed' as any }, isDark ? cardShadowDark : cardShadowLight]}>
+            <Text style={styles.emptyEmoji}>🏌️</Text>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>No leaderboard yet</Text>
+            <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Invite your crew to unlock the leaderboard</Text>
+            <Pressable
+              onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')}
+              style={({ pressed }) => [styles.emptyBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+            >
+              <Text style={styles.emptyBtnText}>Invite Friends</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowDemoData(true)}
+              style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+            >
+              <Text style={[styles.demoToggle, { color: c.teal }]}>Show demo data</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View>
+            {tab === 'Leaderboard' && (
+              <LeaderboardTable players={leaderboardPlayers} myId={myId} />
+            )}
+            {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
+            {tab === 'H2H' && <H2HTab />}
+            {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -692,12 +742,17 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     marginBottom: 24,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sectionHeader: {
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: 12,
     fontFamily: 'Georgia',
   },
   table: {
