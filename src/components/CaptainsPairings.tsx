@@ -308,7 +308,7 @@ export function CaptainsPairings({
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Pairings */}
-        <Text style={[styles.sectionLabel, { color: c.text }]}>Pairings</Text>
+        <Text style={[styles.sectionLabel, { color: c.gold }]}>PAIRINGS</Text>
         {teamPairings.map((p) => (
           <PairingSlot
             key={p.id}
@@ -329,7 +329,7 @@ export function CaptainsPairings({
         )}
 
         {/* Available players */}
-        <Text style={[styles.sectionLabel, { color: c.text, marginTop: 20 }]}>Available Players</Text>
+        <Text style={[styles.sectionLabel, { color: c.gold, marginTop: 20 }]}>AVAILABLE PLAYERS</Text>
         {teamPlayers.map((p) => (
           <PlayerCard
             key={p.id}
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   // Team toggle
   teamToggle: { flexDirection: 'row', padding: 4, marginBottom: 16 },
   teamToggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 6 },
-  teamToggleText: { fontSize: 14, fontWeight: '600' },
+  teamToggleText: { fontSize: 13, fontWeight: '600' },
   teamDot: { width: 8, height: 8, borderRadius: 0 },
 
   sectionLabel: { fontSize: 10, fontWeight: '600', marginBottom: 8, letterSpacing: 2, textTransform: 'uppercase' },
@@ -370,13 +370,13 @@ const styles = StyleSheet.create({
   assignedHcp: { fontSize: 13 },
 
   // Player card
-  playerCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginBottom: 6 },
+  playerCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, marginBottom: 6 },
   playerCardCompact: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, marginBottom: 4 },
-  playerName: { fontSize: 15, fontWeight: '600' },
-  playerNameCompact: { fontSize: 14, fontWeight: '500' },
+  playerName: { fontSize: 13, fontWeight: '600' },
+  playerNameCompact: { fontSize: 13, fontWeight: '500' },
   playerHcp: { fontSize: 11, marginTop: 1 },
 
   // Suggest
-  suggestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8, marginTop: 8 },
-  suggestText: { fontSize: 14, fontWeight: '600' },
+  suggestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8, marginTop: 8 },
+  suggestText: { fontSize: 13, fontWeight: '600' },
 });
