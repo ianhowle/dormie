@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
+import { RyderCupWizard } from '../src/components/RyderCupWizard';
 import {
   SCORING_FORMATS,
   SIDE_GAMES,
@@ -582,58 +583,6 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   );
 }
 
-// ─── Ryder Cup placeholder ────────────────────────────────────────────
-function RyderCupPlaceholder() {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const router = useRouter();
-
-  return (
-    <View style={[z.screen, { backgroundColor: c.bg }]}>
-      {/* Header */}
-      <View style={[z.header, { backgroundColor: c.surface }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={c.text} />
-        </Pressable>
-        <Text style={[z.headerTitle, { color: c.text, fontFamily: GEO }]}>
-          Ryder Cup Setup
-        </Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={z.rcPlaceholder}>
-        <LinearGradient
-          colors={['#1A3A5C', '#C44B4F']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={z.rcBanner}
-        >
-          <Text style={z.rcBannerEmoji}>🏆</Text>
-          <Text style={[z.rcBannerTitle, { fontFamily: GEO }]}>Ryder Cup Wizard</Text>
-          <Text style={z.rcBannerSub}>8-step setup coming next</Text>
-        </LinearGradient>
-
-        <View style={z.rcSteps}>
-          {[
-            '1. Name your cup',
-            '2. Set team sizes',
-            '3. Draft captains',
-            '4. Player draft',
-            '5. Set match formats',
-            '6. Choose courses',
-            '7. Set schedule',
-            '8. Confirm & invite',
-          ].map((step, i) => (
-            <View key={i} style={[z.rcStep, { borderColor: c.border }]}>
-              <View style={[z.rcStepDot, { backgroundColor: c.textMuted }]} />
-              <Text style={[z.rcStepText, { color: c.textMuted }]}>{step}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
 
 // ─── Main screen ──────────────────────────────────────────────────────
 export default function CreateTripScreen() {
@@ -644,7 +593,7 @@ export default function CreateTripScreen() {
   }
 
   if (tripType === 'ryder') {
-    return <RyderCupPlaceholder />;
+    return <RyderCupWizard onBack={() => setTripType(null)} />;
   }
 
   return <TripForm tripType={tripType} />;
@@ -933,48 +882,4 @@ const z = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  /* Ryder Cup placeholder */
-  rcPlaceholder: {
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  rcBanner: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  rcBannerEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  rcBannerTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  rcBannerSub: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  rcSteps: {
-    marginTop: 20,
-    gap: 8,
-  },
-  rcStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-  },
-  rcStepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  rcStepText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
 });
