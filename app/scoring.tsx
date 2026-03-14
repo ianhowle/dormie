@@ -3606,8 +3606,8 @@ const st = StyleSheet.create({
   /* Player card */
   playerCard: {
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 12,
+    padding: 16,
+    marginBottom: 14,
   },
   playerHeader: {
     flexDirection: 'row',
@@ -3622,7 +3622,7 @@ const st = StyleSheet.create({
     gap: 6,
   },
   playerNameText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   strokeDot: {
@@ -3640,11 +3640,12 @@ const st = StyleSheet.create({
     alignItems: 'flex-end',
   },
   runningTotal: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+    fontFamily: GEO,
   },
   runningLabel: {
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 1,
   },
 

@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/lib/auth';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import { Avatar } from '../../src/components/Avatar';
 import { authService } from '../../src/services/auth.service';
 import { coursesService } from '../../src/services/courses.service';
@@ -77,7 +78,7 @@ function WelcomeScreen({ onNext, onToggleTheme }: { onNext: () => void; onToggle
 
   return (
     <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
-      <LinearGradient colors={['#1E4D2B', '#2D6A3F']} style={styles.welcomeTop}>
+      <LinearGradient colors={[...greenHeaderGradient]} style={styles.welcomeTop}>
         <Pinstripes />
 
         {/* Dark/light toggle */}
@@ -100,7 +101,7 @@ function WelcomeScreen({ onNext, onToggleTheme }: { onNext: () => void; onToggle
       </LinearGradient>
 
       <View style={[styles.welcomeBottom, { backgroundColor: c.bg }]}>
-        <Pressable onPress={onNext} style={styles.getStartedBtn}>
+        <Pressable onPress={onNext} style={({ pressed }) => [styles.getStartedBtn, pressed && styles.pressedState]}>
           <Text style={styles.getStartedText}>Get Started</Text>
           <Ionicons name="arrow-forward" size={18} color="#000000" />
         </Pressable>

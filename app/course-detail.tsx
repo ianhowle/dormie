@@ -198,6 +198,7 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
 function YourHistoryCard({ course }: { course: CourseDetailData }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const h = course.myHistory ?? { best: 0, avg: 0, worst: 0, rounds: 0, scores: [] };
 
   return (
@@ -209,6 +210,7 @@ function YourHistoryCard({ course }: { course: CourseDetailData }) {
         style={[
           st.historyCard,
           { backgroundColor: c.cardBg, borderColor: c.teal, borderWidth: 1 },
+          isDark ? cardShadowDark : cardShadowLight,
         ]}
       >
         <View style={st.historyRow}>
@@ -555,7 +557,7 @@ const st = StyleSheet.create({
 
   /* Body */
   body: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
 
   /* Toggles */
@@ -597,13 +599,14 @@ const st = StyleSheet.create({
 
   /* Section */
   sectionWrap: {
-    marginTop: 20,
+    marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
 
   /* Your History */

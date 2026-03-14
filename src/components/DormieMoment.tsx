@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import GoldDivider from './GoldDivider';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -175,6 +176,9 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
             <Ionicons name={config.icon} size={56} color={c.gold} />
           </Animated.View>
 
+          {/* Gold divider between icon and name */}
+          <GoldDivider style={{ marginVertical: 16, width: SCREEN_W * 0.5 }} />
+
           {/* Animated divider */}
           <View style={styles.dividerRow}>
             <Animated.View style={[styles.dividerLine, { backgroundColor: c.gold, width: dividerInterp }]} />
@@ -202,6 +206,9 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
             {detail}
           </Animated.Text>
 
+          {/* Gold divider after detail */}
+          <GoldDivider style={{ marginTop: 24, marginBottom: 16, width: SCREEN_W * 0.35 }} />
+
           {/* Tap to continue */}
           <Animated.Text style={[styles.tapText, { color: c.textMuted, opacity: tapOpacity }]}>
             TAP TO CONTINUE
@@ -216,12 +223,12 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   background: { ...StyleSheet.absoluteFillObject },
   content: { alignItems: 'center', paddingHorizontal: 40 },
-  eventLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 4, fontFamily: GEO },
+  eventLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, fontFamily: GEO, textTransform: 'uppercase' },
   dividerRow: { flexDirection: 'row', alignItems: 'center' },
   dividerLine: { height: 1 },
-  playerName: { fontSize: 28, fontWeight: '700', fontFamily: GEO, textAlign: 'center', marginTop: 20 },
-  detail: { fontSize: 15, textAlign: 'center', marginTop: 8, lineHeight: 22 },
-  tapText: { fontSize: 11, letterSpacing: 2, marginTop: 48 },
+  playerName: { fontSize: 28, fontWeight: '700', fontFamily: GEO, textAlign: 'center', marginTop: 20, letterSpacing: -1 },
+  detail: { fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 22 },
+  tapText: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginTop: 32 },
   cornerTL: { position: 'absolute', top: 60, left: 24, width: 28, height: 28, borderTopWidth: 2, borderLeftWidth: 2 },
   cornerTR: { position: 'absolute', top: 60, right: 24, width: 28, height: 28, borderTopWidth: 2, borderRightWidth: 2 },
   cornerBL: { position: 'absolute', bottom: 60, left: 24, width: 28, height: 28, borderBottomWidth: 2, borderLeftWidth: 2 },

@@ -1034,19 +1034,23 @@ export default function ScoreScreen() {
                   <Pressable
                     key={tl.key}
                     onPress={() => setTrackingLevel(tl.key)}
-                    style={[
+                    style={({ pressed }) => [
                       st.trackingCard,
                       {
-                        backgroundColor: active ? `${c.teal}20` : c.elevated,
+                        backgroundColor: active ? 'rgba(42,157,143,0.05)' : c.elevated,
                         borderColor: active ? c.teal : c.border,
+                        borderWidth: 1,
                       },
+                      active && { borderLeftWidth: 2, borderLeftColor: c.teal },
+                      ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+                      pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                     ]}
                   >
                     <Ionicons name={tl.icon} size={18} color={active ? c.teal : c.textMuted} />
-                    <Text style={[st.trackingLabel, { color: active ? c.teal : c.text, fontFamily: GEO }]}>
+                    <Text style={[st.trackingLabel, { color: active ? c.teal : c.text, fontFamily: GEO, fontWeight: '700' }]}>
                       {tl.label}
                     </Text>
-                    <Text style={[st.trackingDesc, { color: c.textMuted }]} numberOfLines={2}>
+                    <Text style={[st.trackingDesc, { color: c.textMuted, fontFamily: SANS }]} numberOfLines={2}>
                       {tl.desc}
                     </Text>
                   </Pressable>
@@ -1072,11 +1076,11 @@ export default function ScoreScreen() {
 
             {/* Summary line */}
             {course && (
-              <View style={[st.summaryRow, { borderColor: c.border }]}>
+              <View style={[st.summaryRow, { borderColor: c.border, borderTopWidth: 1 }]}>
                 <View style={st.summaryInner}>
                   {roundType !== 'casual' && (
                     <View style={[st.roundTypeBadge, { backgroundColor: roundType === 'competitive' ? `${c.gold}30` : `${c.teal}30` }]}>
-                      <Text style={[st.roundTypeBadgeText, { color: roundType === 'competitive' ? c.gold : c.teal }]}>
+                      <Text style={[st.roundTypeBadgeText, { color: roundType === 'competitive' ? c.gold : c.teal, fontFamily: GEO }]}>
                         {roundType === 'competitive' ? 'COMPETITIVE' : 'MATCHUP'}
                       </Text>
                     </View>
@@ -1092,22 +1096,26 @@ export default function ScoreScreen() {
               </View>
             )}
 
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
+
             {/* Start button */}
             <Pressable
               onPress={handleStartRound}
               disabled={!canStart}
-              style={[
+              style={({ pressed }) => [
                 st.startBtn,
                 canStart
-                  ? { backgroundColor: '#1E4D2B' }
-                  : { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#D4AF37' },
+                  ? { backgroundColor: c.greenDark }
+                  : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold },
+                pressed && canStart && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
               <Text
                 style={[
                   st.startBtnText,
                   {
-                    color: '#D4AF37',
+                    color: canStart ? '#FFFFFF' : c.gold,
                     fontFamily: GEO,
                   },
                 ]}
