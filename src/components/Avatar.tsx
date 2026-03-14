@@ -16,15 +16,16 @@ const GRADIENTS: [string, string][] = [
   ['#4A9B8E', '#2A6B5F'],
 ];
 
-function pickGradient(id: string): [string, string] {
+function pickGradient(id: string | undefined | null): [string, string] {
+  const safeId = id ?? 'user';
   let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  for (let i = 0; i < safeId.length; i++) {
+    hash = ((hash << 5) - hash + safeId.charCodeAt(i)) | 0;
   }
   return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
 }
 
-function getInitials(id: string, name?: string): string {
+function getInitials(id: string | undefined | null, name?: string | undefined | null): string {
   if (name) {
     return name
       .split(' ')
@@ -33,6 +34,7 @@ function getInitials(id: string, name?: string): string {
       .toUpperCase()
       .slice(0, 2);
   }
+  if (!id) return '?';
   return id.slice(0, 2).toUpperCase();
 }
 
