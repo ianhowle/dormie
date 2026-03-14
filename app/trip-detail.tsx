@@ -233,7 +233,7 @@ const TRIP_TOOLS: TripTool[] = [
 
 const SIDE_GAME_PILLS = ['Skins', 'Nassau', 'Dots', 'Snake'];
 
-const TABS = ['Clubhouse', 'Courses', 'Players', 'Checklist', 'Chat'] as const;
+const TABS = ['Clubhouse', 'Courses', 'Players', 'Checklist', '19th Hole'] as const;
 type Tab = (typeof TABS)[number];
 
 const EMOJI_OPTIONS = ['👍', '🔥', '⛳', '😂', '💪', '🏆'];
@@ -2083,7 +2083,7 @@ export default function TripDetailScreen() {
   const handleTabSwitch = useCallback((tab: Tab) => {
     haptics.light();
     setActiveTab(tab);
-    if (tab === 'Chat') setChatLastActive(new Date());
+    if (tab === '19th Hole') setChatLastActive(new Date());
   }, []);
 
   const toggleCheck = useCallback((id: string) => {
@@ -2269,14 +2269,14 @@ export default function TripDetailScreen() {
           {activeTab === 'Courses' && <CoursesTab />}
           {activeTab === 'Players' && <PlayersTab />}
           {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
-          {activeTab === 'Chat' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
+          {activeTab === '19th Hole' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
         </View>
       </ScrollView>
 
       {/* Item 14: Floating chat button with unread badge */}
-      {activeTab !== 'Chat' && (
+      {activeTab !== '19th Hole' && (
         <Pressable
-          onPress={() => setActiveTab('Chat')}
+          onPress={() => setActiveTab('19th Hole')}
           style={s.floatingChatBtn}
         >
           <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />

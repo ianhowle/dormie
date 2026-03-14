@@ -447,7 +447,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
   const handleSave = useCallback(() => {
     haptics.success();
     onSaveRound(player.playerId);
-    Alert.alert('Round Saved', 'Your round has been saved successfully.');
+    Alert.alert('Score Posted', 'Your score is on the board.');
   }, [player.playerId, onSaveRound]);
 
   return (
@@ -582,7 +582,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
         <View style={styles.saveSection}>
           <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveBtn, { backgroundColor: c.greenDark, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
             <Ionicons name="save" size={20} color="#FFFFFF" />
-            <Text style={[styles.saveBtnText, { fontFamily: GEO, color: '#FFFFFF' }]}>Save Round</Text>
+            <Text style={[styles.saveBtnText, { fontFamily: GEO, color: '#FFFFFF' }]}>Post Score</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -519,7 +519,7 @@ function QuickStatsRow({ stats }: { stats: QuickStats }) {
   return (
     <View style={st.statsRow}>
       {items.map((item) => (
-        <View key={item.label} style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+        <View key={item.label} accessibilityLabel={statLabel(item.value, item.label)} style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
           <Text style={[st.statValue, { color: item.color, fontFamily: GEO, fontSize: item.isHandicap ? 28 : 18, letterSpacing: item.isHandicap ? -1 : 0 }]}>
             {item.value}
           </Text>
@@ -583,7 +583,7 @@ function FeedCard({ item }: { item: FeedItem }) {
   const isMe = item.playerId === '1';
 
   return (
-    <Pressable style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+    <Pressable accessibilityLabel={`${isMe ? 'You' : item.playerName}: ${item.description}`} style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
       <View style={st.feedLeft}>
         <Avatar id={item.playerId} size={36} name={item.playerName} />
       </View>
@@ -823,8 +823,34 @@ export default function HomeScreen() {
           {/* Quick stats */}
           <QuickStatsRow stats={quickStats} />
 
+          {/* Strokes behind leader callout */}
+          <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
+            <Text style={{ color: c.teal, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
+              You're 2.8 strokes behind Drew's average. Close the gap.
+            </Text>
+          </View>
+
+          {/* Active streaks */}
+          {activeStreaks.length > 0 && (
+            <>
+              <GoldDivider style={{ marginTop: 16 }} />
+              <Text style={[st.sectionTitle, { color: c.gold, marginTop: 8 }]}>ACTIVE STREAKS</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {activeStreaks.map((streak) => (
+                  <View key={streak.id} style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, paddingHorizontal: 14, paddingVertical: 10, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                    <Text style={{ fontSize: 20 }}>{streak.emoji}</Text>
+                    <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', marginTop: 4, fontFamily: SANS }}>{streak.label}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
           {/* Quick actions */}
           <QuickActions />
+
+          {/* Motivational micro-copy */}
+          <Text style={{ color: c.textMuted, fontSize: 10, fontWeight: '600', letterSpacing: 2, textAlign: 'center', marginTop: 8, fontFamily: GEO }}>GO LOW</Text>
 
           {/* My Groups (Item 5) */}
           <MyGroupsSection
@@ -868,7 +894,7 @@ export default function HomeScreen() {
           {/* Friend requests */}
           {pendingRequests.length > 0 && (
             <>
-              <SectionHeader title="FRIEND REQUESTS" />
+              <SectionHeader title="YOUR CREW" />
               <GoldDivider style={{ marginBottom: 12 }} />
               <Pressable
                 onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
@@ -888,6 +914,13 @@ export default function HomeScreen() {
             <>
               <SectionHeader title="LATEST" />
               <GoldDivider style={{ marginBottom: 12 }} />
+              {/* Weekly digest card */}
+              <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                <Text style={{ color: c.gold, fontSize: 10, fontWeight: '600', letterSpacing: 2, fontFamily: GEO }}>LAST WEEK</Text>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', marginTop: 6, fontFamily: SANS }}>
+                  2 rounds logged, avg 77.5, handicap {'\u2193'}0.3, moved up 1 spot
+                </Text>
+              </View>
               {feedItems.map((item) => (
                 <FeedCard key={item.id} item={item} />
               ))}

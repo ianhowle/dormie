@@ -1978,7 +1978,7 @@ function PostRoundSummary({
 
           {/* Save button */}
           <Pressable onPress={onDone} style={({ pressed }) => [ps.saveBtn, { backgroundColor: '#1E4D2B' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
-            <Text style={[ps.saveBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Save Round</Text>
+            <Text style={[ps.saveBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Post Score</Text>
           </Pressable>
         </View>
 
@@ -2827,7 +2827,7 @@ export default function ScoringScreen() {
               onPress={() => { setShowConfirmation(false); setShowSummary(true); }}
               style={[st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B', flex: 1 }]}
             >
-              <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Save Round</Text>
+              <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Post Score</Text>
               <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
             </Pressable>
           </View>
@@ -2903,7 +2903,7 @@ export default function ScoringScreen() {
               // Personal best check is non-critical
             }
 
-            Alert.alert('Round Saved', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) has been saved.`);
+            Alert.alert('Score Posted', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) is on the board.`);
             router.dismissAll();
           } catch (err) {
             Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save round');

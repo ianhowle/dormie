@@ -538,6 +538,8 @@ export default function ProfileScreen() {
                   params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
                 })}
                 style={({ pressed }) => [s.roundRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                accessibilityLabel={`${round.course}, score ${round.score}, ${round.date}`}
+                accessibilityHint="Swipe right to share"
               >
                 <View style={s.roundScoreWrap}>
                   <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
@@ -641,7 +643,7 @@ export default function ProfileScreen() {
                   <View style={s.favCourseStats}>
                     <View style={s.favCourseStat}>
                       <Text style={s.favCourseStatValue}>{FAVORITE_COURSE_STATS.bestScore}</Text>
-                      <Text style={s.favCourseStatLabel}>Best Score</Text>
+                      <Text style={s.favCourseStatLabel}>Course Record</Text>
                     </View>
                     <View style={s.favCourseStat}>
                       <Text style={s.favCourseStatValue}>{FAVORITE_COURSE_STATS.avgScore.toFixed(1)}</Text>
@@ -757,6 +759,7 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => { haptics.light(); Alert.alert('Account', `Email: ${profileUser.email}\nMember since ${profileUser.memberSince}`); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            accessibilityLabel={`Account: ${profileUser.email}`}
           >
             <Ionicons name="person-outline" size={20} color={c.textMuted} />
             <View style={{ flex: 1 }}>
