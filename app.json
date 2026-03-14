@@ -5,24 +5,42 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "dormie",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dormie.app"
+      "bundleIdentifier": "com.dormie.app",
+      "splash": {
+        "backgroundColor": "#000000",
+        "resizeMode": "contain",
+        "image": "./assets/splash-icon.png",
+        "dark": {
+          "backgroundColor": "#000000",
+          "image": "./assets/splash-icon.png"
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
-      "package": "com.dormie.app"
+      "package": "com.dormie.app",
+      "splash": {
+        "backgroundColor": "#000000",
+        "resizeMode": "contain",
+        "image": "./assets/splash-icon.png",
+        "dark": {
+          "backgroundColor": "#000000",
+          "image": "./assets/splash-icon.png"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",
