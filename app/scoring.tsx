@@ -956,6 +956,7 @@ function NavButtons({
       ) : (
         <Pressable
           onPress={onNext}
+          accessibilityLabel="Next hole"
           style={({ pressed }) => [
             st.navBtn,
             { backgroundColor: c.teal },
