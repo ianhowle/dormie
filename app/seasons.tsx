@@ -447,11 +447,11 @@ function RulesStep({
       <View style={[styles.multiplierRow, { backgroundColor: c.elevated }]}>
         <Text style={[styles.multiplierLabel, { color: c.textMuted }]}>Championship week</Text>
         <View style={styles.stepperRow}>
-          <Pressable onPress={() => setChampMultiplier(Math.max(1, champMultiplier - 0.5))}>
+          <Pressable onPress={() => { haptics.light(); setChampMultiplier(Math.max(1, champMultiplier - 0.5)); }}>
             <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
           </Pressable>
           <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{champMultiplier}×</Text>
-          <Pressable onPress={() => setChampMultiplier(champMultiplier + 0.5)}>
+          <Pressable onPress={() => { haptics.light(); setChampMultiplier(champMultiplier + 0.5); }}>
             <Ionicons name="add-circle-outline" size={24} color={c.gold} />
           </Pressable>
         </View>
@@ -508,7 +508,7 @@ function MajorsStep({
         {regularWeeks.map((w) => (
           <Pressable
             key={w.number}
-            onPress={() => toggleMajor(w.number)}
+            onPress={() => { haptics.light(); toggleMajor(w.number); }}
             style={[
               styles.majorWeekCard,
               {
@@ -588,7 +588,7 @@ function MembersStep({
         return (
           <Pressable
             key={f.id}
-            onPress={() => toggle(f.id)}
+            onPress={() => { haptics.light(); toggle(f.id); }}
             style={[
               styles.memberRow,
               {
@@ -731,6 +731,7 @@ export default function SeasonsScreen() {
   const c = theme.colors;
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const [step, setStep] = useState(0);
   const currentStep = STEPS[step];
@@ -810,7 +811,7 @@ export default function SeasonsScreen() {
         );
       } catch {}
     }
-    Alert.alert('Season Created', `"${name}" has been created with ${selectedIds.length + 1} members.`);
+    showToast({ message: 'Season created', type: 'gold', icon: 'trophy' });
     router.back();
   }, [name, seasonType, scoringMethod, user, cutEnabled, cutValue, dropWorst, playoffMultiplier, champMultiplier, editableWeeks, selectedIds, router]);
 
@@ -819,7 +820,7 @@ export default function SeasonsScreen() {
       {/* Header */}
       <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => (step > 0 ? setStep(step - 1) : router.back())} hitSlop={12}>
+          <Pressable onPress={() => { haptics.light(); step > 0 ? setStep(step - 1) : router.back(); }} hitSlop={12}>
             <Ionicons name={step > 0 ? 'arrow-back' : 'close'} size={24} color="#FFFFFF" />
           </Pressable>
           <Text style={[styles.headerTitle, { fontFamily: GEO }]}>
@@ -886,7 +887,7 @@ export default function SeasonsScreen() {
       <View style={[styles.bottomBar, { borderTopColor: c.border }]}>
         {currentStep === 'review' ? (
           <Pressable
-            onPress={handleCreate}
+            onPress={() => { haptics.success(); handleCreate(); }}
             style={[styles.nextBtn, { backgroundColor: c.gold }]}
           >
             <Ionicons name="trophy" size={20} color="#000000" />
