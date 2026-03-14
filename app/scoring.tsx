@@ -31,6 +31,9 @@ import type { PlayerHoleResult } from '../src/components/HoleTransitionBanner';
 import type { MomentType } from '../src/components/DormieMoment';
 import { useAuth } from '../src/lib/auth';
 import { haptics } from '../src/lib/haptics';
+import { sounds } from '../src/lib/sounds';
+import { queueOfflineAction } from '../src/lib/offline';
+import { scoreCellLabel } from '../src/lib/accessibility';
 import { useToast } from '../src/components/Toast';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
@@ -2467,6 +2470,7 @@ export default function ScoringScreen() {
 
       if (lead > 0 && lead === holesRemaining) {
         haptics.heavy();
+        sounds.chime();
         setDormieMoment({
           visible: true,
           type: 'DORMIE',
@@ -2477,6 +2481,7 @@ export default function ScoringScreen() {
       }
       if (lead > holesRemaining) {
         haptics.heavy();
+        sounds.chime();
         setDormieMoment({
           visible: true,
           type: 'MATCH_CLOSED',
@@ -2503,6 +2508,7 @@ export default function ScoringScreen() {
         if (winners.length === 1) {
           if (carryover >= 3) {
             haptics.heavy();
+            sounds.chime();
             const wp = players.find((p) => p.id === winners[0]);
             setDormieMoment({
               visible: true,
@@ -2602,6 +2608,7 @@ export default function ScoringScreen() {
 
     // Haptic feedback on hole score submission
     haptics.medium();
+    sounds.click();
     showToast({ message: 'Score submitted', type: 'success' });
 
     // Feature 12: Generate events

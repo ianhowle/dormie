@@ -539,6 +539,7 @@ function QuickActions() {
   return (
     <View style={st.actionsRow}>
       <Pressable
+        accessibilityLabel="Switch to Log Round"
         onPress={() => { haptics.light(); router.push('/(tabs)/score'); }}
         style={({ pressed }) => [st.actionBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
@@ -546,6 +547,7 @@ function QuickActions() {
         <Text style={[st.actionPrimaryText, { fontFamily: SANS }]}>Log Round</Text>
       </Pressable>
       <Pressable
+        accessibilityLabel="Switch to New Trip"
         onPress={() => { haptics.light(); router.push('/(tabs)/trips'); }}
         style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
@@ -553,6 +555,7 @@ function QuickActions() {
         <Text style={[st.actionSecText, { color: c.gold, fontFamily: SANS }]}>New Trip</Text>
       </Pressable>
       <Pressable
+        accessibilityLabel="Switch to Leaderboard"
         onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
         style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
@@ -873,7 +876,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Empty state — no friends */}
+          {/* Empty state — no crew */}
           {pendingRequests.length === 0 && realRounds.length === 0 && !showDemoData && (
             <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={st.emptyEmoji}>{'\uD83D\uDC65'}</Text>
