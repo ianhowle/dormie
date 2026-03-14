@@ -3669,8 +3669,10 @@ const st = StyleSheet.create({
     minWidth: 80,
   },
   scoreNumber: {
-    fontSize: 44,
+    fontSize: 48,
     fontWeight: '700',
+    fontFamily: GEO,
+    letterSpacing: -1,
   },
   netScore: {
     fontSize: 16,
@@ -3678,7 +3680,7 @@ const st = StyleSheet.create({
     marginTop: -4,
   },
   scoreLabelText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 2,
   },
@@ -3694,9 +3696,10 @@ const st = StyleSheet.create({
     gap: 4,
   },
   secondaryLabel: {
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   secondaryControls: {
     flexDirection: 'row',
@@ -3974,6 +3977,8 @@ const st = StyleSheet.create({
   },
   scoreGridText: {
     fontSize: 18,
+    fontFamily: GEO,
+    fontWeight: '700',
   },
   highScoreStepper: {
     flexDirection: 'row',

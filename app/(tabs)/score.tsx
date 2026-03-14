@@ -1085,12 +1085,12 @@ export default function ScoreScreen() {
                       </Text>
                     </View>
                   )}
-                  <Text style={[st.summaryText, { color: c.textMuted }]}>
-                    {players.length} player{players.length !== 1 ? 's' : ''} ·{' '}
-                    Par {effectivePar} ·{' '}
-                    {holeRange === 'full18' ? '18 holes' : '9 holes'} ·{' '}
+                  <Text style={[st.summaryText, { color: c.textMuted, fontFamily: SANS }]}>
+                    <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{players.length}</Text> player{players.length !== 1 ? 's' : ''} ·{' '}
+                    Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{effectivePar}</Text> ·{' '}
+                    {holeRange === 'full18' ? (<><Text style={{ fontFamily: GEO, fontWeight: '700' }}>18</Text> holes</>) : (<><Text style={{ fontFamily: GEO, fontWeight: '700' }}>9</Text> holes</>)} ·{' '}
                     {scoreMode === 'gross' ? 'Gross' : 'Net'}
-                    {sideGames.size > 0 ? ` · ${sideGames.size} side game${sideGames.size !== 1 ? 's' : ''}` : ''}
+                    {sideGames.size > 0 ? <> · <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{sideGames.size}</Text> side game{sideGames.size !== 1 ? 's' : ''}</> : ''}
                   </Text>
                 </View>
               </View>
@@ -1161,14 +1161,15 @@ const st = StyleSheet.create({
 
   /* Body */
   body: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginTop: 24,
     marginBottom: 10,
   },

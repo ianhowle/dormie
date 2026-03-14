@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../theme/colors';
+import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import { SCORE_COLORS, scoreColor, formatToPar as fmtToPar, scoreName } from '../lib/scoring-utils';
 
@@ -449,7 +451,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       {/* Hero header */}
-      <LinearGradient colors={['#1E4D2B', '#1E4D2BCC']} style={styles.hero}>
+      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.hero}>
         <View style={styles.heroTop}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={24} color="#FFFFFF" />

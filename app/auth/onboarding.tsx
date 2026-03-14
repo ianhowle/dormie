@@ -997,12 +997,12 @@ const styles = StyleSheet.create({
 
   // Step titles
   stepTitle: { fontSize: 22, fontFamily: GEO, fontWeight: '700', marginTop: 20 },
-  stepSubtitle: { fontSize: 13, marginTop: 4, marginBottom: 16 },
+  stepSubtitle: { fontSize: 10, marginTop: 4, marginBottom: 16 },
   stepDesc: { fontSize: 14, lineHeight: 20, marginBottom: 16 },
 
   // Fields
-  fieldLabel: { fontSize: 13, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 },
-  input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16 },
+  fieldLabel: { fontSize: 10, fontWeight: '600', marginBottom: 8, letterSpacing: 2, textTransform: 'uppercase' as const },
+  input: { borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16 },
   helperLink: { fontSize: 13, marginTop: 6 },
 
   // Avatar
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   verifyBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 
   // Group
-  groupCard: { padding: 14, marginBottom: 8 },
+  groupCard: { padding: 16, marginBottom: 8 },
   groupCardTitle: { fontSize: 15, fontWeight: '600' },
   groupCardDesc: { fontSize: 12, marginTop: 2 },
   miniPreview: { paddingHorizontal: 14, paddingBottom: 12, gap: 4 },
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
   courseResultLocation: { fontSize: 12, marginTop: 1 },
 
   // Invite
-  inviteSection: { padding: 16, marginTop: 16, alignItems: 'center', gap: 10 },
+  inviteSection: { padding: 16, marginTop: 16, alignItems: 'center', gap: 10, borderWidth: 1 },
   inviteCta: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10 },
   inviteBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },

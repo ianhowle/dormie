@@ -611,7 +611,7 @@ const st = StyleSheet.create({
 
   /* Your History */
   historyCard: {
-    padding: 16,
+    padding: 14,
   },
   historyRow: {
     flexDirection: 'row',
@@ -636,7 +636,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 14,
     borderWidth: 1,
     marginBottom: 6,
   },
@@ -666,7 +666,7 @@ const st = StyleSheet.create({
     letterSpacing: 1,
   },
   scoreLabel: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 3,
   },
   scoreDate: {
