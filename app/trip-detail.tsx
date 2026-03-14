@@ -19,7 +19,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import GoldDivider from '../src/components/GoldDivider';
 import { TripCountdownRing } from '../src/components/TripCountdownRing';
 import { RyderCupHub } from '../src/components/RyderCupHub';
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
@@ -1338,7 +1340,7 @@ function RSVPPreview({
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Masters green hero */}
         <LinearGradient
-          colors={[MASTERS_GREEN, '#2D6A3F']}
+          colors={greenHeaderGradient as unknown as string[]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={tt.rsvpHero}
@@ -1791,7 +1793,7 @@ function CompetitionView({
     <View style={[s.screen, { backgroundColor: c.bg }]}>
       {/* Masters green header */}
       <LinearGradient
-        colors={[MASTERS, '#2D6A3F']}
+        colors={greenHeaderGradient as unknown as string[]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={cm.compHeader}
@@ -1934,7 +1936,7 @@ function CompetitionView({
           {/* ACTION BUTTONS */}
           <View style={cm.actionBtns}>
             <Pressable onPress={onScoreHole} style={cm.actionPrimary}>
-              <LinearGradient colors={['#1E4D2B', '#2D6A3F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
               <Ionicons name="golf" size={18} color="#D4AF37" />
               <Text style={[cm.actionPrimaryText, { fontFamily: GEO }]}>Score Hole-by-Hole</Text>
             </Pressable>
@@ -2023,7 +2025,7 @@ function CompetitionView({
 
       {/* Floating chat button */}
       <Pressable style={cm.chatFab}>
-        <LinearGradient colors={['#1E4D2B', '#2D6A3F']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={StyleSheet.absoluteFill} />
         <Ionicons name="chatbubbles" size={22} color="#fff" />
         {unreadChat > 0 && (
           <View style={cm.chatBadge}>
@@ -2163,12 +2165,14 @@ export default function TripDetailScreen() {
             onPress={() => setShowCeremony(true)}
             style={s.startTripBtn}
           >
-            <LinearGradient colors={['#1E4D2B', '#2D6A3F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
             <Ionicons name="play" size={12} color="#D4AF37" />
             <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
           </Pressable>
         </View>
       </View>
+
+      <GoldDivider />
 
       {/* ─── PLAYER ROW ─────────────────────────────────────────────── */}
       <FlatList
@@ -2288,12 +2292,12 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   heroLeft: { flex: 1, marginRight: 16 },
   heroRight: { alignItems: 'center', gap: 8 },
-  heroName: { fontSize: 26, fontWeight: '700', lineHeight: 30 },
+  heroName: { fontSize: 26, fontWeight: '700', lineHeight: 30, letterSpacing: -1 },
   heroLocation: { fontSize: 13, marginTop: 4 },
   heroDateRange: { fontSize: 12, marginTop: 4 },
   startTripBtn: {
@@ -2355,16 +2359,17 @@ const s = StyleSheet.create({
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginTop: 20,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
 
   /* Tab content */
   tabContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
 
   /* Chat preview (Clubhouse) */
@@ -2391,7 +2396,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   statValue: { fontSize: 16, fontWeight: '700' },
-  statLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
+  statLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginTop: 2, textTransform: 'uppercase' as const },
 
   /* Invite code */
   inviteRow: {
@@ -2531,7 +2536,7 @@ const s = StyleSheet.create({
   },
   courseStatItem: { alignItems: 'center' },
   courseStatValue: { fontSize: 15, fontWeight: '700' },
-  courseStatLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
+  courseStatLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginTop: 2, textTransform: 'uppercase' as const },
   courseVoteRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -2588,7 +2593,7 @@ const s = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
   },
-  checkProgressNum: { fontSize: 32, fontWeight: '700' },
+  checkProgressNum: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
   checkProgressLabel: { fontSize: 12, marginTop: 2 },
   fullCheckRow: {
     flexDirection: 'row',

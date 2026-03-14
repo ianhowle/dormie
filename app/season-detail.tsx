@@ -647,7 +647,7 @@ function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: numbe
             key={w.number}
             style={[
               styles.scheduleCard,
-              { backgroundColor: c.cardBg, borderColor: isCurrent ? c.teal : c.border, borderWidth: isCurrent ? 1 : 0 },
+              { backgroundColor: c.cardBg, borderColor: isCurrent ? c.teal : c.border },
             ]}
           >
             <View style={styles.scheduleCardHeader}>
@@ -714,7 +714,7 @@ function ChallengesTab({ challenges }: { challenges: BonusChallenge[] }) {
   return (
     <ScrollView style={styles.challengesContainer} showsVerticalScrollIndicator={false}>
       {challenges.map((ch) => (
-        <View key={ch.id} style={[styles.challengeCard, { backgroundColor: c.cardBg }]}>
+        <View key={ch.id} style={[styles.challengeCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
           <View style={styles.challengeHeader}>
             <Ionicons name="ribbon" size={20} color={c.gold} />
             <Text style={[styles.challengeLabel, { color: c.text }]}>{ch.label}</Text>
@@ -921,8 +921,8 @@ const styles = StyleSheet.create({
   weekBadge: { paddingHorizontal: 6, paddingVertical: 2 },
   weekBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
 
-  scheduleContainer: { flex: 1, padding: 16 },
-  scheduleCard: { padding: 14, marginBottom: 10 },
+  scheduleContainer: { flex: 1, padding: 20 },
+  scheduleCard: { padding: 14, marginBottom: 10, borderWidth: 1 },
   scheduleCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   scheduleWeekNum: { fontSize: 16, fontWeight: '700' },
   scheduleCardBody: { marginTop: 8, gap: 4 },
@@ -931,14 +931,15 @@ const styles = StyleSheet.create({
   majorGlow: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, marginTop: 8 },
   majorNameText: { fontSize: 13, fontWeight: '600' },
 
-  challengesContainer: { flex: 1, padding: 16 },
+  challengesContainer: { flex: 1, padding: 20 },
   challengeCard: { padding: 14, marginBottom: 10 },
+  challengeCardBorder: { borderWidth: 1 },
   challengeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   challengeLabel: { fontSize: 16, fontWeight: '600' },
   challengeDesc: { fontSize: 13, marginTop: 4 },
   challengeFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   challengeLeader: { fontSize: 14, fontWeight: '600' },
-  challengeVal: { fontSize: 20 },
+  challengeVal: { fontSize: 20, fontWeight: '700' },
 
   bracketContainer: { padding: 16 },
   bracketTitle: { fontSize: 14, fontWeight: '800', letterSpacing: 1.5, textAlign: 'center', marginBottom: 12 },
@@ -976,10 +977,8 @@ const styles = StyleSheet.create({
   ceremonyContent: { alignItems: 'center', padding: 40, width: SCREEN_W * 0.85, position: 'relative' },
   ceremonyTrophy: { fontSize: 64, textAlign: 'center' },
   ceremonyLabel: { fontSize: 28, fontWeight: '800', letterSpacing: 3, marginTop: 16, fontFamily: GEO },
-  ceremonyDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
-  dividerLine: { width: 60, height: 1 },
-  ceremonyName: { fontSize: 28, fontWeight: '700', fontFamily: GEO, textAlign: 'center' },
-  ceremonyPoints: { fontSize: 48, fontWeight: '700', fontFamily: GEO },
+  ceremonyName: { fontSize: 28, fontWeight: '700', fontFamily: GEO, textAlign: 'center', letterSpacing: -1 },
+  ceremonyPoints: { fontSize: 48, fontWeight: '700', fontFamily: GEO, letterSpacing: -1 },
   ceremonyStats: { flexDirection: 'row', alignItems: 'center', marginTop: 24, gap: 16 },
   ceremonyStat: { alignItems: 'center' },
   ceremonyStatVal: { fontSize: 20, fontWeight: '700', fontFamily: GEO },

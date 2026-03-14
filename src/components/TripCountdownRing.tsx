@@ -89,6 +89,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  days: { fontSize: 32, fontWeight: '800' },
-  label: { fontSize: 11, fontWeight: '600', letterSpacing: 1, marginTop: -2 },
+  days: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
+  label: { fontSize: 10, fontWeight: '600', letterSpacing: 1, marginTop: -2 },
 });

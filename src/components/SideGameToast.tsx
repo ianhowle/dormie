@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { tickerShadowDark, tickerShadowLight } from '../theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const AUTO_DISMISS_MS = 3000;
@@ -235,6 +236,7 @@ function AutoToast({
       style={[
         styles.toast,
         { backgroundColor: c.teal, opacity: opacityAnim, transform: [{ translateY: slideAnim }] },
+        theme.isDark ? tickerShadowDark : tickerShadowLight,
       ]}
     >
       <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
@@ -281,6 +283,7 @@ function SemiAutoToast({
         styles.toast,
         styles.toastSemiAuto,
         { backgroundColor: c.gold, opacity: opacityAnim, transform: [{ translateY: slideAnim }] },
+        theme.isDark ? tickerShadowDark : tickerShadowLight,
       ]}
     >
       <Ionicons name="help-circle" size={20} color="#000000" />
@@ -450,28 +453,23 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    padding: 16,
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   toastSemiAuto: {},
-  toastLabel: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  toastDesc: { fontSize: 12, color: '#FFFFFFCC', marginTop: 2 },
+  toastLabel: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  toastDesc: { fontSize: 10, color: '#FFFFFFCC', marginTop: 2 },
   toastActions: { flexDirection: 'row', gap: 6 },
   toastBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 
   // Manual modal
   modalOverlay: { flex: 1, backgroundColor: '#00000088', justifyContent: 'center', paddingHorizontal: 24 },
-  modalContent: { padding: 20 },
+  modalContent: { padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  modalTitle: { fontSize: 18, fontWeight: '700' },
-  modalDesc: { fontSize: 14, marginTop: 8, lineHeight: 20 },
+  modalTitle: { fontSize: 16, fontWeight: '700' },
+  modalDesc: { fontSize: 13, marginTop: 8, lineHeight: 20 },
   modalInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
-  modalInput: { flex: 1, fontSize: 24, fontFamily: GEO, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, textAlign: 'center' },
+  modalInput: { flex: 1, fontSize: 24, fontFamily: GEO, fontWeight: '700', letterSpacing: -1, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, textAlign: 'center' },
   modalUnit: { fontSize: 16, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   modalBtn: { flex: 1, paddingVertical: 12, alignItems: 'center' },

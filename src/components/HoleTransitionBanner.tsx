@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { scoreColor as scoreColorUtil, scoreName as scoreNameUtil } from '../lib/scoring-utils';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -132,6 +133,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    borderWidth: 1,
+    borderColor: 'transparent',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -143,21 +146,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
-  holeLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
-  holeNum: { fontSize: 24, fontWeight: '700' },
-  holePar: { fontSize: 11, fontWeight: '600' },
+  holeLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2 },
+  holeNum: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
+  holePar: { fontSize: 10, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 8,
   },
   colorDot: { width: 8, height: 8, borderRadius: 0 },
-  playerName: { flex: 1, fontSize: 14, fontWeight: '600', minWidth: 70 },
+  playerName: { flex: 1, fontSize: 13, fontWeight: '600', minWidth: 70 },
   indicators: { flexDirection: 'row', gap: 4 },
   indicator: { paddingHorizontal: 4, paddingVertical: 1 },
   indicatorText: { fontSize: 9, fontWeight: '700' },

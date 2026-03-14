@@ -55,7 +55,7 @@ export function Avatar({ id, size = 48, name, photoUrl }: AvatarProps) {
   // Show photo if photoUrl is provided and hasn't errored
   if (photoUrl && !imageError) {
     return (
-      <View style={{ width: size, height: size, overflow: 'hidden' }}>
+      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
         <Image
           source={{ uri: photoUrl }}
           style={{ width: size, height: size }}
@@ -66,7 +66,7 @@ export function Avatar({ id, size = 48, name, photoUrl }: AvatarProps) {
   }
 
   return (
-    <View style={{ width: size, height: size, overflow: 'hidden' }}>
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
       <LinearGradient
         colors={[start, end]}
         start={{ x: 0, y: 0 }}

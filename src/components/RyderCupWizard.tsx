@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
+import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import { SIDE_GAMES, type SideGame } from '../data/scoring';
 
@@ -1555,11 +1557,12 @@ const w = StyleSheet.create({
 
   /* Shared controls */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginTop: 24,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
   input: {
     borderWidth: 1,
@@ -1589,7 +1592,7 @@ const w = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  roundPillText: { fontSize: 18, fontWeight: '700' },
+  roundPillText: { fontSize: 18, fontWeight: '700', letterSpacing: -1 },
 
   /* Teams */
   teamSizeRow: { flexDirection: 'row', gap: 8 },
@@ -1599,7 +1602,7 @@ const w = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
   },
-  teamSizeNum: { fontSize: 20, fontWeight: '700' },
+  teamSizeNum: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
   teamSizeLabel: { fontSize: 10, marginTop: 2 },
   adaptBox: {
     flexDirection: 'row',
@@ -1646,7 +1649,7 @@ const w = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  stepperVal: { fontSize: 22, fontWeight: '700', minWidth: 40, textAlign: 'center' },
+  stepperVal: { fontSize: 24, fontWeight: '700', minWidth: 40, textAlign: 'center', letterSpacing: -1 },
   scoreExplain: {
     flexDirection: 'row',
     borderWidth: 1,
@@ -1654,8 +1657,8 @@ const w = StyleSheet.create({
     justifyContent: 'space-around',
   },
   scoreExplainItem: { alignItems: 'center' },
-  scoreExplainPts: { fontSize: 24, fontWeight: '700' },
-  scoreExplainLabel: { fontSize: 11, marginTop: 4 },
+  scoreExplainPts: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
+  scoreExplainLabel: { fontSize: 10, marginTop: 4 },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

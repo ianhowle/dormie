@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
+import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import type { Trip } from '../data/trips';
 
@@ -1389,6 +1391,8 @@ function RCCompletion({
           {winner === 'red' ? 'TEAM RED' : winner === 'blue' ? 'TEAM BLUE' : 'TIED'}
         </Text>
 
+        <GoldDivider style={{ marginBottom: 24, width: '60%' }} />
+
         <View style={cp.finalScoreRow}>
           <Text style={[cp.finalNum, { color: RC_RED, fontFamily: GEO }]}>
             {redTotal % 1 === 0 ? redTotal : redTotal.toFixed(1)}
@@ -1662,7 +1666,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
             <Pressable
               key={session.id}
               onPress={() => handleSessionPress(session)}
-              style={[h.sessionCard, { backgroundColor: c.cardBg, borderColor: c.border }]}
+              style={({ pressed }) => [h.sessionCard, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <View style={h.sessionTop}>
                 {/* Day badge */}
@@ -1843,7 +1847,7 @@ const h = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: -1,
   },
   cupLocation: {
     color: 'rgba(255,255,255,0.5)',
@@ -1886,6 +1890,7 @@ const h = StyleSheet.create({
   scoreNum: {
     fontSize: 40,
     fontWeight: '900',
+    letterSpacing: -1,
   },
   scoreDivider: {
     width: 4,
@@ -1921,11 +1926,12 @@ const h = StyleSheet.create({
 
   /* Section label */
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginTop: 24,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
 
   /* Draft CTA */
@@ -1951,7 +1957,7 @@ const h = StyleSheet.create({
   /* Session card */
   sessionCard: {
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 8,
     position: 'relative',
   },
@@ -2022,6 +2028,7 @@ const h = StyleSheet.create({
   sessionScoreVal: {
     fontSize: 18,
     fontWeight: '700',
+    letterSpacing: -1,
   },
   sessionScoreDash: {
     fontSize: 14,
@@ -2046,7 +2053,7 @@ const h = StyleSheet.create({
     gap: 6,
   },
   quickActionLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
 
@@ -2055,11 +2062,11 @@ const h = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
   },
   inviteCode: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     letterSpacing: 4,
   },
@@ -2126,15 +2133,15 @@ const h = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
   },
-  checkProgressNum: { fontSize: 32, fontWeight: '700' },
-  checkProgressLabel: { fontSize: 12, marginTop: 2 },
+  checkProgressNum: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
+  checkProgressLabel: { fontSize: 10, marginTop: 2 },
   progressTrack: { height: 4, width: '100%', marginTop: 8 },
   progressFill: { height: 4 },
   checkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     marginBottom: 6,
   },
@@ -2145,7 +2152,7 @@ const h = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkText: { fontSize: 14, flex: 1 },
+  checkText: { fontSize: 13, flex: 1 },
   checkTextDone: { textDecorationLine: 'line-through' },
 
   /* Chat */
@@ -2210,11 +2217,12 @@ const h = StyleSheet.create({
 
   /* Settings */
   settingsSection: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginTop: 24,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
   configTable: { borderWidth: 1 },
   configRow: {
@@ -2281,12 +2289,14 @@ const h = StyleSheet.create({
     width: 44,
     height: 24,
     borderWidth: 1,
+    borderRadius: 10,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   toggleKnob: {
     width: 18,
     height: 18,
+    borderRadius: 8,
     backgroundColor: '#fff',
   },
   toggleKnobOn: {
@@ -2418,13 +2428,13 @@ const ml = StyleSheet.create({
   },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerScore: { fontSize: 24, fontWeight: '900' },
+  headerScore: { fontSize: 24, fontWeight: '900', letterSpacing: -1 },
   headerDash: { alignItems: 'center' },
   headerSessionLabel: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   headerMeta: { color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 4 },
   matchCard: {
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 8,
   },
   matchRow: {
@@ -2531,7 +2541,7 @@ const ms = StyleSheet.create({
     borderWidth: 1,
   },
   scoreDisplay: { alignItems: 'center', minWidth: 60 },
-  scoreNum: { fontSize: 36, fontWeight: '800' },
+  scoreNum: { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
   scoreName: { fontSize: 11, fontWeight: '600', marginTop: -2 },
   resultBanner: {
     borderWidth: 1,
@@ -2571,11 +2581,11 @@ const ms = StyleSheet.create({
     marginTop: 16,
     alignItems: 'center',
   },
-  runningLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
+  runningLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2 },
   runningScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 6 },
   runningSide: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   teamDotSm: { width: 8, height: 8, borderRadius: 0 },
-  runningVal: { fontSize: 24, fontWeight: '700' },
+  runningVal: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
   runningDash: { fontSize: 14 },
   halvedText: { fontSize: 10, marginTop: 4 },
 });
@@ -2592,15 +2602,15 @@ const cp = StyleSheet.create({
   trophy: { fontSize: 72, marginBottom: 16 },
   champLabel: {
     color: 'rgba(255,255,255,0.4)',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 4,
     marginBottom: 8,
   },
   winnerName: {
     fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 4,
+    letterSpacing: -1,
     marginBottom: 32,
   },
   finalScoreRow: {
@@ -2609,7 +2619,7 @@ const cp = StyleSheet.create({
     gap: 16,
     marginBottom: 48,
   },
-  finalNum: { fontSize: 48, fontWeight: '900' },
+  finalNum: { fontSize: 48, fontWeight: '900', letterSpacing: -1 },
   finalDivider: { width: 4, height: 40, gap: 0 },
   finalDivHalf: { flex: 1, width: 4 },
   btns: { gap: 12, width: '100%' },

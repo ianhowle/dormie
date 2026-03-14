@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
 import {
   PLAYED_SORTED,
@@ -95,7 +96,7 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
       <SectionHeader title="GROUP COURSE RECORDS" />
       <View style={[s.table, { borderColor: c.border }]}>
         {/* Header row */}
-        <View style={[s.tableRow, { backgroundColor: '#1E4D2B' }]}>
+        <View style={[s.tableRow, { backgroundColor: '#1E4D2B', paddingVertical: 12 }]}>
           <Text style={[s.colCourse, s.colHeader]}>COURSE</Text>
           <Text style={[s.colHolder, s.colHeader]}>HOLDER</Text>
           <Text style={[s.colToPar, s.colHeader]}>TO PAR</Text>
@@ -115,9 +116,9 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
             <Pressable
               key={cr.id}
               onPress={() => router.push(`/course-detail?courseId=${cr.id}`)}
-              style={[
+              style={({ pressed }) => [
                 s.tableRow,
-                { backgroundColor: bgColor },
+                { backgroundColor: bgColor, opacity: pressed ? 0.7 : 1 },
                 isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
               ]}
             >
@@ -389,11 +390,12 @@ const s = StyleSheet.create({
 
   /* Section */
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 10,
     marginTop: 16,
+    textTransform: 'uppercase',
   },
 
   /* Table */
@@ -434,11 +436,11 @@ const s = StyleSheet.create({
 
   /* Course cell */
   courseName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   courseMeta: {
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 1,
   },
 
@@ -470,22 +472,22 @@ const s = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderStyle: 'dashed',
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   bucketInfo: {
     flex: 1,
   },
   bucketName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   bucketLocation: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
   bucketStats: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 4,
   },
@@ -500,22 +502,22 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
   },
   discoverInfo: {
     flex: 1,
   },
   discoverName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   discoverLocation: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
   discoverStats: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 4,
   },

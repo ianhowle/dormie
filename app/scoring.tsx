@@ -351,7 +351,7 @@ function HoleStrip({
       return (
         <Pressable
           onPress={() => onSelect(index)}
-          style={[
+          style={({ pressed }) => [
             st.holeChip,
             {
               backgroundColor: isCurrent
@@ -361,6 +361,8 @@ function HoleStrip({
                   : c.elevated,
               borderColor: isCurrent ? '#D4AF37' : hasScores ? c.teal : c.border,
             },
+            isCurrent && { borderLeftWidth: 3, borderLeftColor: '#1E4D2B' },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
           <Text
@@ -487,6 +489,7 @@ function PlayerScoreInput({
             borderColor: isMe ? c.teal : c.border,
           },
           isMe && { borderLeftWidth: 3, borderLeftColor: c.teal },
+          theme.isDark ? cardShadowDark : cardShadowLight,
         ]}
       >
         <View style={st.compactHeader}>
@@ -516,12 +519,13 @@ function PlayerScoreInput({
             <Pressable
               key={n}
               onPress={() => setGross(n)}
-              style={[
+              style={({ pressed }) => [
                 st.compactGridCell,
                 {
                   backgroundColor: score.gross === n ? c.teal : c.elevated,
                   borderColor: score.gross === n ? c.teal : c.border,
                 },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
               <Text
@@ -540,12 +544,13 @@ function PlayerScoreInput({
           <Pressable
             onPress={() => { if (score.gross < 8) setGross(8); else adjustGross(1); }}
             onLongPress={() => adjustGross(-1)}
-            style={[
+            style={({ pressed }) => [
               st.compactGridCell,
               {
                 backgroundColor: score.gross >= 8 ? c.teal : c.elevated,
                 borderColor: score.gross >= 8 ? c.teal : c.border,
               },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
             <Text
@@ -585,6 +590,7 @@ function PlayerScoreInput({
           borderColor: isMe ? c.teal : c.border,
         },
         isMe && { borderLeftWidth: 3, borderLeftColor: c.teal },
+        theme.isDark ? cardShadowDark : cardShadowLight,
       ]}
     >
       {/* Player header */}
@@ -628,12 +634,13 @@ function PlayerScoreInput({
           <Pressable
             key={n}
             onPress={() => setGross(n)}
-            style={[
+            style={({ pressed }) => [
               st.scoreGridCell,
               {
                 backgroundColor: score.gross === n ? c.teal : c.elevated,
                 borderColor: score.gross === n ? c.teal : c.border,
               },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
             <Text
@@ -654,12 +661,13 @@ function PlayerScoreInput({
         {!showHighGrid ? (
           <Pressable
             onPress={() => { setGross(8); setShowHighGrid(true); }}
-            style={[
+            style={({ pressed }) => [
               st.scoreGridCell,
               {
                 backgroundColor: score.gross >= 8 ? c.teal : c.elevated,
                 borderColor: score.gross >= 8 ? c.teal : c.border,
               },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
             <Text
@@ -913,9 +921,10 @@ function NavButtons({
       <Pressable
         onPress={onPrev}
         disabled={!canPrev}
-        style={[
+        style={({ pressed }) => [
           st.navBtn,
           { backgroundColor: c.elevated, borderColor: c.border, opacity: canPrev ? 1 : 0.3 },
+          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
         ]}
       >
         <Ionicons name="chevron-back" size={18} color={c.text} />
@@ -925,7 +934,10 @@ function NavButtons({
       {isLast ? (
         <Pressable
           onPress={onFinish}
-          style={[st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B' }]}
+          style={({ pressed }) => [
+            st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B' },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
         >
           <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>
             Finish Round
@@ -935,9 +947,10 @@ function NavButtons({
       ) : (
         <Pressable
           onPress={onNext}
-          style={[
+          style={({ pressed }) => [
             st.navBtn,
             { backgroundColor: c.teal },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
           <Text style={[st.navBtnText, { color: '#fff' }]}>Next Hole</Text>
@@ -1253,7 +1266,7 @@ function StatsTab({
           : '-';
 
         return (
-          <View key={row.player.id} style={[ps.statPlayerCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <View key={row.player.id} style={[ps.statPlayerCard, { backgroundColor: c.cardBg, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
             <View style={ps.statPlayerHeader}>
               <Avatar id={row.player.id} size={28} name={row.player.name} />
               <Text style={[ps.statPlayerName, { color: isMe ? c.teal : c.text }]}>
@@ -1368,7 +1381,7 @@ function GamesTab({
   return (
     <View>
       {results.map((r, i) => (
-        <View key={i} style={[ps.gameCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        <View key={i} style={[ps.gameCard, { backgroundColor: c.cardBg, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
           <Text style={[ps.gameTitle, { color: c.gold, fontFamily: GEO }]}>{r.title}</Text>
           {r.lines.map((line, li) => (
             <View key={li} style={ps.gameLine}>
@@ -1719,7 +1732,7 @@ function SettlementSection({
   return (
     <View style={ps.settlementSection}>
       <Text style={[ps.sectionTitle, { color: c.gold, fontFamily: GEO }]}>SETTLEMENT</Text>
-      <View style={[ps.settlementCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+      <View style={[ps.settlementCard, { backgroundColor: c.cardBg, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
         {settlements.length === 0 ? (
           <Text style={[ps.settlementEmpty, { color: c.textMuted }]}>No payouts to settle</Text>
         ) : (
@@ -1747,7 +1760,7 @@ function SettlementSection({
         )}
         <Pressable
           onPress={() => Alert.alert('Settle Up', 'Venmo / Cash settlement will be tracked here in production.')}
-          style={[ps.settleUpBtn, { backgroundColor: c.teal }]}
+          style={({ pressed }) => [ps.settleUpBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
         >
           <Text style={ps.settleUpBtnText}>Settle Up</Text>
         </Pressable>
@@ -1822,7 +1835,7 @@ function ShareCard({
         )}
       </LinearGradient>
 
-      <Pressable onPress={onShare} style={[ps.shareBtn, { backgroundColor: c.elevated, borderColor: c.border }]}>
+      <Pressable onPress={onShare} style={({ pressed }) => [ps.shareBtn, { backgroundColor: c.elevated, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
         <Ionicons name="share-outline" size={18} color={c.teal} />
         <Text style={[ps.shareBtnText, { color: c.teal }]}>Share Round</Text>
       </Pressable>
@@ -1877,7 +1890,7 @@ function PostRoundSummary({
         {/* Final standings (always visible) */}
         <View style={ps.body}>
           <Text style={[ps.sectionTitle, { color: c.gold, fontFamily: GEO }]}>FINAL STANDINGS</Text>
-          <View style={[ps.standingsTable, { borderColor: c.border }]}>
+          <View style={[ps.standingsTable, { borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
             <View style={[ps.standingsRow, { backgroundColor: '#1E4D2B' }]}>
               <Text style={[ps.stColPos, ps.stHeader]}>POS</Text>
               <Text style={[ps.stColName, ps.stHeader]}>PLAYER</Text>
@@ -1915,6 +1928,7 @@ function PostRoundSummary({
           </View>
 
           {/* Tab bar */}
+          <GoldDivider style={{ marginTop: 20 }} />
           <SummaryTabBar tab={tab} onSelect={setTab} hasGames={sideGameKeys.length > 0} />
 
           {/* Tab content */}
@@ -1938,6 +1952,7 @@ function PostRoundSummary({
           )}
 
           {/* Feature 5: Settlement / Payout Calculator */}
+          {sideGameKeys.length > 0 && <GoldDivider style={{ marginTop: 20 }} />}
           {sideGameKeys.length > 0 && (
             <SettlementSection
               sideGameKeys={sideGameKeys}
@@ -1957,7 +1972,7 @@ function PostRoundSummary({
           />
 
           {/* Save button */}
-          <Pressable onPress={onDone} style={[ps.saveBtn, { backgroundColor: '#1E4D2B' }]}>
+          <Pressable onPress={onDone} style={({ pressed }) => [ps.saveBtn, { backgroundColor: '#1E4D2B' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
             <Text style={[ps.saveBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Save Round</Text>
           </Pressable>
         </View>
@@ -2910,9 +2925,11 @@ export default function ScoringScreen() {
 
       {/* Item 8: Collapsible Side Game Ticker */}
       {sideGameKeys.length > 0 && (
+        <>
+        <GoldDivider />
         <Pressable
           onPress={() => setSideGameTickerExpanded(!sideGameTickerExpanded)}
-          style={st.sideGameTicker}
+          style={[st.sideGameTicker, theme.isDark ? tickerShadowDark : tickerShadowLight]}
         >
           {!sideGameTickerExpanded ? (
             <View style={st.sideGameTickerCollapsed}>
@@ -2978,6 +2995,8 @@ export default function ScoringScreen() {
             </View>
           )}
         </Pressable>
+        <GoldDivider />
+        </>
       )}
 
       {/* Feature 4: Best Ball Team Banner */}
@@ -3114,12 +3133,13 @@ export default function ScoringScreen() {
                         : [...currentTags, tag];
                       updatePlayerScore('1', { ...currentScore, tags: newTags });
                     }}
-                    style={[
+                    style={({ pressed }) => [
                       st.tagPill,
                       {
                         backgroundColor: isSelected ? `${c.teal}20` : c.elevated,
                         borderColor: isSelected ? c.teal : c.border,
                       },
+                      pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                     ]}
                   >
                     <Text style={[st.tagPillText, { color: isSelected ? c.teal : c.textMuted }]}>
@@ -3160,7 +3180,7 @@ export default function ScoringScreen() {
                   setShowHammerModal(true);
                 }
               }}
-              style={[st.hammerBtn, { backgroundColor: c.gold }]}
+              style={({ pressed }) => [st.hammerBtn, { backgroundColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
             >
               <Ionicons name="hammer-outline" size={18} color="#1E4D2B" />
               <Text style={[st.hammerBtnText, { fontFamily: GEO }]}>Throw Hammer</Text>
@@ -3240,7 +3260,7 @@ export default function ScoringScreen() {
                   }));
                   setShowHammerModal(false);
                 }}
-                style={[st.modalBtn, { backgroundColor: c.teal }]}
+                style={({ pressed }) => [st.modalBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Text style={st.modalBtnText}>Accept</Text>
               </Pressable>
@@ -3260,7 +3280,7 @@ export default function ScoringScreen() {
                   setHammerState((prev) => ({ ...prev, pending: false }));
                   setShowHammerModal(false);
                 }}
-                style={[st.modalBtn, { backgroundColor: c.urgent }]}
+                style={({ pressed }) => [st.modalBtn, { backgroundColor: c.urgent }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Text style={st.modalBtnText}>Fold</Text>
               </Pressable>
@@ -3422,6 +3442,7 @@ export default function ScoringScreen() {
             </View>
             <View style={{ width: 24 }} />
           </View>
+          <GoldDivider />
           {/* Item 10: Broadcast-style scoreboard header */}
           <View style={st.broadcastHeaderRow}>
             <Text style={st.broadcastColPos}>POS</Text>
