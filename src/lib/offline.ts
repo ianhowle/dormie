@@ -5,6 +5,18 @@
  */
 
 import { Platform } from 'react-native';
+import { useState, useEffect } from 'react';
+
+// ─── NetInfo: optional dependency ───────────────────────────────────
+let NetInfo: any = null;
+try {
+  NetInfo = require('@react-native-community/netinfo').default;
+} catch {
+  console.warn(
+    '[offline] @react-native-community/netinfo is not installed. ' +
+      'Network detection will assume online. Run: npx expo install @react-native-community/netinfo',
+  );
+}
 
 let AsyncStorage: any = null;
 try {
@@ -118,11 +130,83 @@ export async function clearAllPending(): Promise<void> {
 }
 
 // ─── Network status helper ──────────────────────────────────────────
+/**
+ * Returns live network state.
+ * When NetInfo is available, subscribes to connection changes and
+ * automatically triggers syncOfflineQueue() on reconnect.
+ * Falls back to "always online" if NetInfo is not installed.
+ */
 export function useNetworkStatus() {
-  // In production, use @react-native-community/netinfo
-  // For now, provide a simple check
-  return {
-    isConnected: true, // Assume connected; override with netinfo later
-    isInternetReachable: true,
-  };
+  const [isConnected, setIsConnected] = useState<boolean>(true);
+  const [isInternetReachable, setIsInternetReachable] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (!NetInfo) {
+      // NetInfo not installed — optimistically assume online
+      return;
+    }
+
+    let previouslyOffline = false;
+
+    const unsubscribe = NetInfo.addEventListener((state: any) => {
+      const connected = state.isConnected ?? true;
+      const reachable = state.isInternetReachable ?? true;
+
+      setIsConnected(connected);
+      setIsInternetReachable(reachable);
+
+      const nowOnline = connected && reachable;
+
+      if (previouslyOffline && nowOnline) {
+        // Transitioned from offline → online: flush queued actions
+        syncOfflineQueue().catch(() => {
+          // Sync errors are handled inside syncOfflineQueue
+        });
+      }
+
+      previouslyOffline = !nowOnline;
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  return { isConnected, isInternetReachable };
+}
+
+/**
+ * Attempt to replay all pending offline actions.
+ * Callers (services) should listen for this and re-submit each action.
+ * Clears successfully replayed items from the queue.
+ */
+export async function syncOfflineQueue(): Promise<void> {
+  const pending = await getPendingActions();
+  if (pending.length === 0) return;
+
+  for (const action of pending) {
+    try {
+      // Emit a custom event that service layers can listen for.
+      // The actual re-submission is delegated to registered handlers
+      // (see registerSyncHandler) rather than being hard-coded here.
+      const handler = syncHandlers[action.type];
+      if (handler) {
+        await handler(action.payload);
+        await clearPendingAction(action.id);
+      }
+    } catch {
+      // Leave failed actions in queue to retry on next reconnect
+    }
+  }
+}
+
+type ActionType = 'save_round' | 'send_message' | 'create_trip';
+const syncHandlers: Partial<Record<ActionType, (payload: any) => Promise<void>>> = {};
+
+/** Register a handler to process a queued action type on reconnect. */
+export function registerSyncHandler(
+  type: ActionType,
+  handler: (payload: any) => Promise<void>,
+): void {
+  syncHandlers[type] = handler;
 }

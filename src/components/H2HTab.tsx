@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
@@ -5,6 +6,91 @@ import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
 import { MOCK_H2H, type H2HMatchup } from '../data/h2h';
+import type { RoundWithCourse } from '../lib/database.types';
+
+// ─── Props ───────────────────────────────────────────────────────────
+type Friend = { id: string; name: string; handicap: number };
+
+type H2HTabProps = {
+  userId?: string;
+  friends?: Friend[];
+  realRounds?: RoundWithCourse[] | null;
+};
+
+// ─── Compute H2H records from real round data ────────────────────────
+function computeH2H(
+  userId: string,
+  friends: Friend[],
+  allRounds: RoundWithCourse[],
+): H2HMatchup[] {
+  // Index user's own rounds by course_id + date key
+  const myRounds = allRounds.filter((r) => r.user_id === userId);
+
+  return friends
+    .map((friend) => {
+      const theirRounds = allRounds.filter((r) => r.user_id === friend.id);
+
+      // Build per-course breakdown: track best scores on each shared course
+      const courseMap = new Map<
+        string,
+        { courseName: string; myBest: number; theirBest: number }
+      >();
+
+      // Collect all course_ids played by this friend
+      const friendCourseIds = new Set(theirRounds.map((r) => r.course_id));
+
+      for (const courseId of friendCourseIds) {
+        const myAtCourse = myRounds.filter((r) => r.course_id === courseId);
+        const theirAtCourse = theirRounds.filter((r) => r.course_id === courseId);
+        if (myAtCourse.length === 0 || theirAtCourse.length === 0) continue;
+
+        const myBest = Math.min(...myAtCourse.map((r) => r.gross_score));
+        const theirBest = Math.min(...theirAtCourse.map((r) => r.gross_score));
+        const courseName = myAtCourse[0].course.name;
+        courseMap.set(courseId, { courseName, myBest, theirBest });
+      }
+
+      // Head-to-head: compare rounds played at the same course on the same date
+      // A "match" = same course_id + same played_at date (YYYY-MM-DD)
+      let myWins = 0;
+      let theirWins = 0;
+      let ties = 0;
+
+      for (const myRound of myRounds) {
+        const myDate = myRound.played_at.slice(0, 10);
+        const opposing = theirRounds.find(
+          (r) =>
+            r.course_id === myRound.course_id &&
+            r.played_at.slice(0, 10) === myDate,
+        );
+        if (!opposing) continue;
+        if (myRound.gross_score < opposing.gross_score) myWins++;
+        else if (myRound.gross_score > opposing.gross_score) theirWins++;
+        else ties++;
+      }
+
+      const totalMatches = myWins + theirWins + ties;
+
+      return {
+        opponentId: friend.id,
+        opponentName: friend.name,
+        opponentHandicap: friend.handicap,
+        myWins,
+        theirWins,
+        ties,
+        totalMatches,
+        courseBreakdown: Array.from(courseMap.entries()).map(
+          ([courseId, v]) => ({
+            courseId,
+            courseName: v.courseName,
+            myBest: v.myBest,
+            theirBest: v.theirBest,
+          }),
+        ),
+      } satisfies H2HMatchup;
+    })
+    .filter((m) => m.totalMatches > 0 || m.courseBreakdown.length > 0);
+}
 
 // ─── Matchup card ────────────────────────────────────────────────────
 function MatchupCard({ matchup }: { matchup: H2HMatchup }) {
@@ -84,9 +170,22 @@ function MatchupCard({ matchup }: { matchup: H2HMatchup }) {
 }
 
 // ─── Main component ──────────────────────────────────────────────────
-export function H2HTab() {
+export function H2HTab({ userId, friends, realRounds }: H2HTabProps = {}) {
   const { theme } = useTheme();
   const c = theme.colors;
+
+  const matchups = useMemo<H2HMatchup[]>(() => {
+    if (
+      userId &&
+      friends &&
+      friends.length > 0 &&
+      realRounds &&
+      realRounds.length > 0
+    ) {
+      return computeH2H(userId, friends, realRounds);
+    }
+    return MOCK_H2H;
+  }, [userId, friends, realRounds]);
 
   return (
     <View style={s.container}>
@@ -97,7 +196,7 @@ export function H2HTab() {
         Your record against Group members
       </Text>
 
-      {MOCK_H2H.map((m) => (
+      {matchups.map((m) => (
         <MatchupCard key={m.opponentId} matchup={m} />
       ))}
     </View>

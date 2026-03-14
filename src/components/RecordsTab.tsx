@@ -6,6 +6,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
+import { useAuth } from '../lib/auth';
 import {
   PLAYED_SORTED,
   MOCK_BUCKET_LIST,
@@ -14,8 +15,6 @@ import {
   type BucketListCourse,
   type CommunityCourse,
 } from '../data/courses';
-
-const MY_NAME = 'Ian McGowan';
 
 // ─── Search bar (same visual as CoursesTab) ──────────────────────────
 function SearchBar({
@@ -80,7 +79,13 @@ function toParColor(
 }
 
 // ─── Section 1: Course records table ─────────────────────────────────
-function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
+function RecordsTable({
+  courses,
+  myName,
+}: {
+  courses: PlayedCourse[];
+  myName: string;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -105,7 +110,7 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
 
         {/* Data rows */}
         {withRecords.map((cr, i) => {
-          const isMe = cr.recordHolder === MY_NAME;
+          const isMe = cr.recordHolder === myName;
           const bgColor = isMe
             ? `${c.teal}12`
             : i % 2 === 0
@@ -138,7 +143,7 @@ function RecordsTable({ courses }: { courses: PlayedCourse[] }) {
               {/* Holder */}
               <View style={[s.colHolder, s.holderCell]}>
                 <Avatar
-                  id={cr.recordHolder === MY_NAME ? '1' : cr.id}
+                  id={cr.recordHolder === myName ? '1' : cr.id}
                   size={22}
                   name={cr.recordHolder ?? '?'}
                 />
@@ -275,10 +280,25 @@ function EmptyState() {
 export function RecordsTab({
   search,
   onSearchChange,
+  courseRecords,
+  bucketList,
 }: {
   search: string;
   onSearchChange: (v: string) => void;
+  courseRecords?: PlayedCourse[] | null;
+  bucketList?: BucketListCourse[] | null;
 }) {
+  const { user } = useAuth();
+  const myName: string =
+    (user?.user_metadata?.name as string | undefined) ?? 'Ian McGowan';
+
+  const playedSource = courseRecords && courseRecords.length > 0
+    ? courseRecords
+    : PLAYED_SORTED;
+  const bucketSource = bucketList && bucketList.length > 0
+    ? bucketList
+    : MOCK_BUCKET_LIST;
+
   const q = search.trim().toLowerCase();
 
   const matchesQuery = (name: string, city: string, state: string) =>
@@ -289,25 +309,25 @@ export function RecordsTab({
 
   const recordsFiltered = useMemo(
     () =>
-      PLAYED_SORTED.filter(
+      playedSource.filter(
         (cr) =>
           cr.recordScore !== null &&
           cr.recordHolder !== null &&
           matchesQuery(cr.name, cr.city, cr.state),
       ),
-    [q],
+    [q, playedSource],
   );
 
   const bucketFiltered = useMemo(
     () =>
-      MOCK_BUCKET_LIST.filter((bl) =>
+      bucketSource.filter((bl) =>
         matchesQuery(bl.name, bl.city, bl.state),
       ),
-    [q],
+    [q, bucketSource],
   );
 
-  const playedIds = new Set(PLAYED_SORTED.map((c) => c.name.toLowerCase()));
-  const bucketIds = new Set(MOCK_BUCKET_LIST.map((c) => c.name.toLowerCase()));
+  const playedIds = new Set(playedSource.map((c) => c.name.toLowerCase()));
+  const bucketIds = new Set(bucketSource.map((c) => c.name.toLowerCase()));
 
   const discoverFiltered = useMemo(
     () =>
@@ -337,7 +357,7 @@ export function RecordsTab({
         <>
           {/* Section 1: Course records */}
           {recordsFiltered.length > 0 && (
-            <RecordsTable courses={recordsFiltered} />
+            <RecordsTable courses={recordsFiltered} myName={myName} />
           )}
 
           {/* Section 2: Bucket list */}

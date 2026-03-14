@@ -75,15 +75,62 @@ export function statLabel(value: string | number, label: string): string {
 }
 
 // ─── High Contrast ──────────────────────────────────────────────────
+
 /**
- * Get border width respecting high contrast mode.
- * iOS: uses accessibilityInfo; Android: uses accessibility settings.
+ * Cached result of the reduce-transparency/high-contrast query.
+ * null  = not yet fetched
+ * true  = high contrast active → use wider borders
+ * false = standard mode
+ */
+let _reduceTransparencyCache: boolean | null = null;
+
+/**
+ * Initialise the cache and subscribe to future changes.
+ * Called once, lazily, the first time getContrastBorderWidth() runs.
+ */
+function _initReduceTransparencyListener(): void {
+  if (!AccessibilityInfo || typeof AccessibilityInfo.isReduceTransparencyEnabled !== 'function') {
+    _reduceTransparencyCache = false;
+    return;
+  }
+
+  // Fetch current value
+  AccessibilityInfo.isReduceTransparencyEnabled()
+    .then((enabled: boolean) => {
+      _reduceTransparencyCache = enabled;
+    })
+    .catch(() => {
+      _reduceTransparencyCache = false;
+    });
+
+  // Keep cache up-to-date as the user changes the setting
+  if (typeof AccessibilityInfo.addEventListener === 'function') {
+    AccessibilityInfo.addEventListener('reduceTransparencyChanged', (enabled: boolean) => {
+      _reduceTransparencyCache = enabled;
+    });
+  }
+}
+
+/**
+ * Get border width respecting high contrast / reduce-transparency mode.
+ * iOS: driven by Settings → Accessibility → Increase Contrast → Reduce Transparency.
+ * Android: falls back gracefully (AccessibilityInfo.isReduceTransparencyEnabled is iOS-only).
+ *
+ * Returns base * 2 when high contrast is active, otherwise base.
+ * Cached after the first async fetch so subsequent calls are synchronous.
  */
 export function getContrastBorderWidth(base: number = 1): number {
-  // In a real implementation, this would listen to AccessibilityInfo.isReduceMotionEnabled
-  // and the system high contrast setting. For now, return base.
-  // When high contrast is detected, return base * 2.
-  return base;
+  try {
+    if (_reduceTransparencyCache === null) {
+      // Kick off async initialisation; return default until it resolves
+      _initReduceTransparencyListener();
+      return base;
+    }
+    return _reduceTransparencyCache ? base * 2 : base;
+  } catch {
+    // AccessibilityInfo unavailable in this environment
+    return base;
+  }
 }
 
 /** Ensure a color pair meets WCAG AA contrast ratio (4.5:1 for normal text) */

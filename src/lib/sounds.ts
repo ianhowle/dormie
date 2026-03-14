@@ -2,6 +2,8 @@
  * Sound design system for Dormie.
  * Uses expo-av when available, silently no-ops otherwise.
  * All sounds are subtle and < 100ms — enhance, never annoy.
+ *
+ * Sound assets needed: assets/sounds/click.mp3, chime.mp3, pop.mp3, whoosh.mp3
  */
 
 let Audio: any = null;
@@ -11,6 +13,39 @@ try {
   Audio = require('expo-av').Audio;
 } catch {
   // expo-av not installed — sounds will be silent no-ops
+}
+
+// ─── Pre-load asset references with graceful fallback ───────────────
+// Each require() is wrapped individually so a single missing file
+// does not prevent the others from loading.
+const soundAssets: Record<string, any> = {};
+
+try {
+  soundAssets.click = require('../../assets/sounds/click.mp3');
+} catch {
+  soundAssets.click = null;
+  console.warn('[sounds] Missing asset: assets/sounds/click.mp3');
+}
+
+try {
+  soundAssets.whoosh = require('../../assets/sounds/whoosh.mp3');
+} catch {
+  soundAssets.whoosh = null;
+  console.warn('[sounds] Missing asset: assets/sounds/whoosh.mp3');
+}
+
+try {
+  soundAssets.chime = require('../../assets/sounds/chime.mp3');
+} catch {
+  soundAssets.chime = null;
+  console.warn('[sounds] Missing asset: assets/sounds/chime.mp3');
+}
+
+try {
+  soundAssets.pop = require('../../assets/sounds/pop.mp3');
+} catch {
+  soundAssets.pop = null;
+  console.warn('[sounds] Missing asset: assets/sounds/pop.mp3');
 }
 
 /** Whether sound effects are enabled (user preference) */
@@ -26,22 +61,13 @@ export function isSoundEnabled(): boolean {
 
 async function playSound(name: string) {
   if (!Audio || !soundEnabled) return;
+  // Skip silently if the asset failed to load
+  if (!soundAssets[name]) return;
   try {
-    // In production, these would load from bundled assets
-    // For now, the infrastructure is ready for when sound files are added
-    // to assets/sounds/click.mp3, whoosh.mp3, chime.mp3, pop.mp3
-    const soundMap: Record<string, any> = {
-      click: require('../../assets/sounds/click.mp3'),
-      whoosh: require('../../assets/sounds/whoosh.mp3'),
-      chime: require('../../assets/sounds/chime.mp3'),
-      pop: require('../../assets/sounds/pop.mp3'),
-    };
-    if (!soundMap[name]) return;
-
     if (soundInstances[name]) {
       await soundInstances[name].replayAsync();
     } else {
-      const { sound } = await Audio.Sound.createAsync(soundMap[name], {
+      const { sound } = await Audio.Sound.createAsync(soundAssets[name], {
         volume: 0.3, // Keep subtle
         shouldPlay: true,
       });

@@ -22,8 +22,11 @@ import { fetchWeather, type WeatherData } from '../../src/lib/weather';
 import { computeStreaks, type Streak } from '../../src/lib/streaks';
 import { formatWeeklyDigest, computeWeeklyDigest } from '../../src/lib/streaks';
 import { leaderboardRowLabel, statLabel } from '../../src/lib/accessibility';
-import { shouldShowMonthlyDigest, getPreviousMonthName, GRADE_COPY, type MonthGrade } from '../../src/data/monthly-stats';
+import { shouldShowMonthlyDigest, getPreviousMonthName, GRADE_COPY, computeMonthGrade, type MonthGrade } from '../../src/data/monthly-stats';
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
+
+/** Toggle to show mock/demo data for screenshots and demos */
+const DEV_DEMO_MODE = false;
 import {
   MOCK_QUICK_STATS,
   MOCK_FEED,
@@ -683,7 +686,7 @@ export default function HomeScreen() {
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
   const [showMenu, setShowMenu] = useState(false);
-  const [showDemoData, setShowDemoData] = useState(false);
+  const [showDemoData, setShowDemoData] = useState(DEV_DEMO_MODE);
   const [activeGroup, setActiveGroup] = useState(MOCK_GROUPS[0]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -726,16 +729,27 @@ export default function HomeScreen() {
     fetchWeather().then(setWeather).catch(() => {});
   }, []);
 
-  const activeStreaks = useMemo(() => computeStreaks({
-    recentScores: [78, 76, 79, 74, 77, 76, 75],
-    handicapTrend: [9.2, 8.9, 8.7, 8.4, 8.2],
-    h2hResults: [{ opponent: 'Tyler', wins: 4, losses: 1 }],
-    roundDates: [new Date(), new Date(Date.now() - 7 * 86400000), new Date(Date.now() - 14 * 86400000), new Date(Date.now() - 21 * 86400000)],
-  }), []);
+  const activeStreaks = useMemo(() => {
+    if (realRounds.length > 0) {
+      return computeStreaks({
+        recentScores: realRounds.map(r => r.gross_score),
+        handicapTrend: [], // Would need handicap history from profile
+        h2hResults: [],
+        roundDates: realRounds.map(r => new Date(r.played_at)),
+      });
+    }
+    if (!showDemoData) return [];
+    return computeStreaks({
+      recentScores: [78, 76, 79, 74, 77, 76, 75],
+      handicapTrend: [9.2, 8.9, 8.7, 8.4, 8.2],
+      h2hResults: [{ opponent: 'Tyler', wins: 4, losses: 1 }],
+      roundDates: [new Date(), new Date(Date.now() - 7 * 86400000), new Date(Date.now() - 14 * 86400000), new Date(Date.now() - 21 * 86400000)],
+    });
+  }, [realRounds, showDemoData]);
 
   // Build real quick stats
   const quickStats = useMemo(() => {
-    if (realRounds.length === 0) return MOCK_QUICK_STATS;
+    if (realRounds.length === 0 && showDemoData) return MOCK_QUICK_STATS;
     const now = new Date();
     const thisMonth = realRounds.filter(r => {
       const d = new Date(r.played_at);
@@ -743,16 +757,17 @@ export default function HomeScreen() {
     });
     const scores = realRounds.map(r => r.gross_score);
     return {
-      handicap: user?.user_metadata?.handicap_index ?? MOCK_QUICK_STATS.handicap,
-      monthRounds: thisMonth.length || MOCK_QUICK_STATS.monthRounds,
-      bestRecent: scores.length > 0 ? Math.min(...scores) : MOCK_QUICK_STATS.bestRecent,
-      streak: MOCK_QUICK_STATS.streak,
+      handicap: user?.user_metadata?.handicap_index ?? 0,
+      monthRounds: thisMonth.length,
+      bestRecent: scores.length > 0 ? Math.min(...scores) : 0,
+      streak: realRounds.length >= 3 ? `${realRounds.length}` : '-',
     };
-  }, [realRounds, user]);
+  }, [realRounds, user, showDemoData]);
 
   // Build feed from real rounds
   const feedItems: FeedItem[] = useMemo(() => {
-    if (realRounds.length === 0) return MOCK_FEED;
+    if (realRounds.length === 0 && showDemoData) return MOCK_FEED;
+    if (realRounds.length === 0) return [];
     return realRounds.slice(0, 6).map((r) => ({
       id: r.id,
       type: 'round_posted' as const,
@@ -763,15 +778,56 @@ export default function HomeScreen() {
     }));
   }, [realRounds, user]);
 
-  // ESPN ticker standings
-  const standings: StandingPill[] = useMemo(() => [
-    { rank: 1, name: 'McGowan', toPar: '-2.1', movement: 'same' as const, isMe: true },
-    { rank: 2, name: 'Fletcher', toPar: '+0.4', movement: 'up' as const, isMe: false },
-    { rank: 3, name: 'Patterson', toPar: '+1.2', movement: 'down' as const, isMe: false },
-    { rank: 4, name: 'Collins', toPar: '+2.8', movement: 'same' as const, isMe: false },
-    { rank: 5, name: 'Davis', toPar: '+3.1', movement: 'up' as const, isMe: false },
-    { rank: 6, name: 'Brooks', toPar: '+4.5', movement: 'down' as const, isMe: false },
-  ], []);
+  // ESPN ticker standings — only show with demo data or real season
+  const standings: StandingPill[] = useMemo(() => {
+    if (!showDemoData && realRounds.length === 0) return [];
+    return [
+      { rank: 1, name: 'McGowan', toPar: '-2.1', movement: 'same' as const, isMe: true },
+      { rank: 2, name: 'Fletcher', toPar: '+0.4', movement: 'up' as const, isMe: false },
+      { rank: 3, name: 'Patterson', toPar: '+1.2', movement: 'down' as const, isMe: false },
+      { rank: 4, name: 'Collins', toPar: '+2.8', movement: 'same' as const, isMe: false },
+      { rank: 5, name: 'Davis', toPar: '+3.1', movement: 'up' as const, isMe: false },
+      { rank: 6, name: 'Brooks', toPar: '+4.5', movement: 'down' as const, isMe: false },
+    ];
+  }, [showDemoData, realRounds]);
+
+  // Compute monthly digest from real rounds
+  const monthlyDigest = useMemo(() => {
+    if (realRounds.length === 0) return null;
+    const now = new Date();
+    const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const lastMonthRounds = realRounds.filter(r => {
+      const d = new Date(r.played_at);
+      return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    });
+    if (lastMonthRounds.length === 0) return null;
+    const scores = lastMonthRounds.map(r => r.gross_score);
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const best = lastMonthRounds.reduce((b, r) => r.gross_score < b.gross_score ? r : b);
+    const hcpStart = user?.user_metadata?.handicap_index ?? null;
+    const hcpEnd = hcpStart; // Would need historical handicap tracking
+    const grade = computeMonthGrade(lastMonthRounds.length, hcpStart, hcpEnd);
+    const uniqueCourses = new Set(lastMonthRounds.map(r => r.course?.name ?? 'Unknown'));
+    return { roundsLogged: lastMonthRounds.length, avg, bestScore: best.gross_score, bestCourse: best.course?.name ?? 'Unknown', hcpStart, hcpEnd, grade, newCourses: uniqueCourses.size };
+  }, [realRounds, user]);
+
+  // Compute weekly digest from real rounds
+  const weeklyDigestData = useMemo(() => {
+    if (realRounds.length === 0) return null;
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const thisWeekRounds = realRounds.filter(r => new Date(r.played_at) >= weekAgo);
+    return computeWeeklyDigest(
+      thisWeekRounds.map(r => ({ score: r.gross_score })),
+      user?.user_metadata?.handicap_index ?? null,
+      user?.user_metadata?.handicap_index ?? null,
+      null, null,
+    );
+  }, [realRounds, user]);
+
+  const hasRealData = realRounds.length > 0;
+  const showContent = hasRealData || showDemoData;
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
@@ -819,8 +875,8 @@ export default function HomeScreen() {
         {/* ESPN ticker */}
         <ESPNTicker standings={standings} />
 
-        {/* Monthly digest card — 1st-3rd of month */}
-        {shouldShowMonthlyDigest() && !monthlyDismissed && (
+        {/* Monthly digest card — 1st-3rd of month, real data */}
+        {shouldShowMonthlyDigest() && !monthlyDismissed && monthlyDigest && (
           <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -833,42 +889,44 @@ export default function HomeScreen() {
             <View style={{ marginTop: 12, gap: 6 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Rounds logged</Text>
-                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>6</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.roundsLogged}</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Scoring average</Text>
-                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>77.2</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.avg.toFixed(1)}</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Best round</Text>
-                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>74 at Gaylord Springs</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.bestScore} at {monthlyDigest.bestCourse}</Text>
               </View>
+              {monthlyDigest.hcpStart != null && monthlyDigest.hcpEnd != null && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
+                  <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.hcpStart.toFixed(1)} {'\u2192'} {monthlyDigest.hcpEnd.toFixed(1)}</Text>
+                </View>
+              )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
-                <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>8.4 {'\u2192'} 8.1 ({'\u2193'}0.3)</Text>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>New courses</Text>
-                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>2</Text>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Trips</Text>
-                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>1 completed</Text>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>H2H record</Text>
-                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>3-1</Text>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Courses played</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.newCourses}</Text>
               </View>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ color: c.gold, fontSize: 24, fontWeight: '800', fontFamily: GEO }}>B</Text>
-                <Text style={{ color: c.textMuted, fontSize: 11, fontFamily: SANS }}>{GRADE_COPY['B' as MonthGrade]}</Text>
+                <Text style={{ color: c.gold, fontSize: 24, fontWeight: '800', fontFamily: GEO }}>{monthlyDigest.grade}</Text>
+                <Text style={{ color: c.textMuted, fontSize: 11, fontFamily: SANS }}>{GRADE_COPY[monthlyDigest.grade]}</Text>
               </View>
               <Pressable onPress={() => { haptics.light(); }} style={({ pressed }) => [{ backgroundColor: c.gold, paddingHorizontal: 14, paddingVertical: 8 }, pressed && { opacity: 0.7 }]}>
                 <Text style={{ color: '#141210', fontSize: 11, fontWeight: '700', fontFamily: SANS }}>Share Recap</Text>
               </Pressable>
             </View>
+          </View>
+        )}
+        {/* Monthly digest empty state — 1st-3rd, no rounds last month */}
+        {shouldShowMonthlyDigest() && !monthlyDismissed && !monthlyDigest && hasRealData && (
+          <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+            <Text style={{ color: c.gold, fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>{getPreviousMonthName()} RECAP</Text>
+            <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', marginTop: 8, fontFamily: SANS }}>No rounds logged last month</Text>
+            <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4, fontFamily: SANS }}>Get out there this month — your handicap is waiting.</Text>
           </View>
         )}
 
@@ -879,24 +937,26 @@ export default function HomeScreen() {
           </View>
         ) : (
         <View style={st.body}>
-          {/* Season Standings (Item 2) */}
-          <SeasonStandingsSection groupName={activeGroup.name} />
+          {/* Season Standings — only with demo mode or real season data */}
+          {showContent && <SeasonStandingsSection groupName={activeGroup.name} />}
 
-          {/* Round Result (Item 3) */}
-          <RoundResultCard />
+          {/* Round Result — only with demo mode */}
+          {showDemoData && <RoundResultCard />}
 
-          {/* Next Matchup (Item 4) */}
-          <NextMatchupCard />
+          {/* Next Matchup — only with demo mode */}
+          {showDemoData && <NextMatchupCard />}
 
           {/* Quick stats */}
-          <QuickStatsRow stats={quickStats} />
+          {(hasRealData || showDemoData) && <QuickStatsRow stats={quickStats} />}
 
-          {/* Strokes behind leader callout */}
-          <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
-            <Text style={{ color: c.teal, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
-              You're 2.8 strokes behind Drew's average. Close the gap.
-            </Text>
-          </View>
+          {/* Strokes behind leader callout — only with demo mode */}
+          {showDemoData && (
+            <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
+              <Text style={{ color: c.teal, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
+                You're 2.8 strokes behind Drew's average. Close the gap.
+              </Text>
+            </View>
+          )}
 
           {/* Active streaks */}
           {activeStreaks.length > 0 && (
@@ -982,8 +1042,8 @@ export default function HomeScreen() {
             <>
               <SectionHeader title="LATEST" />
               <GoldDivider style={{ marginBottom: 12 }} />
-              {/* Weekly digest card — show every Monday */}
-              {new Date().getDay() === 1 && !weeklyDismissed && (
+              {/* Weekly digest card — show every Monday, wired to real data */}
+              {new Date().getDay() === 1 && !weeklyDismissed && weeklyDigestData && weeklyDigestData.roundsLogged > 0 && (
                 <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -996,20 +1056,22 @@ export default function HomeScreen() {
                   <View style={{ marginTop: 10, gap: 5 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Rounds</Text>
-                      <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>2 logged</Text>
+                      <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{weeklyDigestData.roundsLogged} logged</Text>
                     </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Avg score</Text>
-                      <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>77.5</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
-                      <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>8.2 ({'\u2193'}0.3)</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Leaderboard</Text>
-                      <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>#1 ({'\u2191'}1)</Text>
-                    </View>
+                    {weeklyDigestData.avgScore != null && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Avg score</Text>
+                        <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{weeklyDigestData.avgScore.toFixed(1)}</Text>
+                      </View>
+                    )}
+                    {weeklyDigestData.handicapChange != null && weeklyDigestData.handicapChange !== 0 && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
+                        <Text style={{ color: weeklyDigestData.handicapChange < 0 ? '#2A9D8F' : '#C44B4F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>
+                          {weeklyDigestData.handicapChange < 0 ? '\u2193' : '\u2191'}{Math.abs(weeklyDigestData.handicapChange).toFixed(1)}
+                        </Text>
+                      </View>
+                    )}
                     {activeStreaks.length > 0 && (
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Streak</Text>
@@ -1023,6 +1085,14 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                   </View>
+                </View>
+              )}
+              {/* Weekly empty state — Monday, no rounds last week */}
+              {new Date().getDay() === 1 && !weeklyDismissed && (!weeklyDigestData || weeklyDigestData.roundsLogged === 0) && hasRealData && (
+                <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                  <Text style={{ color: c.gold, fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>THIS WEEK IN DORMIE</Text>
+                  <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', marginTop: 8, fontFamily: SANS }}>No rounds last week</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4, fontFamily: SANS }}>The course is calling. Make this week count.</Text>
                 </View>
               )}
               {feedItems.map((item) => (
