@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/lib/auth';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
+import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const TOP_ZONE = SCREEN_H * 0.4;
@@ -51,6 +52,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const { signIn } = useAuth();
   const router = useRouter();
   const { theme } = useTheme();
@@ -93,7 +96,7 @@ export default function LoginScreen() {
       >
         {/* Top 40% — Masters green gradient with branding */}
         <LinearGradient
-          colors={['#1E4D2B', '#2D6A3F']}
+          colors={[...greenHeaderGradient]}
           style={[styles.topZone, { height: TOP_ZONE }]}
         >
           <Pinstripes />
@@ -105,44 +108,54 @@ export default function LoginScreen() {
         </LinearGradient>
 
         {/* Bottom 60% — Dark form area */}
-        <View style={[styles.bottomZone, { backgroundColor: '#141210' }]}>
+        <View style={[styles.bottomZone, { backgroundColor: c.bg }]}>
           <Text style={[styles.welcomeTitle, { color: c.text }]}>Welcome back</Text>
 
           {/* Error banner */}
           {error !== '' && (
-            <Animated.View style={[styles.errorBanner, { opacity: errorAnim }]}>
+            <Animated.View style={[styles.errorBanner, { opacity: errorAnim, backgroundColor: c.urgent + '14', ...(theme.isDark ? cardShadowDark : cardShadowLight) }]}>
               <View style={styles.errorStripe} />
-              <Ionicons name="alert-circle" size={16} color="#C44B4F" style={{ marginLeft: 10 }} />
-              <Text style={styles.errorText}>{error}</Text>
+              <Ionicons name="alert-circle" size={16} color={c.urgent} style={{ marginLeft: 10 }} />
+              <Text style={[styles.errorText, { color: c.urgent }]}>{error}</Text>
             </Animated.View>
           )}
 
           {/* Email input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={[styles.inputLabel, { color: c.gold }]}>EMAIL</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor="#6B6560"
-              style={styles.input}
+              placeholderTextColor={c.textMuted}
+              style={[
+                styles.input,
+                { backgroundColor: c.elevated, borderColor: emailFocused ? c.teal : c.border, color: c.text },
+              ]}
               autoCapitalize="none"
               keyboardType="email-address"
               autoCorrect={false}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
             />
           </View>
 
           {/* Password input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Password</Text>
+            <Text style={[styles.inputLabel, { color: c.gold }]}>PASSWORD</Text>
             <View style={styles.passwordRow}>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor="#6B6560"
-                style={[styles.input, { flex: 1, paddingRight: 44 }]}
+                placeholderTextColor={c.textMuted}
+                style={[
+                  styles.input,
+                  { flex: 1, paddingRight: 44, backgroundColor: c.elevated, borderColor: passwordFocused ? c.teal : c.border, color: c.text },
+                ]}
                 secureTextEntry={!showPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -152,7 +165,7 @@ export default function LoginScreen() {
                 <Ionicons
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={20}
-                  color="#6B6560"
+                  color={c.textMuted}
                 />
               </Pressable>
             </View>
@@ -162,7 +175,7 @@ export default function LoginScreen() {
           <Pressable
             onPress={handleLogin}
             disabled={loading}
-            style={[styles.signInBtn, loading && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.signInBtn, loading && { opacity: 0.6 }, pressed && styles.pressedState]}
           >
             <Text style={styles.signInBtnText}>
               {loading ? 'Signing in...' : 'Sign In'}
@@ -171,9 +184,9 @@ export default function LoginScreen() {
 
           {/* Sign up link */}
           <View style={styles.signupRow}>
-            <Text style={styles.signupLabel}>Don't have an account?</Text>
+            <Text style={[styles.signupLabel, { color: c.textMuted }]}>Don't have an account?</Text>
             <Pressable onPress={() => router.push('/auth/signup')}>
-              <Text style={styles.signupLink}>Create one</Text>
+              <Text style={[styles.signupLink, { color: c.teal }]}>Create one</Text>
             </Pressable>
           </View>
         </View>
@@ -195,7 +208,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#D4AF37',
     letterSpacing: 4,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   brandDivider: { width: 60, height: 1, backgroundColor: '#D4AF37', marginVertical: 12 },
   brandTagline: {
@@ -206,7 +219,7 @@ const styles = StyleSheet.create({
   },
   bottomZone: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 32,
   },
   welcomeTitle: {
@@ -220,10 +233,11 @@ const styles = StyleSheet.create({
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#C44B4F14',
     paddingVertical: 10,
     paddingRight: 14,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#C44B4F33',
   },
   errorStripe: {
     width: 3,
@@ -234,18 +248,20 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  errorText: { color: '#C44B4F', fontSize: 13, marginLeft: 8, flex: 1 },
+  errorText: { fontSize: 13, marginLeft: 8, flex: 1 },
 
   // Inputs
   inputContainer: { marginBottom: 16 },
-  inputLabel: { color: '#6B6560', fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 6,
+    letterSpacing: 2,
+  },
   input: {
-    backgroundColor: '#262320',
     borderWidth: 1,
-    borderColor: '#2A2724',
-    color: '#E8E4DE',
     fontSize: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 14,
   },
   passwordRow: { position: 'relative' },
@@ -263,7 +279,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
-    height: 48,
     justifyContent: 'center',
   },
   signInBtnText: {
@@ -272,6 +287,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: GEO,
   },
+  pressedState: { opacity: 0.7, transform: [{ scale: 0.98 }] },
 
   // Signup link
   signupRow: {
@@ -281,6 +297,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingBottom: 32,
   },
-  signupLabel: { color: '#6B6560', fontSize: 14 },
-  signupLink: { color: '#2A9D8F', fontSize: 14, fontWeight: '600' },
+  signupLabel: { fontSize: 13 },
+  signupLink: { fontSize: 13, fontWeight: '600' },
 });

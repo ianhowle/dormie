@@ -3496,8 +3496,8 @@ const st = StyleSheet.create({
   /* Header */
   header: {
     paddingTop: STATUS_BAR_H,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
   headerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -3521,6 +3521,7 @@ const st = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: GEO,
   },
   headerHoleRow: {
     flexDirection: 'row',
@@ -3529,10 +3530,11 @@ const st = StyleSheet.create({
     gap: 8,
   },
   headerHoleLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
-    fontWeight: '700',
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   headerHoleNum: {
     color: '#fff',

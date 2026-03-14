@@ -861,21 +861,22 @@ export default function ScoreScreen() {
                       <Pressable
                         key={tee.name}
                         onPress={() => setSelectedTeeBox(i)}
-                        style={[
+                        style={({ pressed }) => [
                           st.teeBoxChip,
                           {
-                            backgroundColor: active ? `${c.teal}20` : c.elevated,
+                            backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
                             borderColor: active ? c.teal : c.border,
                           },
+                          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                         ]}
                       >
                         <View style={[st.teeBoxDot, { backgroundColor: tee.color, borderColor: tee.color === '#FFFFFF' ? c.textMuted : tee.color }]} />
-                        <Text style={[st.teeBoxName, { color: active ? c.teal : c.text }]}>
+                        <Text style={[st.teeBoxName, { color: active ? c.teal : c.text, fontFamily: SANS }]}>
                           {tee.name}
                         </Text>
                         {active && (
                           <View style={st.teeBoxDetails}>
-                            <Text style={[st.teeBoxStat, { color: c.textMuted, fontFamily: GEO }]}>
+                            <Text style={[st.teeBoxStat, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
                               {tee.rating} / {tee.slope} · {tee.yards}y
                             </Text>
                           </View>
@@ -890,7 +891,7 @@ export default function ScoreScreen() {
             {isCustom && (
               <View style={st.customFieldsWrap}>
                 <TextInput
-                  style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated }]}
+                  style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: SANS }]}
                   placeholder="Location / City"
                   placeholderTextColor={c.textMuted}
                   value={customLocation}
@@ -901,7 +902,7 @@ export default function ScoreScreen() {
                   <View style={st.customFieldHalf}>
                     <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Rating</Text>
                     <TextInput
-                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated }]}
+                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
                       placeholder="72.0"
                       placeholderTextColor={c.textMuted}
                       value={customRating}
@@ -912,7 +913,7 @@ export default function ScoreScreen() {
                   <View style={st.customFieldHalf}>
                     <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Slope</Text>
                     <TextInput
-                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated }]}
+                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
                       placeholder="113"
                       placeholderTextColor={c.textMuted}
                       value={customSlope}
@@ -923,6 +924,9 @@ export default function ScoreScreen() {
                 </View>
               </View>
             )}
+
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
 
             {/* Players */}
             <SectionLabel title="PLAYERS" />

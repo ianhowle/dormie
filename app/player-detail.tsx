@@ -95,10 +95,10 @@ function StatsRow({ player }: { player: PlayerDetailData }) {
 
   return (
     <View style={st.statsRow}>
-      <StatCard label="BEST" value={String(player.stats.best)} c={c} />
-      <StatCard label="AVG" value={player.stats.avg.toFixed(1)} c={c} />
-      <StatCard label="COURSES" value={String(player.stats.courses)} c={c} />
-      <StatCard label="ROUNDS" value={String(player.stats.rounds)} c={c} />
+      <StatCard label="BEST" value={String(player.stats.best)} c={c} isDark={theme.isDark} />
+      <StatCard label="AVG" value={player.stats.avg.toFixed(1)} c={c} isDark={theme.isDark} />
+      <StatCard label="COURSES" value={String(player.stats.courses)} c={c} isDark={theme.isDark} />
+      <StatCard label="ROUNDS" value={String(player.stats.rounds)} c={c} isDark={theme.isDark} />
     </View>
   );
 }
@@ -107,13 +107,15 @@ function StatCard({
   label,
   value,
   c,
+  isDark,
 }: {
   label: string;
   value: string;
   c: ReturnType<typeof useTheme>['theme']['colors'];
+  isDark: boolean;
 }) {
   return (
-    <View style={[st.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+    <View style={[st.statCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
       <Text style={[st.statValue, { color: c.gold, fontFamily: GEO }]}>{value}</Text>
       <Text style={[st.statLabel, { color: c.textMuted }]}>{label}</Text>
     </View>
@@ -256,6 +258,7 @@ export default function PlayerDetailScreen() {
         <View style={st.body}>
           <StatsRow player={player} />
           <SourceBadges player={player} />
+          <GoldDivider style={{ marginTop: 20, marginBottom: 4 }} />
           <BestRoundsTable rounds={player.bestRounds} />
         </View>
 
