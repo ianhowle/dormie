@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
+import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import GoldDivider from './GoldDivider';
@@ -594,7 +595,7 @@ function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
         {/* Dark / light toggle */}
         <Text style={[h.settingsSection, { color: c.gold, fontFamily: GEO }]}>APPEARANCE</Text>
         <Pressable
-          onPress={toggleTheme}
+          onPress={() => { haptics.light(); toggleTheme(); }}
           style={[h.themeToggle, { backgroundColor: c.cardBg, borderColor: c.border }]}
         >
           <Ionicons
@@ -1436,6 +1437,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   const [players, setPlayers] = useState(MOCK_RC_PLAYERS);
 
   const toggleCheck = (id: string) => {
+    haptics.light();
     setChecklist((prev) =>
       prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)),
     );
@@ -1539,6 +1541,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   };
 
   const handleSessionPress = (session: RCSession) => {
+    haptics.light();
     setActiveSession(session);
     if (session.status === 'not_started') {
       setSubView('reveal');

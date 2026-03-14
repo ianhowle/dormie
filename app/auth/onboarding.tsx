@@ -17,10 +17,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/lib/auth';
+import { haptics } from '../../src/lib/haptics';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
@@ -78,6 +80,7 @@ function WelcomeScreen({ onNext, onToggleTheme }: { onNext: () => void; onToggle
 
   return (
     <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <LinearGradient colors={[...greenHeaderGradient]} style={styles.welcomeTop}>
         <Pinstripes />
 
@@ -838,6 +841,7 @@ export default function OnboardingScreen() {
 
   const handleNext = useCallback(() => {
     if (step < 6) {
+      haptics.medium();
       setStep((step + 1) as OnboardingStep);
     }
   }, [step]);
@@ -854,6 +858,7 @@ export default function OnboardingScreen() {
   }, [handleNext]);
 
   const handleComplete = useCallback(async () => {
+    haptics.success();
     // Save onboarding data to profile
     try {
       if (user?.id) {

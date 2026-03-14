@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
+import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import GoldDivider from './GoldDivider';
@@ -486,7 +487,7 @@ function StepTeams({
           <Text style={[w.stepperLabel, { color: c.text }]}>Target Points</Text>
           <View style={w.stepperBtns}>
             <Pressable
-              onPress={() => setFirstToTarget(Math.max(3, firstToTarget - 0.5))}
+              onPress={() => { haptics.light(); setFirstToTarget(Math.max(3, firstToTarget - 0.5)); }}
               style={[w.stepperBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
             >
               <Ionicons name="remove" size={18} color={c.text} />
@@ -495,7 +496,7 @@ function StepTeams({
               {firstToTarget}
             </Text>
             <Pressable
-              onPress={() => setFirstToTarget(Math.min(30, firstToTarget + 0.5))}
+              onPress={() => { haptics.light(); setFirstToTarget(Math.min(30, firstToTarget + 0.5)); }}
               style={[w.stepperBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
             >
               <Ionicons name="add" size={18} color={c.text} />
@@ -521,7 +522,7 @@ function StepTeams({
 
       {/* 9-hole match toggle */}
       <Pressable
-        onPress={() => setNineHoleMatches(!nineHoleMatches)}
+        onPress={() => { haptics.light(); setNineHoleMatches(!nineHoleMatches); }}
         style={[w.toggleRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
       >
         <View style={{ flex: 1 }}>
@@ -1306,12 +1307,16 @@ export function RyderCupWizard({ onBack }: { onBack: () => void }) {
     if (step === 0) {
       onBack();
     } else {
+      haptics.medium();
       setStep(step - 1);
     }
   };
 
   const handleNext = () => {
-    if (step < TOTAL_STEPS) setStep(step + 1);
+    if (step < TOTAL_STEPS) {
+      haptics.medium();
+      setStep(step + 1);
+    }
   };
 
   const canContinue = (): boolean => {

@@ -27,6 +27,7 @@ function CourseRow({ course }: { course: CourseH2H }) {
 
   return (
     <Pressable
+      onPress={() => { haptics.light(); }}
       style={({ pressed }) => [
         s.courseRow,
         { backgroundColor: c.cardBg, borderColor: c.border },
@@ -81,7 +82,7 @@ export default function H2HDetailScreen() {
   if (!matchup) {
     return (
       <View style={[s.screen, { backgroundColor: c.bg, paddingTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Pressable onPress={() => { haptics.light(); router.back(); }} style={s.backBtn}>
           <Ionicons name="chevron-back" size={24} color={c.text} />
         </Pressable>
         <View style={s.notFound}>
@@ -98,12 +99,13 @@ export default function H2HDetailScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
       <ScrollView
         contentContainerStyle={[s.scrollContent, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Back button */}
-        <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
+        <Pressable onPress={() => { haptics.light(); router.back(); }} style={s.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={c.text} />
           <Text style={[s.backLabel, { color: c.text }]}>Leaderboard</Text>
         </Pressable>

@@ -2321,6 +2321,12 @@ export default function ScoringScreen() {
     detail: string;
   }>({ visible: false, type: 'DORMIE', playerName: '', detail: '' });
 
+  // Elite polish: confetti, personal best, toast
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showPersonalBest, setShowPersonalBest] = useState(false);
+  const [prevBest, setPrevBest] = useState<number | null>(null);
+  const { showToast } = useToast();
+
   // Item 32: Side game toast events
   const [sideGameToastEvents, setSideGameToastEvents] = useState<SideGameEvent[]>([]);
 
@@ -2460,6 +2466,7 @@ export default function ScoringScreen() {
         holesWon < 0 ? (totals[1].player.id === '1' ? 'You' : totals[1].player.name) : '';
 
       if (lead > 0 && lead === holesRemaining) {
+        haptics.heavy();
         setDormieMoment({
           visible: true,
           type: 'DORMIE',
@@ -2469,6 +2476,7 @@ export default function ScoringScreen() {
         return;
       }
       if (lead > holesRemaining) {
+        haptics.heavy();
         setDormieMoment({
           visible: true,
           type: 'MATCH_CLOSED',
@@ -2590,6 +2598,10 @@ export default function ScoringScreen() {
         updatePlayerScore(p.id, getPlayerScore(p.id));
       }
     });
+
+    // Haptic feedback on hole score submission
+    haptics.medium();
+    showToast({ message: 'Score submitted', type: 'success' });
 
     // Feature 12: Generate events
     generateEvents(currentHole.number);
