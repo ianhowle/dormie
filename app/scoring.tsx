@@ -2502,6 +2502,7 @@ export default function ScoringScreen() {
         });
         if (winners.length === 1) {
           if (carryover >= 3) {
+            haptics.heavy();
             const wp = players.find((p) => p.id === winners[0]);
             setDormieMoment({
               visible: true,

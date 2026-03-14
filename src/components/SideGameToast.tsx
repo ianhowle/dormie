@@ -293,10 +293,10 @@ function SemiAutoToast({
         <Text style={[styles.toastDesc, { color: '#00000099' }]}>{event.description}</Text>
       </View>
       <View style={styles.toastActions}>
-        <Pressable onPress={onConfirm} style={[styles.toastBtn, { backgroundColor: '#00000022' }]}>
+        <Pressable onPress={() => { haptics.light(); onConfirm(); }} style={[styles.toastBtn, { backgroundColor: '#00000022' }]}>
           <Ionicons name="checkmark" size={18} color="#000000" />
         </Pressable>
-        <Pressable onPress={dismiss} style={[styles.toastBtn, { backgroundColor: '#00000011' }]}>
+        <Pressable onPress={() => { haptics.light(); dismiss(); }} style={[styles.toastBtn, { backgroundColor: '#00000011' }]}>
           <Ionicons name="close" size={18} color="#000000" />
         </Pressable>
       </View>
@@ -345,11 +345,11 @@ function ManualInputModal({
           </View>
 
           <View style={styles.modalActions}>
-            <Pressable onPress={onCancel} style={[styles.modalBtn, { backgroundColor: c.elevated }]}>
+            <Pressable onPress={() => { haptics.light(); onCancel(); }} style={[styles.modalBtn, { backgroundColor: c.elevated }]}>
               <Text style={[styles.modalBtnText, { color: c.textMuted }]}>Skip</Text>
             </Pressable>
             <Pressable
-              onPress={() => onSubmit(inputValue)}
+              onPress={() => { haptics.light(); onSubmit(inputValue); }}
               style={[styles.modalBtn, { backgroundColor: c.gold }]}
             >
               <Text style={[styles.modalBtnText, { color: '#000000' }]}>Confirm</Text>
