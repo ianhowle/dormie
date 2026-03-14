@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // Shared accent colors — identical in both themes
 const accents = {
   teal: '#2A9D8F',
@@ -5,6 +7,7 @@ const accents = {
   urgent: '#C44B4F',
   green: '#2D6A3F',
   greenDark: '#1E4D2B',
+  greenDeep: '#0D2818',
 };
 
 export const dark = {
@@ -32,3 +35,53 @@ export const light = {
 };
 
 export type ThemeColors = typeof dark;
+
+/** Card shadow for dark mode */
+export const cardShadowDark = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    shadowOpacity: 0.3,
+  },
+  android: { elevation: 4 },
+  default: {},
+}) as Record<string, any>;
+
+/** Card shadow for light mode */
+export const cardShadowLight = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    shadowOpacity: 0.08,
+  },
+  android: { elevation: 3 },
+  default: {},
+}) as Record<string, any>;
+
+/** Stronger shadow for tickers/floating elements */
+export const tickerShadowDark = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    shadowOpacity: 0.5,
+  },
+  android: { elevation: 8 },
+  default: {},
+}) as Record<string, any>;
+
+export const tickerShadowLight = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    shadowOpacity: 0.12,
+  },
+  android: { elevation: 6 },
+  default: {},
+}) as Record<string, any>;
+
+/** Green header gradient stops (Masters green → deep) */
+export const greenHeaderGradient = ['#1E4D2B', '#0D2818'] as const;

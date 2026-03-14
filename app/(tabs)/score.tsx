@@ -11,12 +11,15 @@ import {
   KeyboardAvoidingView,
   Modal,
   FlatList,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { GEO } from '../../src/theme/fonts';
+import { GEO, SANS } from '../../src/theme/fonts';
+import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
+import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
 import { coursesService } from '../../src/services/courses.service';
@@ -117,7 +120,7 @@ function SectionLabel({ title }: { title: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
   return (
-    <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO }]}>
+    <Text style={[st.sectionLabel, { color: c.gold }]}>
       {title}
     </Text>
   );
@@ -147,16 +150,23 @@ function CourseSearch({
     ).slice(0, 6);
   }, [query]);
 
+  const isDark = theme.dark;
+
   if (selected) {
     return (
       <Pressable
         onPress={() => { onSelect(null); setQuery(''); setOpen(true); }}
-        style={[st.selectedCourse, { backgroundColor: c.cardBg, borderColor: c.teal }]}
+        style={({ pressed }) => [
+          st.selectedCourse,
+          { backgroundColor: c.cardBg, borderColor: c.teal, borderWidth: 1 },
+          ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+        ]}
       >
         <View style={st.selectedInfo}>
           <Text style={[st.selectedName, { color: c.text }]}>{selected.name}</Text>
           <Text style={[st.selectedMeta, { color: c.textMuted }]}>
-            {selected.city}, {selected.state} · Par {selected.par}
+            {selected.city}, {selected.state} · Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{selected.par}</Text>
           </Text>
         </View>
         <Ionicons name="close-circle" size={18} color={c.textMuted} />
@@ -166,10 +176,10 @@ function CourseSearch({
 
   return (
     <View>
-      <View style={[st.searchWrap, { backgroundColor: c.elevated, borderColor: c.border }]}>
+      <View style={[st.searchWrap, { backgroundColor: c.elevated, borderColor: c.border, borderWidth: 1 }]}>
         <Ionicons name="search" size={16} color={c.textMuted} />
         <TextInput
-          style={[st.searchInput, { color: c.text }]}
+          style={[st.searchInput, { color: c.text, fontFamily: SANS }]}
           placeholder="Search or type course name..."
           placeholderTextColor={c.textMuted}
           value={query}
