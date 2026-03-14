@@ -1,26 +1,9 @@
 /**
  * Time-based and contextual greetings.
- * Makes the app feel alive and personal.
+ * Uses the PGA Tour calendar to make the app feel alive.
  */
 
-/** Masters Tournament dates (approximate — update yearly) */
-const MASTERS_DATES: [number, number, number, number][] = [
-  // [month (0-indexed), startDay, endDay, year]
-  [3, 7, 13, 2025], // April 7–13, 2025
-  [3, 6, 12, 2026], // April 6–12, 2026
-  [3, 5, 11, 2027], // April 5–11, 2027
-];
-
-function isMastersWeek(): boolean {
-  const now = new Date();
-  const month = now.getMonth();
-  const day = now.getDate();
-  const year = now.getFullYear();
-
-  return MASTERS_DATES.some(
-    ([m, start, end, y]) => year === y && month === m && day >= start && day <= end,
-  );
-}
+import { getActiveEvent, type ActiveEvent } from '../data/golf-calendar';
 
 function isWeekend(): boolean {
   const day = new Date().getDay();
@@ -38,13 +21,31 @@ function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' {
   return 'evening';
 }
 
+/** Cached active event for the current render cycle */
+let _cachedEvent: ActiveEvent | null | undefined;
+let _cachedEventTime = 0;
+
+function getCachedActiveEvent(): ActiveEvent | null {
+  const now = Date.now();
+  // Cache for 60 seconds to avoid re-computing on every call
+  if (_cachedEvent !== undefined && now - _cachedEventTime < 60_000) {
+    return _cachedEvent;
+  }
+  _cachedEvent = getActiveEvent();
+  _cachedEventTime = now;
+  return _cachedEvent;
+}
+
 export function getGreeting(firstName?: string): string {
   const name = firstName ?? 'golfer';
-  const time = getTimeOfDay();
+  const event = getCachedActiveEvent();
 
-  // Special: Masters week
-  if (isMastersWeek()) {
-    return `It's Masters week, ${name}`;
+  // Special: PGA Tour event week
+  if (event) {
+    if (event.event.name === 'The Masters') {
+      return `It's Masters week, ${name}`;
+    }
+    // Other events — just use time-based greeting, subtitle shows event
   }
 
   // Special: Weekend
@@ -54,17 +55,30 @@ export function getGreeting(firstName?: string): string {
   }
 
   // Standard time-based
+  const time = getTimeOfDay();
   return `Good ${time}, ${name}`;
 }
 
 export function getGreetingSubtitle(): string | null {
-  if (isMastersWeek()) {
-    return 'A tradition unlike any other';
-  }
-  return null;
+  const event = getCachedActiveEvent();
+  if (!event) return null;
+  return event.label;
 }
 
-/** Whether the header should have gold tint (Masters week) */
+/** Whether the header should have gold tint (Masters week or Playoffs) */
 export function isMastersTheme(): boolean {
-  return isMastersWeek();
+  const event = getCachedActiveEvent();
+  return event?.isGoldHeader ?? false;
+}
+
+/** Get accent color for the current event, or null */
+export function getEventAccentColor(): string | null {
+  const event = getCachedActiveEvent();
+  return event?.accentColor ?? null;
+}
+
+/** Whether we're in FedEx Cup Playoffs */
+export function isPlayoffsTheme(): boolean {
+  const event = getCachedActiveEvent();
+  return event?.isPlayoffs ?? false;
 }

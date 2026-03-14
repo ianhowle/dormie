@@ -17,11 +17,12 @@ import { haptics } from '../../src/lib/haptics';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
-import { getGreeting, getGreetingSubtitle, isMastersTheme } from '../../src/lib/greeting';
+import { getGreeting, getGreetingSubtitle, isMastersTheme, getEventAccentColor, isPlayoffsTheme } from '../../src/lib/greeting';
 import { fetchWeather, type WeatherData } from '../../src/lib/weather';
 import { computeStreaks, type Streak } from '../../src/lib/streaks';
 import { formatWeeklyDigest, computeWeeklyDigest } from '../../src/lib/streaks';
 import { leaderboardRowLabel, statLabel } from '../../src/lib/accessibility';
+import { shouldShowMonthlyDigest, getPreviousMonthName, GRADE_COPY, type MonthGrade } from '../../src/data/monthly-stats';
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
 import {
   MOCK_QUICK_STATS,
@@ -237,6 +238,8 @@ function GreetingSection({ name, groupName, weather }: { name: string; groupName
   const mastersGradient: [string, string] = ['#2A2318', '#1A1510'];
   const gradientColors = isMastersTheme() ? mastersGradient : (greenHeaderGradient as unknown as string[]);
   const subtitle = getGreetingSubtitle();
+  const eventAccent = getEventAccentColor();
+  const playoffs = isPlayoffsTheme();
 
   return (
     <LinearGradient
@@ -247,16 +250,23 @@ function GreetingSection({ name, groupName, weather }: { name: string; groupName
     >
       <Pinstripes />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={st.greetingText}>{getGreeting(name)}</Text>
+        <Text style={[st.greetingText, isMastersTheme() && { color: '#D4AF37' }]}>{getGreeting(name)}</Text>
         {weather && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4 }}>
-            <Ionicons name={weather.icon as any} size={14} color="rgba(255,255,255,0.8)" />
-            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '600' }}>{weather.temp}{'\u00B0'} {weather.condition}</Text>
+            <Text style={{ fontSize: 12 }}>{weather.emoji}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '600', fontFamily: 'Georgia' }}>{weather.temp}{'\u00B0'}</Text>
           </View>
         )}
       </View>
       {subtitle && (
-        <Text style={{ color: '#D4AF37', fontSize: 12, fontStyle: 'italic', fontFamily: 'Georgia', marginTop: 4 }}>{subtitle}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          {playoffs && (
+            <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: '#141210', fontSize: 9, fontWeight: '800', letterSpacing: 1, fontFamily: 'Georgia' }}>PLAYOFFS</Text>
+            </View>
+          )}
+          <Text style={{ color: eventAccent ?? '#D4AF37', fontSize: 12, fontStyle: 'italic', fontFamily: 'Georgia' }}>{subtitle}</Text>
+        </View>
       )}
       <Text style={st.greetingGroup}>{groupName}</Text>
     </LinearGradient>
@@ -678,6 +688,8 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [monthlyDismissed, setMonthlyDismissed] = useState(false);
+  const [weeklyDismissed, setWeeklyDismissed] = useState(false);
 
   const handleGroupSelect = useCallback((id: string) => {
     const group = MOCK_GROUPS.find((g) => g.id === id);
@@ -807,6 +819,59 @@ export default function HomeScreen() {
         {/* ESPN ticker */}
         <ESPNTicker standings={standings} />
 
+        {/* Monthly digest card — 1st-3rd of month */}
+        {shouldShowMonthlyDigest() && !monthlyDismissed && (
+          <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 8, paddingVertical: 3 }}>
+                <Text style={{ color: '#141210', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>{getPreviousMonthName()} RECAP</Text>
+              </View>
+              <Pressable onPress={() => setMonthlyDismissed(true)} hitSlop={12}>
+                <Ionicons name="close" size={18} color={c.textMuted} />
+              </Pressable>
+            </View>
+            <View style={{ marginTop: 12, gap: 6 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Rounds logged</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>6</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Scoring average</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>77.2</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Best round</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>74 at Gaylord Springs</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
+                <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>8.4 {'\u2192'} 8.1 ({'\u2193'}0.3)</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>New courses</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>2</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Trips</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>1 completed</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>H2H record</Text>
+                <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>3-1</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ color: c.gold, fontSize: 24, fontWeight: '800', fontFamily: GEO }}>B</Text>
+                <Text style={{ color: c.textMuted, fontSize: 11, fontFamily: SANS }}>{GRADE_COPY['B' as MonthGrade]}</Text>
+              </View>
+              <Pressable onPress={() => { haptics.light(); }} style={({ pressed }) => [{ backgroundColor: c.gold, paddingHorizontal: 14, paddingVertical: 8 }, pressed && { opacity: 0.7 }]}>
+                <Text style={{ color: '#141210', fontSize: 11, fontWeight: '700', fontFamily: SANS }}>Share Recap</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {loading ? (
           <View style={st.body}>
             <SkeletonStats />
@@ -917,13 +982,49 @@ export default function HomeScreen() {
             <>
               <SectionHeader title="LATEST" />
               <GoldDivider style={{ marginBottom: 12 }} />
-              {/* Weekly digest card */}
-              <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
-                <Text style={{ color: c.gold, fontSize: 10, fontWeight: '600', letterSpacing: 2, fontFamily: GEO }}>LAST WEEK</Text>
-                <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', marginTop: 6, fontFamily: SANS }}>
-                  2 rounds logged, avg 77.5, handicap {'\u2193'}0.3, moved up 1 spot
-                </Text>
-              </View>
+              {/* Weekly digest card — show every Monday */}
+              {new Date().getDay() === 1 && !weeklyDismissed && (
+                <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ color: '#141210', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>THIS WEEK IN DORMIE</Text>
+                    </View>
+                    <Pressable onPress={() => setWeeklyDismissed(true)} hitSlop={12}>
+                      <Ionicons name="close" size={18} color={c.textMuted} />
+                    </Pressable>
+                  </View>
+                  <View style={{ marginTop: 10, gap: 5 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Rounds</Text>
+                      <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>2 logged</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Avg score</Text>
+                      <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>77.5</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
+                      <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>8.2 ({'\u2193'}0.3)</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Leaderboard</Text>
+                      <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>#1 ({'\u2191'}1)</Text>
+                    </View>
+                    {activeStreaks.length > 0 && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Streak</Text>
+                        <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{activeStreaks[0].emoji} {activeStreaks[0].label}</Text>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Upcoming</Text>
+                      <Text style={{ color: c.gold, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>
+                        {MOCK_UPCOMING.length > 0 ? `${MOCK_UPCOMING[0].title} in ${MOCK_UPCOMING[0].daysAway}d` : 'No events \u2014 create one?'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
               {feedItems.map((item) => (
                 <FeedCard key={item.id} item={item} />
               ))}
