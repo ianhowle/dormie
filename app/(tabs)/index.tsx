@@ -22,6 +22,42 @@ import {
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
+// ─── Mock data ──────────────────────────────────────────────────────
+const MOCK_GROUPS = [
+  { id: 'g1', name: 'The Dormie Boys', color: '#2A9D8F', memberCount: 8 },
+  { id: 'g2', name: 'Nashville Golf Club', color: '#D4AF37', memberCount: 12 },
+  { id: 'g3', name: 'Work League', color: '#C44B4F', memberCount: 6 },
+];
+
+const MOCK_SEASON_STANDINGS = [
+  { rank: 1, name: 'McGowan', points: 72 },
+  { rank: 2, name: 'Patterson', points: 65 },
+  { rank: 3, name: 'Sullivan', points: 55 },
+  { rank: 4, name: 'Fleetwood', points: 48 },
+  { rank: 5, name: 'Chen', points: 42 },
+];
+
+const MOCK_ROUND_RESULT = {
+  round: 4,
+  userScore: { gross: 78, net: 72 },
+  opponentName: 'Patterson',
+  opponentId: '2',
+  opponentScore: { gross: 82, net: 75 },
+  result: 'WIN' as const,
+  margin: '3 strokes',
+};
+
+const MOCK_NEXT_MATCHUP = {
+  round: 5,
+  opponentName: 'Sullivan',
+  opponentId: '3',
+  opponentPosition: 3,
+  opponentPoints: 55,
+  userPosition: 1,
+  userPoints: 72,
+  date: 'Mar 22, 2026',
+};
+
 // ─── Greeting ─────────────────────────────────────────────────────────
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -77,8 +113,16 @@ function Pinstripes() {
   );
 }
 
-// ─── Header bar: Logo button | DORMIE | Dark mode toggle ─────────────
-function HeaderBar({ onLogoPress, showMenu }: { onLogoPress: () => void; showMenu: boolean }) {
+// ─── Header bar: Logo button | DORMIE | Badge + Dark mode toggle ────
+function HeaderBar({
+  onLogoPress,
+  showMenu,
+  pendingCount,
+}: {
+  onLogoPress: () => void;
+  showMenu: boolean;
+  pendingCount: number;
+}) {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
 
@@ -94,16 +138,36 @@ function HeaderBar({ onLogoPress, showMenu }: { onLogoPress: () => void; showMen
       {/* Centered DORMIE */}
       <Text style={[st.headerDormie, { color: c.text, fontFamily: GEO }]}>DORMIE</Text>
 
-      {/* Dark mode toggle */}
-      <Pressable onPress={toggleTheme} hitSlop={12} style={st.themeToggle}>
-        <Ionicons name={theme.isDark ? 'sunny' : 'moon'} size={20} color={c.textMuted} />
-      </Pressable>
+      {/* Right side: friend badge + dark mode toggle */}
+      <View style={st.headerRight}>
+        {pendingCount > 0 && (
+          <View style={st.badgeWrap}>
+            <Ionicons name="people" size={20} color={c.textMuted} />
+            <View style={st.badge}>
+              <Text style={st.badgeText}>{pendingCount}</Text>
+            </View>
+          </View>
+        )}
+        <Pressable onPress={toggleTheme} hitSlop={12} style={st.themeToggle}>
+          <Ionicons name={theme.isDark ? 'sunny' : 'moon'} size={20} color={c.textMuted} />
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 // ─── Logo menu dropdown ──────────────────────────────────────────────
-function LogoMenu({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function LogoMenu({
+  visible,
+  onClose,
+  activeGroupId,
+  onGroupSelect,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  activeGroupId: string;
+  onGroupSelect: (id: string) => void;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -111,7 +175,6 @@ function LogoMenu({ visible, onClose }: { visible: boolean; onClose: () => void 
   if (!visible) return null;
 
   const items = [
-    { label: 'Change Group', icon: 'swap-horizontal-outline' as const, onPress: () => {} },
     { label: 'Create New Group', icon: 'add-circle-outline' as const, onPress: () => {} },
     { label: 'Invite Player', icon: 'person-add-outline' as const, onPress: () => {} },
     { label: 'Play a Round', icon: 'golf-outline' as const, onPress: () => router.push('/(tabs)/score') },
@@ -132,21 +195,36 @@ function LogoMenu({ visible, onClose }: { visible: boolean; onClose: () => void 
             <Text style={[st.menuItemText, { color: c.text }]}>{item.label}</Text>
           </Pressable>
         ))}
-        {/* MY GROUPS section */}
+        {/* MY GROUPS section — tappable to switch active group */}
         <View style={[st.menuGroupHeader, { borderTopWidth: 1, borderTopColor: c.border }]}>
           <Text style={[st.menuGroupLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
         </View>
-        <Pressable style={st.menuItem}>
-          <View style={[st.menuGroupDot, { backgroundColor: c.teal }]} />
-          <Text style={[st.menuItemText, { color: c.teal }]}>The Dormie Boys</Text>
-        </Pressable>
+        {MOCK_GROUPS.map((group) => {
+          const isActive = group.id === activeGroupId;
+          return (
+            <Pressable
+              key={group.id}
+              onPress={() => { onGroupSelect(group.id); onClose(); }}
+              style={[
+                st.menuItem,
+                isActive && { borderLeftWidth: 3, borderLeftColor: '#2A9D8F' },
+              ]}
+            >
+              <View style={[st.menuGroupDot, { backgroundColor: group.color }]} />
+              <Text style={[st.menuItemText, { color: isActive ? '#2A9D8F' : c.text, flex: 1 }]}>
+                {group.name}
+              </Text>
+              {isActive && <Ionicons name="checkmark" size={14} color="#2A9D8F" />}
+            </Pressable>
+          );
+        })}
       </View>
     </>
   );
 }
 
 // ─── Greeting section — Masters green gradient + pinstripes ──────────
-function GreetingSection({ name }: { name: string }) {
+function GreetingSection({ name, groupName }: { name: string; groupName: string }) {
   return (
     <LinearGradient
       colors={['#1E4D2B', '#2D6A3F']}
@@ -156,6 +234,7 @@ function GreetingSection({ name }: { name: string }) {
     >
       <Pinstripes />
       <Text style={st.greetingText}>{getGreeting()}, {name}</Text>
+      <Text style={st.greetingGroup}>{groupName}</Text>
     </LinearGradient>
   );
 }
@@ -200,6 +279,191 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
           );
         })}
       </ScrollView>
+    </View>
+  );
+}
+
+// ─── Season Standings Section ────────────────────────────────────────
+function SeasonStandingsSection({ groupName }: { groupName: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <View style={st.seasonSection}>
+      <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>SEASON STANDINGS</Text>
+      <View style={st.seasonSubRow}>
+        <Text style={[st.seasonSubText, { color: c.textMuted }]}>Round 4 of 12</Text>
+        <Text style={[st.seasonSubText, { color: c.textMuted }]}>{groupName}</Text>
+      </View>
+      <View style={[st.seasonList, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        {MOCK_SEASON_STANDINGS.map((s, i) => (
+          <View
+            key={s.rank}
+            style={[
+              st.seasonRow,
+              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              s.rank === 1 && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
+            ]}
+          >
+            <Text style={[st.seasonRank, { color: s.rank === 1 ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>
+              {s.rank}
+            </Text>
+            <Text style={[st.seasonName, { color: s.rank === 1 ? '#2A9D8F' : c.text }]}>
+              {s.name}
+            </Text>
+            <Text style={[st.seasonPoints, { color: c.gold, fontFamily: GEO }]}>
+              {s.points}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Round Result Card ──────────────────────────────────────────────
+function RoundResultCard() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const r = MOCK_ROUND_RESULT;
+  const isWin = r.result === 'WIN';
+
+  return (
+    <View style={st.resultSection}>
+      <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>
+        ROUND {r.round} RESULT
+      </Text>
+      <View style={[st.resultCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        {/* User side */}
+        <View style={st.resultSide}>
+          <Avatar id="1" size={44} name="McGowan" />
+          <Text style={[st.resultPlayerName, { color: c.text }]}>McGowan</Text>
+          <View style={st.resultScores}>
+            <Text style={[st.resultScoreLabel, { color: c.textMuted }]}>GROSS</Text>
+            <Text style={[st.resultScoreValue, { color: c.text, fontFamily: GEO }]}>
+              {r.userScore.gross}
+            </Text>
+          </View>
+          <View style={st.resultScores}>
+            <Text style={[st.resultScoreLabel, { color: c.textMuted }]}>NET</Text>
+            <Text style={[st.resultScoreValue, { color: c.text, fontFamily: GEO }]}>
+              {r.userScore.net}
+            </Text>
+          </View>
+        </View>
+
+        {/* Center badge */}
+        <View style={st.resultCenter}>
+          <View style={[st.resultBadge, { backgroundColor: isWin ? '#2A9D8F' : '#C44B4F' }]}>
+            <Text style={st.resultBadgeText}>{r.result}</Text>
+          </View>
+          <Text style={[st.resultMargin, { color: c.textMuted }]}>{r.margin}</Text>
+        </View>
+
+        {/* Opponent side */}
+        <View style={st.resultSide}>
+          <Avatar id={r.opponentId} size={44} name={r.opponentName} />
+          <Text style={[st.resultPlayerName, { color: c.text }]}>{r.opponentName}</Text>
+          <View style={st.resultScores}>
+            <Text style={[st.resultScoreLabel, { color: c.textMuted }]}>GROSS</Text>
+            <Text style={[st.resultScoreValue, { color: c.text, fontFamily: GEO }]}>
+              {r.opponentScore.gross}
+            </Text>
+          </View>
+          <View style={st.resultScores}>
+            <Text style={[st.resultScoreLabel, { color: c.textMuted }]}>NET</Text>
+            <Text style={[st.resultScoreValue, { color: c.text, fontFamily: GEO }]}>
+              {r.opponentScore.net}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Next Matchup Card ──────────────────────────────────────────────
+function NextMatchupCard() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const m = MOCK_NEXT_MATCHUP;
+
+  return (
+    <View style={st.matchupSection}>
+      <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>
+        NEXT MATCHUP {'\u2022'} ROUND {m.round}
+      </Text>
+      <View style={[st.matchupCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        {/* User side */}
+        <View style={st.matchupSide}>
+          <Avatar id="1" size={40} name="McGowan" />
+          <Text style={[st.matchupName, { color: c.text }]}>McGowan</Text>
+          <Text style={[st.matchupPos, { color: c.textMuted }]}>#{m.userPosition}</Text>
+          <Text style={[st.matchupPts, { color: '#2A9D8F', fontFamily: GEO }]}>{m.userPoints} pts</Text>
+        </View>
+
+        {/* VS */}
+        <View style={st.matchupCenter}>
+          <Text style={[st.matchupVs, { color: c.textMuted, fontFamily: GEO }]}>VS</Text>
+          <Text style={[st.matchupDate, { color: c.textMuted }]}>{m.date}</Text>
+        </View>
+
+        {/* Opponent side */}
+        <View style={st.matchupSide}>
+          <Avatar id={m.opponentId} size={40} name={m.opponentName} />
+          <Text style={[st.matchupName, { color: c.text }]}>{m.opponentName}</Text>
+          <Text style={[st.matchupPos, { color: c.textMuted }]}>#{m.opponentPosition}</Text>
+          <Text style={[st.matchupPts, { color: '#2A9D8F', fontFamily: GEO }]}>{m.opponentPoints} pts</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── My Groups Section ──────────────────────────────────────────────
+function MyGroupsSection({
+  activeGroupId,
+  onGroupSelect,
+}: {
+  activeGroupId: string;
+  onGroupSelect: (id: string) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <View style={st.groupsSection}>
+      <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
+      {MOCK_GROUPS.map((group) => {
+        const isActive = group.id === activeGroupId;
+        const initial = group.name.charAt(0).toUpperCase();
+        return (
+          <Pressable
+            key={group.id}
+            onPress={() => onGroupSelect(group.id)}
+            style={[
+              st.groupCard,
+              {
+                backgroundColor: c.cardBg,
+                borderColor: c.border,
+                borderLeftWidth: isActive ? 3 : 1,
+                borderLeftColor: isActive ? '#2A9D8F' : c.border,
+              },
+            ]}
+          >
+            <View style={[st.groupInitialBox, { backgroundColor: group.color }]}>
+              <Text style={st.groupInitial}>{initial}</Text>
+            </View>
+            <View style={st.groupInfo}>
+              <Text style={[st.groupName, { color: c.text }]}>{group.name}</Text>
+              <Text style={[st.groupMembers, { color: c.textMuted }]}>
+                {group.memberCount} members
+              </Text>
+            </View>
+            {isActive && <Ionicons name="checkmark-circle" size={20} color="#2A9D8F" />}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -362,6 +626,13 @@ export default function HomeScreen() {
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
   const [showMenu, setShowMenu] = useState(false);
+  const [showDemoData, setShowDemoData] = useState(false);
+  const [activeGroup, setActiveGroup] = useState(MOCK_GROUPS[0]);
+
+  const handleGroupSelect = useCallback((id: string) => {
+    const group = MOCK_GROUPS.find((g) => g.id === id);
+    if (group) setActiveGroup(group);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -411,23 +682,65 @@ export default function HomeScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
-      {/* Fixed header bar */}
-      <HeaderBar onLogoPress={() => setShowMenu(!showMenu)} showMenu={showMenu} />
-      <LogoMenu visible={showMenu} onClose={() => setShowMenu(false)} />
+      {/* Fixed header bar with friend request badge (Item 6) */}
+      <HeaderBar
+        onLogoPress={() => setShowMenu(!showMenu)}
+        showMenu={showMenu}
+        pendingCount={pendingRequests.length}
+      />
+      <LogoMenu
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+        activeGroupId={activeGroup.id}
+        onGroupSelect={handleGroupSelect}
+      />
 
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-        {/* Masters green greeting */}
-        <GreetingSection name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'} />
+        {/* Masters green greeting with active group name (Item 1) */}
+        <GreetingSection
+          name={user?.user_metadata?.name?.split(' ')[0] ?? 'Golfer'}
+          groupName={activeGroup.name}
+        />
 
         {/* ESPN ticker */}
         <ESPNTicker standings={standings} />
 
         <View style={st.body}>
+          {/* Season Standings (Item 2) */}
+          <SeasonStandingsSection groupName={activeGroup.name} />
+
+          {/* Round Result (Item 3) */}
+          <RoundResultCard />
+
+          {/* Next Matchup (Item 4) */}
+          <NextMatchupCard />
+
           {/* Quick stats */}
           <QuickStatsRow stats={quickStats} />
 
           {/* Quick actions */}
           <QuickActions />
+
+          {/* My Groups (Item 5) */}
+          <MyGroupsSection
+            activeGroupId={activeGroup.id}
+            onGroupSelect={handleGroupSelect}
+          />
+
+          {/* Empty state for new users */}
+          {realRounds.length === 0 && !showDemoData && (
+            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Ionicons name="golf-outline" size={40} color={c.textMuted} />
+              <Text style={[st.emptyTitle, { color: c.text }]}>No rounds yet</Text>
+              <Text style={[st.emptyDesc, { color: c.textMuted }]}>Log your first round to see your stats</Text>
+              <Pressable onPress={() => router.push('/(tabs)/score')} style={[st.emptyBtn, { backgroundColor: c.teal }]}>
+                <Text style={st.emptyBtnText}>Log Round</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowDemoData(true)}>
+                <Text style={[st.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Friend requests */}
           {pendingRequests.length > 0 && (
@@ -447,13 +760,17 @@ export default function HomeScreen() {
           )}
 
           {/* Activity feed */}
-          <SectionHeader title="LATEST" />
-          {feedItems.map((item) => (
-            <FeedCard key={item.id} item={item} />
-          ))}
+          {(realRounds.length > 0 || showDemoData) && (
+            <>
+              <SectionHeader title="LATEST" />
+              {feedItems.map((item) => (
+                <FeedCard key={item.id} item={item} />
+              ))}
+            </>
+          )}
 
           {/* Upcoming */}
-          {MOCK_UPCOMING.length > 0 && (
+          {(realRounds.length > 0 || showDemoData) && MOCK_UPCOMING.length > 0 && (
             <>
               <SectionHeader title="UPCOMING" />
               {MOCK_UPCOMING.map((item) => (
@@ -504,11 +821,41 @@ const st = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 4,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   themeToggle: {
     width: 36,
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  /* Friend request badge (Item 6) */
+  badgeWrap: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 2,
+    backgroundColor: '#C44B4F',
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: 'Georgia',
   },
 
   /* Logo menu */
@@ -562,6 +909,14 @@ const st = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     fontFamily: 'Georgia',
+  },
+  greetingGroup: {
+    color: '#D4AF37',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Georgia',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
 
   /* ESPN Ticker */
@@ -632,11 +987,182 @@ const st = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
+  /* Season Standings (Item 2) */
+  seasonSection: {
+    marginTop: 16,
+  },
+  seasonLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  seasonSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  seasonSubText: {
+    fontSize: 11,
+  },
+  seasonList: {
+    borderWidth: 1,
+  },
+  seasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  seasonRank: {
+    width: 24,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  seasonName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  seasonPoints: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  /* Round Result Card (Item 3) */
+  resultSection: {
+    marginTop: 20,
+  },
+  resultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: 16,
+  },
+  resultSide: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  resultPlayerName: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  resultScores: {
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  resultScoreLabel: {
+    fontSize: 7,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  resultScoreValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  resultCenter: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  resultBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  resultBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'Georgia',
+    letterSpacing: 1,
+  },
+  resultMargin: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+
+  /* Next Matchup Card (Item 4) */
+  matchupSection: {
+    marginTop: 20,
+  },
+  matchupCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: 16,
+  },
+  matchupSide: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  matchupName: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  matchupPos: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  matchupPts: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  matchupCenter: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  matchupVs: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  matchupDate: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+
+  /* My Groups Section (Item 5) */
+  groupsSection: {
+    marginTop: 24,
+  },
+  groupCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 8,
+  },
+  groupInitialBox: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  groupInitial: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: 'Georgia',
+  },
+  groupInfo: {
+    flex: 1,
+  },
+  groupName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  groupMembers: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+
   /* Quick stats */
   statsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
+    marginTop: 20,
   },
   statBox: {
     flex: 1,
@@ -766,5 +1292,39 @@ const st = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     marginTop: 1,
+  },
+
+  /* Empty state */
+  emptyState: {
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: 32,
+    marginTop: 20,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'Georgia',
+    marginTop: 8,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  emptyBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  emptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  demoToggle: {
+    fontSize: 12,
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });

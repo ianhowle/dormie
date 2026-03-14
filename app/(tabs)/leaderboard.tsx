@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   FlatList,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -389,6 +390,7 @@ export default function LeaderboardScreen() {
   const { user } = useAuth();
   const [friends, setFriends] = useState<FriendshipWithUser[]>([]);
   const [myRounds, setMyRounds] = useState<RoundWithCourse[]>([]);
+  const [showDemoData, setShowDemoData] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -469,19 +471,36 @@ export default function LeaderboardScreen() {
       {/* ── Tab bar ── */}
       <TabBar active={tab} onSelect={setTab} />
 
+      {/* ── Empty state for new users ── */}
+      {myRounds.length === 0 && friends.length === 0 && !showDemoData && (
+        <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <Ionicons name="people-outline" size={40} color={c.textMuted} />
+          <Text style={[styles.emptyTitle, { color: c.text }]}>No leaderboard yet</Text>
+          <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Invite your crew to unlock the leaderboard</Text>
+          <Pressable onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')} style={[styles.emptyBtn, { backgroundColor: c.teal }]}>
+            <Text style={styles.emptyBtnText}>Invite Friends</Text>
+          </Pressable>
+          <Pressable onPress={() => setShowDemoData(true)}>
+            <Text style={[styles.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* ── Tab content ── */}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentInner}
-        showsVerticalScrollIndicator={false}
-      >
-        {tab === 'Leaderboard' && (
-          <LeaderboardTable players={leaderboardPlayers} myId={myId} />
-        )}
-        {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
-        {tab === 'H2H' && <H2HTab />}
-        {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
-      </ScrollView>
+      {(myRounds.length > 0 || friends.length > 0 || showDemoData) && (
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentInner}
+          showsVerticalScrollIndicator={false}
+        >
+          {tab === 'Leaderboard' && (
+            <LeaderboardTable players={leaderboardPlayers} myId={myId} />
+          )}
+          {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
+          {tab === 'H2H' && <H2HTab />}
+          {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -715,5 +734,40 @@ const styles = StyleSheet.create({
   heroNumber: {
     fontSize: 18,
     fontWeight: '700',
+  },
+
+  /* Empty state */
+  emptyState: {
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: 32,
+    marginHorizontal: 16,
+    marginTop: 20,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'Georgia',
+    marginTop: 8,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  emptyBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  emptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  demoToggle: {
+    fontSize: 12,
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });

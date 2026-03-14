@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
+import { TripCountdownRing } from '../../src/components/TripCountdownRing';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
 import type { TripWithMembers } from '../../src/lib/database.types';
@@ -141,7 +142,12 @@ function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
               end={{ x: 1, y: 1 }}
               style={s.dreamGradient}
             >
-              <View style={s.dreamOverlay} />
+              {/* Item 16: Stronger dark overlay gradient for text readability */}
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.7)']}
+                locations={[0, 0.4, 1]}
+                style={s.dreamOverlay}
+              />
               <Text style={[s.dreamName, { fontFamily: GEO }]}>{d.name}</Text>
               <Text style={s.dreamLocation}>{d.city}, {d.state}</Text>
             </LinearGradient>
@@ -183,14 +189,27 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
   const router = useRouter();
   const daysAway = showDays ? getDaysUntilTrip(trip.startDate) : 0;
 
-  const borderLeftColor = trip.isRyderCup ? c.urgent : c.teal;
+  // Item 12: Two-tone color palette — planning vs competition mode
+  const isCompetition = trip.competitionStarted === true;
+  const MASTERS_GREEN = '#1E4D2B';
+  const cardBg = isCompetition
+    ? c.cardBg
+    : theme.isDark
+      ? '#2A2318' // warm dark tint for planning
+      : '#FAF3E0'; // champagne cream for planning (light)
+  const borderLeftColor = isCompetition
+    ? MASTERS_GREEN
+    : trip.isRyderCup
+      ? c.urgent
+      : c.teal;
+  const borderColor = isCompetition ? MASTERS_GREEN : c.border;
 
   return (
     <Pressable
       onPress={() => router.push(`/trip-detail?tripId=${trip.id}`)}
       style={[
         s.tripCard,
-        { backgroundColor: c.cardBg, borderColor: c.border, borderLeftWidth: 3, borderLeftColor },
+        { backgroundColor: cardBg, borderColor, borderLeftWidth: 3, borderLeftColor },
       ]}
     >
       <View style={s.tripCardBody}>
@@ -199,7 +218,12 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
             <Text style={[s.tripName, { color: c.text }]} numberOfLines={1}>
               {trip.name}
             </Text>
-            {trip.isRyderCup && (
+            {isCompetition && (
+              <View style={[s.rcBadge, { backgroundColor: `${MASTERS_GREEN}20` }]}>
+                <Text style={[s.rcBadgeText, { color: MASTERS_GREEN }]}>LIVE</Text>
+              </View>
+            )}
+            {!isCompetition && trip.isRyderCup && (
               <View style={[s.rcBadge, { backgroundColor: `${c.urgent}20` }]}>
                 <Text style={[s.rcBadgeText, { color: c.urgent }]}>RC</Text>
               </View>
@@ -212,13 +236,15 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
 
         <View style={s.tripCardBottom}>
           <AvatarStack playerIds={trip.playerIds} />
+          {/* Item 15: Replace plain days badge with TripCountdownRing */}
           {showDays && (
-            <View style={[s.daysBadge, { backgroundColor: trip.isRyderCup ? `${c.urgent}15` : `${c.teal}15` }]}>
-              <Text style={[s.daysNum, { color: trip.isRyderCup ? c.urgent : c.teal, fontFamily: GEO }]}>
-                {daysAway}
-              </Text>
-              <Text style={[s.daysLabel, { color: trip.isRyderCup ? c.urgent : c.teal }]}>days</Text>
-            </View>
+            <TripCountdownRing
+              daysUntil={daysAway}
+              totalDays={60}
+              size={50}
+              strokeWidth={3}
+              accentColor={trip.isRyderCup ? c.urgent : isCompetition ? MASTERS_GREEN : c.teal}
+            />
           )}
         </View>
       </View>
@@ -306,7 +332,9 @@ export default function TripsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const { user } = useAuth();
+  const router = useRouter();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
+  const [showDemoData, setShowDemoData] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -319,14 +347,29 @@ export default function TripsScreen() {
         <Header />
 
         <View style={s.body}>
+          {/* Empty state for new users */}
+          {realTrips.length === 0 && !showDemoData && (
+            <View style={[s.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Ionicons name="airplane-outline" size={40} color={c.textMuted} />
+              <Text style={[s.emptyTitle, { color: c.text }]}>No trips yet</Text>
+              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Plan your first golf trip</Text>
+              <Pressable onPress={() => router.push('/create-trip')} style={[s.emptyBtn, { backgroundColor: c.teal }]}>
+                <Text style={s.emptyBtnText}>New Trip</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowDemoData(true)}>
+                <Text style={[s.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Trip stats */}
-          <TripStatsBanner />
+          {(realTrips.length > 0 || showDemoData) && <TripStatsBanner />}
 
           {/* Dream board */}
-          <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />
+          {(realTrips.length > 0 || showDemoData) && <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />}
 
           {/* Upcoming */}
-          {MOCK_UPCOMING_TRIPS.length > 0 && (
+          {(realTrips.length > 0 || showDemoData) && MOCK_UPCOMING_TRIPS.length > 0 && (
             <>
               <SectionLabel title="UPCOMING" />
               {MOCK_UPCOMING_TRIPS.map((trip) => (
@@ -336,7 +379,7 @@ export default function TripsScreen() {
           )}
 
           {/* Completed */}
-          {MOCK_COMPLETED_TRIPS.length > 0 && (
+          {(realTrips.length > 0 || showDemoData) && MOCK_COMPLETED_TRIPS.length > 0 && (
             <>
               <SectionLabel title="COMPLETED" />
               {MOCK_COMPLETED_TRIPS.map((trip) => (
@@ -346,10 +389,10 @@ export default function TripsScreen() {
           )}
 
           {/* Bucket list */}
-          <BucketList courses={MOCK_BUCKET_COURSES} />
+          {(realTrips.length > 0 || showDemoData) && <BucketList courses={MOCK_BUCKET_COURSES} />}
 
           {/* Explore */}
-          <ExploreRow destinations={MOCK_EXPLORE_DESTINATIONS} />
+          {(realTrips.length > 0 || showDemoData) && <ExploreRow destinations={MOCK_EXPLORE_DESTINATIONS} />}
         </View>
 
         <View style={{ height: 32 }} />
@@ -457,7 +500,6 @@ const s = StyleSheet.create({
   },
   dreamOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   dreamName: {
     color: '#fff',
@@ -612,5 +654,39 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 10,
     marginTop: 1,
+  },
+
+  /* Empty state */
+  emptyState: {
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: 32,
+    marginTop: 12,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'Georgia',
+    marginTop: 8,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  emptyBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  emptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  demoToggle: {
+    fontSize: 12,
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });

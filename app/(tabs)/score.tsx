@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Platform,
   StatusBar,
   KeyboardAvoidingView,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +19,7 @@ import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
+import { coursesService } from '../../src/services/courses.service';
 import {
   SCORING_FORMATS,
   SIDE_GAMES,
@@ -83,6 +86,31 @@ const MOCK_TEE_BOXES = [
   { name: 'Gold', color: '#D4AF37', rating: 68.2, slope: 121, yards: 5900 },
   { name: 'Red', color: '#C44B4F', rating: 66.1, slope: 115, yards: 5400 },
 ];
+
+// ─── Mock friends for player search ──────────────────────────────────
+const MOCK_FRIENDS = [
+  { id: 'f1', name: 'Drew Patterson', handicap: 12 },
+  { id: 'f2', name: 'Jake Sullivan', handicap: 15 },
+  { id: 'f3', name: 'Tommy Fleetwood', handicap: 3 },
+  { id: 'f4', name: 'Mike Chen', handicap: 18 },
+  { id: 'f5', name: 'Sam Rodriguez', handicap: 22 },
+  { id: 'f6', name: 'Nate Harmon', handicap: 14 },
+];
+
+// ─── Side game descriptions ─────────────────────────────────────────
+const SIDE_GAME_DESCRIPTIONS: Record<string, string> = {
+  dots: 'Points for birdies (+1), one-putts (+1), three-putts (-1), greenies (+1)',
+  snake: 'Three-putt passes the snake; holder at end pays everyone',
+  greenies: 'Closest to pin on par 3s; must make par to collect',
+  skins: 'Win the hole outright to win the skin; ties carry over',
+  hammer: 'Double the bet by throwing the hammer; opponent can re-hammer',
+  nassau: 'Three separate bets: front 9, back 9, and overall',
+  wolf: 'Rotating wolf picks a partner or goes alone each hole',
+  sandies: 'Up and down from a bunker for par or better',
+  bark: 'Hit a tree and still make par or better',
+  arnies: 'Make par without hitting the fairway',
+  close_shave: 'Closest to the pin on designated holes',
+};
 
 // ─── Section header ───────────────────────────────────────────────────
 function SectionLabel({ title }: { title: string }) {
@@ -327,6 +355,149 @@ function AddPlayerInline({
   );
 }
 
+// ─── Add player modal (full) ─────────────────────────────────────────
+function AddPlayerModal({
+  visible,
+  existingPlayerIds,
+  onAddFriend,
+  onAddManual,
+  onClose,
+}: {
+  visible: boolean;
+  existingPlayerIds: Set<string>;
+  onAddFriend: (friend: { id: string; name: string; handicap: number }) => void;
+  onAddManual: (name: string, hcp: number) => void;
+  onClose: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [search, setSearch] = useState('');
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualHcp, setManualHcp] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return MOCK_FRIENDS.filter(
+      (f) => !existingPlayerIds.has(f.id) && (q.length === 0 || f.name.toLowerCase().includes(q)),
+    );
+  }, [search, existingPlayerIds]);
+
+  const handleClose = () => {
+    setSearch('');
+    setShowManualForm(false);
+    setManualName('');
+    setManualHcp('');
+    onClose();
+  };
+
+  const handleAddManual = () => {
+    if (manualName.trim().length > 0) {
+      onAddManual(manualName.trim(), Number(manualHcp) || 0);
+      handleClose();
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={[st.modalOverlay]}>
+        <View style={[st.modalContent, { backgroundColor: c.bg }]}>
+          {/* Header */}
+          <View style={[st.modalHeader, { borderColor: c.border }]}>
+            <Text style={[st.modalTitle, { color: c.text, fontFamily: GEO }]}>Add Player</Text>
+            <Pressable onPress={handleClose} hitSlop={8}>
+              <Ionicons name="close" size={22} color={c.textMuted} />
+            </Pressable>
+          </View>
+
+          {/* Search */}
+          <View style={[st.modalSearchWrap, { backgroundColor: c.elevated, borderColor: c.border }]}>
+            <Ionicons name="search" size={16} color={c.textMuted} />
+            <TextInput
+              style={[st.modalSearchInput, { color: c.text }]}
+              placeholder="Search friends..."
+              placeholderTextColor={c.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => setSearch('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color={c.textMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Friends list */}
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            style={st.modalList}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => { onAddFriend(item); handleClose(); }}
+                style={[st.modalFriendRow, { borderColor: c.border }]}
+              >
+                <Avatar id={item.id} size={32} name={item.name} />
+                <View style={st.playerInfo}>
+                  <Text style={[st.playerName, { color: c.text }]}>{item.name}</Text>
+                  <Text style={[st.playerHcp, { color: c.textMuted }]}>{item.handicap} HCP</Text>
+                </View>
+                <Ionicons name="add-circle-outline" size={20} color={c.teal} />
+              </Pressable>
+            )}
+            ListEmptyComponent={
+              <Text style={[st.modalEmptyText, { color: c.textMuted }]}>
+                {search.length > 0 ? 'No friends found' : 'No more friends to add'}
+              </Text>
+            }
+          />
+
+          {/* Manual add section */}
+          {!showManualForm ? (
+            <Pressable
+              onPress={() => setShowManualForm(true)}
+              style={[st.modalManualBtn, { borderColor: c.border }]}
+            >
+              <Ionicons name="person-add-outline" size={16} color={c.gold} />
+              <Text style={[st.modalManualText, { color: c.gold }]}>Add Manual Player</Text>
+            </Pressable>
+          ) : (
+            <View style={[st.addForm, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <TextInput
+                style={[st.addInput, { color: c.text, borderColor: c.border }]}
+                placeholder="Player name"
+                placeholderTextColor={c.textMuted}
+                value={manualName}
+                onChangeText={setManualName}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={[st.addInput, st.addHcpInput, { color: c.text, borderColor: c.border }]}
+                placeholder="HCP"
+                placeholderTextColor={c.textMuted}
+                value={manualHcp}
+                onChangeText={setManualHcp}
+                keyboardType="numeric"
+                maxLength={3}
+              />
+              <View style={st.addActions}>
+                <Pressable onPress={() => setShowManualForm(false)} style={st.addCancelBtn}>
+                  <Text style={[st.addCancelText, { color: c.textMuted }]}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={handleAddManual} style={[st.addDoneBtn, { backgroundColor: c.teal }]}>
+                  <Text style={st.addDoneText}>Add</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Format picker ────────────────────────────────────────────────────
 function FormatPicker({
   selected,
@@ -386,41 +557,51 @@ function FormatPicker({
 function SideGamePicker({
   selected,
   onToggle,
+  lastToggled,
 }: {
   selected: Set<SideGame>;
   onToggle: (g: SideGame) => void;
+  lastToggled: SideGame | null;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const desc = lastToggled && selected.has(lastToggled) ? SIDE_GAME_DESCRIPTIONS[lastToggled] : null;
 
   return (
-    <View style={st.sideWrap}>
-      {SIDE_GAMES.map((g) => {
-        const active = selected.has(g.key);
-        return (
-          <Pressable
-            key={g.key}
-            onPress={() => onToggle(g.key)}
-            style={[
-              st.sidePill,
-              {
-                backgroundColor: active ? `${c.teal}20` : c.elevated,
-                borderColor: active ? c.teal : c.border,
-              },
-            ]}
-          >
-            <Text
+    <View>
+      <View style={st.sideWrap}>
+        {SIDE_GAMES.map((g) => {
+          const active = selected.has(g.key);
+          return (
+            <Pressable
+              key={g.key}
+              onPress={() => onToggle(g.key)}
               style={[
-                st.sidePillText,
-                { color: active ? c.teal : c.textMuted },
-                active && { fontWeight: '700' },
+                st.sidePill,
+                {
+                  backgroundColor: active ? `${c.teal}20` : c.elevated,
+                  borderColor: active ? c.teal : c.border,
+                },
               ]}
             >
-              {g.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Text
+                style={[
+                  st.sidePillText,
+                  { color: active ? c.teal : c.textMuted },
+                  active && { fontWeight: '700' },
+                ]}
+              >
+                {g.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {desc && (
+        <Text style={[st.formatDesc, { color: c.textMuted }]}>
+          {desc}
+        </Text>
+      )}
     </View>
   );
 }
@@ -479,9 +660,11 @@ export default function ScoreScreen() {
   const [players, setPlayers] = useState<Player[]>([
     { id: '1', name: 'Ian McGowan', handicap: 8 },
   ]);
-  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [format, setFormat] = useState<ScoringFormat>('stroke_play');
   const [sideGames, setSideGames] = useState<Set<SideGame>>(new Set());
+  const [lastToggledSideGame, setLastToggledSideGame] = useState<SideGame | null>(null);
+  const [holeData, setHoleData] = useState<any[] | null>(null);
   const [holeRange, setHoleRange] = useState<HoleRange>('full18');
   const [scoreMode, setScoreMode] = useState<ScoreMode>('gross');
   const [trackingLevel, setTrackingLevel] = useState<TrackingLevel>('standard');
@@ -497,6 +680,7 @@ export default function ScoreScreen() {
   const hasManualPlayers = players.some((p) => p.id.startsWith('p-'));
 
   const handleToggleSideGame = (g: SideGame) => {
+    setLastToggledSideGame(g);
     setSideGames((prev) => {
       const next = new Set(prev);
       if (next.has(g)) next.delete(g);
@@ -510,12 +694,27 @@ export default function ScoreScreen() {
       ...prev,
       { id: `p-${Date.now()}`, name, handicap: hcp },
     ]);
-    setShowAddPlayer(false);
+    setShowAddPlayerModal(false);
+  };
+
+  const handleAddFriend = (friend: { id: string; name: string; handicap: number }) => {
+    setPlayers((prev) => [...prev, friend]);
   };
 
   const handleRemovePlayer = (id: string) => {
     setPlayers((prev) => prev.filter((p) => p.id !== id));
   };
+
+  // Fetch hole data when a non-custom course is selected
+  useEffect(() => {
+    if (course && !isCustom) {
+      coursesService.generateHoleData?.(course.name, course.par)
+        ?.then(setHoleData)
+        ?.catch(() => setHoleData(null));
+    } else {
+      setHoleData(null);
+    }
+  }, [course, isCustom]);
 
   const canStart = course !== null;
 
@@ -549,6 +748,7 @@ export default function ScoreScreen() {
         trackingLevel,
         scorekeeperMode,
         roundType,
+        ...(holeData ? { holeData: JSON.stringify(holeData) } : {}),
       },
     });
   };
@@ -667,15 +867,16 @@ export default function ScoreScreen() {
             <SectionLabel title="PLAYERS" />
             <PlayersSection
               players={players}
-              onAdd={() => setShowAddPlayer(true)}
+              onAdd={() => setShowAddPlayerModal(true)}
               onRemove={handleRemovePlayer}
             />
-            {showAddPlayer && (
-              <AddPlayerInline
-                onDone={handleAddPlayer}
-                onCancel={() => setShowAddPlayer(false)}
-              />
-            )}
+            <AddPlayerModal
+              visible={showAddPlayerModal}
+              existingPlayerIds={new Set(players.map((p) => p.id))}
+              onAddFriend={handleAddFriend}
+              onAddManual={handleAddPlayer}
+              onClose={() => setShowAddPlayerModal(false)}
+            />
 
             {/* Scoring format */}
             <SectionLabel title="FORMAT" />
@@ -714,7 +915,7 @@ export default function ScoreScreen() {
 
             {/* Side games */}
             <SectionLabel title="SIDE GAMES" />
-            <SideGamePicker selected={sideGames} onToggle={handleToggleSideGame} />
+            <SideGamePicker selected={sideGames} onToggle={handleToggleSideGame} lastToggled={lastToggledSideGame} />
 
             {/* Hole range */}
             <SectionLabel title="HOLES" />
@@ -1233,6 +1434,75 @@ const st = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
+  },
+
+  /* Add player modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    maxHeight: '80%',
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    padding: 0,
+  },
+  modalList: {
+    maxHeight: 280,
+    paddingHorizontal: 12,
+  },
+  modalFriendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  modalEmptyText: {
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  modalManualBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  modalManualText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   /* Start button */

@@ -206,6 +206,7 @@ export default function ProfileScreen() {
 
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
+  const [showDemoData, setShowDemoData] = useState(false);
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(null);
   const [showCoursePicker, setShowCoursePicker] = useState(false);
 
@@ -259,7 +260,16 @@ export default function ProfileScreen() {
     };
   }, [realRounds]);
 
-  const displayStats = realStats ?? MOCK_STATS;
+  const EMPTY_STATS = {
+    totalRounds: '--' as any,
+    coursesPlayed: '--' as any,
+    bestRound: { score: '--' as any, course: '--', par: 72 },
+    scoringAvg: '--' as any,
+    courseRecords: '--' as any,
+    tripsPlayed: '--' as any,
+  };
+
+  const displayStats = realStats ?? (showDemoData ? MOCK_STATS : EMPTY_STATS);
 
   // Build recent rounds from real data
   const displayRounds: RecentRound[] = useMemo(() => {
@@ -273,8 +283,9 @@ export default function ProfileScreen() {
         source: r.source as 'manual' | 'ghin' | 'app',
       }));
     }
-    return MOCK_RECENT_ROUNDS;
-  }, [realRounds]);
+    if (showDemoData) return MOCK_RECENT_ROUNDS;
+    return [];
+  }, [realRounds, showDemoData]);
 
   // Build handicap trend from real rounds
   const displayHandicapTrend = useMemo(() => {
@@ -285,8 +296,9 @@ export default function ProfileScreen() {
         return Math.max(0, diff * 0.96); // rough handicap approximation
       });
     }
-    return HANDICAP_TREND;
-  }, [realRounds]);
+    if (showDemoData) return HANDICAP_TREND;
+    return [];
+  }, [realRounds, showDemoData]);
 
   const toPar = (score: number, par: number) => {
     const diff = score - par;
@@ -320,15 +332,41 @@ export default function ProfileScreen() {
           </View>
 
           <View style={s.profileRow}>
-            <Avatar id={profileUser.id} size={80} name={profileUser.name} />
+            <View style={{ position: 'relative' }}>
+              <Avatar id={profileUser.id} size={80} name={profileUser.name} />
+              <Pressable
+                style={s.avatarEditBtn}
+                onPress={() =>
+                  Alert.alert('Change Avatar', 'Choose an avatar style', [
+                    { text: 'Initials' },
+                    { text: 'Course Theme' },
+                    { text: 'Upload Photo' },
+                    { text: 'Cancel', style: 'cancel' },
+                  ])
+                }
+              >
+                <Ionicons name="create-outline" size={12} color="#fff" />
+              </Pressable>
+            </View>
             <View style={s.profileInfo}>
               <Text style={[s.profileName, { color: c.text, fontFamily: GEO }]}>
                 {profileUser.name}
               </Text>
               <View style={s.handicapRow}>
-                <Text style={[s.handicapLabel, { color: c.textMuted }]}>HCP INDEX</Text>
+                <Text style={[s.handicapLabel, { color: c.textMuted }]}>HCP</Text>
                 <Text style={[s.handicapValue, { color: c.teal, fontFamily: GEO }]}>
                   {profileUser.handicap.toFixed(1)}
+                </Text>
+                <Text style={[s.handicapLabel, { color: c.textMuted, marginLeft: 10 }]}>NET</Text>
+                <Text style={[s.handicapValue, {
+                  color: typeof displayStats.scoringAvg === 'number'
+                    ? ((displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) < 0 ? c.teal : (displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) > 0 ? c.urgent : c.text)
+                    : c.textMuted,
+                  fontFamily: GEO,
+                }]}>
+                  {typeof displayStats.scoringAvg === 'number'
+                    ? ((val: number) => val === 0 ? 'E' : val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1))(displayStats.scoringAvg - 72 - profileUser.handicap)
+                    : '--'}
                 </Text>
               </View>
               <Text style={[s.location, { color: c.textMuted }]}>
@@ -373,7 +411,7 @@ export default function ProfileScreen() {
             </View>
             <View style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>
-                {displayStats.scoringAvg.toFixed(1)}
+                {typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg}
               </Text>
               <Text style={[s.statLabel, { color: c.textMuted }]}>Scoring Average</Text>
             </View>
@@ -391,34 +429,45 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Demo data toggle for new users */}
+          {!realStats && !showDemoData && (
+            <Pressable onPress={() => setShowDemoData(true)} style={s.demoToggleWrap}>
+              <Text style={[s.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
+            </Pressable>
+          )}
+
           {/* ─── HANDICAP TREND ───────────────────────────────────── */}
-          <SectionLabel title="HANDICAP TREND" />
-          <View style={[s.chartCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-            <View style={s.chartHeader}>
-              <View>
-                <Text style={[s.chartCurrentLabel, { color: c.textMuted }]}>Current</Text>
-                <Text style={[s.chartCurrentValue, { color: c.teal, fontFamily: GEO }]}>
-                  {(displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0).toFixed(1)}
-                </Text>
+          {displayHandicapTrend.length > 0 && (
+            <>
+              <SectionLabel title="HANDICAP TREND" />
+              <View style={[s.chartCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                <View style={s.chartHeader}>
+                  <View>
+                    <Text style={[s.chartCurrentLabel, { color: c.textMuted }]}>Current</Text>
+                    <Text style={[s.chartCurrentValue, { color: c.teal, fontFamily: GEO }]}>
+                      {(displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0).toFixed(1)}
+                    </Text>
+                  </View>
+                  <View style={s.chartTrendBadge}>
+                    <Ionicons
+                      name="trending-down"
+                      size={14}
+                      color={c.teal}
+                    />
+                    <Text style={[s.chartTrendText, { color: c.teal }]}>
+                      {((displayHandicapTrend[0] ?? 0) - (displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0)).toFixed(1)} improvement
+                    </Text>
+                  </View>
+                </View>
+                <View style={s.chartWrap}>
+                  <HandicapChart data={displayHandicapTrend} />
+                </View>
               </View>
-              <View style={s.chartTrendBadge}>
-                <Ionicons
-                  name="trending-down"
-                  size={14}
-                  color={c.teal}
-                />
-                <Text style={[s.chartTrendText, { color: c.teal }]}>
-                  {((displayHandicapTrend[0] ?? 0) - (displayHandicapTrend[displayHandicapTrend.length - 1] ?? 0)).toFixed(1)} improvement
-                </Text>
-              </View>
-            </View>
-            <View style={s.chartWrap}>
-              <HandicapChart data={displayHandicapTrend} />
-            </View>
-          </View>
+            </>
+          )}
 
           {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
-          <SectionLabel title="RECENT ROUNDS" />
+          {displayRounds.length > 0 && <SectionLabel title="RECENT ROUNDS" />}
           {displayRounds.map((round) => {
             const badge = sourceBadge(round.source);
             return (
@@ -705,6 +754,16 @@ const s = StyleSheet.create({
     gap: 16,
     alignItems: 'center',
   },
+  avatarEditBtn: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    backgroundColor: '#2A9D8F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 22, fontWeight: '700' },
   handicapRow: {
@@ -940,4 +999,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   modalClearText: { fontSize: 14, fontWeight: '700' },
+
+  /* Demo toggle */
+  demoToggleWrap: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  demoToggle: {
+    fontSize: 12,
+    textDecorationLine: 'underline',
+  },
 });

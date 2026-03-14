@@ -12,6 +12,7 @@ import {
   Animated,
   Alert,
   Clipboard,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -1600,10 +1601,12 @@ function WeatherForecast({
 function CompetitionCeremony({
   trip,
   players,
+  visible,
   onComplete,
 }: {
   trip: typeof MOCK_UPCOMING_TRIPS[0];
   players: TripPlayer[];
+  visible: boolean;
   onComplete: () => void;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -1612,6 +1615,16 @@ function CompetitionCeremony({
   const avatarsFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!visible) return;
+    // Reset values for re-entry
+    fadeAnim.setValue(0);
+    titleSlide.setValue(30);
+    badgeFade.setValue(0);
+    avatarsFade.setValue(0);
+
+    // Phase 1: Masters green wash fills screen
+    // Phase 2: Trip name + COMPETITION IS LIVE + avatars animate in
+    // Phase 3: Auto-transition after 3 seconds
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.parallel([
@@ -1623,42 +1636,44 @@ function CompetitionCeremony({
 
     const timer = setTimeout(onComplete, 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [visible]);
 
   return (
-    <Pressable onPress={onComplete} style={cm.ceremonyScreen}>
-      <LinearGradient
-        colors={['#0A2A1A', '#1E4D2B', '#2D6A3F', '#1E4D2B', '#0A2A1A']}
-        locations={[0, 0.25, 0.5, 0.75, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+    <Modal visible={visible} animationType="fade" statusBarTranslucent transparent={false}>
+      <Pressable onPress={onComplete} style={cm.ceremonyScreen}>
+        <LinearGradient
+          colors={['#0A2A1A', '#1E4D2B', '#2D6A3F', '#1E4D2B', '#0A2A1A']}
+          locations={[0, 0.25, 0.5, 0.75, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
 
-      <Animated.View style={[cm.ceremonyContent, { opacity: fadeAnim }]}>
-        <Text style={[cm.ceremonyBrand, { fontFamily: GEO }]}>DORMIE</Text>
+        <Animated.View style={[cm.ceremonyContent, { opacity: fadeAnim }]}>
+          <Text style={[cm.ceremonyBrand, { fontFamily: GEO }]}>DORMIE</Text>
 
-        <Animated.View style={{ transform: [{ translateY: titleSlide }] }}>
-          <Text style={[cm.ceremonyTripName, { fontFamily: GEO }]}>{trip.name}</Text>
+          <Animated.View style={{ transform: [{ translateY: titleSlide }] }}>
+            <Text style={[cm.ceremonyTripName, { fontFamily: GEO }]}>{trip.name}</Text>
+          </Animated.View>
+
+          <Animated.View style={[cm.ceremonyBadge, { opacity: badgeFade }]}>
+            <View style={cm.liveIndicator} />
+            <Text style={[cm.ceremonyLive, { fontFamily: GEO }]}>COMPETITION IS LIVE</Text>
+          </Animated.View>
+
+          <Animated.View style={[cm.ceremonyAvatarRow, { opacity: avatarsFade }]}>
+            {players.filter((p) => p.rsvp === 'confirmed').map((p) => (
+              <View key={p.id} style={cm.ceremonyAvatarWrap}>
+                <Avatar id={p.id} size={44} name={p.name} />
+                <Text style={cm.ceremonyAvatarName}>{p.name.split(' ')[0]}</Text>
+              </View>
+            ))}
+          </Animated.View>
+
+          <Text style={cm.ceremonyTap}>Tap to continue</Text>
         </Animated.View>
-
-        <Animated.View style={[cm.ceremonyBadge, { opacity: badgeFade }]}>
-          <View style={cm.liveIndicator} />
-          <Text style={[cm.ceremonyLive, { fontFamily: GEO }]}>COMPETITION IS LIVE</Text>
-        </Animated.View>
-
-        <Animated.View style={[cm.ceremonyAvatarRow, { opacity: avatarsFade }]}>
-          {players.filter((p) => p.rsvp === 'confirmed').map((p) => (
-            <View key={p.id} style={cm.ceremonyAvatarWrap}>
-              <Avatar id={p.id} size={44} name={p.name} />
-              <Text style={cm.ceremonyAvatarName}>{p.name.split(' ')[0]}</Text>
-            </View>
-          ))}
-        </Animated.View>
-
-        <Text style={cm.ceremonyTap}>Tap to continue</Text>
-      </Animated.View>
-    </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -2042,7 +2057,8 @@ export default function TripDetailScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
   const [checklist, setChecklist] = useState(MOCK_CHECKLIST);
   const [activeTool, setActiveTool] = useState<string | null>(null);
-  const [competitionMode, setCompetitionMode] = useState<'off' | 'ceremony' | 'live'>('off');
+  const [showCeremony, setShowCeremony] = useState(false);
+  const [competitionMode, setCompetitionMode] = useState(false);
 
   const toggleCheck = useCallback((id: string) => {
     setChecklist((prev) =>
@@ -2057,24 +2073,21 @@ export default function TripDetailScreen() {
     return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`;
   };
 
+  // Item 13: After ceremony completes, set competitionMode to true
+  const handleCeremonyComplete = useCallback(() => {
+    setShowCeremony(false);
+    setCompetitionMode(true);
+  }, []);
+
   // Competition mode routing
-  if (competitionMode === 'ceremony') {
-    return (
-      <CompetitionCeremony
-        trip={trip}
-        players={MOCK_PLAYERS}
-        onComplete={() => setCompetitionMode('live')}
-      />
-    );
-  }
-  if (competitionMode === 'live') {
+  if (competitionMode) {
     return (
       <CompetitionView
         trip={trip}
         courses={MOCK_COURSES}
         onScoreHole={() => router.push('/scoring')}
         onQuickEntry={() => Alert.alert('Quick Entry', 'Enter total score for the round.')}
-        onExit={() => setCompetitionMode('off')}
+        onExit={() => setCompetitionMode(false)}
       />
     );
   }
@@ -2101,14 +2114,21 @@ export default function TripDetailScreen() {
     return <WeatherForecast trip={trip} onBack={closeTool} />;
   }
 
+  // Item 12: Two-tone palette — warm champagne for planning, Masters green accents for competition
+  const MASTERS_GREEN = '#1E4D2B';
+  const planningBg = theme.isDark ? '#1E1A14' : '#FAF3E0';
+  const planningCard = theme.isDark ? '#2A2318' : '#F5E6C8';
+  const headerBg = competitionMode ? (theme.isDark ? '#0A1A10' : '#E8F0E8') : planningBg;
+  const heroBg = competitionMode ? (theme.isDark ? '#0A1A10' : '#E8F0E8') : planningBg;
+
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
       {/* ─── TOP BAR ────────────────────────────────────────────────── */}
-      <View style={[s.topBar, { backgroundColor: c.surface }]}>
+      <View style={[s.topBar, { backgroundColor: headerBg }]}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={c.text} />
         </Pressable>
-        <Text style={[s.branding, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
+        <Text style={[s.branding, { color: competitionMode ? MASTERS_GREEN : c.gold, fontFamily: GEO }]}>DORMIE</Text>
         <View style={s.topBarRight}>
           <Pressable onPress={toggleTheme} hitSlop={8}>
             <Ionicons
@@ -2127,7 +2147,7 @@ export default function TripDetailScreen() {
       </View>
 
       {/* ─── HERO ───────────────────────────────────────────────────── */}
-      <View style={[s.hero, { backgroundColor: c.surface }]}>
+      <View style={[s.hero, { backgroundColor: heroBg }]}>
         <View style={s.heroLeft}>
           <Text style={[s.heroName, { color: c.text, fontFamily: GEO }]}>{trip.name}</Text>
           <Text style={[s.heroLocation, { color: c.textMuted }]}>
@@ -2140,7 +2160,7 @@ export default function TripDetailScreen() {
         <View style={s.heroRight}>
           <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
           <Pressable
-            onPress={() => setCompetitionMode('ceremony')}
+            onPress={() => setShowCeremony(true)}
             style={s.startTripBtn}
           >
             <LinearGradient colors={['#1E4D2B', '#2D6A3F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
@@ -2212,6 +2232,28 @@ export default function TripDetailScreen() {
         {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
         {activeTab === 'Chat' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
       </View>
+
+      {/* Item 14: Floating chat button with unread badge */}
+      {activeTab !== 'Chat' && (
+        <Pressable
+          onPress={() => setActiveTab('Chat')}
+          style={s.floatingChatBtn}
+        >
+          <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
+          {/* Unread badge */}
+          <View style={s.unreadBadge}>
+            <Text style={s.unreadBadgeText}>3</Text>
+          </View>
+        </Pressable>
+      )}
+
+      {/* Item 13: Competition ceremony modal */}
+      <CompetitionCeremony
+        trip={trip}
+        players={MOCK_PLAYERS}
+        visible={showCeremony}
+        onComplete={handleCeremonyComplete}
+      />
     </View>
   );
 }
@@ -2678,6 +2720,39 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+
+  /* Item 14: Floating chat button */
+  floatingChatBtn: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 50,
+    height: 50,
+    backgroundColor: '#1E4D2B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    backgroundColor: '#C44B4F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
 });
 
 // ─── Trip Tool Styles ───────────────────────────────────────────────
@@ -2962,7 +3037,7 @@ const cm = StyleSheet.create({
     backgroundColor: '#2A9D8F',
   },
   ceremonyLive: {
-    color: '#2A9D8F',
+    color: '#D4AF37',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 3,

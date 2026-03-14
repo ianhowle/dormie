@@ -17,6 +17,7 @@ export type Trip = {
   roundsPlanned: number;
   gradient: [string, string];
   champion?: string; // only for completed
+  competitionStarted?: boolean; // true when trip competition is live
 };
 
 export type TripMember = {
@@ -130,9 +131,9 @@ export const MOCK_COMPLETED_TRIPS: Trip[] = [
 ];
 
 export const MOCK_DREAM_DESTINATIONS: DreamDestination[] = [
-  { id: 'd1', name: 'Pebble Beach', city: 'Pebble Beach', state: 'CA', gradient: ['#3A5A3A', '#6B8F6B'] },
-  { id: 'd2', name: 'Bandon Dunes', city: 'Bandon', state: 'OR', gradient: ['#4A6B5A', '#7A9B8A'] },
-  { id: 'd3', name: 'Pinehurst No. 2', city: 'Pinehurst', state: 'NC', gradient: ['#5A3D7A', '#8B6DAF'] },
+  { id: 'd1', name: 'Pebble Beach', city: 'Pebble Beach', state: 'CA', gradient: ['#0B3D0B', '#1A6B3A'] },
+  { id: 'd2', name: 'Bandon Dunes', city: 'Bandon', state: 'OR', gradient: ['#0A2A4A', '#1A4A7A'] },
+  { id: 'd3', name: 'Pinehurst No. 2', city: 'Pinehurst', state: 'NC', gradient: ['#8B3A0A', '#C4601A'] },
 ];
 
 export const MOCK_BUCKET_COURSES: BucketCourse[] = [

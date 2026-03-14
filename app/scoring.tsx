@@ -18,6 +18,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { Avatar } from '../src/components/Avatar';
+import { DormieMoment } from '../src/components/DormieMoment';
+import { SideGameToast, detectSideGameEvents } from '../src/components/SideGameToast';
+import { HoleTransitionBanner } from '../src/components/HoleTransitionBanner';
+import type { SideGameEvent } from '../src/components/SideGameToast';
+import type { PlayerHoleResult } from '../src/components/HoleTransitionBanner';
+import type { MomentType } from '../src/components/DormieMoment';
 import { useAuth } from '../src/lib/auth';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
@@ -37,6 +43,7 @@ type HoleScore = {
   putts: number;
   fir: boolean | null; // null for par 3s
   penalties?: { water: number; ob: number; lost: number };
+  tags?: string[]; // Item 9: hole tags (Sand, Trees, Water, Penalty, Up & Down)
 };
 
 // ─── Hammer state type ───────────────────────────────────────────────
@@ -155,6 +162,13 @@ function ScoringHeader({
   unreadFeedCount,
   viewMode,
   onToggleViewMode,
+  holeYardage,
+  holeHcp,
+  onPrevHole,
+  onNextHole,
+  canPrevHole,
+  canNextHole,
+  roundType,
 }: {
   courseName: string;
   holeNumber: number;
@@ -167,6 +181,13 @@ function ScoringHeader({
   unreadFeedCount?: number;
   viewMode?: 'solo' | 'all';
   onToggleViewMode?: () => void;
+  holeYardage?: number;
+  holeHcp?: number;
+  onPrevHole?: () => void;
+  onNextHole?: () => void;
+  canPrevHole?: boolean;
+  canNextHole?: boolean;
+  roundType?: string;
 }) {
   const router = useRouter();
 
@@ -235,16 +256,57 @@ function ScoringHeader({
 
       {/* Hole info */}
       <View style={st.headerHoleRow}>
+        {/* Item 11: Prev hole arrow */}
+        <Pressable
+          onPress={onPrevHole}
+          disabled={!canPrevHole}
+          hitSlop={12}
+          style={{ opacity: canPrevHole ? 1 : 0.3 }}
+        >
+          <Ionicons name="chevron-back" size={22} color="#fff" />
+        </Pressable>
         <Text style={[st.headerHoleLabel]}>HOLE</Text>
         <Text style={[st.headerHoleNum, { fontFamily: GEO }]}>{holeNumber}</Text>
         <View style={st.headerParBadge}>
           <Text style={st.headerParLabel}>PAR</Text>
           <Text style={[st.headerParValue, { fontFamily: GEO }]}>{holePar}</Text>
         </View>
+        {/* Item 11: Next hole arrow */}
+        <Pressable
+          onPress={onNextHole}
+          disabled={!canNextHole}
+          hitSlop={12}
+          style={{ opacity: canNextHole ? 1 : 0.3 }}
+        >
+          <Ionicons name="chevron-forward" size={22} color="#fff" />
+        </Pressable>
       </View>
 
-      {/* Format */}
-      <Text style={st.headerFormat}>{format}</Text>
+      {/* Item 11: Hole detail line */}
+      <Text style={st.headerHoleDetail}>
+        Par {holePar} {'\u2022'} {holeYardage ?? '---'} yds {'\u2022'} HCP {holeHcp ?? '-'}
+      </Text>
+
+      {/* Item 35: Round type badge + Item 34: Format name */}
+      <View style={st.headerFormatRow}>
+        {roundType && roundType.length > 0 && (
+          <View style={[
+            st.roundTypeBadge,
+            {
+              backgroundColor: roundType === 'Competitive' ? '#D4AF37' :
+                roundType === 'Matchup' ? '#2A9D8F' : 'rgba(255,255,255,0.25)',
+            },
+          ]}>
+            <Text style={[st.roundTypeBadgeText, {
+              color: roundType === 'Competitive' ? '#1E4D2B' :
+                roundType === 'Matchup' ? '#fff' : 'rgba(255,255,255,0.8)',
+            }]}>
+              {roundType.toUpperCase()}
+            </Text>
+          </View>
+        )}
+        <Text style={st.headerFormat}>{format}</Text>
+      </View>
     </LinearGradient>
   );
 }
@@ -2121,6 +2183,7 @@ export default function ScoringScreen() {
     scoreMode: string;
     sideGames: string;
     courseId: string;
+    roundType: string;
     // Feature 24: Season params
     seasonName: string;
     seasonWeek: string;
@@ -2140,11 +2203,14 @@ export default function ScoringScreen() {
     try { return JSON.parse(params.sideGames ?? '[]'); } catch { return []; }
   }, [params.sideGames]);
 
-  // Feature 24: Season params
-  const seasonName = params.seasonName ?? '';
-  const seasonWeek = params.seasonWeek ?? '';
-  const seasonFormat = params.seasonFormat ?? '';
-  const seasonMultiplier = Number(params.seasonMultiplier) || 1;
+  // Item 35: Round type
+  const roundType = params.roundType ?? 'Casual';
+
+  // Feature 24 / Item 36: Season params (with mock data fallback)
+  const seasonName = params.seasonName || 'Spring Championship';
+  const seasonWeek = params.seasonWeek || '7';
+  const seasonFormat = params.seasonFormat || 'Stableford';
+  const seasonMultiplier = Number(params.seasonMultiplier) || 2;
 
   const players: PlayerConfig[] = useMemo(() => {
     try {
@@ -2221,6 +2287,28 @@ export default function ScoringScreen() {
   // Feature 14: Scoring view mode toggle
   const [viewMode, setViewMode] = useState<'solo' | 'all'>('all');
   const [soloPlayerIdx, setSoloPlayerIdx] = useState(0);
+
+  // Item 8: Side game ticker collapsed state
+  const [sideGameTickerExpanded, setSideGameTickerExpanded] = useState(false);
+
+  // Item 31: Dormie Moment state
+  const [dormieMoment, setDormieMoment] = useState<{
+    visible: boolean;
+    type: MomentType;
+    playerName: string;
+    detail: string;
+  }>({ visible: false, type: 'DORMIE', playerName: '', detail: '' });
+
+  // Item 32: Side game toast events
+  const [sideGameToastEvents, setSideGameToastEvents] = useState<SideGameEvent[]>([]);
+
+  // Item 33: Hole transition banner
+  const [transitionBanner, setTransitionBanner] = useState<{
+    visible: boolean;
+    holeNumber: number;
+    par: number;
+    results: PlayerHoleResult[];
+  }>({ visible: false, holeNumber: 1, par: 4, results: [] });
 
   const currentHole = holes[currentHoleIdx];
 
@@ -2312,6 +2400,167 @@ export default function ScoringScreen() {
     }
   }, [allScores, holes, players]);
 
+  // Item 31: Check dormie moment conditions
+  const checkDormieMoments = useCallback((holeNumber: number) => {
+    const holeScores = allScores.get(holeNumber);
+    if (!holeScores || players.length < 2) return;
+
+    const holesRemaining = holes.length - holes.findIndex((h) => h.number === holeNumber) - 1;
+    if (holesRemaining <= 0) return;
+
+    // Match play dormie: player leads by exactly as many holes as remain
+    // Simplified: compare running totals
+    const totals = players.map((p) => {
+      let total = 0;
+      holes.forEach((h) => {
+        if (h.number > holeNumber) return;
+        const s = allScores.get(h.number)?.get(p.id);
+        if (s) total += s.gross;
+      });
+      return { player: p, total };
+    }).sort((a, b) => a.total - b.total);
+
+    if (totals.length >= 2 && totals[0].total > 0 && totals[1].total > 0) {
+      // Count holes won (simplified: lower gross wins the hole)
+      let holesWon = 0;
+      holes.forEach((h) => {
+        if (h.number > holeNumber) return;
+        const s1 = allScores.get(h.number)?.get(totals[0].player.id);
+        const s2 = allScores.get(h.number)?.get(totals[1].player.id);
+        if (s1 && s2) {
+          if (s1.gross < s2.gross) holesWon++;
+          else if (s1.gross > s2.gross) holesWon--;
+        }
+      });
+
+      const lead = Math.abs(holesWon);
+      const leaderName = holesWon > 0 ? (totals[0].player.id === '1' ? 'You' : totals[0].player.name) :
+        holesWon < 0 ? (totals[1].player.id === '1' ? 'You' : totals[1].player.name) : '';
+
+      if (lead > 0 && lead === holesRemaining) {
+        setDormieMoment({
+          visible: true,
+          type: 'DORMIE',
+          playerName: leaderName,
+          detail: `${lead} up with ${holesRemaining} to play`,
+        });
+        return;
+      }
+      if (lead > holesRemaining) {
+        setDormieMoment({
+          visible: true,
+          type: 'MATCH_CLOSED',
+          playerName: leaderName,
+          detail: `${lead} & ${holesRemaining} — match closed`,
+        });
+        return;
+      }
+    }
+
+    // Skins jackpot: check if a skin carries over 3+ holes
+    if (sideGameKeys.includes('skins')) {
+      let carryover = 0;
+      holes.forEach((h) => {
+        if (h.number > holeNumber) return;
+        const hs = allScores.get(h.number);
+        if (!hs || hs.size < players.length) { carryover++; return; }
+        let best = Infinity;
+        let winners: string[] = [];
+        hs.forEach((s, pid) => {
+          if (s.gross < best) { best = s.gross; winners = [pid]; }
+          else if (s.gross === best) winners.push(pid);
+        });
+        if (winners.length === 1) {
+          if (carryover >= 3) {
+            const wp = players.find((p) => p.id === winners[0]);
+            setDormieMoment({
+              visible: true,
+              type: 'SKINS_JACKPOT',
+              playerName: wp ? (wp.id === '1' ? 'You' : wp.name) : 'Player',
+              detail: `${carryover + 1} skins won on Hole ${h.number}!`,
+            });
+          }
+          carryover = 0;
+        } else {
+          carryover++;
+        }
+      });
+    }
+  }, [allScores, holes, players, sideGameKeys]);
+
+  // Item 32: Detect side game toast events
+  const detectToastEvents = useCallback((holeNumber: number) => {
+    const holeData = holes.find((h) => h.number === holeNumber);
+    if (!holeData) return;
+    const holeScores = allScores.get(holeNumber);
+    if (!holeScores) return;
+
+    const newEvents: SideGameEvent[] = [];
+    holeScores.forEach((s, pid) => {
+      const player = players.find((p) => p.id === pid);
+      if (!player) return;
+      const name = player.id === '1' ? 'You' : player.name.split(' ')[0];
+      const gir = isGIR(s.gross, s.putts, holeData.par);
+      const isSave = !gir && s.gross <= holeData.par;
+      const tags = s.tags ?? [];
+
+      sideGameKeys.forEach((gameKey) => {
+        const events = detectSideGameEvents(
+          gameKey,
+          holeNumber,
+          holeData.par,
+          s.gross,
+          s.putts,
+          name,
+          s.fir,
+          gir,
+          isSave,
+        );
+        // For semi-auto events, also check tags
+        if (gameKey === 'sandies' && tags.includes('Sand')) {
+          // Already detected by detectSideGameEvents if isSave
+        }
+        if (gameKey === 'bark' && tags.includes('Trees')) {
+          // Already detected by detectSideGameEvents if isSave && !fir
+        }
+        newEvents.push(...events);
+      });
+    });
+
+    if (newEvents.length > 0) {
+      setSideGameToastEvents((prev) => [...prev, ...newEvents]);
+    }
+  }, [allScores, holes, players, sideGameKeys]);
+
+  // Item 33: Build transition banner data
+  const showTransitionBanner = useCallback((holeNumber: number) => {
+    const holeData = holes.find((h) => h.number === holeNumber);
+    if (!holeData) return;
+    const holeScores = allScores.get(holeNumber);
+    if (!holeScores) return;
+
+    const results: PlayerHoleResult[] = [];
+    players.forEach((p) => {
+      const s = holeScores.get(p.id);
+      if (!s) return;
+      results.push({
+        name: p.id === '1' ? 'You' : p.name.split(' ')[0],
+        avatarColor: p.id === '1' ? '#2A9D8F' : '#D4AF37',
+        gross: s.gross,
+        putts: s.putts,
+        fir: s.fir,
+        gir: isGIR(s.gross, s.putts, holeData.par),
+      });
+    });
+
+    setTransitionBanner({
+      visible: true,
+      holeNumber: holeData.number,
+      par: holeData.par,
+      results,
+    });
+  }, [allScores, holes, players]);
+
   const handleNext = () => {
     // Auto-save current hole scores if not yet saved
     players.forEach((p) => {
@@ -2322,6 +2571,15 @@ export default function ScoringScreen() {
 
     // Feature 12: Generate events
     generateEvents(currentHole.number);
+
+    // Item 31: Check dormie moments
+    checkDormieMoments(currentHole.number);
+
+    // Item 32: Detect side game toasts
+    detectToastEvents(currentHole.number);
+
+    // Item 33: Show hole transition banner
+    showTransitionBanner(currentHole.number);
 
     // Feature 3: Check if putt distance prompt needed
     const playersWithPutts = players.filter((p) => {
@@ -2620,6 +2878,13 @@ export default function ScoringScreen() {
         unreadFeedCount={unreadFeedCount > 0 ? unreadFeedCount : 0}
         viewMode={viewMode}
         onToggleViewMode={() => setViewMode(viewMode === 'solo' ? 'all' : 'solo')}
+        holeYardage={currentHole.strokeIndex * 25 + 300}
+        holeHcp={currentHole.strokeIndex}
+        onPrevHole={() => { if (currentHoleIdx > 0) setCurrentHoleIdx(currentHoleIdx - 1); }}
+        onNextHole={() => { if (currentHoleIdx < holes.length - 1) setCurrentHoleIdx(currentHoleIdx + 1); }}
+        canPrevHole={currentHoleIdx > 0}
+        canNextHole={currentHoleIdx < holes.length - 1}
+        roundType={roundType}
       />
 
       <HoleStrip
@@ -2630,24 +2895,87 @@ export default function ScoringScreen() {
         holeNotes={holeNotes}
       />
 
-      {/* Feature 24: Season Round Link Banner */}
+      {/* Item 36: Season Round Link Banner */}
       {seasonName.length > 0 && (
         <View style={st.seasonBanner}>
           <View style={st.seasonBannerContent}>
-            <Text style={[st.seasonBannerName, { fontFamily: GEO }]}>{seasonName}</Text>
-            {seasonWeek.length > 0 && (
-              <Text style={st.seasonBannerWeek}>Week {seasonWeek}</Text>
-            )}
-            {seasonFormat.length > 0 && (
-              <Text style={st.seasonBannerFormat}>{seasonFormat}</Text>
-            )}
+            <Text style={[st.seasonBannerName, { fontFamily: GEO }]}>
+              {seasonName} {'\u00B7'} Week {seasonWeek} {'\u00B7'} {seasonFormat} {'\u00B7'} {seasonMultiplier}x
+            </Text>
           </View>
-          {seasonMultiplier > 1 && (
-            <View style={st.seasonMultiplierBadge}>
-              <Text style={[st.seasonMultiplierText, { fontFamily: GEO }]}>{seasonMultiplier}X</Text>
+        </View>
+      )}
+
+      {/* Item 8: Collapsible Side Game Ticker */}
+      {sideGameKeys.length > 0 && (
+        <Pressable
+          onPress={() => setSideGameTickerExpanded(!sideGameTickerExpanded)}
+          style={st.sideGameTicker}
+        >
+          {!sideGameTickerExpanded ? (
+            <View style={st.sideGameTickerCollapsed}>
+              <Text style={st.sideGameTickerText}>
+                {sideGameKeys.includes('dots') ? `Dots: ${(() => {
+                  let d = 0;
+                  holes.forEach((h) => {
+                    const s = allScores.get(h.number)?.get('1');
+                    if (s) {
+                      const diff = s.gross - h.par;
+                      if (diff <= -2) d += 2;
+                      else if (diff === -1) d += 1;
+                      else if (diff >= 2) d -= 1;
+                    }
+                  });
+                  return d >= 0 ? `+${d}` : `${d}`;
+                })()}` : ''}
+                {sideGameKeys.includes('dots') && sideGameKeys.includes('skins') ? ' | ' : ''}
+                {sideGameKeys.includes('skins') ? `Skins: ${(() => {
+                  let wins = 0;
+                  let carry = 0;
+                  holes.forEach((h) => {
+                    const hs = allScores.get(h.number);
+                    if (!hs || hs.size < players.length) { carry++; return; }
+                    let best = Infinity;
+                    let w: string[] = [];
+                    hs.forEach((s, pid) => { if (s.gross < best) { best = s.gross; w = [pid]; } else if (s.gross === best) w.push(pid); });
+                    if (w.length === 1 && w[0] === '1') { wins += 1 + carry; carry = 0; }
+                    else if (w.length === 1) carry = 0;
+                    else carry++;
+                  });
+                  return wins;
+                })()}` : ''}
+                {(sideGameKeys.includes('dots') || sideGameKeys.includes('skins')) && sideGameKeys.includes('snake') ? ' | ' : ''}
+                {sideGameKeys.includes('snake') ? `Snake: ${(() => {
+                  let holder: string | null = null;
+                  holes.forEach((h) => {
+                    const hs = allScores.get(h.number);
+                    if (!hs) return;
+                    hs.forEach((s, pid) => { if (s.putts >= 3) holder = pid; });
+                  });
+                  if (!holder) return 'None';
+                  const hp = players.find((p) => p.id === holder);
+                  return hp ? (hp.id === '1' ? 'You' : hp.name.split(' ')[0]) : 'None';
+                })()}` : ''}
+                {sideGameKeys.length > 0 && !sideGameKeys.includes('dots') && !sideGameKeys.includes('skins') && !sideGameKeys.includes('snake')
+                  ? sideGameKeys.map((k) => SIDE_GAME_DISPLAY[k] ?? k).join(' | ')
+                  : ''}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.6)" />
+            </View>
+          ) : (
+            <View style={st.sideGameTickerExpanded}>
+              <View style={st.sideGameTickerExpandedHeader}>
+                <Text style={[st.sideGameTickerTitle, { fontFamily: GEO }]}>SIDE GAMES</Text>
+                <Ionicons name="chevron-up" size={14} color="rgba(255,255,255,0.6)" />
+              </View>
+              {sideGameKeys.map((key) => (
+                <Text key={key} style={st.sideGameTickerLine}>
+                  {SIDE_GAME_DISPLAY[key] ?? key}: Active
+                </Text>
+              ))}
             </View>
           )}
-        </View>
+        </Pressable>
       )}
 
       {/* Feature 4: Best Ball Team Banner */}
@@ -2759,6 +3087,52 @@ export default function ScoringScreen() {
               />
             );
           })}
+
+          {/* Item 9: Tag Logging Section */}
+          <View style={st.tagSection}>
+            <Text style={[st.tagSectionTitle, { fontFamily: GEO }]}>LOG THIS HOLE</Text>
+            <View style={st.tagRow}>
+              {(['Sand', 'Trees', 'Water', 'Penalty', 'Up & Down'] as const).map((tag) => {
+                const myScore = getPlayerScore('1');
+                const tags = myScore.tags ?? [];
+                const isSelected = tags.includes(tag);
+                // Side game indicator
+                let indicator = '';
+                if (tag === 'Sand' && sideGameKeys.includes('dots') && isSelected) indicator = '-1 dot';
+                if (tag === 'Trees' && sideGameKeys.includes('bark') && isSelected) indicator = 'Barkie?';
+
+                return (
+                  <Pressable
+                    key={tag}
+                    onPress={() => {
+                      const currentScore = getPlayerScore('1');
+                      const currentTags = currentScore.tags ?? [];
+                      const newTags = currentTags.includes(tag)
+                        ? currentTags.filter((t) => t !== tag)
+                        : [...currentTags, tag];
+                      updatePlayerScore('1', { ...currentScore, tags: newTags });
+                    }}
+                    style={[
+                      st.tagPill,
+                      {
+                        backgroundColor: isSelected ? `${c.teal}20` : c.elevated,
+                        borderColor: isSelected ? c.teal : c.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[st.tagPillText, { color: isSelected ? c.teal : c.textMuted }]}>
+                      {tag}
+                    </Text>
+                    {indicator.length > 0 && (
+                      <Text style={[st.tagIndicator, { color: c.gold, fontFamily: GEO }]}>
+                        {indicator}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
           {/* Hole result */}
           {players.length > 1 && (
@@ -3033,7 +3407,7 @@ export default function ScoringScreen() {
         </View>
       </Modal>
 
-      {/* Feature 11: Floating Leaderboard Modal */}
+      {/* Feature 11 / Item 10: Broadcast Leaderboard Modal */}
       <Modal visible={showLeaderboard} transparent animationType="fade">
         <View style={[st.leaderboardScreen, { backgroundColor: '#1E4D2B' }]}>
           <View style={st.leaderboardHeader}>
@@ -3046,7 +3420,15 @@ export default function ScoringScreen() {
             </View>
             <View style={{ width: 24 }} />
           </View>
-          <ScrollView bounces={false} contentContainerStyle={{ padding: 16 }}>
+          {/* Item 10: Broadcast-style scoreboard header */}
+          <View style={st.broadcastHeaderRow}>
+            <Text style={st.broadcastColPos}>POS</Text>
+            <Text style={st.broadcastColName}>PLAYER</Text>
+            <Text style={st.broadcastColThru}>THRU</Text>
+            <Text style={st.broadcastColTotal}>TOTAL</Text>
+            <Text style={st.broadcastColPar}>TO PAR</Text>
+          </View>
+          <ScrollView bounces={false} contentContainerStyle={{ paddingHorizontal: 0 }}>
             {leaderboardData.map((row, i) => {
               const isMe = row.player.id === '1';
               const diff = row.total - row.par;
@@ -3058,8 +3440,8 @@ export default function ScoringScreen() {
                     <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
                       {isMe ? 'You' : row.player.name}
                     </Text>
-                    <Text style={st.lbThru}>thru {row.count}</Text>
                   </View>
+                  <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.count}</Text>
                   <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
                   <Text style={[st.lbToPar, { color: diff < 0 ? '#2A9D8F' : diff === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
                     {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
@@ -3070,6 +3452,37 @@ export default function ScoringScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Item 31: Dormie Moment overlay */}
+      <DormieMoment
+        visible={dormieMoment.visible}
+        type={dormieMoment.type}
+        playerName={dormieMoment.playerName}
+        detail={dormieMoment.detail}
+        onDismiss={() => setDormieMoment((prev) => ({ ...prev, visible: false }))}
+      />
+
+      {/* Item 32: Side Game Toast */}
+      {sideGameToastEvents.length > 0 && (
+        <SideGameToast
+          events={sideGameToastEvents}
+          onConfirm={(eventId, value) => {
+            setSideGameToastEvents((prev) => prev.filter((e) => e.id !== eventId));
+          }}
+          onDismiss={(eventId) => {
+            setSideGameToastEvents((prev) => prev.filter((e) => e.id !== eventId));
+          }}
+        />
+      )}
+
+      {/* Item 33: Hole Transition Banner */}
+      <HoleTransitionBanner
+        visible={transitionBanner.visible}
+        holeNumber={transitionBanner.holeNumber}
+        par={transitionBanner.par}
+        results={transitionBanner.results}
+        onDismiss={() => setTransitionBanner((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
@@ -3541,7 +3954,7 @@ const st = StyleSheet.create({
     marginBottom: 8,
   },
   scoreGridCell: {
-    width: 38,
+    width: 42,
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
@@ -4037,6 +4450,155 @@ const st = StyleSheet.create({
     color: '#D4AF37',
     fontSize: 12,
     fontWeight: '800',
+  },
+
+  /* Item 11: Header hole detail */
+  headerHoleDetail: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+
+  /* Item 35: Round type badge + format row */
+  headerFormatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  roundTypeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  roundTypeBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  /* Item 8: Side game ticker */
+  sideGameTicker: {
+    backgroundColor: '#1E4D2B',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  sideGameTickerCollapsed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sideGameTickerText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
+  },
+  sideGameTickerExpanded: {
+    gap: 4,
+  },
+  sideGameTickerExpandedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sideGameTickerTitle: {
+    color: '#D4AF37',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  sideGameTickerLine: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '500',
+    paddingVertical: 2,
+  },
+
+  /* Item 9: Tag logging */
+  tagSection: {
+    marginBottom: 12,
+    paddingTop: 8,
+  },
+  tagSectionTitle: {
+    color: '#D4AF37',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tagPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tagPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tagIndicator: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+
+  /* Item 10: Broadcast leaderboard header */
+  broadcastHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    gap: 10,
+  },
+  broadcastColPos: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    width: 28,
+    textAlign: 'center',
+  },
+  broadcastColName: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  broadcastColThru: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    width: 36,
+    textAlign: 'center',
+  },
+  broadcastColTotal: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    width: 36,
+    textAlign: 'right',
+  },
+  broadcastColPar: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    width: 40,
+    textAlign: 'right',
   },
 });
 
