@@ -1734,7 +1734,7 @@ const w = StyleSheet.create({
   },
   sessionCard: {
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 10,
   },
   sessionHeader: {
@@ -1906,6 +1906,7 @@ const w = StyleSheet.create({
     color: '#D4AF37',
     fontSize: 24,
     fontWeight: '900',
+    letterSpacing: -1,
   },
   reviewCupName: {
     color: '#D4AF37',
