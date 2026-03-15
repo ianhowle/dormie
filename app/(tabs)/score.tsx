@@ -23,7 +23,7 @@ import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
-import { coursesService } from '../../src/services/courses.service';
+import { coursesService, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import {
@@ -70,6 +70,8 @@ type SelectedCourse = {
   par: number;
   city: string;
   state: string;
+  source?: string;
+  location?: string;
 } | null;
 
 type Player = {
@@ -316,6 +318,80 @@ function ParEntry({
         >
           <Ionicons name="add" size={16} color={c.text} />
         </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── Course details form (when no API data) ─────────────────────────
+function CourseDetailsForm({
+  par,
+  rating,
+  slope,
+  tee,
+  onParChange,
+  onRatingChange,
+  onSlopeChange,
+  onTeeChange,
+}: {
+  par: number;
+  rating: string;
+  slope: string;
+  tee: string;
+  onParChange: (p: number) => void;
+  onRatingChange: (r: string) => void;
+  onSlopeChange: (s: string) => void;
+  onTeeChange: (t: string) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <View style={st.courseDetailsWrap}>
+      <Text style={[st.courseDetailsHint, { color: c.textMuted, fontFamily: SANS }]}>
+        These defaults work for most courses. Edit if you know your course details.
+      </Text>
+
+      {/* Par */}
+      <ParEntry par={par} onChange={onParChange} />
+
+      {/* Rating + Slope row */}
+      <View style={st.customFieldsRow}>
+        <View style={st.customFieldHalf}>
+          <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Rating</Text>
+          <TextInput
+            style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
+            placeholder="72.0"
+            placeholderTextColor={c.textMuted}
+            value={rating}
+            onChangeText={onRatingChange}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        <View style={st.customFieldHalf}>
+          <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Slope</Text>
+          <TextInput
+            style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
+            placeholder="113"
+            placeholderTextColor={c.textMuted}
+            value={slope}
+            onChangeText={onSlopeChange}
+            keyboardType="number-pad"
+          />
+        </View>
+      </View>
+
+      {/* Tee played */}
+      <View style={{ marginTop: 8 }}>
+        <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Tee Played</Text>
+        <TextInput
+          style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: SANS }]}
+          placeholder="e.g. Blue, White, Gold"
+          placeholderTextColor={c.textMuted}
+          value={tee}
+          onChangeText={onTeeChange}
+          autoCapitalize="words"
+        />
       </View>
     </View>
   );
@@ -776,14 +852,18 @@ export default function ScoreScreen() {
   const [scoreMode, setScoreMode] = useState<ScoreMode>('gross');
   const [trackingLevel, setTrackingLevel] = useState<TrackingLevel>('standard');
   const [scorekeeperMode, setScorekeeperMode] = useState<'scorekeeper' | 'everyone'>('everyone');
-  const [selectedTeeBox, setSelectedTeeBox] = useState(2);
+  const [selectedTeeBox, setSelectedTeeBox] = useState(0);
   const [customLocation, setCustomLocation] = useState('');
   const [customRating, setCustomRating] = useState('72.0');
   const [customSlope, setCustomSlope] = useState('113');
+  const [customTee, setCustomTee] = useState('White');
   const [roundType, setRoundType] = useState<RoundType>('casual');
+  const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
+  const [loadingScorecard, setLoadingScorecard] = useState(false);
 
   const isCustom = course?.id.startsWith('custom-');
-  const effectivePar = isCustom ? customPar : (course?.par ?? 72);
+  const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
+  const effectivePar = isCustom ? customPar : (hasApiTees ? (scorecard?.par ?? course?.par ?? 72) : customPar);
   const hasManualPlayers = players.some((p) => p.id.startsWith('p-'));
 
   const handleToggleSideGame = (g: SideGame) => {
@@ -814,15 +894,45 @@ export default function ScoreScreen() {
     setPlayers((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // Fetch hole data when a non-custom course is selected
+  // Fetch scorecard + hole data when a non-custom course is selected
   useEffect(() => {
-    if (course && !isCustom) {
-      coursesService.generateHoleData?.(course.name, course.par)
-        ?.then(setHoleData)
-        ?.catch(() => setHoleData(null));
-    } else {
+    if (!course || isCustom) {
+      setScorecard(null);
       setHoleData(null);
+      return;
     }
+
+    let cancelled = false;
+    setLoadingScorecard(true);
+
+    coursesService.fetchScorecard(course.name, course.location).then((sc) => {
+      if (cancelled) return;
+      setScorecard(sc);
+      setLoadingScorecard(false);
+
+      // Pre-fill defaults from scorecard
+      if (sc.source !== 'none') {
+        setCustomPar(sc.par);
+        setCustomRating(String(sc.rating));
+        setCustomSlope(String(sc.slope));
+        if (sc.teeBoxes.length > 0) {
+          // Default to White tee or first
+          const whiteIdx = sc.teeBoxes.findIndex((t) => t.name.toLowerCase().includes('white'));
+          setSelectedTeeBox(whiteIdx >= 0 ? whiteIdx : 0);
+        }
+      }
+
+      // Use API hole data if available, otherwise generate
+      if (sc.holes.length === 18) {
+        setHoleData(sc.holes);
+      } else {
+        coursesService.generateHoleData?.(course.name, sc.par)
+          ?.then((h) => { if (!cancelled) setHoleData(h); })
+          ?.catch(() => {});
+      }
+    });
+
+    return () => { cancelled = true; };
   }, [course, isCustom]);
 
   const isDark = theme.isDark;
@@ -833,17 +943,29 @@ export default function ScoreScreen() {
     haptics.medium();
     showToast({ message: 'Round started', type: 'success', icon: 'flag' });
     const activeFormat = SCORING_FORMATS.find((f) => f.key === format);
-    // Determine slope/rating based on course type
+
+    // Determine slope/rating from API tee boxes or manual entry
     let slope: number;
     let rating: number;
-    if (isCustom) {
-      slope = Number(customSlope) || 113;
-      rating = Number(customRating) || 72.0;
-    } else {
-      const tee = MOCK_TEE_BOXES[selectedTeeBox];
+    if (hasApiTees && scorecard) {
+      const tee = scorecard.teeBoxes[selectedTeeBox] ?? scorecard.teeBoxes[0];
       slope = tee.slope;
       rating = tee.rating;
+    } else {
+      slope = Number(customSlope) || 113;
+      rating = Number(customRating) || 72.0;
     }
+
+    // Save course data to Supabase for community database
+    if (course.source === 'google' || !isCustom) {
+      const dataSource = scorecard?.source === 'api' ? 'api' : 'user_entered';
+      coursesService.saveCourseWithData(
+        course as any,
+        { par: effectivePar, rating, slope, tee: customTee },
+        dataSource as any,
+      ).catch(() => {});
+    }
+
     router.push({
       pathname: '/scoring',
       params: {
@@ -898,11 +1020,16 @@ export default function ScoreScreen() {
             {/* Course */}
             <SectionLabel title="COURSE" />
             <CourseSearch selected={course} onSelect={setCourse} />
-            {isCustom && (
-              <ParEntry par={customPar} onChange={setCustomPar} />
+
+            {/* Loading scorecard indicator */}
+            {loadingScorecard && course && !isCustom && (
+              <Text style={[st.loadingHint, { color: c.textMuted, fontFamily: SANS }]}>
+                Looking up course data...
+              </Text>
             )}
-            {/* Tee box selector (non-custom courses) */}
-            {course && !isCustom && (
+
+            {/* API tee box selector (when GolfCourseAPI has data) */}
+            {course && !isCustom && hasApiTees && scorecard && (
               <View style={st.teeBoxSection}>
                 <Text style={[st.teeBoxLabel, { color: c.textMuted }]}>Tee Box</Text>
                 <ScrollView
@@ -910,7 +1037,7 @@ export default function ScoreScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={st.teeBoxRow}
                 >
-                  {MOCK_TEE_BOXES.map((tee, i) => {
+                  {scorecard.teeBoxes.map((tee, i) => {
                     const active = i === selectedTeeBox;
                     return (
                       <Pressable
@@ -942,7 +1069,22 @@ export default function ScoreScreen() {
                 </ScrollView>
               </View>
             )}
-            {/* Manual course entry (custom courses) */}
+
+            {/* Course details form (when no API data or custom course) */}
+            {course && !hasApiTees && !loadingScorecard && (
+              <CourseDetailsForm
+                par={customPar}
+                rating={customRating}
+                slope={customSlope}
+                tee={customTee}
+                onParChange={setCustomPar}
+                onRatingChange={setCustomRating}
+                onSlopeChange={setCustomSlope}
+                onTeeChange={setCustomTee}
+              />
+            )}
+
+            {/* Location field for custom courses */}
             {isCustom && (
               <View style={st.customFieldsWrap}>
                 <TextInput
@@ -953,30 +1095,6 @@ export default function ScoreScreen() {
                   onChangeText={setCustomLocation}
                   autoCapitalize="words"
                 />
-                <View style={st.customFieldsRow}>
-                  <View style={st.customFieldHalf}>
-                    <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Rating</Text>
-                    <TextInput
-                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
-                      placeholder="72.0"
-                      placeholderTextColor={c.textMuted}
-                      value={customRating}
-                      onChangeText={setCustomRating}
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                  <View style={st.customFieldHalf}>
-                    <Text style={[st.customFieldLabel, { color: c.textMuted }]}>Slope</Text>
-                    <TextInput
-                      style={[st.customField, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
-                      placeholder="113"
-                      placeholderTextColor={c.textMuted}
-                      value={customSlope}
-                      onChangeText={setCustomSlope}
-                      keyboardType="number-pad"
-                    />
-                  </View>
-                </View>
               </View>
             )}
 
@@ -1479,6 +1597,22 @@ const st = StyleSheet.create({
     fontSize: 10,
   },
 
+  /* Loading hint */
+  loadingHint: {
+    fontSize: 12,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  /* Course details form */
+  courseDetailsWrap: {
+    marginTop: 12,
+    gap: 8,
+  },
+  courseDetailsHint: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
   /* Custom course fields */
   customFieldsWrap: {
     marginTop: 10,

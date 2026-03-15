@@ -5,7 +5,7 @@ import type { Course, CourseInsert, CourseLeaderboardEntry } from '../lib/databa
 const GOLF_API_KEY = process.env.EXPO_PUBLIC_GOLF_API_KEY;
 const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
 
-type SearchResult = {
+export type SearchResult = {
   id: string;
   name: string;
   par: number;
@@ -13,6 +13,30 @@ type SearchResult = {
   state: string;
   location?: string;
   source?: 'local' | 'google' | 'golfapi';
+};
+
+export type TeeBox = {
+  name: string;
+  color: string;
+  rating: number;
+  slope: number;
+  yards: number;
+};
+
+export type HoleInfo = {
+  number: number;
+  par: number;
+  strokeIndex: number;
+  yards: number;
+};
+
+export type ScorecardData = {
+  par: number;
+  rating: number;
+  slope: number;
+  teeBoxes: TeeBox[];
+  holes: HoleInfo[];
+  source: 'api' | 'community' | 'none';
 };
 
 export const coursesService = {
@@ -171,6 +195,133 @@ export const coursesService = {
         name: result.name,
         location: result.location ?? `${result.city}, ${result.state}`,
       } as CourseInsert);
+    } catch (err) {
+      console.log('[CourseSearch] Failed to save course:', err);
+    }
+  },
+
+  /** Fetch scorecard data from GolfCourseAPI, then check Supabase community data. */
+  async fetchScorecard(courseName: string, location?: string): Promise<ScorecardData> {
+    const none: ScorecardData = { par: 72, rating: 72.0, slope: 113, teeBoxes: [], holes: [], source: 'none' };
+
+    // 1. Check AsyncStorage cache first
+    const cacheKey = `scorecard_${courseName.toLowerCase().replace(/\s+/g, '_')}`;
+    const cached = await this.getCachedCourse(cacheKey);
+    if (cached) {
+      console.log(`[Scorecard] Cache hit for "${courseName}"`);
+      return cached as ScorecardData;
+    }
+
+    // 2. Try GolfCourseAPI search
+    if (GOLF_API_KEY) {
+      try {
+        console.log(`[Scorecard] Fetching from GolfCourseAPI: "${courseName}"`);
+        const response = await fetch(
+          `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(courseName)}&key=${GOLF_API_KEY}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const course = data?.courses?.[0];
+          if (course) {
+            const teeBoxes: TeeBox[] = (course.tees ?? course.tee_boxes ?? []).map((t: any) => ({
+              name: t.name ?? t.tee_name ?? 'Unknown',
+              color: t.color ?? '#1B2A4A',
+              rating: t.course_rating ?? t.rating ?? 72.0,
+              slope: t.slope_rating ?? t.slope ?? 113,
+              yards: t.total_yards ?? t.yards ?? 6500,
+            }));
+
+            const holes: HoleInfo[] = (course.holes ?? []).map((h: any) => ({
+              number: h.number ?? h.hole_number,
+              par: h.par ?? 4,
+              strokeIndex: h.stroke_index ?? h.handicap ?? h.number,
+              yards: h.yards ?? h.yardage ?? 400,
+            }));
+
+            const par = course.par ?? holes.reduce((s: number, h: HoleInfo) => s + h.par, 0) || 72;
+            const defaultTee = teeBoxes.find((t) => t.name.toLowerCase().includes('white')) ?? teeBoxes[0];
+
+            const result: ScorecardData = {
+              par,
+              rating: defaultTee?.rating ?? 72.0,
+              slope: defaultTee?.slope ?? 113,
+              teeBoxes,
+              holes,
+              source: 'api',
+            };
+            console.log(`[Scorecard] API hit: par=${par} tees=${teeBoxes.length} holes=${holes.length}`);
+            await this.cacheCourse(cacheKey, result);
+            return result;
+          }
+        }
+      } catch (err) {
+        console.log('[Scorecard] GolfCourseAPI error:', err);
+      }
+    }
+
+    // 3. Check Supabase community data
+    try {
+      const { data: community } = await supabase
+        .from('courses')
+        .select('*')
+        .ilike('name', `%${courseName}%`)
+        .maybeSingle();
+
+      if (community && (community as any).par) {
+        const c = community as any;
+        const result: ScorecardData = {
+          par: c.par ?? 72,
+          rating: c.rating ?? 72.0,
+          slope: c.slope ?? 113,
+          teeBoxes: c.tee_boxes ?? [],
+          holes: c.holes ?? [],
+          source: 'community',
+        };
+        console.log(`[Scorecard] Community data: par=${result.par}`);
+        await this.cacheCourse(cacheKey, result);
+        return result;
+      }
+    } catch {}
+
+    return none;
+  },
+
+  /** Save course with scorecard data and source tag to Supabase. */
+  async saveCourseWithData(
+    searchResult: SearchResult,
+    scorecard: { par: number; rating: number; slope: number; tee?: string },
+    dataSource: 'api' | 'user_entered',
+  ): Promise<void> {
+    try {
+      const loc = searchResult.location ?? `${searchResult.city}, ${searchResult.state}`;
+      const insert: any = {
+        name: searchResult.name,
+        location: loc,
+        par: scorecard.par,
+        rating: scorecard.rating,
+        slope: scorecard.slope,
+        data_source: dataSource,
+      };
+
+      const { data: existing } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('name', searchResult.name)
+        .ilike('location', `%${searchResult.city || loc}%`)
+        .maybeSingle();
+
+      if (existing) {
+        // Update if user_entered data is better than nothing
+        if (!(existing as any).par || dataSource === 'api') {
+          await supabase
+            .from('courses')
+            .update({ par: scorecard.par, rating: scorecard.rating, slope: scorecard.slope, data_source: dataSource })
+            .eq('id', existing.id);
+        }
+      } else {
+        await supabase.from('courses').insert(insert);
+      }
+      console.log(`[CourseSearch] Saved ${searchResult.name} (source: ${dataSource})`);
     } catch (err) {
       console.log('[CourseSearch] Failed to save course:', err);
     }
