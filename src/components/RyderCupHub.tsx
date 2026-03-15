@@ -19,7 +19,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
-import { cardShadowDark, cardShadowLight } from '../theme/colors';
+import { cardShadowDark, cardShadowLight, dark as darkColors } from '../theme/colors';
 import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import type { Trip } from '../data/trips';
@@ -264,7 +264,7 @@ function RCChecklist({
   onBack: () => void;
 }) {
   const { theme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
   const done = checklist.filter((x) => x.done).length;
 
   return (
@@ -337,7 +337,7 @@ function RCChecklist({
 // ═══════════════════════════════════════════════════════════════════════
 function RCChat({ onBack }: { onBack: () => void }) {
   const { theme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
   const [messages, setMessages] = useState(MOCK_RC_CHAT);
   const [inputText, setInputText] = useState('');
   const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
@@ -502,7 +502,7 @@ function RCChat({ onBack }: { onBack: () => void }) {
 // ═══════════════════════════════════════════════════════════════════════
 function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
   const { theme, toggleTheme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
 
   const redPlayers = MOCK_RC_PLAYERS.filter((p) => p.team === 'red');
   const bluePlayers = MOCK_RC_PLAYERS.filter((p) => p.team === 'blue');
@@ -644,7 +644,7 @@ function RCTeamDraft({
   onBack: () => void;
 }) {
   const { theme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
   const [formation, setFormation] = useState<Formation>('captain');
   const [draftedPlayers, setDraftedPlayers] = useState<RCPlayer[]>(
     players.map((p) => ({ ...p, team: null })),
@@ -970,7 +970,7 @@ function RCMatchList({
   onBack: () => void;
 }) {
   const { theme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
 
   const redPts = matches.reduce((s, m) => s + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
   const bluePts = matches.reduce((s, m) => s + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
@@ -1079,7 +1079,7 @@ function RCMatchScoring({
   onBack: () => void;
 }) {
   const { theme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
 
   const totalHoles = session.holeCount;
   const [currentHole, setCurrentHole] = useState(1);
@@ -1432,7 +1432,7 @@ function RCCompletion({
 // ═══════════════════════════════════════════════════════════════════════
 export function RyderCupHub({ trip }: { trip: Trip }) {
   const { theme } = useTheme();
-  const c = theme.colors;
+  const c = darkColors;
   const router = useRouter();
 
   const [subView, setSubView] = useState<SubView>('hub');
@@ -1770,7 +1770,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
             }}
             style={[h.inviteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
           >
-            <Text style={[h.inviteCode, { color: c.gold, fontFamily: GEO }]}>{formatInviteCode(trip)}</Text>
+            <Text style={[h.inviteCode, { color: c.gold, fontFamily: GEO, flex: 1 }]} numberOfLines={1} adjustsFontSizeToFit>{formatInviteCode(trip)}</Text>
             <View style={h.inviteCopyWrap}>
               <Ionicons name="copy-outline" size={16} color={c.teal} />
               <Text style={[h.inviteCopyText, { color: c.teal }]}>Copy</Text>
@@ -2075,9 +2075,9 @@ const h = StyleSheet.create({
     borderWidth: 1,
   },
   inviteCode: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 4,
+    letterSpacing: 3,
   },
   inviteCopyWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   inviteCopyText: { fontSize: 12, fontWeight: '600' },
@@ -2095,7 +2095,8 @@ const h = StyleSheet.create({
   playerCard: {
     width: 80,
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
     paddingHorizontal: 4,
     borderWidth: 1,
   },

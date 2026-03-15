@@ -123,7 +123,9 @@ const DREAM_QUERIES: Record<string, string> = {
   scottsdale: 'TPC Scottsdale Stadium Course Arizona',
   'myrtle beach': 'Caledonia Golf Fish Club South Carolina',
   bandon: 'Pacific Dunes Bandon Oregon',
+  'bandon dunes': 'Pacific Dunes Bandon Oregon',
   pinehurst: 'Pinehurst No 2 North Carolina',
+  'pinehurst no. 2': 'Pinehurst No 2 North Carolina',
   ireland: 'Royal County Down Northern Ireland',
   scotland: 'St Andrews Old Course Scotland',
   monterey: 'Pebble Beach Golf Links California',
@@ -137,7 +139,13 @@ const DREAM_QUERIES: Record<string, string> = {
 };
 
 export function getDreamQuery(name: string): string | null {
-  return DREAM_QUERIES[name.toLowerCase()] ?? null;
+  const key = name.toLowerCase();
+  if (DREAM_QUERIES[key]) return DREAM_QUERIES[key];
+  // Fuzzy: check if any key starts with the query or vice versa
+  for (const [k, v] of Object.entries(DREAM_QUERIES)) {
+    if (key.startsWith(k) || k.startsWith(key)) return v;
+  }
+  return null;
 }
 
 export async function fetchDreamImage(name: string): Promise<string | null> {

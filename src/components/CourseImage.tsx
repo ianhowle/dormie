@@ -56,8 +56,8 @@ const attrStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 6,
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 8,
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 7,
     fontWeight: '500',
   },
 });
@@ -101,9 +101,20 @@ export function CourseImage({
     let cancelled = false;
     setLoading(true);
     fetchCourseImage(courseName, location).then((url) => {
-      if (!cancelled) {
-        if (url) setImageUrl(url);
+      if (cancelled) return;
+      if (url) {
+        setImageUrl(url);
         setLoading(false);
+      } else {
+        setTimeout(() => {
+          if (cancelled) return;
+          fetchCourseImage(courseName, location).then((retryUrl) => {
+            if (!cancelled) {
+              if (retryUrl) setImageUrl(retryUrl);
+              setLoading(false);
+            }
+          });
+        }, 2000);
       }
     });
     return () => { cancelled = true; };
@@ -170,9 +181,21 @@ export function DestinationImage({
     let cancelled = false;
     setLoading(true);
     fetchDreamImage(name).then((url) => {
-      if (!cancelled) {
-        if (url) setImageUrl(url);
+      if (cancelled) return;
+      if (url) {
+        setImageUrl(url);
         setLoading(false);
+      } else {
+        // Retry once after 2s
+        setTimeout(() => {
+          if (cancelled) return;
+          fetchDreamImage(name).then((retryUrl) => {
+            if (!cancelled) {
+              if (retryUrl) setImageUrl(retryUrl);
+              setLoading(false);
+            }
+          });
+        }, 2000);
       }
     });
     return () => { cancelled = true; };
