@@ -338,7 +338,7 @@ function ClubhouseTab({
       <SectionLabel title="TRIP INFO" />
       <View style={s.statsRow}>
         {[
-          { label: 'FORMAT', value: 'Stroke' },
+          { label: 'FORMAT', value: 'SP' },
           { label: 'ROUNDS', value: `${trip.roundsPlanned}` },
           { label: 'GAMES', value: `${SIDE_GAME_PILLS.length}` },
           { label: 'PLAYERS', value: `${MOCK_PLAYERS.length}` },
@@ -2270,7 +2270,7 @@ export default function TripDetailScreen() {
                 </Text>
               </View>
               <View style={s.heroRight}>
-                <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
+                <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} textColor="#FFFFFF" />
                 <Pressable
                   onPress={() => setShowCeremony(true)}
                   style={[s.startTripBtn, { backgroundColor: 'rgba(212,175,55,0.15)', borderColor: 'rgba(212,175,55,0.3)', borderWidth: 1 }]}
@@ -2447,7 +2447,7 @@ const s = StyleSheet.create({
   playerCard: {
     width: 88,
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 14,
     paddingHorizontal: 6,
     borderWidth: 1,
   },

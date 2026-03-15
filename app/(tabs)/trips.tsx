@@ -299,6 +299,7 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
               size={50}
               strokeWidth={3}
               accentColor={trip.isRyderCup ? c.urgent : isCompetition ? MASTERS_GREEN : c.teal}
+              textColor={tripImage ? '#FFFFFF' : undefined}
             />
           )}
         </View>

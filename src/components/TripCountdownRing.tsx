@@ -12,6 +12,7 @@ type TripCountdownRingProps = {
   size?: number;
   strokeWidth?: number;
   accentColor?: string;
+  textColor?: string;
 };
 
 export function TripCountdownRing({
@@ -20,6 +21,7 @@ export function TripCountdownRing({
   size = 120,
   strokeWidth = 5,
   accentColor,
+  textColor,
 }: TripCountdownRingProps) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -71,10 +73,10 @@ export function TripCountdownRing({
         />
       </Svg>
       <View style={styles.textWrap}>
-        <Text style={[styles.days, { color: c.text, fontFamily: GEO }]}>
+        <Text style={[styles.days, { color: textColor ?? c.text, fontFamily: GEO }]}>
           {daysUntil}
         </Text>
-        <Text style={[styles.label, { color: c.textMuted }]}>
+        <Text style={[styles.label, { color: textColor ? 'rgba(255,255,255,0.6)' : c.textMuted }]}>
           {daysUntil === 1 ? 'day' : 'days'}
         </Text>
       </View>

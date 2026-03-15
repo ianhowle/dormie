@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   fetchCourseImage,
   getGradientForCourse,
-  isUnsplashConfigured,
+  isGooglePlacesConfigured,
 } from '../services/courseImages.service';
 
 // ─── Shimmer placeholder ─────────────────────────────────────────────
@@ -44,9 +44,9 @@ function ShimmerPlaceholder() {
 }
 
 // ─── Attribution badge ───────────────────────────────────────────────
-function UnsplashAttribution() {
+function GoogleAttribution() {
   return (
-    <Text style={attrStyles.text}>Photo: Unsplash</Text>
+    <Text style={attrStyles.text}>Google</Text>
   );
 }
 
@@ -55,7 +55,7 @@ const attrStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 6,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.3)',
     fontSize: 8,
     fontWeight: '500',
   },
@@ -95,7 +95,7 @@ export function CourseImage({
       return;
     }
 
-    if (!isUnsplashConfigured()) return;
+    if (!isGooglePlacesConfigured()) return;
 
     let cancelled = false;
     setLoading(true);
@@ -130,7 +130,7 @@ export function CourseImage({
       )}
       {loading && !showImage && <ShimmerPlaceholder />}
       {children}
-      {showImage && showAttribution && <UnsplashAttribution />}
+      {showImage && showAttribution && <GoogleAttribution />}
     </View>
   );
 }
@@ -175,7 +175,7 @@ export function DestinationImage({
         />
       )}
       {children}
-      {showImage && showAttribution && <UnsplashAttribution />}
+      {showImage && showAttribution && <GoogleAttribution />}
     </View>
   );
 }

@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const UNSPLASH_KEY = process.env.EXPO_PUBLIC_UNSPLASH_KEY ?? '';
-const CACHE_PREFIX = 'course_img_';
+const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
+const CACHE_PREFIX = 'gplace_';
 const CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-type CachedImage = {
-  url: string;
+type CachedPlace = {
+  photoUrl: string;
+  placeId: string;
   fetchedAt: number;
 };
 
@@ -38,52 +39,71 @@ export function getGradientForCourse(courseName: string): [string, string] {
 }
 
 // ─── AsyncStorage cache helpers ──────────────────────────────────────
-async function getCachedImage(key: string): Promise<string | null> {
+async function getCached(key: string): Promise<CachedPlace | null> {
   try {
     const raw = await AsyncStorage.getItem(CACHE_PREFIX + key);
     if (!raw) return null;
-    const cached: CachedImage = JSON.parse(raw);
+    const cached: CachedPlace = JSON.parse(raw);
     if (Date.now() - cached.fetchedAt > CACHE_TTL) {
       AsyncStorage.removeItem(CACHE_PREFIX + key);
       return null;
     }
-    return cached.url;
+    return cached;
   } catch {
     return null;
   }
 }
 
-async function setCachedImage(key: string, url: string): Promise<void> {
+async function setCache(key: string, data: Omit<CachedPlace, 'fetchedAt'>): Promise<void> {
   try {
-    const data: CachedImage = { url, fetchedAt: Date.now() };
-    await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(data));
+    await AsyncStorage.setItem(
+      CACHE_PREFIX + key,
+      JSON.stringify({ ...data, fetchedAt: Date.now() }),
+    );
   } catch {}
 }
 
-// ─── Unsplash search ─────────────────────────────────────────────────
-export async function searchCourseImage(query: string): Promise<string | null> {
-  if (!UNSPLASH_KEY) return null;
+// ─── Google Places photo URL builder ─────────────────────────────────
+function getPhotoUrl(photoReference: string, maxWidth: number = 800): string {
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${GOOGLE_KEY}`;
+}
 
-  const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
-  const cached = await getCachedImage(cacheKey);
-  if (cached) return cached;
-
+// ─── Google Places Text Search ───────────────────────────────────────
+async function searchPlace(query: string): Promise<{ placeId: string; photoUrl: string } | null> {
   try {
-    const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` },
-    });
+    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_KEY}`;
+    const res = await fetch(url);
     if (!res.ok) return null;
 
     const data = await res.json();
-    const imageUrl: string | undefined = data.results?.[0]?.urls?.regular;
-    if (!imageUrl) return null;
+    const place = data.results?.[0];
+    if (!place?.place_id) return null;
 
-    await setCachedImage(cacheKey, imageUrl);
-    return imageUrl;
+    const photoRef = place.photos?.[0]?.photo_reference;
+    if (!photoRef) return null;
+
+    return {
+      placeId: place.place_id,
+      photoUrl: getPhotoUrl(photoRef),
+    };
   } catch {
     return null;
   }
+}
+
+// ─── Main fetch: course image by query ───────────────────────────────
+export async function searchCourseImage(query: string): Promise<string | null> {
+  if (!GOOGLE_KEY) return null;
+
+  const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
+  const cached = await getCached(cacheKey);
+  if (cached) return cached.photoUrl;
+
+  const result = await searchPlace(query);
+  if (!result) return null;
+
+  await setCache(cacheKey, result);
+  return result.photoUrl;
 }
 
 // ─── Convenience: fetch course image by name + location ──────────────
@@ -92,42 +112,44 @@ export async function fetchCourseImage(
   location?: string,
 ): Promise<string | null> {
   const query = location
-    ? `golf course ${location}`
-    : `golf course ${courseName}`;
+    ? `${courseName} ${location} golf course`
+    : `${courseName} golf course`;
   return searchCourseImage(query);
 }
 
 // ─── Curated dream destination queries ───────────────────────────────
-// These produce the best Unsplash results for each destination.
+// Signature courses at each destination for real Google Places photos.
 const DREAM_QUERIES: Record<string, string> = {
-  scottsdale: 'desert golf course Arizona',
-  'myrtle beach': 'coastal golf course South Carolina',
-  bandon: 'links golf course Oregon coast',
-  pinehurst: 'pine tree golf course North Carolina',
-  ireland: 'links golf course Ireland cliffs',
-  scotland: 'St Andrews golf links Scotland',
-  monterey: 'Pebble Beach ocean golf course',
-  'las vegas': 'desert golf course mountains Nevada',
-  'pebble beach': 'Pebble Beach ocean golf course',
-  'hilton head': 'lowcountry golf course South Carolina',
-  'palm springs': 'desert golf course Palm Springs California',
-  austin: 'hill country golf course Texas',
-  'old hickory': 'golf course Nashville Tennessee',
-  nashville: 'golf course Nashville Tennessee',
+  scottsdale: 'TPC Scottsdale Stadium Course Arizona',
+  'myrtle beach': 'Caledonia Golf Fish Club South Carolina',
+  bandon: 'Pacific Dunes Bandon Oregon',
+  pinehurst: 'Pinehurst No 2 North Carolina',
+  ireland: 'Royal County Down Northern Ireland',
+  scotland: 'St Andrews Old Course Scotland',
+  monterey: 'Pebble Beach Golf Links California',
+  'pebble beach': 'Pebble Beach Golf Links California',
+  'las vegas': 'Shadow Creek Golf Course Las Vegas',
+  'hilton head': 'Harbour Town Golf Links South Carolina',
+  'palm springs': 'PGA West Stadium Course California',
+  austin: 'Austin Country Club Texas',
+  'old hickory': 'Hermitage Golf Course Nashville Tennessee',
+  nashville: 'Hermitage Golf Course Nashville Tennessee',
 };
 
 export function getDreamQuery(name: string): string | null {
   return DREAM_QUERIES[name.toLowerCase()] ?? null;
 }
 
-// Fetch a dream destination image using the curated query
 export async function fetchDreamImage(name: string): Promise<string | null> {
   const query = getDreamQuery(name);
   if (!query) return null;
   return searchCourseImage(query);
 }
 
-// ─── Check if Unsplash is configured ─────────────────────────────────
-export function isUnsplashConfigured(): boolean {
-  return UNSPLASH_KEY.length > 0;
+// ─── Check if Google Places is configured ────────────────────────────
+export function isGooglePlacesConfigured(): boolean {
+  return GOOGLE_KEY.length > 0;
 }
+
+// Backward compat alias
+export const isUnsplashConfigured = isGooglePlacesConfigured;

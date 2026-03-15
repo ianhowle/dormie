@@ -26,6 +26,12 @@ import type { Trip } from '../data/trips';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
+function formatInviteCode(trip: Trip): string {
+  const prefix = trip.city.slice(0, 3).toUpperCase();
+  const year = trip.startDate.slice(0, 4);
+  return `DORMIE-${prefix}-${year}`;
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────
 type SessionStatus = 'not_started' | 'live' | 'complete';
 type RCFormat = 'foursomes' | 'fourball' | 'singles' | 'shamble' | 'scramble' | 'greensomes';
@@ -510,7 +516,7 @@ function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
     ['Sessions', `${MOCK_RC_SESSIONS.length}`],
     ['Win Condition', 'Most Points'],
     ['Scoring', 'Win = 1 · Halve = ½ · Loss = 0'],
-    ['Invite Code', trip.inviteCode],
+    ['Invite Code', formatInviteCode(trip)],
   ];
 
   return (
@@ -1759,12 +1765,12 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
           <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>INVITE CODE</Text>
           <Pressable
             onPress={() => {
-              Clipboard.setString(trip.inviteCode);
-              Alert.alert('Copied!', `Invite code ${trip.inviteCode} copied to clipboard.`);
+              Clipboard.setString(formatInviteCode(trip));
+              Alert.alert('Copied!', `Invite code ${formatInviteCode(trip)} copied to clipboard.`);
             }}
             style={[h.inviteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
           >
-            <Text style={[h.inviteCode, { color: c.gold, fontFamily: GEO }]}>{trip.inviteCode}</Text>
+            <Text style={[h.inviteCode, { color: c.gold, fontFamily: GEO }]}>{formatInviteCode(trip)}</Text>
             <View style={h.inviteCopyWrap}>
               <Ionicons name="copy-outline" size={16} color={c.teal} />
               <Text style={[h.inviteCopyText, { color: c.teal }]}>Copy</Text>
@@ -2089,7 +2095,7 @@ const h = StyleSheet.create({
   playerCard: {
     width: 80,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 4,
     borderWidth: 1,
   },
