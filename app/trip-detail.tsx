@@ -239,6 +239,36 @@ type Tab = (typeof TABS)[number];
 
 const EMOJI_OPTIONS = ['👍', '🔥', '⛳', '😂', '💪', '🏆'];
 
+function formatInviteCode(trip: typeof MOCK_UPCOMING_TRIPS[0]): string {
+  const prefix = trip.city.slice(0, 3).toUpperCase();
+  const year = trip.startDate.slice(0, 4);
+  return `DORMIE-${prefix}-${year}`;
+}
+
+// ─── Pinstripes texture ─────────────────────────────────────────────────
+function Pinstripes() {
+  const lines = Array.from({ length: 40 });
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {lines.map((_, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            top: -200,
+            left: i * 18 - 100,
+            width: 1,
+            height: 800,
+            backgroundColor: '#fff',
+            opacity: 0.03,
+            transform: [{ rotate: '35deg' }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 // ─── Section label ──────────────────────────────────────────────────────
 function SectionLabel({ title }: { title: string }) {
   const { theme } = useTheme();
@@ -265,6 +295,7 @@ function ClubhouseTab({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const { showToast } = useToast();
   const [checklistExpanded, setChecklistExpanded] = useState(false);
   const checkDone = checklist.filter((cl) => cl.done).length;
   const checkTotal = checklist.length;
@@ -301,9 +332,9 @@ function ClubhouseTab({
       <SectionLabel title="TRIP INFO" />
       <View style={s.statsRow}>
         {[
-          { label: 'FORMAT', value: 'Stroke Play' },
+          { label: 'FORMAT', value: 'Stroke' },
           { label: 'ROUNDS', value: `${trip.roundsPlanned}` },
-          { label: 'SIDE GAMES', value: `${SIDE_GAME_PILLS.length}` },
+          { label: 'GAMES', value: `${SIDE_GAME_PILLS.length}` },
           { label: 'PLAYERS', value: `${MOCK_PLAYERS.length}` },
         ].map((st) => (
           <View key={st.label} style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
@@ -317,14 +348,14 @@ function ClubhouseTab({
       <SectionLabel title="INVITE CODE" />
       <Pressable
         onPress={() => {
-          Clipboard.setString(trip.inviteCode);
+          Clipboard.setString(formatInviteCode(trip));
           haptics.medium();
-          showToast({ message: 'Invite sent', type: 'success', icon: 'copy-outline' });
+          showToast({ message: 'Invite code copied', type: 'success', icon: 'copy-outline' });
         }}
         accessibilityLabel="Trip invite code"
         style={[s.inviteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
       >
-        <Text style={[s.inviteCode, { color: c.gold, fontFamily: GEO }]}>{trip.inviteCode}</Text>
+        <Text style={[s.inviteCode, { color: c.gold, fontFamily: GEO }]}>{formatInviteCode(trip)}</Text>
         <View style={s.inviteCopyWrap}>
           <Ionicons name="copy-outline" size={16} color={c.teal} />
           <Text style={[s.inviteCopyText, { color: c.teal }]}>Copy</Text>
@@ -2145,74 +2176,79 @@ export default function TripDetailScreen() {
     return <WeatherForecast trip={trip} onBack={closeTool} />;
   }
 
-  // Item 12: Two-tone palette — warm champagne for planning, Masters green accents for competition
   const MASTERS_GREEN = '#1E4D2B';
-  const planningBg = theme.isDark ? '#1E1A14' : '#FAF3E0';
-  const planningCard = theme.isDark ? '#2A2318' : '#F5E6C8';
-  const headerBg = competitionMode ? (theme.isDark ? '#0A1A10' : '#E8F0E8') : planningBg;
-  const heroBg = competitionMode ? (theme.isDark ? '#0A1A10' : '#E8F0E8') : planningBg;
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
-      {/* ─── TOP BAR ────────────────────────────────────────────────── */}
-      <View style={[s.topBar, { backgroundColor: headerBg }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={c.text} />
-        </Pressable>
-        <Text style={[s.branding, { color: competitionMode ? MASTERS_GREEN : c.gold, fontFamily: GEO }]}>DORMIE</Text>
-        <View style={s.topBarRight}>
-          <Pressable onPress={toggleTheme} hitSlop={8}>
-            <Ionicons
-              name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
-              size={20}
-              color={c.textMuted}
-            />
-          </Pressable>
-          <Pressable hitSlop={8}>
-            <Ionicons name="settings-outline" size={20} color={c.textMuted} />
-          </Pressable>
-          <Pressable hitSlop={8}>
-            <Ionicons name="share-outline" size={20} color={c.textMuted} />
-          </Pressable>
-        </View>
-      </View>
 
       {/* ─── SCROLLABLE CONTENT WITH STICKY TAB BAR ───────────────── */}
       <ScrollView
         style={{ flex: 1 }}
-        stickyHeaderIndices={[3]}
+        stickyHeaderIndices={[2]}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
       >
-        {/* Index 0: HERO */}
-        <View style={[s.hero, { backgroundColor: heroBg }]}>
-          <View style={s.heroLeft}>
-            <Text style={[s.heroName, { color: c.text, fontFamily: GEO }]}>{trip.name}</Text>
-            <Text style={[s.heroLocation, { color: c.textMuted }]}>
-              {trip.destination} · {trip.city}, {trip.state}
-            </Text>
-            <Text style={[s.heroDateRange, { color: c.textMuted }]}>
-              {formatDateRange(trip.startDate, trip.endDate)}
-            </Text>
-          </View>
-          <View style={s.heroRight}>
-            <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
-            <Pressable
-              onPress={() => setShowCeremony(true)}
-              style={s.startTripBtn}
-            >
-              <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-              <Ionicons name="play" size={12} color="#D4AF37" />
-              <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
+        {/* Index 0: GREEN HEADER (top bar + hero combined) */}
+        <LinearGradient
+          colors={['#1E4D2B', '#0D2818']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[s.greenHeader, { paddingTop: STATUS_BAR_H }]}
+        >
+          {/* Pinstripe texture */}
+          <Pinstripes />
+
+          {/* Top bar */}
+          <View style={s.topBar}>
+            <Pressable onPress={() => router.back()} hitSlop={12}>
+              <Ionicons name="chevron-back" size={24} color="#E8E4DE" />
             </Pressable>
+            <Text style={[s.branding, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
+            <View style={s.topBarRight}>
+              <Pressable onPress={toggleTheme} hitSlop={8}>
+                <Ionicons
+                  name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
+                  size={20}
+                  color="rgba(255,255,255,0.6)"
+                />
+              </Pressable>
+              <Pressable hitSlop={8}>
+                <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+              <Pressable hitSlop={8}>
+                <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            </View>
           </View>
-        </View>
 
-        {/* Index 1: Gold Divider */}
-        <GoldDivider />
+          {/* Hero content */}
+          <View style={s.hero}>
+            <View style={s.heroLeft}>
+              <Text style={[s.heroName, { color: '#fff', fontFamily: GEO }]}>{trip.name}</Text>
+              <Text style={[s.heroLocation, { color: 'rgba(255,255,255,0.7)' }]}>
+                {trip.destination} · {trip.city}, {trip.state}
+              </Text>
+              <Text style={[s.heroDateRange, { color: 'rgba(255,255,255,0.6)' }]}>
+                {formatDateRange(trip.startDate, trip.endDate)}
+              </Text>
+            </View>
+            <View style={s.heroRight}>
+              <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
+              <Pressable
+                onPress={() => setShowCeremony(true)}
+                style={[s.startTripBtn, { backgroundColor: 'rgba(212,175,55,0.15)', borderColor: 'rgba(212,175,55,0.3)', borderWidth: 1 }]}
+              >
+                <Ionicons name="play" size={12} color="#D4AF37" />
+                <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
+              </Pressable>
+            </View>
+          </View>
 
-        {/* Index 2: PLAYER ROW */}
+          <GoldDivider style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} />
+        </LinearGradient>
+
+        {/* Index 1: PLAYER ROW */}
         <FlatList
           data={MOCK_PLAYERS}
           horizontal
@@ -2240,32 +2276,38 @@ export default function TripDetailScreen() {
           }}
         />
 
-        {/* Index 3: STICKY TAB BAR (pinned via stickyHeaderIndices) */}
-        <View style={[s.tabBar, { backgroundColor: c.surface, borderColor: c.border }]}>
-          {TABS.map((tab) => {
-            const active = tab === activeTab;
-            return (
-              <Pressable
-                key={tab}
-                onPress={() => handleTabSwitch(tab)}
-                accessibilityLabel={`${tab} tab${active ? ', selected' : ''}`}
-                style={[s.tabItem, active && { borderBottomColor: c.teal, borderBottomWidth: 2 }]}
-              >
-                <Text
-                  style={[
-                    s.tabText,
-                    { color: active ? c.teal : c.textMuted },
-                    active && { fontWeight: '700' },
-                  ]}
+        {/* Index 2: STICKY TAB BAR (pinned via stickyHeaderIndices) */}
+        <View style={[s.tabBarWrap, { backgroundColor: c.bg, borderColor: c.border }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.tabBarScroll}
+          >
+            {TABS.map((tab) => {
+              const active = tab === activeTab;
+              return (
+                <Pressable
+                  key={tab}
+                  onPress={() => handleTabSwitch(tab)}
+                  accessibilityLabel={`${tab} tab${active ? ', selected' : ''}`}
+                  style={[s.tabItem, active && { borderBottomColor: c.teal, borderBottomWidth: 2 }]}
                 >
+                  <Text
+                    style={[
+                      s.tabText,
+                      { color: active ? c.teal : c.textMuted },
+                      active && { fontWeight: '700' },
+                    ]}
+                  >
                   {tab}
                 </Text>
               </Pressable>
             );
           })}
+          </ScrollView>
         </View>
 
-        {/* Index 4: TAB CONTENT */}
+        {/* Index 3: TAB CONTENT */}
         <View style={{ minHeight: 500, backgroundColor: c.bg }}>
           {activeTab === 'Clubhouse' && (
             <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} />
@@ -2306,9 +2348,14 @@ export default function TripDetailScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1 },
 
+  /* Green header */
+  greenHeader: {
+    paddingBottom: 4,
+    overflow: 'hidden',
+  },
+
   /* Top bar */
   topBar: {
-    paddingTop: STATUS_BAR_H,
     paddingBottom: 8,
     paddingHorizontal: 16,
     flexDirection: 'row',
@@ -2346,7 +2393,6 @@ const s = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    overflow: 'hidden',
   },
   startTripText: { color: '#D4AF37', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
 
@@ -2383,17 +2429,20 @@ const s = StyleSheet.create({
   playerCardHcp: { fontSize: 13, fontWeight: '700', marginTop: 2 },
 
   /* Tab bar */
-  tabBar: {
-    flexDirection: 'row',
+  tabBarWrap: {
     borderBottomWidth: 1,
   },
+  tabBarScroll: {
+    paddingHorizontal: 16,
+    gap: 0,
+  },
   tabItem: {
-    flex: 1,
-    alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignItems: 'center',
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
 
@@ -2432,11 +2481,14 @@ const s = StyleSheet.create({
   statCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderWidth: 1,
+    minHeight: 64,
   },
-  statValue: { fontSize: 16, fontWeight: '700' },
-  statLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, marginTop: 2, textTransform: 'uppercase' as const },
+  statValue: { fontSize: 20, fontWeight: '700' },
+  statLabel: { fontSize: 8, fontWeight: '600', letterSpacing: 1, marginTop: 4, textTransform: 'uppercase' as const },
 
   /* Invite code */
   inviteRow: {
@@ -2446,7 +2498,7 @@ const s = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  inviteCode: { fontSize: 22, fontWeight: '700', letterSpacing: 4 },
+  inviteCode: { fontSize: 18, fontWeight: '700', letterSpacing: 2 },
   inviteCopyWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   inviteCopyText: { fontSize: 12, fontWeight: '600' },
 
