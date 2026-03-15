@@ -146,6 +146,11 @@ export async function fetchDreamImage(name: string): Promise<string | null> {
   return searchCourseImage(query);
 }
 
+// Sync stub — returns null so DestinationImage handles async fetching internally
+export function getDreamImage(_name: string): string | null {
+  return null;
+}
+
 // ─── Check if Google Places is configured ────────────────────────────
 export function isGooglePlacesConfigured(): boolean {
   return GOOGLE_KEY.length > 0;

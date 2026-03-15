@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   fetchCourseImage,
+  fetchDreamImage,
   getGradientForCourse,
   isGooglePlacesConfigured,
 } from '../services/courseImages.service';
@@ -147,13 +148,36 @@ type DestinationImageProps = {
 
 export function DestinationImage({
   name,
-  imageUrl,
+  imageUrl: providedUrl,
   gradient,
   style,
   children,
   showAttribution = true,
 }: DestinationImageProps) {
+  const [imageUrl, setImageUrl] = useState<string | null>(providedUrl ?? null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (providedUrl) {
+      setImageUrl(providedUrl);
+      setError(false);
+      return;
+    }
+
+    if (!isGooglePlacesConfigured()) return;
+
+    let cancelled = false;
+    setLoading(true);
+    fetchDreamImage(name).then((url) => {
+      if (!cancelled) {
+        if (url) setImageUrl(url);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [name, providedUrl]);
+
   const showImage = imageUrl && !error;
 
   return (
@@ -174,6 +198,7 @@ export function DestinationImage({
           style={StyleSheet.absoluteFillObject}
         />
       )}
+      {loading && !showImage && <ShimmerPlaceholder />}
       {children}
       {showImage && showAttribution && <GoogleAttribution />}
     </View>
