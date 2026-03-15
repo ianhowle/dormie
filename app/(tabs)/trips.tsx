@@ -407,6 +407,7 @@ export default function TripsScreen() {
   const isDark = theme.isDark;
   const { user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
   const [showDemoData, setShowDemoData] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -522,7 +523,7 @@ export default function TripsScreen() {
           )}
         </View>
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 32 + insets.bottom }} />
       </ScrollView>
     </View>
   );

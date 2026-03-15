@@ -626,6 +626,7 @@ export default function LeaderboardScreen() {
             {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
           </View>
         )}
+        <View style={{ height: 32 + insets.bottom }} />
       </ScrollView>
     </View>
   );

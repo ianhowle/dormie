@@ -458,11 +458,13 @@ function PlayerScoreInput({
 
   const adjustGross = (delta: number) => {
     const next = Math.max(1, Math.min(15, score.gross + delta));
+    haptics.light();
     onChange({ ...score, gross: next });
   };
 
   const adjustPutts = (delta: number) => {
     const next = Math.max(0, Math.min(score.gross, score.putts + delta));
+    haptics.light();
     onChange({ ...score, putts: next });
   };
 

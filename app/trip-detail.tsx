@@ -10,6 +10,7 @@ import {
   Platform,
   StatusBar,
   Animated,
+  Easing,
   Alert,
   Clipboard,
   Modal,
@@ -18,12 +19,15 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
+import { CourseImage } from '../src/components/CourseImage';
 import GoldDivider from '../src/components/GoldDivider';
 import { TripCountdownRing } from '../src/components/TripCountdownRing';
+import { PulsingDot } from '../src/components/PulsingDot';
 import { RyderCupHub } from '../src/components/RyderCupHub';
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
 import { useAuth } from '../src/lib/auth';
@@ -311,7 +315,7 @@ function ClubhouseTab({
       <View style={s.sectionWithFreshness}>
         <SectionLabel title="LATEST" />
         <View style={s.freshnessBar}>
-          <View style={s.freshnessDot} />
+          <PulsingDot color={c.teal} size={6} />
           <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
         </View>
       </View>
@@ -328,6 +332,8 @@ function ClubhouseTab({
         </View>
       ))}
 
+      <GoldDivider style={{ marginTop: 16 }} />
+
       {/* Stats row */}
       <SectionLabel title="TRIP INFO" />
       <View style={s.statsRow}>
@@ -343,6 +349,8 @@ function ClubhouseTab({
           </View>
         ))}
       </View>
+
+      <GoldDivider style={{ marginTop: 16 }} />
 
       {/* Invite code */}
       <SectionLabel title="INVITE CODE" />
@@ -429,6 +437,8 @@ function ClubhouseTab({
         ))}
       </View>
 
+      <GoldDivider style={{ marginTop: 16 }} />
+
       {/* Trip moments */}
       <SectionLabel title="TRIP MOMENTS" />
       {MOCK_MOMENTS.map((m) => (
@@ -444,6 +454,8 @@ function ClubhouseTab({
         <Ionicons name="add-circle-outline" size={16} color={c.teal} />
         <Text style={[s.addMomentText, { color: c.teal }]}>Add Moment</Text>
       </Pressable>
+
+      <GoldDivider style={{ marginTop: 16 }} />
 
       {/* Head to Head */}
       <SectionLabel title="HEAD TO HEAD" />
@@ -470,6 +482,8 @@ function ClubhouseTab({
           </View>
         );
       })}
+
+      <GoldDivider style={{ marginTop: 16 }} />
 
       {/* Trip tools */}
       <SectionLabel title="TRIP TOOLS" />
@@ -520,19 +534,23 @@ function CoursesTab() {
         const voted = votedCourses.has(course.id);
         return (
           <View key={course.id} style={[s.courseCard, { borderColor: c.border }]}>
-            {/* Gradient header */}
-            <LinearGradient
-              colors={course.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+            {/* Course image header */}
+            <CourseImage
+              courseName={course.name}
+              location={`${course.name.split('—')[0].trim()}`}
+              gradient={course.gradient}
               style={s.courseGradient}
+              height={120}
             >
-              <View style={s.courseDayBadge}>
-                <Text style={[s.courseDayText, { fontFamily: GEO }]}>DAY {course.day}</Text>
+              <View style={s.courseImageOverlay} />
+              <View style={s.courseGradientContent}>
+                <View style={s.courseDayBadge}>
+                  <Text style={[s.courseDayText, { fontFamily: GEO }]}>DAY {course.day}</Text>
+                </View>
+                <Text style={[s.courseCardName, { fontFamily: GEO }]}>{course.name}</Text>
+                <Text style={s.courseTeeTime}>{course.teeTime}</Text>
               </View>
-              <Text style={[s.courseCardName, { fontFamily: GEO }]}>{course.name}</Text>
-              <Text style={s.courseTeeTime}>{course.teeTime}</Text>
-            </LinearGradient>
+            </CourseImage>
 
             {/* Stats row */}
             <View style={[s.courseStatsRow, { backgroundColor: c.cardBg }]}>
@@ -860,7 +878,7 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
     <View style={{ flex: 1 }}>
       {/* Data freshness indicator */}
       <View style={s.freshnessBar}>
-        <View style={s.freshnessDot} />
+        <PulsingDot color={c.teal} size={6} />
         <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
       </View>
       <ScrollView
@@ -2104,6 +2122,7 @@ export default function TripDetailScreen() {
   }
 
   const daysUntil = getDaysUntilTrip(trip.startDate);
+  const insets = useSafeAreaInsets();
 
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
@@ -2177,76 +2196,94 @@ export default function TripDetailScreen() {
   }
 
   const MASTERS_GREEN = '#1E4D2B';
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 140],
+    outputRange: [200, 60],
+    extrapolate: 'clamp',
+  });
+  const heroOpacity = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
 
       {/* ─── SCROLLABLE CONTENT WITH STICKY TAB BAR ───────────────── */}
-      <ScrollView
+      <Animated.ScrollView
         style={{ flex: 1 }}
         stickyHeaderIndices={[2]}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
       >
-        {/* Index 0: GREEN HEADER (top bar + hero combined) */}
-        <LinearGradient
-          colors={['#1E4D2B', '#0D2818']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[s.greenHeader, { paddingTop: STATUS_BAR_H }]}
-        >
-          {/* Pinstripe texture */}
-          <Pinstripes />
+        {/* Index 0: GREEN HEADER (parallax — compresses from ~200px to ~60px) */}
+        <Animated.View style={{ minHeight: headerHeight, overflow: 'hidden' }}>
+          <LinearGradient
+            colors={['#1E4D2B', '#0D2818']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[s.greenHeader, { paddingTop: STATUS_BAR_H }]}
+          >
+            {/* Pinstripe texture */}
+            <Pinstripes />
 
-          {/* Top bar */}
-          <View style={s.topBar}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
-              <Ionicons name="chevron-back" size={24} color="#E8E4DE" />
-            </Pressable>
-            <Text style={[s.branding, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
-            <View style={s.topBarRight}>
-              <Pressable onPress={toggleTheme} hitSlop={8}>
-                <Ionicons
-                  name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
-                  size={20}
-                  color="rgba(255,255,255,0.6)"
-                />
+            {/* Top bar — always visible */}
+            <View style={s.topBar}>
+              <Pressable onPress={() => router.back()} hitSlop={12}>
+                <Ionicons name="chevron-back" size={24} color="#E8E4DE" />
               </Pressable>
-              <Pressable hitSlop={8}>
-                <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.6)" />
-              </Pressable>
-              <Pressable hitSlop={8}>
-                <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.6)" />
-              </Pressable>
+              <Text style={[s.branding, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
+              <View style={s.topBarRight}>
+                <Pressable onPress={toggleTheme} hitSlop={8}>
+                  <Ionicons
+                    name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
+                    size={20}
+                    color="rgba(255,255,255,0.6)"
+                  />
+                </Pressable>
+                <Pressable hitSlop={8}>
+                  <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+                <Pressable hitSlop={8}>
+                  <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+              </View>
             </View>
-          </View>
 
-          {/* Hero content */}
-          <View style={s.hero}>
-            <View style={s.heroLeft}>
-              <Text style={[s.heroName, { color: '#fff', fontFamily: GEO }]}>{trip.name}</Text>
-              <Text style={[s.heroLocation, { color: 'rgba(255,255,255,0.7)' }]}>
-                {trip.destination} · {trip.city}, {trip.state}
-              </Text>
-              <Text style={[s.heroDateRange, { color: 'rgba(255,255,255,0.6)' }]}>
-                {formatDateRange(trip.startDate, trip.endDate)}
-              </Text>
-            </View>
-            <View style={s.heroRight}>
-              <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
-              <Pressable
-                onPress={() => setShowCeremony(true)}
-                style={[s.startTripBtn, { backgroundColor: 'rgba(212,175,55,0.15)', borderColor: 'rgba(212,175,55,0.3)', borderWidth: 1 }]}
-              >
-                <Ionicons name="play" size={12} color="#D4AF37" />
-                <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
-              </Pressable>
-            </View>
-          </View>
+            {/* Hero content — fades on scroll */}
+            <Animated.View style={[s.hero, { opacity: heroOpacity }]}>
+              <View style={s.heroLeft}>
+                <Text style={[s.heroName, { color: '#fff', fontFamily: GEO }]}>{trip.name}</Text>
+                <Text style={[s.heroLocation, { color: 'rgba(255,255,255,0.7)' }]}>
+                  {trip.destination} · {trip.city}, {trip.state}
+                </Text>
+                <Text style={[s.heroDateRange, { color: 'rgba(255,255,255,0.6)' }]}>
+                  {formatDateRange(trip.startDate, trip.endDate)}
+                </Text>
+              </View>
+              <View style={s.heroRight}>
+                <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} />
+                <Pressable
+                  onPress={() => setShowCeremony(true)}
+                  style={[s.startTripBtn, { backgroundColor: 'rgba(212,175,55,0.15)', borderColor: 'rgba(212,175,55,0.3)', borderWidth: 1 }]}
+                >
+                  <Ionicons name="play" size={12} color="#D4AF37" />
+                  <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
 
-          <GoldDivider style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} />
-        </LinearGradient>
+            <GoldDivider style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} />
+          </LinearGradient>
+        </Animated.View>
 
         {/* Index 1: PLAYER ROW */}
         <FlatList
@@ -2262,7 +2299,9 @@ export default function TripDetailScreen() {
             return (
               <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${item.name}, ${item.handicap} handicap, ${item.rsvp}`}>
                 <View style={s.playerCardAvatarWrap}>
-                  <Avatar id={item.id} size={40} name={item.name} />
+                  <View style={[s.avatarRing, item.rsvp === 'confirmed' && { borderColor: c.teal, borderWidth: 2 }]}>
+                    <Avatar id={item.id} size={36} name={item.name} />
+                  </View>
                   <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol }]} />
                 </View>
                 <Text style={[s.playerCardName, { color: c.text }]} numberOfLines={1}>
@@ -2317,13 +2356,13 @@ export default function TripDetailScreen() {
           {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
           {activeTab === '19th Hole' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Item 14: Floating chat button with unread badge */}
       {activeTab !== '19th Hole' && (
         <Pressable
           onPress={() => setActiveTab('19th Hole')}
-          style={s.floatingChatBtn}
+          style={[s.floatingChatBtn, { bottom: 24 + insets.bottom }]}
         >
           <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
           {/* Unread badge */}
@@ -2414,6 +2453,11 @@ const s = StyleSheet.create({
   },
   playerCardAvatarWrap: {
     position: 'relative',
+  },
+  avatarRing: {
+    padding: 2,
+    borderColor: 'transparent',
+    borderWidth: 2,
   },
   rsvpIndicator: {
     position: 'absolute',
@@ -2608,7 +2652,14 @@ const s = StyleSheet.create({
     marginBottom: 12,
     overflow: 'hidden',
   },
-  courseGradient: {
+  courseGradient: {},
+  courseImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  courseGradientContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
     padding: 16,
   },
   courseDayBadge: {

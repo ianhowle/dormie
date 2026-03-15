@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   StatusBar,
+  Animated,
   Alert,
   Modal,
   RefreshControl,
@@ -16,6 +17,7 @@ import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
 import { GEO } from '../../src/theme/fonts';
@@ -348,12 +350,30 @@ export default function ProfileScreen() {
     return { label: 'MANUAL', color: c.textMuted };
   };
 
+  const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const profileHeaderHeight = scrollY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [200, 70],
+    extrapolate: 'clamp',
+  });
+  const profileHeroOpacity = scrollY.interpolate({
+    inputRange: [0, 60],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
-      <ScrollView
+      <ExpoStatusBar style="light" />
+      <Animated.ScrollView
         bounces={true}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -363,71 +383,82 @@ export default function ProfileScreen() {
           />
         }
       >
-        {/* ─── HEADER ──────────────────────────────────────────────── */}
-        <View style={[s.header, { backgroundColor: c.surface }]}>
-          <View style={s.brandRow}>
-            <Text style={[s.brand, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={12}
-              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
-            >
-              <Ionicons name="settings-outline" size={20} color={c.textMuted} />
-            </Pressable>
-          </View>
+        {/* ─── GREEN GRADIENT HEADER (parallax) ──────────────────── */}
+        <Animated.View style={{ minHeight: profileHeaderHeight, overflow: 'hidden' }}>
+          <LinearGradient
+            colors={greenHeaderGradient as unknown as string[]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[s.header, { paddingTop: insets.top + 4 }]}
+          >
+            <Pinstripes />
 
-          <View style={s.profileRow}>
-            <View style={{ position: 'relative' }}>
-              <Avatar id={profileUser.id} size={80} name={profileUser.name} accessibilityLabel={`${profileUser.name} profile photo`} />
+            <View style={s.brandRow}>
+              <Text style={[s.brand, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
               <Pressable
-                style={s.avatarEditBtn}
-                onPress={() =>
-                  Alert.alert('Change Avatar', 'Choose an avatar style', [
-                    { text: 'Initials' },
-                    { text: 'Course Theme' },
-                    { text: 'Upload Photo' },
-                    { text: 'Cancel', style: 'cancel' },
-                  ])
-                }
+                onPress={() => router.push('/settings')}
+                hitSlop={12}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
               >
-                <Ionicons name="create-outline" size={12} color="#fff" />
+                <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.6)" />
               </Pressable>
             </View>
-            <View style={s.profileInfo}>
-              <Text style={[s.profileName, { color: c.text, fontFamily: GEO }]}>
-                {profileUser.name}
-              </Text>
-              <View style={s.handicapRow}>
-                <Text style={[s.handicapLabel, { color: c.textMuted }]}>HCP</Text>
-                <Text style={[s.handicapValue, { color: c.teal, fontFamily: GEO }]}>
-                  {profileUser.handicap.toFixed(1)}
+
+            <Animated.View style={[s.profileRow, { opacity: profileHeroOpacity }]}>
+              <View style={{ position: 'relative' }}>
+                <Avatar id={profileUser.id} size={80} name={profileUser.name} accessibilityLabel={`${profileUser.name} profile photo`} />
+                <Pressable
+                  style={s.avatarEditBtn}
+                  onPress={() =>
+                    Alert.alert('Change Avatar', 'Choose an avatar style', [
+                      { text: 'Initials' },
+                      { text: 'Course Theme' },
+                      { text: 'Upload Photo' },
+                      { text: 'Cancel', style: 'cancel' },
+                    ])
+                  }
+                >
+                  <Ionicons name="create-outline" size={12} color="#fff" />
+                </Pressable>
+              </View>
+              <View style={s.profileInfo}>
+                <Text style={[s.profileName, { color: '#fff', fontFamily: GEO }]}>
+                  {profileUser.name}
                 </Text>
-                <Text style={[s.handicapLabel, { color: c.textMuted, marginLeft: 10 }]}>NET</Text>
-                <Text style={[s.handicapValue, {
-                  color: typeof displayStats.scoringAvg === 'number'
-                    ? ((displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) < 0 ? c.teal : (displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) > 0 ? c.urgent : c.text)
-                    : c.textMuted,
-                  fontFamily: GEO,
-                }]}>
-                  {typeof displayStats.scoringAvg === 'number'
-                    ? ((val: number) => val === 0 ? 'E' : val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1))(displayStats.scoringAvg - 72 - profileUser.handicap)
-                    : '--'}
+                <View style={s.handicapRow}>
+                  <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)' }]}>HCP</Text>
+                  <Text style={[s.handicapValue, { color: c.teal, fontFamily: GEO }]}>
+                    {profileUser.handicap.toFixed(1)}
+                  </Text>
+                  <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)', marginLeft: 10 }]}>NET</Text>
+                  <Text style={[s.handicapValue, {
+                    color: typeof displayStats.scoringAvg === 'number'
+                      ? ((displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) < 0 ? c.teal : (displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) > 0 ? c.urgent : '#E8E4DE')
+                      : 'rgba(255,255,255,0.5)',
+                    fontFamily: GEO,
+                  }]}>
+                    {typeof displayStats.scoringAvg === 'number'
+                      ? ((val: number) => val === 0 ? 'E' : val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1))(displayStats.scoringAvg - 72 - profileUser.handicap)
+                      : '--'}
+                  </Text>
+                </View>
+                <Text style={[s.location, { color: 'rgba(255,255,255,0.5)' }]}>
+                  {profileUser.city}, {profileUser.state}
                 </Text>
               </View>
-              <Text style={[s.location, { color: c.textMuted }]}>
-                {profileUser.city}, {profileUser.state}
-              </Text>
-            </View>
-          </View>
+            </Animated.View>
 
-          <Pressable
-            onPress={() => Alert.alert('Edit Profile', 'Profile editing would open here.')}
-            style={({ pressed }) => [s.editBtn, { borderColor: c.gold, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-          >
-            <Ionicons name="pencil-outline" size={14} color={c.gold} />
-            <Text style={[s.editBtnText, { color: c.gold }]}>Edit Profile</Text>
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={() => Alert.alert('Edit Profile', 'Profile editing would open here.')}
+              style={({ pressed }) => [s.editBtn, { borderColor: 'rgba(212,175,55,0.4)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+            >
+              <Ionicons name="pencil-outline" size={14} color={c.gold} />
+              <Text style={[s.editBtnText, { color: c.gold }]}>Edit Profile</Text>
+            </Pressable>
+
+            <GoldDivider style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} />
+          </LinearGradient>
+        </Animated.View>
 
         <View style={s.body}>
           {/* ─── STATS GRID ──────────────────────────────────────── */}
@@ -784,9 +815,9 @@ export default function ProfileScreen() {
             <Text style={[s.signOutText, { color: c.urgent }]}>Sign Out</Text>
           </Pressable>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 40 + insets.bottom }} />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* ─── COURSE PICKER MODAL ──────────────────────────────── */}
       <Modal visible={showCoursePicker} transparent animationType="slide">
@@ -834,9 +865,9 @@ const s = StyleSheet.create({
 
   /* Header */
   header: {
-    paddingTop: STATUS_BAR_H + 4,
     paddingBottom: 20,
     paddingHorizontal: 20,
+    overflow: 'hidden',
   },
   brandRow: {
     flexDirection: 'row',

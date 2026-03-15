@@ -12,6 +12,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -715,6 +716,7 @@ export default function ScoreScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // State
   const [course, setCourse] = useState<SelectedCourse>(null);
@@ -1136,7 +1138,7 @@ export default function ScoreScreen() {
           </View>
 
           {/* Bottom spacing */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: 40 + insets.bottom }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

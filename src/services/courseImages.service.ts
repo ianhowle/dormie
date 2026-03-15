@@ -37,7 +37,7 @@ export function getGradientForCourse(courseName: string): [string, string] {
   return GRADIENT_PALETTE[hashString(courseName) % GRADIENT_PALETTE.length];
 }
 
-// ─── Unsplash fetch with caching ─────────────────────────────────────
+// ─── AsyncStorage cache helpers ──────────────────────────────────────
 async function getCachedImage(key: string): Promise<string | null> {
   try {
     const raw = await AsyncStorage.getItem(CACHE_PREFIX + key);
@@ -60,20 +60,15 @@ async function setCachedImage(key: string, url: string): Promise<void> {
   } catch {}
 }
 
-export async function fetchCourseImage(
-  courseName: string,
-  location?: string,
-): Promise<string | null> {
+// ─── Unsplash search ─────────────────────────────────────────────────
+export async function searchCourseImage(query: string): Promise<string | null> {
   if (!UNSPLASH_KEY) return null;
 
-  const cacheKey = courseName.toLowerCase().replace(/\s+/g, '_');
+  const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
   const cached = await getCachedImage(cacheKey);
   if (cached) return cached;
 
   try {
-    const query = location
-      ? `golf course ${location}`
-      : `golf course ${courseName}`;
     const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`;
     const res = await fetch(url, {
       headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` },
@@ -91,37 +86,48 @@ export async function fetchCourseImage(
   }
 }
 
-// ─── Hardcoded dream destination images ──────────────────────────────
-// These are specific Unsplash URLs for the 8 dream destinations.
-// They use the imgix parameters from Unsplash for optimal sizing.
-export const DREAM_DESTINATION_IMAGES: Record<string, string> = {
-  // Scottsdale — desert landscape
-  scottsdale: 'https://images.unsplash.com/photo-1535587566541-97121a128607?w=800&q=80',
-  // Myrtle Beach — coastal
-  'myrtle beach': 'https://images.unsplash.com/photo-1587502537745-84b86da1204f?w=800&q=80',
-  // Bandon — rugged Oregon coast
-  bandon: 'https://images.unsplash.com/photo-1587502537104-aac2f5393323?w=800&q=80',
-  // Pinehurst — Carolina pines
-  pinehurst: 'https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80',
-  // Ireland — green links
-  ireland: 'https://images.unsplash.com/photo-1590089415225-401ed6f9db8e?w=800&q=80',
-  // Scotland — Scottish links
-  scotland: 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=800&q=80',
-  // Monterey — Pacific coast
-  monterey: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=800&q=80',
-  // Las Vegas — desert/resort
-  'las vegas': 'https://images.unsplash.com/photo-1605833556294-ea5c7a74f57d?w=800&q=80',
-  // Pebble Beach — iconic coast
-  'pebble beach': 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=800&q=80',
-  // Hilton Head — lowcountry
-  'hilton head': 'https://images.unsplash.com/photo-1587502537745-84b86da1204f?w=800&q=80',
-  // Palm Springs — desert resort
-  'palm springs': 'https://images.unsplash.com/photo-1535587566541-97121a128607?w=800&q=80',
-  // Austin — hill country
-  austin: 'https://images.unsplash.com/photo-1587502537104-aac2f5393323?w=800&q=80',
+// ─── Convenience: fetch course image by name + location ──────────────
+export async function fetchCourseImage(
+  courseName: string,
+  location?: string,
+): Promise<string | null> {
+  const query = location
+    ? `golf course ${location}`
+    : `golf course ${courseName}`;
+  return searchCourseImage(query);
+}
+
+// ─── Curated dream destination queries ───────────────────────────────
+// These produce the best Unsplash results for each destination.
+const DREAM_QUERIES: Record<string, string> = {
+  scottsdale: 'desert golf course Arizona',
+  'myrtle beach': 'coastal golf course South Carolina',
+  bandon: 'links golf course Oregon coast',
+  pinehurst: 'pine tree golf course North Carolina',
+  ireland: 'links golf course Ireland cliffs',
+  scotland: 'St Andrews golf links Scotland',
+  monterey: 'Pebble Beach ocean golf course',
+  'las vegas': 'desert golf course mountains Nevada',
+  'pebble beach': 'Pebble Beach ocean golf course',
+  'hilton head': 'lowcountry golf course South Carolina',
+  'palm springs': 'desert golf course Palm Springs California',
+  austin: 'hill country golf course Texas',
+  'old hickory': 'golf course Nashville Tennessee',
+  nashville: 'golf course Nashville Tennessee',
 };
 
-export function getDreamImage(name: string): string | null {
-  const key = name.toLowerCase();
-  return DREAM_DESTINATION_IMAGES[key] ?? null;
+export function getDreamQuery(name: string): string | null {
+  return DREAM_QUERIES[name.toLowerCase()] ?? null;
+}
+
+// Fetch a dream destination image using the curated query
+export async function fetchDreamImage(name: string): Promise<string | null> {
+  const query = getDreamQuery(name);
+  if (!query) return null;
+  return searchCourseImage(query);
+}
+
+// ─── Check if Unsplash is configured ─────────────────────────────────
+export function isUnsplashConfigured(): boolean {
+  return UNSPLASH_KEY.length > 0;
 }

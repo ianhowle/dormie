@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -680,6 +681,7 @@ export default function HomeScreen() {
   const c = theme.colors;
   const isDark = theme.isDark;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showToast } = useToast();
   const firstName = user?.user_metadata?.name?.split(' ')[0];
@@ -1112,7 +1114,7 @@ export default function HomeScreen() {
         </View>
         )}
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 32 + insets.bottom }} />
       </ScrollView>
     </View>
   );
