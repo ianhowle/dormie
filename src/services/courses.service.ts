@@ -238,7 +238,7 @@ export const coursesService = {
               yards: h.yards ?? h.yardage ?? 400,
             }));
 
-            const par = course.par ?? holes.reduce((s: number, h: HoleInfo) => s + h.par, 0) || 72;
+            const par = course.par ?? (holes.reduce((s: number, h: HoleInfo) => s + h.par, 0) || 72);
             const defaultTee = teeBoxes.find((t) => t.name.toLowerCase().includes('white')) ?? teeBoxes[0];
 
             const result: ScorecardData = {
