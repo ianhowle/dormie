@@ -141,10 +141,10 @@ function CourseSearch({
   const c = theme.colors;
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [apiResults, setApiResults] = useState<{ id: string; name: string; par: number; city: string; state: string }[]>([]);
+  const [remoteResults, setRemoteResults] = useState<{ id: string; name: string; par: number; city: string; state: string; source?: string }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Local results from mock data
+  // Instant local results from mock data
   const localResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length === 0) return [];
@@ -156,47 +156,40 @@ function CourseSearch({
     ).slice(0, 6);
   }, [query]);
 
-  // Debounced API search
+  // Debounced unified search: Supabase + Google Places in parallel
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
-      setApiResults([]);
+      setRemoteResults([]);
       return;
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const raw = await coursesService.searchAPI(q);
-        const mapped = (Array.isArray(raw) ? raw : []).map((r: any) => ({
-          id: r.id ?? `api-${r.name}-${r.city}`,
-          name: r.name ?? r.club_name ?? '',
-          par: r.par ?? r.holes?.[0]?.par ?? 72,
-          city: r.city ?? r.location?.city ?? '',
-          state: r.state ?? r.location?.state ?? '',
-        })).slice(0, 6);
-        setApiResults(mapped);
+        const results = await coursesService.searchAll(q);
+        setRemoteResults(results);
       } catch {
-        setApiResults([]);
+        setRemoteResults([]);
       }
     }, 300);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
-  // Merge local + API, dedupe by name
+  // Merge instant local + remote, dedupe by name
   const results = useMemo(() => {
     const seen = new Set<string>();
     const merged: typeof localResults = [];
-    for (const r of [...localResults, ...apiResults]) {
+    for (const r of [...localResults, ...remoteResults]) {
       const key = r.name.toLowerCase();
       if (!seen.has(key)) {
         seen.add(key);
         merged.push(r);
       }
     }
-    return merged.slice(0, 8);
-  }, [localResults, apiResults]);
+    return merged.slice(0, 10);
+  }, [localResults, remoteResults]);
 
   const isDark = theme.isDark;
 
@@ -237,7 +230,7 @@ function CourseSearch({
           autoCorrect={false}
         />
         {query.length > 0 && (
-          <Pressable onPress={() => { setQuery(''); setApiResults([]); }} hitSlop={8}>
+          <Pressable onPress={() => { setQuery(''); setRemoteResults([]); }} hitSlop={8}>
             <Ionicons name="close-circle" size={16} color={c.textMuted} />
           </Pressable>
         )}
@@ -250,8 +243,12 @@ function CourseSearch({
               key={cr.id}
               onPress={() => {
                 onSelect(cr);
+                // Save Google Places results to Supabase for future local hits
+                if ('source' in cr && (cr as any).source === 'google') {
+                  coursesService.saveGooglePlacesCourse(cr as any);
+                }
                 setQuery('');
-                setApiResults([]);
+                setRemoteResults([]);
                 setOpen(false);
               }}
               style={[st.dropdownItem, { borderColor: c.border }]}

@@ -3,6 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Course, CourseInsert, CourseLeaderboardEntry } from '../lib/database.types';
 
 const GOLF_API_KEY = process.env.EXPO_PUBLIC_GOLF_API_KEY;
+const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
+
+type SearchResult = {
+  id: string;
+  name: string;
+  par: number;
+  city: string;
+  state: string;
+  location?: string;
+  source?: 'local' | 'google' | 'golfapi';
+};
 
 export const coursesService = {
   /** Fuzzy search courses by name in Supabase. */
@@ -74,6 +85,94 @@ export const coursesService = {
     } catch (err) {
       console.log('[CourseSearch] error:', err);
       return [];
+    }
+  },
+
+  /** Search Google Places for golf courses. */
+  async searchGooglePlaces(query: string): Promise<SearchResult[]> {
+    if (!GOOGLE_PLACES_KEY) {
+      console.log('[CourseSearch] No GOOGLE_PLACES_KEY configured');
+      return [];
+    }
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' golf course')}&type=establishment&key=${GOOGLE_PLACES_KEY}`;
+      console.log(`[CourseSearch:Google] query="${query}" key=${GOOGLE_PLACES_KEY.slice(0, 4)}...`);
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log(`[CourseSearch:Google] status=${data.status} results=${data.results?.length ?? 0}`);
+      if (data.status !== 'OK' || !data.results) return [];
+
+      return data.results.slice(0, 8).map((place: any) => {
+        const addr = place.formatted_address ?? '';
+        const parts = addr.split(',').map((s: string) => s.trim());
+        // Typical: "123 Main St, City, ST 12345, USA" or "City, ST 12345"
+        let city = '';
+        let state = '';
+        if (parts.length >= 3) {
+          city = parts[parts.length - 3] ?? '';
+          const stateZip = parts[parts.length - 2] ?? '';
+          state = stateZip.replace(/\d{5}(-\d{4})?/, '').trim();
+        } else if (parts.length === 2) {
+          city = parts[0];
+          state = parts[1].replace(/\d{5}(-\d{4})?/, '').trim();
+        }
+        return {
+          id: `gp_${place.place_id}`,
+          name: place.name,
+          par: 72,
+          city,
+          state,
+          location: addr,
+          source: 'google' as const,
+        };
+      });
+    } catch (err) {
+      console.log('[CourseSearch:Google] error:', err);
+      return [];
+    }
+  },
+
+  /** Unified search: local + Google Places in parallel, GolfCourseAPI fallback. */
+  async searchAll(query: string): Promise<SearchResult[]> {
+    const [localResults, googleResults] = await Promise.all([
+      this.search(query).catch(() => [] as Course[]),
+      this.searchGooglePlaces(query),
+    ]);
+
+    // Map local to SearchResult
+    const local: SearchResult[] = localResults.map((c) => ({
+      id: c.id,
+      name: c.name,
+      par: (c as any).par ?? 72,
+      city: (c as any).city ?? '',
+      state: (c as any).state ?? '',
+      location: (c as any).location ?? '',
+      source: 'local' as const,
+    }));
+
+    // Dedup: local first, then google (skip if name is very similar)
+    const seen = new Set(local.map((r) => r.name.toLowerCase()));
+    const deduped = [...local];
+    for (const g of googleResults) {
+      const key = g.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(g);
+      }
+    }
+    return deduped.slice(0, 10);
+  },
+
+  /** Save a Google Places result to Supabase for future local searches. */
+  async saveGooglePlacesCourse(result: SearchResult): Promise<void> {
+    if (!result.id.startsWith('gp_')) return;
+    try {
+      await this.ensureCourse({
+        name: result.name,
+        location: result.location ?? `${result.city}, ${result.state}`,
+      } as CourseInsert);
+    } catch (err) {
+      console.log('[CourseSearch] Failed to save course:', err);
     }
   },
 
