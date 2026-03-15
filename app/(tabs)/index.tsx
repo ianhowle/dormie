@@ -46,13 +46,46 @@ const MOCK_GROUPS = [
   { id: 'g3', name: 'Work League', color: '#C44B4F', memberCount: 6 },
 ];
 
-const MOCK_SEASON_STANDINGS = [
+// Season format types for adaptive standings display
+type SeasonFormat = 'fedex_cup' | 'ryder_cup' | 'match_play' | 'stroke_avg' | 'stableford';
+
+type SeasonStandingEntry = {
+  rank: number;
+  name: string;
+  points?: number;
+  wins?: number;
+  losses?: number;
+  ties?: number;
+  avg?: number;
+  rounds?: number;
+  team?: 'red' | 'blue';
+};
+
+const MOCK_ACTIVE_SEASON = {
+  id: 's1',
+  name: '2026 Spring Championship',
+  format: 'fedex_cup' as SeasonFormat,
+  currentRound: 4,
+  totalRounds: 12,
+  groupName: 'The Dormie Boys',
+};
+
+const MOCK_SEASON_STANDINGS: SeasonStandingEntry[] = [
   { rank: 1, name: 'McGowan', points: 72 },
   { rank: 2, name: 'Patterson', points: 65 },
   { rank: 3, name: 'Sullivan', points: 55 },
   { rank: 4, name: 'Fleetwood', points: 48 },
   { rank: 5, name: 'Chen', points: 42 },
 ];
+
+const MOCK_FAVORITE_COURSE = {
+  name: 'Hermitage Golf Course',
+  location: 'Old Hickory, TN',
+  timesPlayed: 34,
+  bestGross: 74,
+  bestNet: 68,
+  avgScore: 78.3,
+};
 
 const MOCK_ROUND_RESULT = {
   round: 4,
@@ -188,6 +221,7 @@ function LogoMenu({
   if (!visible) return null;
 
   const items = [
+    { label: 'Seasons', icon: 'trophy-outline' as const, onPress: () => router.push('/seasons') },
     { label: 'Create New Group', icon: 'add-circle-outline' as const, onPress: () => {} },
     { label: 'Invite Player', icon: 'person-add-outline' as const, onPress: () => {} },
     { label: 'Play a Round', icon: 'golf-outline' as const, onPress: () => router.push('/(tabs)/score') },
@@ -322,41 +356,195 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
   );
 }
 
-// ─── Season Standings Section ────────────────────────────────────────
+// ─── User Profile Section ────────────────────────────────────────────
+function UserProfileSection({ stats }: { stats: QuickStats }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const isDark = theme.isDark;
+  const { user } = useAuth();
+  const name = user?.user_metadata?.name ?? 'Golfer';
+
+  return (
+    <View style={st.profileSection}>
+      <View style={st.profileRow}>
+        <View style={{ position: 'relative' }}>
+          <Avatar id={user?.id ?? '1'} size={56} name={name} />
+          <Pressable
+            onPress={() => { haptics.light(); }}
+            style={st.profileEditBtn}
+          >
+            <Ionicons name="camera" size={10} color="#fff" />
+          </Pressable>
+        </View>
+        <View style={st.profileInfo}>
+          <Text style={[st.profileName, { color: c.text, fontFamily: GEO }]}>{name}</Text>
+          <Text style={[st.profileLocation, { color: c.textMuted, fontFamily: SANS }]}>Mount Juliet, TN</Text>
+          <View style={st.profileStatsRow}>
+            <View style={st.profileStatItem}>
+              <Text style={[st.profileStatValue, { color: c.gold, fontFamily: GEO }]}>
+                {stats.handicap ? stats.handicap.toFixed(1) : '--'}
+              </Text>
+              <Text style={[st.profileStatLabel, { color: c.textMuted }]}>HCP</Text>
+            </View>
+            <View style={[st.profileStatDivider, { backgroundColor: c.border }]} />
+            <View style={st.profileStatItem}>
+              <Text style={[st.profileStatValue, { color: c.gold, fontFamily: GEO }]}>
+                {stats.bestRecent > 0 ? String(stats.bestRecent) : '--'}
+              </Text>
+              <Text style={[st.profileStatLabel, { color: c.textMuted }]}>BEST</Text>
+            </View>
+            <View style={[st.profileStatDivider, { backgroundColor: c.border }]} />
+            <View style={st.profileStatItem}>
+              <Text style={[st.profileStatValue, { color: c.gold, fontFamily: GEO }]}>
+                {stats.monthRounds > 0 ? String(stats.monthRounds) : '--'}
+              </Text>
+              <Text style={[st.profileStatLabel, { color: c.textMuted }]}>LAST</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Season Standings Section (format-adaptive) ─────────────────────
 function SeasonStandingsSection({ groupName }: { groupName: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
+  const router = useRouter();
+  const season = MOCK_ACTIVE_SEASON;
+
+  const renderColumnHeaders = () => {
+    switch (season.format) {
+      case 'ryder_cup':
+        return (
+          <View style={[st.seasonRow, { borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6 }]}>
+            <Text style={[st.seasonHeaderCol, { color: '#C44B4F', fontFamily: GEO }]}>TEAM RED</Text>
+            <Text style={[st.seasonHeaderCol, { color: c.textMuted, fontFamily: GEO, textAlign: 'center' }]}>SCORE</Text>
+            <Text style={[st.seasonHeaderCol, { color: '#1B2A4A', fontFamily: GEO, textAlign: 'right' }]}>TEAM BLUE</Text>
+          </View>
+        );
+      case 'match_play':
+        return (
+          <View style={[st.seasonRow, { borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6 }]}>
+            <Text style={[{ width: 24, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO }]}>#</Text>
+            <Text style={[{ flex: 1, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO }]}>PLAYER</Text>
+            <Text style={[{ width: 50, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO, textAlign: 'center' }]}>W-L-T</Text>
+            <Text style={[{ width: 40, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO, textAlign: 'right' }]}>PTS</Text>
+          </View>
+        );
+      case 'stroke_avg':
+        return (
+          <View style={[st.seasonRow, { borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6 }]}>
+            <Text style={[{ width: 24, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO }]}>#</Text>
+            <Text style={[{ flex: 1, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO }]}>PLAYER</Text>
+            <Text style={[{ width: 40, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO, textAlign: 'center' }]}>AVG</Text>
+            <Text style={[{ width: 40, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO, textAlign: 'right' }]}>RNDS</Text>
+          </View>
+        );
+      default: // fedex_cup, stableford
+        return (
+          <View style={[st.seasonRow, { borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6 }]}>
+            <Text style={[{ width: 24, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO }]}>#</Text>
+            <Text style={[{ flex: 1, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO }]}>PLAYER</Text>
+            <Text style={[{ width: 40, fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: c.textMuted, fontFamily: GEO, textAlign: 'right' }]}>PTS</Text>
+          </View>
+        );
+    }
+  };
+
+  const renderRow = (s: SeasonStandingEntry, i: number) => {
+    const isFirst = s.rank === 1;
+
+    switch (season.format) {
+      case 'match_play':
+        return (
+          <Pressable
+            key={s.rank}
+            onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
+            style={({ pressed }) => [
+              st.seasonRow,
+              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              isFirst && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={[st.seasonRank, { color: isFirst ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
+            <Text style={[st.seasonName, { color: isFirst ? '#2A9D8F' : c.text, fontFamily: SANS }]}>{s.name}</Text>
+            <Text style={[{ width: 50, fontSize: 12, fontWeight: '600', textAlign: 'center', color: c.text, fontFamily: GEO }]}>
+              {s.wins ?? 0}-{s.losses ?? 0}-{s.ties ?? 0}
+            </Text>
+            <Text style={[st.seasonPoints, { color: c.gold, fontFamily: GEO }]}>{s.points}</Text>
+          </Pressable>
+        );
+      case 'stroke_avg':
+        return (
+          <Pressable
+            key={s.rank}
+            onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
+            style={({ pressed }) => [
+              st.seasonRow,
+              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              isFirst && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={[st.seasonRank, { color: isFirst ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
+            <Text style={[st.seasonName, { color: isFirst ? '#2A9D8F' : c.text, fontFamily: SANS }]}>{s.name}</Text>
+            <Text style={[{ width: 40, fontSize: 14, fontWeight: '700', textAlign: 'center', color: c.gold, fontFamily: GEO }]}>
+              {s.avg?.toFixed(1) ?? '--'}
+            </Text>
+            <Text style={[{ width: 40, fontSize: 12, fontWeight: '600', textAlign: 'right', color: c.textMuted, fontFamily: GEO }]}>
+              {s.rounds ?? 0}
+            </Text>
+          </Pressable>
+        );
+      default: // fedex_cup, stableford
+        return (
+          <Pressable
+            key={s.rank}
+            onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
+            style={({ pressed }) => [
+              st.seasonRow,
+              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              isFirst && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={[st.seasonRank, { color: isFirst ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
+            <Text style={[st.seasonName, { color: isFirst ? '#2A9D8F' : c.text, fontFamily: SANS }]}>{s.name}</Text>
+            <Text style={[st.seasonPoints, { color: c.gold, fontFamily: GEO }]}>{s.points}</Text>
+          </Pressable>
+        );
+    }
+  };
 
   return (
     <View style={st.seasonSection}>
-      <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>SEASON STANDINGS</Text>
-      <GoldDivider style={{ marginBottom: 12 }} />
+      {/* Tappable season name header → navigates to seasons.tsx */}
+      <Pressable
+        onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
+        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, pressed && { opacity: 0.7 }]}
+      >
+        <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO, marginBottom: 0 }]}>{season.name.toUpperCase()}</Text>
+        <Ionicons name="chevron-forward" size={14} color={c.gold} />
+      </Pressable>
+      <GoldDivider style={{ marginBottom: 12, marginTop: 12 }} />
       <View style={st.seasonSubRow}>
-        <Text style={[st.seasonSubText, { color: c.textMuted, fontFamily: SANS }]}>Round 4 of 12</Text>
-        <Text style={[st.seasonSubText, { color: c.textMuted, fontFamily: SANS }]}>{groupName}</Text>
+        <Text style={[st.seasonSubText, { color: c.textMuted, fontFamily: SANS }]}>
+          Round {season.currentRound} of {season.totalRounds}
+        </Text>
+        <Pressable
+          onPress={() => { haptics.light(); router.push('/seasons'); }}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
+          <Text style={[st.seasonSubText, { color: c.teal, fontFamily: SANS, fontWeight: '700' }]}>View All Seasons</Text>
+        </Pressable>
       </View>
       <View style={[st.seasonList, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
-        {MOCK_SEASON_STANDINGS.map((s, i) => (
-          <View
-            key={s.rank}
-            style={[
-              st.seasonRow,
-              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
-              s.rank === 1 && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
-            ]}
-          >
-            <Text style={[st.seasonRank, { color: s.rank === 1 ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>
-              {s.rank}
-            </Text>
-            <Text style={[st.seasonName, { color: s.rank === 1 ? '#2A9D8F' : c.text, fontFamily: SANS }]}>
-              {s.name}
-            </Text>
-            <Text style={[st.seasonPoints, { color: c.gold, fontFamily: GEO }]}>
-              {s.points}
-            </Text>
-          </View>
-        ))}
+        {renderColumnHeaders()}
+        {MOCK_SEASON_STANDINGS.map((s, i) => renderRow(s, i))}
       </View>
     </View>
   );
@@ -577,6 +765,56 @@ function QuickActions() {
         <Ionicons name="trophy-outline" size={18} color={c.teal} />
         <Text style={[st.actionSecText, { color: c.teal, fontFamily: SANS }]}>Leaderboard</Text>
       </Pressable>
+    </View>
+  );
+}
+
+// ─── Favorite Course Section ─────────────────────────────────────────
+function FavoriteCourseSection() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const isDark = theme.isDark;
+  const fav = MOCK_FAVORITE_COURSE;
+
+  return (
+    <View style={{ marginTop: 24 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>FAVORITE COURSE</Text>
+        <Pressable onPress={() => { haptics.light(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          <Text style={{ color: c.teal, fontSize: 11, fontWeight: '600', fontFamily: SANS }}>Change</Text>
+        </Pressable>
+      </View>
+      <GoldDivider style={{ marginBottom: 12 }} />
+      <View style={[{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }, isDark ? cardShadowDark : cardShadowLight]}>
+        {/* Dark gradient overlay simulating a course photo background */}
+        <LinearGradient
+          colors={['#1E4D2B', '#0D2818']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ padding: 16 }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', fontFamily: GEO }}>{fav.name}</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontFamily: SANS, marginTop: 2 }}>{fav.location}</Text>
+          <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
+            <View>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>PLAYED</Text>
+              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.timesPlayed}</Text>
+            </View>
+            <View>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>BEST</Text>
+              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestGross}</Text>
+            </View>
+            <View>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>NET</Text>
+              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestNet}</Text>
+            </View>
+            <View>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>AVG</Text>
+              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.avgScore.toFixed(1)}</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -875,13 +1113,15 @@ export default function HomeScreen() {
           <DataFreshness updatedAt={lastUpdated} />
         </View>
 
-        {/* ESPN ticker */}
+        {/* ESPN Ticker — first thing below greeting, prominent green card */}
         <ESPNTicker standings={standings} />
 
-        {/* Quick stats row — always visible, between ticker and content */}
-        <QuickStatsRow stats={quickStats} />
+        {/* User Profile Section — replaces quick stats cards */}
+        <View style={st.body}>
+          <UserProfileSection stats={quickStats} />
+        </View>
 
-        {/* Action buttons — right after stats */}
+        {/* Action buttons — right after profile */}
         <QuickActions />
 
         {/* Monthly digest card — 1st-3rd of month, real data */}
@@ -979,6 +1219,9 @@ export default function HomeScreen() {
               </ScrollView>
             </>
           )}
+
+          {/* Favorite Course — below streaks */}
+          {showContent && <FavoriteCourseSection />}
 
           {/* My Groups (Item 5) */}
           <MyGroupsSection
@@ -1514,7 +1757,70 @@ const st = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* Quick stats */
+  /* User Profile Section */
+  profileSection: {
+    marginTop: 16,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  profileEditBtn: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    backgroundColor: '#2A9D8F',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  profileLocation: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  profileStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 10,
+  },
+  profileStatItem: {
+    alignItems: 'center',
+  },
+  profileStatValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  profileStatLabel: {
+    fontSize: 7,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginTop: 1,
+  },
+  profileStatDivider: {
+    width: 1,
+    height: 24,
+  },
+
+  /* Season header column */
+  seasonHeaderCol: {
+    flex: 1,
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  /* Quick stats (kept for backward compat) */
   statsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1544,6 +1850,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 16,
+    paddingHorizontal: 20,
   },
   actionBtn: {
     flex: 1,

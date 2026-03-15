@@ -12,7 +12,7 @@ export type QuickStats = {
   handicap: number;
   monthRounds: number;
   bestRecent: number;
-  streak: number; // consecutive weeks played
+  streak: number | string; // consecutive weeks played
 };
 
 export type UpcomingItem = {
