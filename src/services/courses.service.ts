@@ -58,15 +58,21 @@ export const coursesService = {
 
   /** Search external golf course API. */
   async searchAPI(query: string) {
-    if (!GOLF_API_KEY) return [];
+    if (!GOLF_API_KEY) {
+      console.log('[CourseSearch] No GOLF_API_KEY configured');
+      return [];
+    }
     try {
+      console.log(`[CourseSearch] query="${query}" key=${GOLF_API_KEY.slice(0, 4)}...`);
       const response = await fetch(
-        `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}`,
-        { headers: { Authorization: `Bearer ${GOLF_API_KEY}` } }
+        `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}&key=${GOLF_API_KEY}`
       );
+      const data = await response.json();
+      console.log(`[CourseSearch] status=${response.status} results=${Array.isArray(data?.courses) ? data.courses.length : 0}`);
       if (!response.ok) return [];
-      return response.json();
-    } catch {
+      return data?.courses ?? [];
+    } catch (err) {
+      console.log('[CourseSearch] error:', err);
       return [];
     }
   },

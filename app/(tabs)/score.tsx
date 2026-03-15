@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -141,8 +141,11 @@ function CourseSearch({
   const c = theme.colors;
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [apiResults, setApiResults] = useState<{ id: string; name: string; par: number; city: string; state: string }[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const results = useMemo(() => {
+  // Local results from mock data
+  const localResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length === 0) return [];
     return ALL_COURSES.filter(
@@ -152,6 +155,48 @@ function CourseSearch({
         cr.state.toLowerCase().includes(q),
     ).slice(0, 6);
   }, [query]);
+
+  // Debounced API search
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setApiResults([]);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const raw = await coursesService.searchAPI(q);
+        const mapped = (Array.isArray(raw) ? raw : []).map((r: any) => ({
+          id: r.id ?? `api-${r.name}-${r.city}`,
+          name: r.name ?? r.club_name ?? '',
+          par: r.par ?? r.holes?.[0]?.par ?? 72,
+          city: r.city ?? r.location?.city ?? '',
+          state: r.state ?? r.location?.state ?? '',
+        })).slice(0, 6);
+        setApiResults(mapped);
+      } catch {
+        setApiResults([]);
+      }
+    }, 300);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
+  // Merge local + API, dedupe by name
+  const results = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: typeof localResults = [];
+    for (const r of [...localResults, ...apiResults]) {
+      const key = r.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(r);
+      }
+    }
+    return merged.slice(0, 8);
+  }, [localResults, apiResults]);
 
   const isDark = theme.isDark;
 
@@ -192,7 +237,7 @@ function CourseSearch({
           autoCorrect={false}
         />
         {query.length > 0 && (
-          <Pressable onPress={() => { setQuery(''); }} hitSlop={8}>
+          <Pressable onPress={() => { setQuery(''); setApiResults([]); }} hitSlop={8}>
             <Ionicons name="close-circle" size={16} color={c.textMuted} />
           </Pressable>
         )}
@@ -206,6 +251,7 @@ function CourseSearch({
               onPress={() => {
                 onSelect(cr);
                 setQuery('');
+                setApiResults([]);
                 setOpen(false);
               }}
               style={[st.dropdownItem, { borderColor: c.border }]}
