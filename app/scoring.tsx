@@ -82,6 +82,7 @@ type HoleData = {
   number: number;
   par: number;
   strokeIndex: number; // difficulty rank 1-18 for handicap allocation
+  yards?: number; // yardage for selected tee
 };
 
 // ─── Default hole pars (standard layout) ──────────────────────────────
@@ -294,7 +295,7 @@ function ScoringHeader({
 
       {/* Item 11: Hole detail line */}
       <Text style={st.headerHoleDetail}>
-        Par {holePar} {'\u2022'} {holeYardage ?? '---'} yds {'\u2022'} HCP {holeHcp ?? '-'}
+        Par {holePar}{holeYardage ? ` \u2022 ${holeYardage} yds` : ''} {'\u2022'} HCP {holeHcp ?? '-'}
       </Text>
 
       {/* Item 35: Round type badge + Item 34: Format name */}
@@ -2208,6 +2209,7 @@ export default function ScoringScreen() {
     coursePar: string;
     courseSlope: string;
     courseRating: string;
+    courseTee: string;
     players: string;
     format: string;
     holeRange: string;
@@ -2215,6 +2217,7 @@ export default function ScoringScreen() {
     sideGames: string;
     courseId: string;
     roundType: string;
+    holeData: string;
     // Feature 24: Season params
     seasonName: string;
     seasonWeek: string;
@@ -2226,6 +2229,7 @@ export default function ScoringScreen() {
   const coursePar = Number(params.coursePar) || 72;
   const courseSlope = Number(params.courseSlope) || 113;
   const courseRating = Number(params.courseRating) || 72;
+  const courseTee = params.courseTee ?? '';
   const courseId = params.courseId ?? '';
   const holeRange = params.holeRange ?? 'full18';
   const scoreMode = params.scoreMode ?? 'gross';
@@ -2233,6 +2237,16 @@ export default function ScoringScreen() {
   const sideGameKeys: string[] = useMemo(() => {
     try { return JSON.parse(params.sideGames ?? '[]'); } catch { return []; }
   }, [params.sideGames]);
+
+  // Parse per-hole data from score setup screen
+  const passedHoleData: HoleData[] | null = useMemo(() => {
+    if (!params.holeData) return null;
+    try {
+      const parsed = JSON.parse(params.holeData);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {}
+    return null;
+  }, [params.holeData]);
 
   // Item 35: Round type
   const roundType = params.roundType ?? 'Casual';
@@ -2251,7 +2265,21 @@ export default function ScoringScreen() {
     }
   }, [params.players]);
 
-  const holes = useMemo(() => buildHoles(coursePar, holeRange), [coursePar, holeRange]);
+  const holes = useMemo(() => {
+    // Use per-hole data from score setup if available (has real pars, yardages, stroke indices)
+    if (passedHoleData && passedHoleData.length > 0) {
+      let hd = passedHoleData.map((h, i) => ({
+        number: h.number ?? i + 1,
+        par: h.par ?? 4,
+        strokeIndex: h.strokeIndex ?? i + 1,
+        yards: h.yards,
+      }));
+      if (holeRange === 'front9') hd = hd.filter((h) => h.number <= 9);
+      else if (holeRange === 'back9') hd = hd.filter((h) => h.number > 9);
+      return hd;
+    }
+    return buildHoles(coursePar, holeRange);
+  }, [passedHoleData, coursePar, holeRange]);
 
   // Handicap strokes per player per hole
   const handicapStrokes = useMemo(() => {
@@ -2961,7 +2989,7 @@ export default function ScoringScreen() {
         unreadFeedCount={unreadFeedCount > 0 ? unreadFeedCount : 0}
         viewMode={viewMode}
         onToggleViewMode={() => setViewMode(viewMode === 'solo' ? 'all' : 'solo')}
-        holeYardage={currentHole.strokeIndex * 25 + 300}
+        holeYardage={currentHole.yards}
         holeHcp={currentHole.strokeIndex}
         onPrevHole={() => { if (currentHoleIdx > 0) setCurrentHoleIdx(currentHoleIdx - 1); }}
         onNextHole={() => { if (currentHoleIdx < holes.length - 1) setCurrentHoleIdx(currentHoleIdx + 1); }}

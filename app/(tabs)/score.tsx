@@ -67,6 +67,8 @@ function Pinstripes() {
 
 // ─── Shimmer loading placeholder ─────────────────────────────────────
 function TeeBoxShimmer() {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const opacity = useRef(new Animated.Value(0.3)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -80,13 +82,13 @@ function TeeBoxShimmer() {
   }, [opacity]);
 
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 12, gap: 8 }}>
-      <Animated.View style={{ opacity, height: 14, width: 120, backgroundColor: '#333', marginBottom: 4 }} />
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {[100, 70, 80].map((w, i) => (
-          <Animated.View key={i} style={{ opacity, height: 44, width: w, backgroundColor: '#262320' }} />
-        ))}
-      </View>
+    <View style={{ marginTop: 12, gap: 8 }}>
+      <Text style={{ fontSize: 11, fontStyle: 'italic', color: c.textMuted, fontFamily: SANS }}>
+        Fetching course ratings...
+      </Text>
+      {[1, 2, 3].map((i) => (
+        <Animated.View key={i} style={{ opacity, height: 48, backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }} />
+      ))}
     </View>
   );
 }
@@ -100,6 +102,8 @@ type SelectedCourse = {
   state: string;
   source?: string;
   location?: string;
+  /** Tee boxes from hole_data (Supabase) or USGA lookup */
+  teeBoxes?: TeeBox[];
 } | null;
 
 type Player = {
@@ -110,8 +114,8 @@ type Player = {
 
 // ─── All searchable courses ───────────────────────────────────────────
 const ALL_COURSES = [
-  ...PLAYED_SORTED.map((c) => ({ id: c.id, name: c.name, par: c.par, city: c.city, state: c.state })),
-  ...MOCK_COMMUNITY_COURSES.map((c) => ({ id: c.id, name: c.name, par: 72, city: c.city, state: c.state })),
+  ...PLAYED_SORTED.map((c) => ({ id: c.id, name: c.name, par: c.par, city: c.city, state: c.state, location: `${c.city}, ${c.state}` })),
+  ...MOCK_COMMUNITY_COURSES.map((c) => ({ id: c.id, name: c.name, par: 72, city: c.city, state: c.state, location: `${c.city}, ${c.state}` })),
 ];
 
 // ─── Mock tee boxes ──────────────────────────────────────────────────
@@ -163,27 +167,32 @@ function SectionLabel({ title }: { title: string }) {
 function CourseSearch({
   selected,
   onSelect,
+  selectedTeeBox,
+  scorecard,
 }: {
   selected: SelectedCourse;
   onSelect: (c: SelectedCourse) => void;
+  selectedTeeBox: number;
+  scorecard: ScorecardData | null;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [remoteResults, setRemoteResults] = useState<{ id: string; name: string; par: number; city: string; state: string; source?: string }[]>([]);
+  const [remoteResults, setRemoteResults] = useState<{ id: string; name: string; par: number; city: string; state: string; source?: string; location?: string }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Instant local results from mock data
+  // Instant local results from mock data — match partial names so both
+  // "Hermitage Golf Course - Presidents Reserve" and "Generals Retreat" appear
   const localResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length === 0) return [];
-    return ALL_COURSES.filter(
-      (cr) =>
-        cr.name.toLowerCase().includes(q) ||
-        cr.city.toLowerCase().includes(q) ||
-        cr.state.toLowerCase().includes(q),
-    ).slice(0, 6);
+    // Split query into words to match each word independently
+    const words = q.split(/\s+/).filter(Boolean);
+    return ALL_COURSES.filter((cr) => {
+      const haystack = `${cr.name} ${cr.city} ${cr.state}`.toLowerCase();
+      return words.every((w) => haystack.includes(w));
+    }).slice(0, 8);
   }, [query]);
 
   // Debounced unified search: Supabase + Google Places in parallel
@@ -207,14 +216,14 @@ function CourseSearch({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
-  // Merge instant local + remote, dedupe by name
+  // Merge instant local + remote, dedupe by ID (not name — keeps multiple
+  // courses with similar names like both Hermitage courses)
   const results = useMemo(() => {
     const seen = new Set<string>();
     const merged: typeof localResults = [];
     for (const r of [...localResults, ...remoteResults]) {
-      const key = r.name.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
         merged.push(r);
       }
     }
@@ -222,8 +231,11 @@ function CourseSearch({
   }, [localResults, remoteResults]);
 
   const isDark = theme.isDark;
+  const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
+  const activeTee = hasApiTees ? scorecard.teeBoxes[selectedTeeBox] ?? scorecard.teeBoxes[0] : null;
 
   if (selected) {
+    const displayLocation = selected.location || `${selected.city}, ${selected.state}`;
     return (
       <Pressable
         onPress={() => { onSelect(null); setQuery(''); setOpen(true); }}
@@ -237,8 +249,26 @@ function CourseSearch({
         <View style={st.selectedInfo}>
           <Text style={[st.selectedName, { color: c.text }]}>{selected.name}</Text>
           <Text style={[st.selectedMeta, { color: c.textMuted }]}>
-            {selected.city}, {selected.state} · Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{selected.par}</Text>
+            {displayLocation}
           </Text>
+          {/* Show rating/slope/yards from selected tee */}
+          {activeTee ? (
+            <Text style={[st.selectedStats, { color: c.teal }]}>
+              <Text style={{ fontFamily: GEO, fontWeight: '700' }}>
+                {activeTee.rating.toFixed(1)} / {activeTee.slope}
+              </Text>
+              {activeTee.yards > 0 && (
+                <Text style={{ fontFamily: GEO, fontWeight: '700' }}>
+                  {' '}{'\u00B7'} {activeTee.yards.toLocaleString()} yds
+                </Text>
+              )}
+              {' '}{'\u00B7'} Par {selected.par}
+            </Text>
+          ) : (
+            <Text style={[st.selectedStats, { color: c.textMuted }]}>
+              Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{selected.par}</Text>
+            </Text>
+          )}
         </View>
         <Ionicons name="close-circle" size={18} color={c.textMuted} />
       </Pressable>
@@ -268,27 +298,29 @@ function CourseSearch({
 
       {open && results.length > 0 && (
         <View style={[st.dropdown, { backgroundColor: c.elevated, borderColor: c.border }]}>
-          {results.map((cr) => (
-            <Pressable
-              key={cr.id}
-              onPress={() => {
-                onSelect(cr);
-                // Save Google Places results to Supabase for future local hits
-                if ('source' in cr && (cr as any).source === 'google') {
-                  coursesService.saveGooglePlacesCourse(cr as any);
-                }
-                setQuery('');
-                setRemoteResults([]);
-                setOpen(false);
-              }}
-              style={[st.dropdownItem, { borderColor: c.border }]}
-            >
-              <Text style={[st.dropdownName, { color: c.text }]}>{cr.name}</Text>
-              <Text style={[st.dropdownMeta, { color: c.textMuted }]}>
-                {cr.city}, {cr.state} · Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{cr.par}</Text>
-              </Text>
-            </Pressable>
-          ))}
+          {results.map((cr) => {
+            const loc = cr.location || `${cr.city}, ${cr.state}`;
+            return (
+              <Pressable
+                key={cr.id}
+                onPress={() => {
+                  onSelect({ ...cr, location: loc });
+                  if ('source' in cr && (cr as any).source === 'google') {
+                    coursesService.saveGooglePlacesCourse(cr as any);
+                  }
+                  setQuery('');
+                  setRemoteResults([]);
+                  setOpen(false);
+                }}
+                style={[st.dropdownItem, { borderColor: c.border }]}
+              >
+                <Text style={[st.dropdownName, { color: c.text }]}>{cr.name}</Text>
+                <Text style={[st.dropdownMeta, { color: c.textMuted }]}>
+                  {loc} {'\u00B7'} Par <Text style={{ fontFamily: GEO, fontWeight: '700' }}>{cr.par}</Text>
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       )}
 
@@ -942,13 +974,19 @@ export default function ScoreScreen() {
       // 2. If no tee boxes from scorecard, try USGA lookup
       if (sc.teeBoxes.length === 0 && course.id && !course.id.startsWith('custom-')) {
         try {
-          const state = usgaService.parseState(course.location);
+          // Parse state from location — works for both "Nashville, TN" and
+          // Google Places addresses like "123 Main St, Nashville, TN 37201, USA"
+          const loc = course.location || `${course.city}, ${course.state}`;
+          let state = usgaService.parseState(loc);
+          // Fallback: try extracting 2-letter state from longer addresses
+          if (!state && loc) {
+            const stateMatch = loc.match(/,\s*([A-Z]{2})\s/);
+            if (stateMatch) state = stateMatch[1];
+          }
           const usgaTees = await usgaService.getTeeBoxes(course.id, course.name, state);
           if (!cancelled && usgaTees.length > 0) {
-            // Convert USGA tees to scorecard format
             sc.teeBoxes = usgaService.toScorecardTeeBoxes(usgaTees);
             sc.source = 'community';
-            // Use first tee's rating/slope as defaults
             sc.rating = usgaTees[0].rating;
             sc.slope = usgaTees[0].slope;
           }
@@ -1016,6 +1054,11 @@ export default function ScoreScreen() {
       ).catch(() => {});
     }
 
+    // Determine selected tee name for display
+    const selectedTeeName = hasApiTees && scorecard
+      ? (scorecard.teeBoxes[selectedTeeBox]?.name ?? customTee)
+      : customTee;
+
     router.push({
       pathname: '/scoring',
       params: {
@@ -1024,6 +1067,7 @@ export default function ScoreScreen() {
         coursePar: String(effectivePar),
         courseSlope: String(slope),
         courseRating: String(rating),
+        courseTee: selectedTeeName,
         players: JSON.stringify(players),
         format: activeFormat?.label ?? 'Total Strokes',
         holeRange,
@@ -1069,56 +1113,57 @@ export default function ScoreScreen() {
           <View style={st.body}>
             {/* Course */}
             <SectionLabel title="COURSE" />
-            <CourseSearch selected={course} onSelect={setCourse} />
+            <CourseSearch selected={course} onSelect={setCourse} selectedTeeBox={selectedTeeBox} scorecard={scorecard} />
 
             {/* Loading shimmer while fetching tee data */}
             {loadingScorecard && course && !isCustom && (
               <TeeBoxShimmer />
             )}
 
-            {/* API tee box selector (when GolfCourseAPI has data) */}
+            {/* Tee box dropdown selector */}
             {course && !isCustom && hasApiTees && scorecard && (
               <View style={st.teeBoxSection}>
-                <Text style={[st.teeBoxLabel, { color: c.textMuted }]}>Tee Box</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={st.teeBoxRow}
-                >
-                  {scorecard.teeBoxes.map((tee, i) => {
-                    const active = i === selectedTeeBox;
-                    return (
-                      <Pressable
-                        key={tee.name}
-                        onPress={() => setSelectedTeeBox(i)}
-                        style={({ pressed }) => [
-                          st.teeBoxChip,
-                          {
-                            backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
-                            borderColor: active ? c.teal : c.border,
-                          },
-                          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-                        ]}
-                      >
-                        <View style={[st.teeBoxDot, { backgroundColor: tee.color, borderColor: tee.color === '#FFFFFF' ? c.textMuted : tee.color }]} />
-                        <Text style={[st.teeBoxName, { color: active ? c.teal : c.text, fontFamily: SANS }]}>
+                <Text style={[st.teeBoxLabel, { color: c.textMuted }]}>SELECT TEE</Text>
+                {scorecard.teeBoxes.map((tee, i) => {
+                  const active = i === selectedTeeBox;
+                  return (
+                    <Pressable
+                      key={tee.name}
+                      onPress={() => {
+                        haptics.selection();
+                        setSelectedTeeBox(i);
+                        setCustomRating(String(tee.rating));
+                        setCustomSlope(String(tee.slope));
+                        setCustomTee(tee.name);
+                      }}
+                      style={({ pressed }) => [
+                        st.teeDropdownRow,
+                        {
+                          backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
+                          borderColor: active ? c.teal : c.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <View style={[st.teeBoxDot, { backgroundColor: tee.color, borderColor: tee.color === '#FFFFFF' ? c.textMuted : tee.color }]} />
+                      <View style={st.teeDropdownInfo}>
+                        <Text style={[st.teeDropdownName, { color: active ? c.teal : c.text, fontFamily: SANS }]}>
                           {tee.name}
                         </Text>
-                        {active && (
-                          <View style={st.teeBoxDetails}>
-                            <Text style={[st.teeBoxStat, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
-                              {tee.rating} / {tee.slope} · {tee.yards}y
-                            </Text>
-                          </View>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                        <Text style={[st.teeDropdownStats, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
+                          {tee.yards > 0 ? `${tee.yards.toLocaleString()} yds` : '---'} {'\u2014'} {tee.rating}/{tee.slope}
+                        </Text>
+                      </View>
+                      {active && (
+                        <Ionicons name="checkmark-circle" size={18} color={c.teal} />
+                      )}
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
 
-            {/* Course details form (when no API data or custom course) */}
+            {/* Manual course details form (when no tee data found) */}
             {course && !hasApiTees && !loadingScorecard && (
               <CourseDetailsForm
                 par={customPar}
@@ -1454,6 +1499,10 @@ const st = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
+  selectedStats: {
+    fontSize: 11,
+    marginTop: 3,
+  },
 
   /* Par entry */
   parRow: {
@@ -1616,6 +1665,26 @@ const st = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginBottom: 6,
+  },
+  teeDropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    marginBottom: -1,
+    gap: 10,
+  },
+  teeDropdownInfo: {
+    flex: 1,
+  },
+  teeDropdownName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  teeDropdownStats: {
+    fontSize: 11,
+    marginTop: 1,
   },
   teeBoxRow: {
     gap: 8,
