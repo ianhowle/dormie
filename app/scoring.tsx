@@ -221,6 +221,7 @@ function ScoringHeader({
   onNextHole,
   canPrevHole,
   canNextHole,
+  competitionCount = 0,
   roundType,
 }: {
   courseName: string;
