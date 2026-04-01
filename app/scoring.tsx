@@ -890,7 +890,7 @@ function HoleResultBanner({
     ? 'Halved'
     : (players.find((p) => p.id === winners[0])?.id === '1'
         ? 'You won'
-        : `${players.find((p) => p.id === winners[0])?.name.split(' ')[0]} wins`);
+        : `${players.find((p) => p.id === winners[0])?.name?.split(' ')[0] ?? 'Player'} wins`);
 
   const diff = bestScore - holePar;
   const scoreLabel = isTie ? '' : ` with ${scoreName(bestScore, holePar).toLowerCase()}`;
