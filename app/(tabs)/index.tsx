@@ -157,7 +157,7 @@ function Pinstripes() {
   );
 }
 
-// ─── Header bar: Logo button | DORMIE | Badge + Dark mode toggle ────
+// ─── Header bar: Logo button | DORMIE | Badge + Dark mode toggle + Avatar ────
 function HeaderBar({
   onLogoPress,
   showMenu,
@@ -170,6 +170,9 @@ function HeaderBar({
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
+  const router = useRouter();
+  const { user } = useAuth();
+  const name = user?.user_metadata?.name ?? 'Golfer';
 
   return (
     <View style={[st.headerBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
@@ -183,7 +186,7 @@ function HeaderBar({
       {/* Centered DORMIE */}
       <Text style={[st.headerDormie, { color: c.text, fontFamily: GEO }]}>DORMIE</Text>
 
-      {/* Right side: friend badge + dark mode toggle */}
+      {/* Right side: friend badge + dark mode toggle + profile avatar */}
       <View style={st.headerRight}>
         {pendingCount > 0 && (
           <View style={st.badgeWrap}>
@@ -195,6 +198,13 @@ function HeaderBar({
         )}
         <Pressable onPress={toggleTheme} hitSlop={12} style={({ pressed }) => [st.themeToggle, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
           <Ionicons name={theme.isDark ? 'sunny' : 'moon'} size={20} color={c.textMuted} />
+        </Pressable>
+        <Pressable
+          onPress={() => { haptics.light(); router.push('/(tabs)/profile'); }}
+          hitSlop={8}
+          style={({ pressed }) => [{ marginLeft: 4 }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
+        >
+          <Avatar id={user?.id ?? '1'} size={32} name={name} />
         </Pressable>
       </View>
     </View>
@@ -221,6 +231,7 @@ function LogoMenu({
   if (!visible) return null;
 
   const items = [
+    { label: 'Profile', icon: 'person-outline' as const, onPress: () => router.push('/(tabs)/profile') },
     { label: 'Seasons', icon: 'trophy-outline' as const, onPress: () => router.push('/seasons') },
     { label: 'Create New Group', icon: 'add-circle-outline' as const, onPress: () => {} },
     { label: 'Invite Player', icon: 'person-add-outline' as const, onPress: () => {} },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeContext';
@@ -9,21 +9,6 @@ import { haptics } from '../../src/lib/haptics';
 /** Small red dot badge */
 function BadgeDot() {
   return <View style={badgeStyles.dot} />;
-}
-
-/** Number badge */
-function BadgeCount({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <View style={badgeStyles.count}>
-      <View style={badgeStyles.countInner}>
-        <Ionicons name="ellipse" size={0} color="transparent" />
-        <View style={badgeStyles.countBg}>
-          <Ionicons name="ellipse" size={0} color="transparent" />
-        </View>
-      </View>
-    </View>
-  );
 }
 
 const badgeStyles = StyleSheet.create({
@@ -36,21 +21,52 @@ const badgeStyles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#C44B4F',
   },
-  count: {
-    position: 'absolute',
-    top: -4,
-    right: -10,
-  },
-  countInner: {
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#C44B4F',
+});
+
+/** Elevated center Score button — Masters green circle with white flag */
+function ScoreTabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View style={scoreStyles.wrapper}>
+      <View
+        style={[
+          scoreStyles.circle,
+          focused && scoreStyles.circleFocused,
+        ]}
+      >
+        <Ionicons name="flag" size={28} color="#FFFFFF" />
+      </View>
+    </View>
+  );
+}
+
+const scoreStyles = StyleSheet.create({
+  wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    marginBottom: Platform.OS === 'ios' ? 16 : 12,
   },
-  countBg: { display: 'none' },
+  circle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1E4D2B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(30,77,43,0.4)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  circleFocused: {
+    backgroundColor: '#256B3A',
+  },
 });
 
 export default function TabLayout() {
@@ -60,7 +76,7 @@ export default function TabLayout() {
   // Badge state — in a real app these would come from services/context
   const [homeBadge, setHomeBadge] = useState(false);
   const [tripsBadge, setTripsBadge] = useState(0);
-  const [profileBadge, setProfileBadge] = useState(false);
+  const [leaderboardBadge, setLeaderboardBadge] = useState(false);
 
   // Simulate badges for demo (would be driven by real data)
   useEffect(() => {
@@ -81,6 +97,8 @@ export default function TabLayout() {
           backgroundColor: theme.isDark ? '#1E1B18' : '#FAF8F4',
           borderTopColor: c.border,
           borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
           ...(theme.isDark ? cardShadowDark : cardShadowLight),
         },
         tabBarLabelStyle: {
@@ -123,19 +141,13 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ── Tab 3: Score (center, distinctive) ──────── */}
+      {/* ── Tab 3: Score (center, elevated Masters green circle) ── */}
       <Tabs.Screen
         name="score"
         options={{
-          title: 'Score',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'flag' : 'flag-outline'}
-              size={28}
-              color={focused ? '#1E4D2B' : c.textMuted}
-            />
-          ),
-          tabBarActiveTintColor: '#1E4D2B',
+          title: '',
+          tabBarIcon: ({ focused }) => <ScoreTabIcon focused={focused} />,
+          tabBarLabel: () => null,
         }}
       />
 
@@ -164,26 +176,26 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ── Tab 5: Profile ──────────────────────────── */}
+      {/* ── Tab 5: Leaderboard ──────────────────────── */}
       <Tabs.Screen
-        name="profile"
+        name="leaderboard"
         options={{
-          title: 'Profile',
+          title: 'Board',
           tabBarIcon: ({ color, focused }) => (
             <View>
-              <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
-              {profileBadge && <BadgeDot />}
+              <Ionicons name={focused ? 'podium' : 'podium-outline'} size={22} color={color} />
+              {leaderboardBadge && <BadgeDot />}
             </View>
           ),
         }}
         listeners={{
-          tabPress: () => setProfileBadge(false),
+          tabPress: () => setLeaderboardBadge(false),
         }}
       />
 
-      {/* ── Hidden: Leaderboard (accessible via stack navigation) ── */}
+      {/* ── Hidden: Profile (accessible via avatar in header) ── */}
       <Tabs.Screen
-        name="leaderboard"
+        name="profile"
         options={{
           href: null,
         }}
