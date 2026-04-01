@@ -59,7 +59,6 @@ export default function TabLayout() {
 
   // Badge state — in a real app these would come from services/context
   const [homeBadge, setHomeBadge] = useState(false);
-  const [leaderboardBadge, setLeaderboardBadge] = useState(false);
   const [tripsBadge, setTripsBadge] = useState(0);
   const [profileBadge, setProfileBadge] = useState(false);
 
@@ -96,6 +95,7 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* ── Tab 1: Home ─────────────────────────────── */}
       <Tabs.Screen
         name="index"
         options={{
@@ -111,15 +111,35 @@ export default function TabLayout() {
           tabPress: () => setHomeBadge(false),
         }}
       />
+
+      {/* ── Tab 2: Seasons ──────────────────────────── */}
+      <Tabs.Screen
+        name="seasons"
+        options={{
+          title: 'Seasons',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+
+      {/* ── Tab 3: Score (center, distinctive) ──────── */}
       <Tabs.Screen
         name="score"
         options={{
           title: 'Score',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'flag' : 'flag-outline'} size={22} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <Ionicons
+              name={focused ? 'flag' : 'flag-outline'}
+              size={28}
+              color={focused ? '#1E4D2B' : c.textMuted}
+            />
           ),
+          tabBarActiveTintColor: '#1E4D2B',
         }}
       />
+
+      {/* ── Tab 4: Trips ────────────────────────────── */}
       <Tabs.Screen
         name="trips"
         options={{
@@ -143,21 +163,8 @@ export default function TabLayout() {
           tabPress: () => setTripsBadge(0),
         }}
       />
-      <Tabs.Screen
-        name="leaderboard"
-        options={{
-          title: 'Board',
-          tabBarIcon: ({ color, focused }) => (
-            <View>
-              <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color} />
-              {leaderboardBadge && <BadgeDot />}
-            </View>
-          ),
-        }}
-        listeners={{
-          tabPress: () => setLeaderboardBadge(false),
-        }}
-      />
+
+      {/* ── Tab 5: Profile ──────────────────────────── */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -171,6 +178,14 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: () => setProfileBadge(false),
+        }}
+      />
+
+      {/* ── Hidden: Leaderboard (accessible via stack navigation) ── */}
+      <Tabs.Screen
+        name="leaderboard"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
