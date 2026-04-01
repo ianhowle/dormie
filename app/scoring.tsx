@@ -160,6 +160,30 @@ function isGIR(gross: number, putts: number, par: number): boolean {
   return (gross - putts) <= (par - 2);
 }
 
+// ─── Abbreviate long course names for header display ─────────────────
+// "Hermitage Golf Course - Presidents Reserve" → "Hermitage - Presidents Reserve"
+// "TPC Sawgrass - Stadium Course" → "TPC Sawgrass - Stadium"
+function abbreviateCourseName(name: string): string {
+  if (name.length <= 30) return name;
+  // If name has a dash separator (facility - course), keep both parts but shorten
+  const dashIdx = name.indexOf(' - ');
+  if (dashIdx > 0) {
+    const facility = name.slice(0, dashIdx);
+    const course = name.slice(dashIdx + 3);
+    // Strip "Golf Course", "Golf Club", "Golf Links" from facility
+    const shortFacility = facility
+      .replace(/\s+Golf\s+(Course|Club|Links|Resort)$/i, '')
+      .trim();
+    // Strip "Course" from course name
+    const shortCourse = course.replace(/\s+Course$/i, '').trim();
+    return `${shortFacility} - ${shortCourse}`;
+  }
+  // Strip common suffixes
+  return name
+    .replace(/\s+Golf\s+(Course|Club|Links|Resort)$/i, '')
+    .trim();
+}
+
 // ─── Header ───────────────────────────────────────────────────────────
 function ScoringHeader({
   courseName,
@@ -229,7 +253,7 @@ function ScoringHeader({
           <Ionicons name="close" size={24} color="#fff" />
         </Pressable>
         <Text style={[st.headerCourseName, { fontFamily: GEO }]} numberOfLines={1}>
-          {courseName}
+          {abbreviateCourseName(courseName)}
         </Text>
         <View style={st.headerActions}>
           {/* View mode toggle (Feature 14) */}

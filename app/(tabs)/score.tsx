@@ -216,14 +216,34 @@ function CourseSearch({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
-  // Merge instant local + remote, dedupe by ID (not name — keeps multiple
-  // courses with similar names like both Hermitage courses)
+  // Merge instant local + remote, dedupe by normalized name.
+  // Local/verified results take priority over remote/Google results.
   const results = useMemo(() => {
-    const seen = new Set<string>();
+    const normalize = (n: string) =>
+      n.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    const seenNames = new Set<string>();
     const merged: typeof localResults = [];
-    for (const r of [...localResults, ...remoteResults]) {
-      if (!seen.has(r.id)) {
-        seen.add(r.id);
+
+    // Helper: check if name is duplicate of any already-seen name
+    const isDup = (name: string) => {
+      const norm = normalize(name);
+      for (const existing of seenNames) {
+        if (existing.includes(norm) || norm.includes(existing)) return true;
+      }
+      return false;
+    };
+
+    // Local results first (verified data, higher quality)
+    for (const r of localResults) {
+      if (!isDup(r.name)) {
+        seenNames.add(normalize(r.name));
+        merged.push(r);
+      }
+    }
+    // Then remote results (Supabase + Google Places)
+    for (const r of remoteResults) {
+      if (!isDup(r.name)) {
+        seenNames.add(normalize(r.name));
         merged.push(r);
       }
     }
@@ -1023,6 +1043,46 @@ export default function ScoreScreen() {
     return () => { cancelled = true; };
   }, [course, isCustom]);
 
+  // Build enriched hole data with per-hole yardage from selected tee
+  const enrichedHoleData = useMemo(() => {
+    const activeTee = hasApiTees && scorecard
+      ? scorecard.teeBoxes[selectedTeeBox] ?? scorecard.teeBoxes[0]
+      : null;
+    const totalYards = activeTee?.yards ?? 0;
+
+    // If we have per-hole data with yardage already, use it
+    if (holeData && holeData.length > 0 && holeData[0]?.yards) {
+      return holeData;
+    }
+
+    // If we have total yardage from tee box but no per-hole data,
+    // distribute yardage proportionally based on par
+    if (totalYards > 0) {
+      const baseHoles = holeData && holeData.length > 0
+        ? holeData
+        : Array.from({ length: 18 }, (_, i) => ({
+            number: i + 1,
+            par: [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 5, 3, 4, 4, 4, 3, 5, 4][i],
+            strokeIndex: [7, 3, 15, 1, 11, 5, 17, 9, 13, 8, 2, 16, 6, 4, 12, 18, 10, 14][i],
+          }));
+
+      // Par-based yardage distribution: par 3 ~165y, par 4 ~400y, par 5 ~530y
+      const weights = baseHoles.map((h: any) => {
+        if (h.par === 3) return 165;
+        if (h.par === 5) return 530;
+        return 400; // par 4
+      });
+      const totalWeight = weights.reduce((a: number, b: number) => a + b, 0);
+
+      return baseHoles.map((h: any, i: number) => ({
+        ...h,
+        yards: Math.round((weights[i] / totalWeight) * totalYards),
+      }));
+    }
+
+    return holeData;
+  }, [holeData, hasApiTees, scorecard, selectedTeeBox]);
+
   const isDark = theme.isDark;
   const canStart = course !== null && players.length > 0;
 
@@ -1076,7 +1136,7 @@ export default function ScoreScreen() {
         trackingLevel,
         scorekeeperMode,
         roundType,
-        ...(holeData ? { holeData: JSON.stringify(holeData) } : {}),
+        ...(enrichedHoleData ? { holeData: JSON.stringify(enrichedHoleData) } : {}),
       },
     });
   };

@@ -174,13 +174,27 @@ export const coursesService = {
       source: 'local' as const,
     }));
 
-    // Dedup: local first, then google (skip if name is very similar)
-    const seen = new Set(local.map((r) => r.name.toLowerCase()));
+    // Normalize a course name for dedup comparison — strips common suffixes,
+    // lowercases, and removes punctuation so "Hermitage Golf Course - Presidents
+    // Reserve" matches "Hermitage Golf Course Presidents Reserve"
+    const normalize = (n: string) =>
+      n.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
+    // Dedup: local/Supabase results take priority over Google Places
+    const seen = new Set(local.map((r) => normalize(r.name)));
     const deduped = [...local];
     for (const g of googleResults) {
-      const key = g.name.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
+      const gNorm = normalize(g.name);
+      // Skip if any existing result contains this name or vice versa
+      let isDup = false;
+      for (const existing of seen) {
+        if (existing.includes(gNorm) || gNorm.includes(existing)) {
+          isDup = true;
+          break;
+        }
+      }
+      if (!isDup) {
+        seen.add(gNorm);
         deduped.push(g);
       }
     }
