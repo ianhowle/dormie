@@ -27,14 +27,12 @@ export interface Course {
   id: string;
   name: string;
   location: string;
-  city: string | null;
-  state: string | null;
   par: number;
   slope: number | null;
   rating: number | null;
   yards: number | null;
-  image_gradient: string[];
-  hole_data: HoleData[] | null;
+  image_gradient: Record<string, unknown> | null;
+  hole_data: Record<string, unknown> | null;
   created_at: string;
 }
 

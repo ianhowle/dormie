@@ -269,12 +269,13 @@ export const coursesService = {
 
       if (community && (community as any).par) {
         const c = community as any;
+        const hd = c.hole_data ?? {};
         const result: ScorecardData = {
           par: c.par ?? 72,
           rating: c.rating ?? 72.0,
           slope: c.slope ?? 113,
-          teeBoxes: c.tee_boxes ?? [],
-          holes: c.holes ?? [],
+          teeBoxes: hd.tee_boxes ?? [],
+          holes: hd.holes ?? [],
           source: 'community',
         };
         console.log(`[Scorecard] Community data: par=${result.par}`);
@@ -300,7 +301,7 @@ export const coursesService = {
         par: scorecard.par,
         rating: scorecard.rating,
         slope: scorecard.slope,
-        data_source: dataSource,
+        hole_data: { data_source: dataSource },
       };
 
       const { data: existing } = await supabase
@@ -311,11 +312,16 @@ export const coursesService = {
         .maybeSingle();
 
       if (existing) {
-        // Update if user_entered data is better than nothing
         if (!(existing as any).par || dataSource === 'api') {
+          const existingHoleData = (existing as any).hole_data ?? {};
           await supabase
             .from('courses')
-            .update({ par: scorecard.par, rating: scorecard.rating, slope: scorecard.slope, data_source: dataSource })
+            .update({
+              par: scorecard.par,
+              rating: scorecard.rating,
+              slope: scorecard.slope,
+              hole_data: { ...existingHoleData, data_source: dataSource },
+            })
             .eq('id', existing.id);
         }
       } else {

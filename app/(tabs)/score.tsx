@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   FlatList,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
@@ -24,6 +25,7 @@ import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
 import { coursesService, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
+import { usgaService, type USGATeeBox } from '../../src/services/usga.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import {
@@ -59,6 +61,32 @@ function Pinstripes() {
           }}
         />
       ))}
+    </View>
+  );
+}
+
+// ─── Shimmer loading placeholder ─────────────────────────────────────
+function TeeBoxShimmer() {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.7, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
+  return (
+    <View style={{ paddingHorizontal: 20, paddingTop: 12, gap: 8 }}>
+      <Animated.View style={{ opacity, height: 14, width: 120, backgroundColor: '#333', marginBottom: 4 }} />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {[100, 70, 80].map((w, i) => (
+          <Animated.View key={i} style={{ opacity, height: 44, width: w, backgroundColor: '#262320' }} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -894,7 +922,8 @@ export default function ScoreScreen() {
     setPlayers((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // Fetch scorecard + hole data when a non-custom course is selected
+  // Fetch scorecard + tee data when a non-custom course is selected
+  // Flow: Supabase hole_data → GolfCourseAPI → USGA NCRDB → manual entry
   useEffect(() => {
     if (!course || isCustom) {
       setScorecard(null);
@@ -905,7 +934,29 @@ export default function ScoreScreen() {
     let cancelled = false;
     setLoadingScorecard(true);
 
-    coursesService.fetchScorecard(course.name, course.location).then((sc) => {
+    (async () => {
+      // 1. Try existing scorecard flow (checks cache → GolfCourseAPI → Supabase)
+      const sc = await coursesService.fetchScorecard(course.name, course.location);
+      if (cancelled) return;
+
+      // 2. If no tee boxes from scorecard, try USGA lookup
+      if (sc.teeBoxes.length === 0 && course.id && !course.id.startsWith('custom-')) {
+        try {
+          const state = usgaService.parseState(course.location);
+          const usgaTees = await usgaService.getTeeBoxes(course.id, course.name, state);
+          if (!cancelled && usgaTees.length > 0) {
+            // Convert USGA tees to scorecard format
+            sc.teeBoxes = usgaService.toScorecardTeeBoxes(usgaTees);
+            sc.source = 'community';
+            // Use first tee's rating/slope as defaults
+            sc.rating = usgaTees[0].rating;
+            sc.slope = usgaTees[0].slope;
+          }
+        } catch (err) {
+          console.log('[Score] USGA lookup failed:', err);
+        }
+      }
+
       if (cancelled) return;
       setScorecard(sc);
       setLoadingScorecard(false);
@@ -916,7 +967,6 @@ export default function ScoreScreen() {
         setCustomRating(String(sc.rating));
         setCustomSlope(String(sc.slope));
         if (sc.teeBoxes.length > 0) {
-          // Default to White tee or first
           const whiteIdx = sc.teeBoxes.findIndex((t) => t.name.toLowerCase().includes('white'));
           setSelectedTeeBox(whiteIdx >= 0 ? whiteIdx : 0);
         }
@@ -930,7 +980,7 @@ export default function ScoreScreen() {
           ?.then((h) => { if (!cancelled) setHoleData(h); })
           ?.catch(() => {});
       }
-    });
+    })();
 
     return () => { cancelled = true; };
   }, [course, isCustom]);
@@ -1021,11 +1071,9 @@ export default function ScoreScreen() {
             <SectionLabel title="COURSE" />
             <CourseSearch selected={course} onSelect={setCourse} />
 
-            {/* Loading scorecard indicator */}
+            {/* Loading shimmer while fetching tee data */}
             {loadingScorecard && course && !isCustom && (
-              <Text style={[st.loadingHint, { color: c.textMuted, fontFamily: SANS }]}>
-                Looking up course data...
-              </Text>
+              <TeeBoxShimmer />
             )}
 
             {/* API tee box selector (when GolfCourseAPI has data) */}

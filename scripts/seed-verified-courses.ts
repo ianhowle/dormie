@@ -5,13 +5,23 @@
  * Inserts hand-verified course data directly into Supabase.
  * All data sourced from official scorecards, BlueGolf, GolfPass, and club websites.
  *
+ * Supabase courses table schema (known columns):
+ *   id (uuid, auto), name (text), location (text), par (smallint),
+ *   slope (smallint), rating (numeric), yards (integer),
+ *   image_gradient (jsonb), hole_data (jsonb), created_at (timestamptz, auto)
+ *
+ * All extra metadata (tee_boxes, architect, access, etc.) stored in hole_data JSONB.
+ *
+ * RLS: Requires INSERT/UPDATE policy on courses table. Run this SQL if needed:
+ *   ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ *   CREATE POLICY "Allow anon insert" ON courses FOR INSERT TO anon WITH CHECK (true);
+ *   CREATE POLICY "Allow anon update" ON courses FOR UPDATE TO anon USING (true);
+ *   -- Or for authenticated users only:
+ *   CREATE POLICY "Allow auth insert" ON courses FOR INSERT TO authenticated WITH CHECK (true);
+ *   CREATE POLICY "Allow auth update" ON courses FOR UPDATE TO authenticated USING (true);
+ *
  * Usage:
  *   npx tsx scripts/seed-verified-courses.ts
- *   npx ts-node scripts/seed-verified-courses.ts
- *
- * Env vars required:
- *   EXPO_PUBLIC_SUPABASE_URL
- *   EXPO_PUBLIC_SUPABASE_ANON_KEY
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -54,8 +64,6 @@ type VerifiedCourse = {
   year_opened?: number;
   grass_greens?: string;
   grass_fairways?: string;
-  data_source: 'verified';
-  data_quality: 'complete';
 };
 
 // ─── Verified Course Data ───────────────────────────────────────────────────
@@ -76,8 +84,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 2000,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Zoysia',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 74.2, slope: 134, yards: 7157 },
       { name: 'Gold', color: '#D4AF37', rating: 72.0, slope: 130, yards: 6792 },
@@ -98,8 +104,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1986,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Zoysia',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 72.3, slope: 131, yards: 6773 },
       { name: 'Blue', color: '#1B2A4A', rating: 70.5, slope: 127, yards: 6364 },
@@ -120,8 +124,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1990,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Zoysia',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 73.1, slope: 133, yards: 6981 },
       { name: 'Gold', color: '#D4AF37', rating: 71.6, slope: 130, yards: 6655 },
@@ -142,8 +144,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1972,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Bermuda',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 76.1, slope: 140, yards: 7340 },
       { name: 'Blue', color: '#1B2A4A', rating: 73.5, slope: 135, yards: 6850 },
@@ -164,8 +164,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1999,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Zoysia',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 74.6, slope: 139, yards: 7031 },
       { name: 'Blue', color: '#1B2A4A', rating: 72.4, slope: 134, yards: 6590 },
@@ -186,8 +184,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1998,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Zoysia',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 73.1, slope: 132, yards: 6858 },
       { name: 'Blue', color: '#1B2A4A', rating: 71.1, slope: 127, yards: 6426 },
@@ -210,8 +206,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1980,
     grass_greens: 'Bermuda',
     grass_fairways: 'Bermuda',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'TPC (Tournament)', color: '#000000', rating: 76.8, slope: 155, yards: 7271 },
       { name: 'Blue', color: '#1B2A4A', rating: 73.9, slope: 148, yards: 6631 },
@@ -231,8 +225,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1919,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Bluegrass',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Blue', color: '#1B2A4A', rating: 74.9, slope: 144, yards: 6828 },
       { name: 'Gold', color: '#D4AF37', rating: 73.4, slope: 137, yards: 6508 },
@@ -253,8 +245,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1986,
     grass_greens: 'Bermuda',
     grass_fairways: 'Bermuda',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'TPC', color: '#000000', rating: 74.7, slope: 142, yards: 7261 },
       { name: 'Blue', color: '#1B2A4A', rating: 72.0, slope: 136, yards: 6700 },
@@ -275,8 +265,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 2006,
     grass_greens: 'Bentgrass',
     grass_fairways: 'Fescue',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 72.1, slope: 138, yards: 6966 },
       { name: 'Blue', color: '#1B2A4A', rating: 70.2, slope: 132, yards: 6524 },
@@ -297,8 +285,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 2006,
     grass_greens: 'Bermuda',
     grass_fairways: 'Bermuda',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 75.4, slope: 144, yards: 7305 },
       { name: 'Blue', color: '#1B2A4A', rating: 72.8, slope: 138, yards: 6805 },
@@ -320,8 +306,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1907,
     grass_greens: 'Bermuda',
     grass_fairways: 'Bermuda',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'US Open', color: '#000000', rating: 77.9, slope: 149, yards: 7588 },
       { name: 'Blue', color: '#1B2A4A', rating: 76.5, slope: 138, yards: 6961 },
@@ -342,8 +326,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1999,
     grass_greens: 'Fescue',
     grass_fairways: 'Fescue',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 74.6, slope: 145, yards: 6732 },
       { name: 'Green', color: '#2A9D8F', rating: 72.4, slope: 133, yards: 6483 },
@@ -363,8 +345,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 2001,
     grass_greens: 'Fescue',
     grass_fairways: 'Fescue',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Black', color: '#000000', rating: 73.2, slope: 143, yards: 6633 },
       { name: 'Green', color: '#2A9D8F', rating: 70.8, slope: 135, yards: 6142 },
@@ -385,8 +365,6 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
     year_opened: 1552,
     grass_greens: 'Fescue',
     grass_fairways: 'Fescue',
-    data_source: 'verified',
-    data_quality: 'complete',
     tee_boxes: [
       { name: 'Championship', color: '#000000', rating: 73.1, slope: 132, yards: 7190 },
       { name: 'Yellow', color: '#FFD700', rating: 71.4, slope: 129, yards: 6721 },
@@ -396,98 +374,39 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
   },
 ];
 
-// ─── Schema Discovery ───────────────────────────────────────────────────────
+// ─── Build row using ONLY valid columns ─────────────────────────────────────
+// Columns: name, location, par, slope, rating, yards, hole_data
+// (id and created_at are auto-generated)
 
-let VALID_COLUMNS: string[] = [];
+function buildRow(course: VerifiedCourse) {
+  const location = `${course.city}, ${course.state}`;
+  const primaryTee = course.tee_boxes[0]; // Back/championship tees
 
-async function discoverSchema(): Promise<string[]> {
-  console.log('Discovering courses table schema...\n');
-
-  // 1. Query a sample row to see actual columns
-  const { data: sample, error: schemaError } = await supabase.from('courses').select('*').limit(1);
-  console.log('Schema error:', schemaError ?? 'none');
-  if (sample && sample.length > 0) {
-    const cols = Object.keys(sample[0]);
-    console.log('Actual courses table columns:', cols);
-    return cols;
-  }
-
-  console.log('Table is empty — probing with test insert...');
-
-  // 2. Try inserting a minimal test row to discover columns from response
-  const { data: testInsert, error: testError } = await supabase
-    .from('courses')
-    .insert({ name: 'TEST COURSE DELETE ME', location: 'Test, XX' })
-    .select();
-  console.log('Test insert result:', testInsert);
-  console.log('Test insert error:', testError);
-
-  // Clean up test row
-  if (testInsert?.[0]?.id) {
-    await supabase.from('courses').delete().eq('id', testInsert[0].id);
-    console.log('Test row cleaned up.');
-    return Object.keys(testInsert[0]);
-  }
-
-  // 3. Fallback — if we can't discover, use the known migration schema
-  console.log('WARNING: Could not discover schema. Using fallback column list.');
-  return ['id', 'name', 'location', 'city', 'state', 'par', 'slope', 'rating', 'yards', 'image_gradient', 'hole_data', 'created_at'];
+  return {
+    name: course.name,
+    location,
+    par: course.par,
+    slope: primaryTee.slope,
+    rating: primaryTee.rating,
+    yards: primaryTee.yards,
+    hole_data: {
+      tee_boxes: course.tee_boxes,
+      access: course.access,
+      architect: course.architect ?? null,
+      year_opened: course.year_opened ?? null,
+      grass_greens: course.grass_greens ?? null,
+      grass_fairways: course.grass_fairways ?? null,
+      holes: course.holes,
+      country: course.country,
+      data_source: 'verified',
+      data_quality: 'complete',
+    },
+  };
 }
 
 // ─── Upsert Logic ───────────────────────────────────────────────────────────
 
-function buildRow(course: VerifiedCourse): Record<string, unknown> {
-  const location = [course.city, course.state].filter(Boolean).join(', ');
-  const primaryTee = course.tee_boxes[0];
-
-  // All possible fields we want to insert — keyed by column name
-  const allFields: Record<string, unknown> = {
-    name: course.name,
-    location,
-    city: course.city,
-    state: course.state,
-    country: course.country,
-    par: course.par,
-    rating: primaryTee.rating,
-    slope: primaryTee.slope,
-    yards: primaryTee.yards,
-    holes: course.holes,
-    access: course.access,
-    architect: course.architect ?? null,
-    year_opened: course.year_opened ?? null,
-    grass_greens: course.grass_greens ?? null,
-    grass_fairways: course.grass_fairways ?? null,
-    data_source: course.data_source,
-    data_quality: course.data_quality,
-    tee_boxes: JSON.stringify(course.tee_boxes),
-    // hole_data stores everything as JSON fallback
-    hole_data: JSON.stringify({
-      tee_boxes: course.tee_boxes,
-      access: course.access,
-      architect: course.architect,
-      year_opened: course.year_opened,
-      grass_greens: course.grass_greens,
-      grass_fairways: course.grass_fairways,
-      data_source: course.data_source,
-      data_quality: course.data_quality,
-      country: course.country,
-    }),
-  };
-
-  // Only include fields whose column actually exists in the table
-  const row: Record<string, unknown> = {};
-  for (const col of VALID_COLUMNS) {
-    if (col === 'id' || col === 'created_at') continue; // auto-generated
-    if (col in allFields) {
-      row[col] = allFields[col];
-    }
-  }
-
-  return row;
-}
-
 async function upsertCourse(course: VerifiedCourse): Promise<{ success: boolean; action: string }> {
-  // Check if course already exists (by name)
   const { data: existing } = await supabase
     .from('courses')
     .select('id, name')
@@ -522,11 +441,8 @@ async function main() {
   console.log('  DORMIE - Seed Verified Courses');
   console.log('==========================================\n');
   console.log(`Supabase: ${SUPABASE_URL}`);
-  console.log(`Courses to seed: ${VERIFIED_COURSES.length}\n`);
-
-  // Discover actual table schema before any inserts
-  VALID_COLUMNS = await discoverSchema();
-  console.log(`\nUsing columns: [${VALID_COLUMNS.join(', ')}]\n`);
+  console.log(`Courses to seed: ${VERIFIED_COURSES.length}`);
+  console.log('Columns: name, location, par, slope, rating, yards, hole_data\n');
 
   let succeeded = 0;
   let failed = 0;
@@ -554,6 +470,12 @@ async function main() {
   console.log(`  Failed:    ${failed}`);
   console.log(`  Total:     ${VERIFIED_COURSES.length}`);
   console.log('==========================================\n');
+
+  if (failed > 0) {
+    console.log('NOTE: If inserts failed with RLS policy errors, run these SQL commands:');
+    console.log('  CREATE POLICY "Allow anon insert" ON courses FOR INSERT TO anon WITH CHECK (true);');
+    console.log('  CREATE POLICY "Allow anon update" ON courses FOR UPDATE TO anon USING (true);\n');
+  }
 
   process.exit(failed > 0 ? 1 : 0);
 }
