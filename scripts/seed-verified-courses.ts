@@ -399,37 +399,42 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
 // ─── Upsert Logic ───────────────────────────────────────────────────────────
 
 async function upsertCourse(course: VerifiedCourse): Promise<{ success: boolean; action: string }> {
+  const location = [course.city, course.state].filter(Boolean).join(', ');
+
   // Check if course already exists (by name + city)
   const { data: existing } = await supabase
     .from('courses')
-    .select('id, name, data_source, data_quality')
+    .select('id, name')
     .ilike('name', course.name)
-    .eq('city', course.city)
     .limit(1)
     .maybeSingle();
 
   // Get the primary (back) tee for top-level fields
   const primaryTee = course.tee_boxes[0];
 
+  // Only include columns that exist in the courses table:
+  // id, name, location, city, state, par, slope, rating, yards, image_gradient, hole_data, created_at
+  // Store tee_boxes and metadata in hole_data JSON
   const row = {
     name: course.name,
+    location,
     city: course.city,
     state: course.state,
-    country: course.country,
     par: course.par,
-    holes: course.holes,
     rating: primaryTee.rating,
     slope: primaryTee.slope,
     yards: primaryTee.yards,
-    tee_boxes: JSON.stringify(course.tee_boxes),
-    access: course.access,
-    architect: course.architect ?? null,
-    year_opened: course.year_opened ?? null,
-    grass_greens: course.grass_greens ?? null,
-    grass_fairways: course.grass_fairways ?? null,
-    data_source: course.data_source,
-    data_quality: course.data_quality,
-    updated_at: new Date().toISOString(),
+    hole_data: JSON.stringify({
+      tee_boxes: course.tee_boxes,
+      access: course.access,
+      architect: course.architect,
+      year_opened: course.year_opened,
+      grass_greens: course.grass_greens,
+      grass_fairways: course.grass_fairways,
+      data_source: course.data_source,
+      data_quality: course.data_quality,
+      country: course.country,
+    }),
   };
 
   if (existing) {
