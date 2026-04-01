@@ -2906,8 +2906,11 @@ export default function ScoringScreen() {
             // Personal best detection: check previous rounds at this course
             try {
               const previousRounds = await roundsService.fetchByCourse(finalCourseId, user.id);
-              const previousBest = previousRounds
-                .filter((r) => r.id !== finalCourseId) // exclude current
+              // Exclude the round we just saved (most recent one) by skipping the first match
+              const sorted = [...previousRounds].sort((a, b) =>
+                new Date(b.played_at).getTime() - new Date(a.played_at).getTime()
+              );
+              const previousBest = sorted.slice(1) // skip the most recent (just saved)
                 .reduce((best, r) => Math.min(best, r.gross_score), Infinity);
               if (previousBest !== Infinity && grossTotal < previousBest) {
                 setPrevBest(previousBest);

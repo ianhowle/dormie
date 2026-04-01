@@ -588,7 +588,7 @@ function CoursesTab() {
                 />
                 <Text style={[s.voteText, { color: voted ? c.teal : c.textMuted }]}>
                   {voted
-                    ? `${MOCK_COURSES.find((x) => x.id === course.id)!.votes} votes`
+                    ? `${MOCK_COURSES.find((x) => x.id === course.id)?.votes ?? 0} votes`
                     : 'Vote'}
                 </Text>
               </Pressable>

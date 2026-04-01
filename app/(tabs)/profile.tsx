@@ -114,6 +114,8 @@ function HandicapChart({ data }: { data: number[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
+  if (data.length === 0) return null;
+
   const W = 320;
   const H = 120;
   const PAD_X = 30;
@@ -121,8 +123,8 @@ function HandicapChart({ data }: { data: number[] }) {
   const chartW = W - PAD_X * 2;
   const chartH = H - PAD_Y * 2;
 
-  const minVal = Math.floor(Math.min(...data) - 0.5);
-  const maxVal = Math.ceil(Math.max(...data) + 0.5);
+  const minVal = data.length > 0 ? Math.floor(Math.min(...data) - 0.5) : 0;
+  const maxVal = data.length > 0 ? Math.ceil(Math.max(...data) + 0.5) : 1;
   const range = maxVal - minVal || 1;
 
   const points = data.map((val, i) => {
@@ -552,7 +554,7 @@ export default function ProfileScreen() {
               <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>Your scorecard awaits</Text>
               <Text style={[s.emptyDesc, { color: c.textMuted }]}>Every great golfer started with Round 1</Text>
               <Pressable
-                onPress={() => router.push('/score')}
+                onPress={() => router.push('/(tabs)/score')}
                 style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
               >
                 <Text style={[s.emptyCta, { color: c.teal }]}>Score a Round</Text>

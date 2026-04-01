@@ -1028,7 +1028,7 @@ export default function HomeScreen() {
       description: `posted ${r.gross_score} at ${r.course?.name ?? 'Unknown'}`,
       timestamp: r.played_at,
     }));
-  }, [realRounds, user]);
+  }, [realRounds, user, showDemoData]);
 
   // ESPN ticker standings — always show (mock data for new users)
   const standings: StandingPill[] = useMemo(() => {

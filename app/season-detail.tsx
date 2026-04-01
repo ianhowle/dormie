@@ -737,9 +737,9 @@ export default function SeasonDetailScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const params = useLocalSearchParams<{ seasonId: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const seasonId = params.seasonId;
+  const seasonId = params.id;
 
   useEffect(() => {
     if (!seasonId) return;

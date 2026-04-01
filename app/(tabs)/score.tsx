@@ -936,7 +936,7 @@ export default function ScoreScreen() {
   }, [course, isCustom]);
 
   const isDark = theme.isDark;
-  const canStart = course !== null;
+  const canStart = course !== null && players.length > 0;
 
   const handleStartRound = () => {
     if (!course) return;
