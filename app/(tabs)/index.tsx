@@ -1019,9 +1019,8 @@ export default function HomeScreen() {
     }));
   }, [realRounds, user]);
 
-  // ESPN ticker standings — only show with demo data or real season
+  // ESPN ticker standings — always show (mock data for new users)
   const standings: StandingPill[] = useMemo(() => {
-    if (!showDemoData && realRounds.length === 0) return [];
     return [
       { rank: 1, name: 'McGowan', toPar: '-2.1', movement: 'same' as const, isMe: true },
       { rank: 2, name: 'Fletcher', toPar: '+0.4', movement: 'up' as const, isMe: false },
@@ -1030,7 +1029,7 @@ export default function HomeScreen() {
       { rank: 5, name: 'Davis', toPar: '+3.1', movement: 'up' as const, isMe: false },
       { rank: 6, name: 'Brooks', toPar: '+4.5', movement: 'down' as const, isMe: false },
     ];
-  }, [showDemoData, realRounds]);
+  }, []);
 
   // Compute monthly digest from real rounds
   const monthlyDigest = useMemo(() => {
@@ -1186,23 +1185,35 @@ export default function HomeScreen() {
           </View>
         ) : (
         <View style={st.body}>
-          {/* Season Standings — only with demo mode or real season data */}
-          {showContent && <SeasonStandingsSection groupName={activeGroup.name} />}
+          {/* Season Standings — always visible */}
+          <SeasonStandingsSection groupName={activeGroup.name} />
 
-          {/* Round Result — only with demo mode */}
-          {showDemoData && <RoundResultCard />}
-
-          {/* Next Matchup — only with demo mode */}
-          {showDemoData && <NextMatchupCard />}
-
-          {/* Strokes behind leader callout — only with demo mode */}
-          {showDemoData && (
-            <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
-              <Text style={{ color: c.teal, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
-                You're 2.8 strokes behind Drew's average. Close the gap.
-              </Text>
+          {/* Round Result — show with data or demo, otherwise subtle empty state */}
+          {showContent ? (
+            <RoundResultCard />
+          ) : (
+            <View style={[st.emptyHint, { borderColor: c.border }]}>
+              <Ionicons name="golf-outline" size={16} color={c.textMuted} />
+              <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>Play your first round to see results here.</Text>
             </View>
           )}
+
+          {/* Next Matchup — show with data or demo, otherwise subtle empty state */}
+          {showContent ? (
+            <NextMatchupCard />
+          ) : (
+            <View style={[st.emptyHint, { borderColor: c.border }]}>
+              <Ionicons name="people-outline" size={16} color={c.textMuted} />
+              <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>Join a season to see your next matchup.</Text>
+            </View>
+          )}
+
+          {/* Strokes behind leader callout — always visible */}
+          <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
+            <Text style={{ color: c.teal, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
+              You're 2.8 strokes behind Drew's average. Close the gap.
+            </Text>
+          </View>
 
           {/* Active streaks */}
           {activeStreaks.length > 0 && (
@@ -1220,16 +1231,16 @@ export default function HomeScreen() {
             </>
           )}
 
-          {/* Favorite Course — below streaks */}
-          {showContent && <FavoriteCourseSection />}
+          {/* Favorite Course — always visible */}
+          <FavoriteCourseSection />
 
-          {/* My Groups (Item 5) */}
+          {/* My Groups */}
           <MyGroupsSection
             activeGroupId={activeGroup.id}
             onGroupSelect={handleGroupSelect}
           />
 
-          {/* Empty state for new users — no rounds */}
+          {/* Empty state for new users — no rounds: show demo toggle prominently */}
           {realRounds.length === 0 && !showDemoData && (
             <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
               <Text style={st.emptyEmoji}>{'\u26F3'}</Text>
@@ -1241,24 +1252,6 @@ export default function HomeScreen() {
               <Pressable onPress={() => setShowDemoData(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[st.demoToggle, { color: c.textMuted, fontFamily: SANS }]}>Show demo data</Text>
               </Pressable>
-            </View>
-          )}
-
-          {/* Empty state — no crew */}
-          {pendingRequests.length === 0 && realRounds.length === 0 && !showDemoData && (
-            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Text style={st.emptyEmoji}>{'\uD83D\uDC65'}</Text>
-              <Text style={[st.emptyTitle, { color: c.text }]}>Golf is better with your crew</Text>
-              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Share your invite link to get started</Text>
-            </View>
-          )}
-
-          {/* Empty state — no trips */}
-          {realRounds.length === 0 && !showDemoData && MOCK_UPCOMING.length === 0 && (
-            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Text style={st.emptyEmoji}>{'\u2708\uFE0F'}</Text>
-              <Text style={[st.emptyTitle, { color: c.text }]}>Where to next?</Text>
-              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Plan your first golf trip</Text>
             </View>
           )}
 
@@ -1958,6 +1951,21 @@ const st = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     marginTop: 1,
+  },
+
+  /* Empty hint — subtle prompt for new users */
+  emptyHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    padding: 14,
+    marginTop: 16,
+  },
+  emptyHintText: {
+    fontSize: 12,
+    flex: 1,
   },
 
   /* Empty state */

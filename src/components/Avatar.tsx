@@ -4,16 +4,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
 
-// Gradient palette — deterministic pick based on id
+// Golf-themed gradient palette — deterministic pick based on id
+// Matches the onboarding avatar color choices:
+// Augusta green, Pebble blue, Championship gold, Midnight navy, Links brown
 const GRADIENTS: [string, string][] = [
-  ['#2A9D8F', '#1E4D2B'],
-  ['#D4AF37', '#8B7228'],
-  ['#C44B4F', '#7A2E30'],
-  ['#2D6A3F', '#1E4D2B'],
-  ['#5B7FA5', '#2A4A6B'],
-  ['#8B6DAF', '#5A3D7A'],
-  ['#C47B3B', '#7A4D24'],
-  ['#4A9B8E', '#2A6B5F'],
+  ['#046A38', '#034D28'],   // Augusta green (default for new/restored users)
+  ['#1E3A5F', '#0F2440'],   // Pebble blue
+  ['#B8860B', '#8B6508'],   // Championship gold
+  ['#002366', '#001744'],   // Midnight navy
+  ['#8B4513', '#5C2E0D'],   // Links brown
+  ['#2A9D8F', '#1E4D2B'],   // Dormie teal
+  ['#2D6A3F', '#1E4D2B'],   // Masters green
+  ['#1E4D2B', '#0D2818'],   // Deep green
 ];
 
 function pickGradient(id: string | undefined | null): [string, string] {

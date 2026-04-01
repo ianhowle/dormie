@@ -117,6 +117,7 @@ function SeasonCarousel({ seasons }: { seasons: Season[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
+  const router = useRouter();
   const [idx, setIdx] = useState(0);
   const s = seasons[idx];
   if (!s) return null;
@@ -125,11 +126,13 @@ function SeasonCarousel({ seasons }: { seasons: Season[] }) {
 
   return (
     <View style={styles.seasonWrap}>
-      <View
-        style={[
+      <Pressable
+        onPress={() => { router.push({ pathname: '/season-detail', params: { id: s.id ?? 's1' } }); }}
+        style={({ pressed }) => [
           styles.seasonCard,
           { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1 },
           isDark ? cardShadowDark : cardShadowLight,
+          pressed && { opacity: 0.85 },
         ]}
       >
         {/* Gold accent bar */}
@@ -185,7 +188,7 @@ function SeasonCarousel({ seasons }: { seasons: Season[] }) {
             />
           </View>
         </View>
-      </View>
+      </Pressable>
 
       {/* Dot indicators */}
       {seasons.length > 1 && (

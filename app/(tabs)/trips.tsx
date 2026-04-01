@@ -488,7 +488,7 @@ export default function TripsScreen() {
               <GoldDivider style={{ marginTop: 24 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <SectionLabel title="UPCOMING" />
-                <DataFreshness lastUpdated={lastRefreshed} />
+                <DataFreshness updatedAt={lastRefreshed} />
               </View>
               {MOCK_UPCOMING_TRIPS.map((trip) => (
                 <TripCard key={trip.id} trip={trip} showDays />

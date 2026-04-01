@@ -41,11 +41,11 @@ type GolferType = 'competitive' | 'social' | 'improving';
 type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const AVATAR_THEMES: { key: AvatarTheme; label: string; color: string }[] = [
-  { key: 'green', label: 'Classic Green', color: '#1E4D2B' },
-  { key: 'ocean', label: 'Ocean Blue', color: '#2A6F97' },
-  { key: 'gold', label: 'Championship Gold', color: '#D4AF37' },
-  { key: 'navy', label: 'Midnight Navy', color: '#1B2A4A' },
-  { key: 'brown', label: 'Links Brown', color: '#6B4E3D' },
+  { key: 'green', label: 'Augusta Green', color: '#046A38' },
+  { key: 'ocean', label: 'Pebble Blue', color: '#1E3A5F' },
+  { key: 'gold', label: 'Championship Gold', color: '#B8860B' },
+  { key: 'navy', label: 'Midnight Navy', color: '#002366' },
+  { key: 'brown', label: 'Links Brown', color: '#8B4513' },
 ];
 
 const GOLFER_TYPES: { key: GolferType; icon: string; label: string; desc: string }[] = [
