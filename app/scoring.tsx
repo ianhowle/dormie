@@ -291,7 +291,6 @@ function ScoringHeader({
 
       {/* Hole info */}
       <View style={st.headerHoleRow}>
-        {/* Item 11: Prev hole arrow */}
         <Pressable
           onPress={onPrevHole}
           disabled={!canPrevHole}
@@ -300,13 +299,13 @@ function ScoringHeader({
         >
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </Pressable>
-        <Text style={[st.headerHoleLabel]}>HOLE</Text>
-        <Text style={[st.headerHoleNum, { fontFamily: GEO }]}>{holeNumber}</Text>
-        <View style={st.headerParBadge}>
-          <Text style={st.headerParLabel}>PAR</Text>
-          <Text style={[st.headerParValue, { fontFamily: GEO }]}>{holePar}</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={[st.headerHoleLabel]}>HOLE</Text>
+          <Text style={[st.headerHoleNum, { fontFamily: GEO }]}>{holeNumber}</Text>
+          <Text style={st.headerHoleDetail}>
+            Par {holePar}{holeYardage ? ` \u2022 ${holeYardage} yds` : ''} {'\u2022'} HCP {holeHcp ?? '-'}
+          </Text>
         </View>
-        {/* Item 11: Next hole arrow */}
         <Pressable
           onPress={onNextHole}
           disabled={!canNextHole}
@@ -317,24 +316,20 @@ function ScoringHeader({
         </Pressable>
       </View>
 
-      {/* Item 11: Hole detail line */}
-      <Text style={st.headerHoleDetail}>
-        Par {holePar}{holeYardage ? ` \u2022 ${holeYardage} yds` : ''} {'\u2022'} HCP {holeHcp ?? '-'}
-      </Text>
-
-      {/* Item 35: Round type badge + Item 34: Format name */}
+      {/* Round context badges + Format name */}
       <View style={st.headerFormatRow}>
         {roundType && roundType.length > 0 && (
           <View style={[
             st.roundTypeBadge,
             {
-              backgroundColor: roundType === 'Competitive' ? '#D4AF37' :
-                roundType === 'Matchup' ? '#2A9D8F' : 'rgba(255,255,255,0.25)',
+              backgroundColor: roundType.includes('\u00B7') ? '#D4AF37' :
+                roundType === 'Competitive' ? '#D4AF37' :
+                roundType === 'Matchup' ? '#2A9D8F' :
+                roundType.toLowerCase() === 'casual' ? 'rgba(255,255,255,0.25)' : '#D4AF37',
             },
           ]}>
             <Text style={[st.roundTypeBadgeText, {
-              color: roundType === 'Competitive' ? '#1E4D2B' :
-                roundType === 'Matchup' ? '#fff' : 'rgba(255,255,255,0.8)',
+              color: roundType.toLowerCase() === 'casual' ? 'rgba(255,255,255,0.8)' : '#1E4D2B',
             }]}>
               {roundType.toUpperCase()}
             </Text>

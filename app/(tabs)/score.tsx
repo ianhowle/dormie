@@ -24,6 +24,8 @@ import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
+import { MOCK_SEASONS } from '../../src/data/leaderboard';
+import { MOCK_UPCOMING_TRIPS } from '../../src/data/trips';
 import { coursesService, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
 import { usgaService, type USGATeeBox } from '../../src/services/usga.service';
 import { haptics } from '../../src/lib/haptics';
@@ -941,6 +943,15 @@ export default function ScoreScreen() {
   const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
   const [loadingScorecard, setLoadingScorecard] = useState(false);
 
+  // Round context linking
+  const [linkedSeason, setLinkedSeason] = useState<string | null>(null);
+  const [linkedTrip, setLinkedTrip] = useState<string | null>(null);
+  const [linkedMatchup, setLinkedMatchup] = useState<string | null>(null);
+
+  // Active seasons/trips for linking
+  const activeSeasons = MOCK_SEASONS.filter((s) => s.currentWeek <= s.totalWeeks);
+  const activeTrips = MOCK_UPCOMING_TRIPS.filter((t) => t.status === 'upcoming');
+
   const isCustom = course?.id.startsWith('custom-');
   const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
   const effectivePar = isCustom ? customPar : (hasApiTees ? (scorecard?.par ?? course?.par ?? 72) : customPar);
@@ -1083,6 +1094,16 @@ export default function ScoreScreen() {
     return holeData;
   }, [holeData, hasApiTees, scorecard, selectedTeeBox]);
 
+  // Build round context label for scoring header badge
+  const roundContextLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (linkedSeason) parts.push('SEASON');
+    if (linkedTrip) parts.push('TRIP');
+    if (linkedMatchup) parts.push('MATCHUP');
+    if (parts.length === 0) return roundType;
+    return parts.join(' \u00B7 ');
+  }, [linkedSeason, linkedTrip, linkedMatchup, roundType]);
+
   const isDark = theme.isDark;
   const canStart = course !== null && players.length > 0;
 
@@ -1135,7 +1156,10 @@ export default function ScoreScreen() {
         sideGames: JSON.stringify([...sideGames]),
         trackingLevel,
         scorekeeperMode,
-        roundType,
+        roundType: roundContextLabel,
+        ...(linkedSeason ? { seasonId: linkedSeason } : {}),
+        ...(linkedTrip ? { tripId: linkedTrip } : {}),
+        ...(linkedMatchup ? { matchupOpponent: linkedMatchup } : {}),
         ...(enrichedHoleData ? { holeData: JSON.stringify(enrichedHoleData) } : {}),
       },
     });
@@ -1317,6 +1341,186 @@ export default function ScoreScreen() {
             {/* Divider */}
             <GoldDivider style={{ marginTop: 24 }} />
 
+            {/* Round context: link to season, trip, matchup */}
+            <SectionLabel title="LINK TO" />
+            <View style={st.contextSection}>
+              {/* Season link */}
+              <Pressable
+                onPress={() => {
+                  haptics.selection();
+                  if (linkedSeason) {
+                    setLinkedSeason(null);
+                  } else if (activeSeasons.length > 0) {
+                    setLinkedSeason(activeSeasons[0].id);
+                  }
+                }}
+                style={({ pressed }) => [
+                  st.contextCard,
+                  {
+                    backgroundColor: linkedSeason ? 'rgba(212,175,55,0.08)' : c.elevated,
+                    borderColor: linkedSeason ? c.gold : c.border,
+                    borderWidth: 1,
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <View style={st.contextCardHeader}>
+                  <Ionicons name="trophy" size={16} color={linkedSeason ? c.gold : c.textMuted} />
+                  <Text style={[st.contextCardTitle, { color: linkedSeason ? c.gold : c.text, fontFamily: SANS }]}>
+                    Season Match
+                  </Text>
+                  {linkedSeason && <Ionicons name="checkmark-circle" size={16} color={c.gold} />}
+                </View>
+                {activeSeasons.length > 0 ? (
+                  linkedSeason ? (
+                    <View style={st.contextDetail}>
+                      {activeSeasons.filter((s) => s.id === linkedSeason).map((s) => (
+                        <Text key={s.id} style={[st.contextDetailText, { color: c.textMuted, fontFamily: SANS }]}>
+                          {s.name} {'\u00B7'} Week {s.currentWeek}/{s.totalWeeks}
+                        </Text>
+                      ))}
+                      {activeSeasons.length > 1 && (
+                        <View style={st.contextPickerRow}>
+                          {activeSeasons.map((s) => (
+                            <Pressable
+                              key={s.id}
+                              onPress={() => { haptics.selection(); setLinkedSeason(s.id); }}
+                              style={[st.contextPill, { borderColor: s.id === linkedSeason ? c.gold : c.border, backgroundColor: s.id === linkedSeason ? 'rgba(212,175,55,0.12)' : 'transparent' }]}
+                            >
+                              <Text style={[st.contextPillText, { color: s.id === linkedSeason ? c.gold : c.textMuted, fontFamily: SANS }]} numberOfLines={1}>{s.name}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
+                      Tap to link this round to a season
+                    </Text>
+                  )
+                ) : (
+                  <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
+                    No active seasons
+                  </Text>
+                )}
+              </Pressable>
+
+              {/* Trip link */}
+              <Pressable
+                onPress={() => {
+                  haptics.selection();
+                  if (linkedTrip) {
+                    setLinkedTrip(null);
+                  } else if (activeTrips.length > 0) {
+                    setLinkedTrip(activeTrips[0].id);
+                  }
+                }}
+                style={({ pressed }) => [
+                  st.contextCard,
+                  {
+                    backgroundColor: linkedTrip ? 'rgba(42,157,143,0.08)' : c.elevated,
+                    borderColor: linkedTrip ? c.teal : c.border,
+                    borderWidth: 1,
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <View style={st.contextCardHeader}>
+                  <Ionicons name="airplane" size={16} color={linkedTrip ? c.teal : c.textMuted} />
+                  <Text style={[st.contextCardTitle, { color: linkedTrip ? c.teal : c.text, fontFamily: SANS }]}>
+                    Trip Round
+                  </Text>
+                  {linkedTrip && <Ionicons name="checkmark-circle" size={16} color={c.teal} />}
+                </View>
+                {activeTrips.length > 0 ? (
+                  linkedTrip ? (
+                    <View style={st.contextDetail}>
+                      {activeTrips.filter((t) => t.id === linkedTrip).map((t) => (
+                        <Text key={t.id} style={[st.contextDetailText, { color: c.textMuted, fontFamily: SANS }]}>
+                          {t.name} {'\u00B7'} {t.destination}
+                        </Text>
+                      ))}
+                      {activeTrips.length > 1 && (
+                        <View style={st.contextPickerRow}>
+                          {activeTrips.map((t) => (
+                            <Pressable
+                              key={t.id}
+                              onPress={() => { haptics.selection(); setLinkedTrip(t.id); }}
+                              style={[st.contextPill, { borderColor: t.id === linkedTrip ? c.teal : c.border, backgroundColor: t.id === linkedTrip ? 'rgba(42,157,143,0.12)' : 'transparent' }]}
+                            >
+                              <Text style={[st.contextPillText, { color: t.id === linkedTrip ? c.teal : c.textMuted, fontFamily: SANS }]} numberOfLines={1}>{t.name}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
+                      Tap to link this round to a trip
+                    </Text>
+                  )
+                ) : (
+                  <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
+                    No active trips
+                  </Text>
+                )}
+              </Pressable>
+
+              {/* Matchup link */}
+              <Pressable
+                onPress={() => {
+                  haptics.selection();
+                  if (linkedMatchup) {
+                    setLinkedMatchup(null);
+                  } else if (MOCK_FRIENDS.length > 0) {
+                    setLinkedMatchup(MOCK_FRIENDS[0].id);
+                  }
+                }}
+                style={({ pressed }) => [
+                  st.contextCard,
+                  {
+                    backgroundColor: linkedMatchup ? 'rgba(42,157,143,0.08)' : c.elevated,
+                    borderColor: linkedMatchup ? c.teal : c.border,
+                    borderWidth: 1,
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <View style={st.contextCardHeader}>
+                  <Ionicons name="people" size={16} color={linkedMatchup ? c.teal : c.textMuted} />
+                  <Text style={[st.contextCardTitle, { color: linkedMatchup ? c.teal : c.text, fontFamily: SANS }]}>
+                    Matchup
+                  </Text>
+                  {linkedMatchup && <Ionicons name="checkmark-circle" size={16} color={c.teal} />}
+                </View>
+                {linkedMatchup ? (
+                  <View style={st.contextDetail}>
+                    <Text style={[st.contextDetailText, { color: c.textMuted, fontFamily: SANS }]}>
+                      vs {MOCK_FRIENDS.find((f) => f.id === linkedMatchup)?.name ?? 'Opponent'}
+                    </Text>
+                    <View style={st.contextPickerRow}>
+                      {MOCK_FRIENDS.slice(0, 4).map((f) => (
+                        <Pressable
+                          key={f.id}
+                          onPress={() => { haptics.selection(); setLinkedMatchup(f.id); }}
+                          style={[st.contextPill, { borderColor: f.id === linkedMatchup ? c.teal : c.border, backgroundColor: f.id === linkedMatchup ? 'rgba(42,157,143,0.12)' : 'transparent' }]}
+                        >
+                          <Text style={[st.contextPillText, { color: f.id === linkedMatchup ? c.teal : c.textMuted, fontFamily: SANS }]} numberOfLines={1}>{f.name.split(' ')[0]}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
+                    Tap to set up a 1v1 matchup
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+
+            {/* Divider */}
+            <GoldDivider style={{ marginTop: 24 }} />
+
             {/* Side games */}
             <SectionLabel title="SIDE GAMES" />
             <SideGamePicker selected={sideGames} onToggle={handleToggleSideGame} lastToggled={lastToggledSideGame} />
@@ -1404,7 +1608,14 @@ export default function ScoreScreen() {
             {course && (
               <View style={[st.summaryRow, { borderColor: c.border, borderTopWidth: 1 }]}>
                 <View style={st.summaryInner}>
-                  {roundType !== 'casual' && (
+                  {(linkedSeason || linkedTrip || linkedMatchup) && (
+                    <View style={[st.roundTypeBadge, { backgroundColor: `${c.gold}30` }]}>
+                      <Text style={[st.roundTypeBadgeText, { color: c.gold, fontFamily: GEO }]}>
+                        {roundContextLabel.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  {!linkedSeason && !linkedTrip && !linkedMatchup && roundType !== 'casual' && (
                     <View style={[st.roundTypeBadge, { backgroundColor: roundType === 'competitive' ? `${c.gold}30` : `${c.teal}30` }]}>
                       <Text style={[st.roundTypeBadgeText, { color: roundType === 'competitive' ? c.gold : c.teal, fontFamily: GEO }]}>
                         {roundType === 'competitive' ? 'COMPETITIVE' : 'MATCHUP'}
@@ -1886,6 +2097,54 @@ const st = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
+  },
+
+  /* Round context linking */
+  contextSection: {
+    gap: 8,
+  },
+  contextCard: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  contextCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contextCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  contextDetail: {
+    marginTop: 6,
+    marginLeft: 24,
+    gap: 6,
+  },
+  contextDetailText: {
+    fontSize: 11,
+  },
+  contextMuted: {
+    fontSize: 11,
+    marginTop: 4,
+    marginLeft: 24,
+    fontStyle: 'italic',
+  },
+  contextPickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  contextPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+  },
+  contextPillText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 
   /* Add player modal */
