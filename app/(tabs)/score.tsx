@@ -43,6 +43,17 @@ import {
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
+const FORMAT_DESCRIPTIONS: Record<string, string> = {
+  'Stableford': 'Points awarded per hole based on net score relative to par',
+  'Stroke Play': 'Lowest total strokes wins — most common competitive format',
+  'Match Play': 'Hole-by-hole competition — win the most holes to win the match',
+  'Best Ball': 'Each player plays their own ball, best score on each hole counts',
+  'Scramble': 'All players hit, team picks best shot and plays from there',
+  'Shamble': 'All players drive, pick best drive, then play own ball in',
+  'Chapman': 'Both players drive, swap and hit partner\'s ball, then alternate',
+  'Skins': 'Each hole is worth a skin — tie carries over to next hole',
+};
+
 // ─── Pinstripe overlay ───────────────────────────────────────────────
 function Pinstripes() {
   const lines = Array.from({ length: 40 });
@@ -944,13 +955,26 @@ export default function ScoreScreen() {
   const [loadingScorecard, setLoadingScorecard] = useState(false);
 
   // Round context linking
-  const [linkedSeason, setLinkedSeason] = useState<string | null>(null);
+  const [linkedSeasons, setLinkedSeasons] = useState<string[]>([]);
   const [linkedTrip, setLinkedTrip] = useState<string | null>(null);
   const [linkedMatchup, setLinkedMatchup] = useState<string | null>(null);
+  const [expandedFormat, setExpandedFormat] = useState<string | null>(null);
 
   // Active seasons/trips for linking
   const activeSeasons = MOCK_SEASONS.filter((s) => s.currentWeek <= s.totalWeeks);
   const activeTrips = MOCK_UPCOMING_TRIPS.filter((t) => t.status === 'upcoming');
+
+  const toggleSeason = (id: string) => {
+    haptics.selection();
+    setLinkedSeasons((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+  };
+
+  // Detect format conflicts across selected seasons
+  const selectedSeasonData = activeSeasons.filter((s) => linkedSeasons.includes(s.id));
+  const seasonFormats = [...new Set(selectedSeasonData.map((s) => s.format ?? 'Stroke Play'))];
+  const hasFormatConflict = seasonFormats.length > 1;
 
   const isCustom = course?.id.startsWith('custom-');
   const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
@@ -1097,12 +1121,13 @@ export default function ScoreScreen() {
   // Build round context label for scoring header badge
   const roundContextLabel = useMemo(() => {
     const parts: string[] = [];
-    if (linkedSeason) parts.push('SEASON');
+    if (linkedSeasons.length === 1) parts.push('SEASON');
+    else if (linkedSeasons.length > 1) parts.push(`${linkedSeasons.length} SEASONS`);
     if (linkedTrip) parts.push('TRIP');
     if (linkedMatchup) parts.push('MATCHUP');
     if (parts.length === 0) return roundType;
     return parts.join(' \u00B7 ');
-  }, [linkedSeason, linkedTrip, linkedMatchup, roundType]);
+  }, [linkedSeasons, linkedTrip, linkedMatchup, roundType]);
 
   const isDark = theme.isDark;
   const canStart = course !== null && players.length > 0;
@@ -1157,7 +1182,17 @@ export default function ScoreScreen() {
         trackingLevel,
         scorekeeperMode,
         roundType: roundContextLabel,
-        ...(linkedSeason ? { seasonId: linkedSeason } : {}),
+        ...(linkedSeasons.length > 0 ? {
+          linkedSeasons: JSON.stringify(
+            selectedSeasonData.map((s) => ({
+              seasonId: s.id,
+              seasonName: s.name,
+              weekNumber: s.currentWeek,
+              format: s.format ?? 'Stroke Play',
+              multiplier: s.multiplier ?? 1,
+            })),
+          ),
+        } : {}),
         ...(linkedTrip ? { tripId: linkedTrip } : {}),
         ...(linkedMatchup ? { matchupOpponent: linkedMatchup } : {}),
         ...(enrichedHoleData ? { holeData: JSON.stringify(enrichedHoleData) } : {}),
@@ -1344,66 +1379,83 @@ export default function ScoreScreen() {
             {/* Round context: link to season, trip, matchup */}
             <SectionLabel title="LINK TO" />
             <View style={st.contextSection}>
-              {/* Season link */}
-              <Pressable
-                onPress={() => {
-                  haptics.selection();
-                  if (linkedSeason) {
-                    setLinkedSeason(null);
-                  } else if (activeSeasons.length > 0) {
-                    setLinkedSeason(activeSeasons[0].id);
-                  }
-                }}
-                style={({ pressed }) => [
-                  st.contextCard,
-                  {
-                    backgroundColor: linkedSeason ? 'rgba(212,175,55,0.08)' : c.elevated,
-                    borderColor: linkedSeason ? c.gold : c.border,
-                    borderWidth: 1,
-                  },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
+              {/* Season link — multi-select */}
+              <View style={[st.contextCard, { backgroundColor: linkedSeasons.length > 0 ? 'rgba(212,175,55,0.05)' : c.elevated, borderColor: linkedSeasons.length > 0 ? c.gold : c.border, borderWidth: 1 }]}>
                 <View style={st.contextCardHeader}>
-                  <Ionicons name="trophy" size={16} color={linkedSeason ? c.gold : c.textMuted} />
-                  <Text style={[st.contextCardTitle, { color: linkedSeason ? c.gold : c.text, fontFamily: SANS }]}>
-                    Season Match
+                  <Ionicons name="trophy" size={16} color={linkedSeasons.length > 0 ? c.gold : c.textMuted} />
+                  <Text style={[st.contextCardTitle, { color: linkedSeasons.length > 0 ? c.gold : c.text, fontFamily: SANS }]}>
+                    Season Match{linkedSeasons.length > 1 ? `es (${linkedSeasons.length})` : ''}
                   </Text>
-                  {linkedSeason && <Ionicons name="checkmark-circle" size={16} color={c.gold} />}
                 </View>
                 {activeSeasons.length > 0 ? (
-                  linkedSeason ? (
-                    <View style={st.contextDetail}>
-                      {activeSeasons.filter((s) => s.id === linkedSeason).map((s) => (
-                        <Text key={s.id} style={[st.contextDetailText, { color: c.textMuted, fontFamily: SANS }]}>
-                          {s.name} {'\u00B7'} Week {s.currentWeek}/{s.totalWeeks}
-                        </Text>
-                      ))}
-                      {activeSeasons.length > 1 && (
-                        <View style={st.contextPickerRow}>
-                          {activeSeasons.map((s) => (
-                            <Pressable
-                              key={s.id}
-                              onPress={() => { haptics.selection(); setLinkedSeason(s.id); }}
-                              style={[st.contextPill, { borderColor: s.id === linkedSeason ? c.gold : c.border, backgroundColor: s.id === linkedSeason ? 'rgba(212,175,55,0.12)' : 'transparent' }]}
-                            >
-                              <Text style={[st.contextPillText, { color: s.id === linkedSeason ? c.gold : c.textMuted, fontFamily: SANS }]} numberOfLines={1}>{s.name}</Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  ) : (
-                    <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
-                      Tap to link this round to a season
-                    </Text>
-                  )
+                  <View style={st.seasonList}>
+                    {activeSeasons.map((s) => {
+                      const selected = linkedSeasons.includes(s.id);
+                      return (
+                        <Pressable
+                          key={s.id}
+                          onPress={() => toggleSeason(s.id)}
+                          style={({ pressed }) => [
+                            st.seasonRow,
+                            {
+                              backgroundColor: selected ? 'rgba(212,175,55,0.08)' : 'transparent',
+                              borderColor: selected ? c.gold : c.border,
+                              borderWidth: 1,
+                            },
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          <View style={st.seasonRowInfo}>
+                            <Text style={[st.seasonRowName, { color: selected ? c.gold : c.text, fontFamily: SANS }]}>
+                              {s.name}
+                            </Text>
+                            <Text style={[st.seasonRowMeta, { color: c.textMuted, fontFamily: SANS }]}>
+                              Week {s.currentWeek}/{s.totalWeeks} {'\u00B7'} {s.format ?? 'Stroke Play'}
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={20}
+                            color={selected ? c.gold : c.textMuted}
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 ) : (
                   <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
                     No active seasons
                   </Text>
                 )}
-              </Pressable>
+              </View>
+
+              {/* Format conflict banner */}
+              {hasFormatConflict && (
+                <View style={[st.formatConflictBanner, { backgroundColor: `${c.gold}12`, borderColor: c.gold, borderWidth: 1 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Ionicons name="information-circle" size={14} color={c.gold} />
+                    <Text style={[st.formatConflictTitle, { color: c.gold, fontFamily: SANS }]}>
+                      Scored differently across seasons:
+                    </Text>
+                  </View>
+                  {selectedSeasonData.map((s) => {
+                    const fmt = s.format ?? 'Stroke Play';
+                    const isExpanded = expandedFormat === s.id;
+                    return (
+                      <Pressable key={s.id} onPress={() => setExpandedFormat(isExpanded ? null : s.id)}>
+                        <Text style={[st.formatConflictItem, { color: c.text, fontFamily: SANS }]}>
+                          {'\u2022'} {s.name} — <Text style={{ fontFamily: GEO, fontWeight: '700', color: c.gold }}>{fmt}</Text>
+                        </Text>
+                        {isExpanded && (
+                          <Text style={[st.formatConflictDesc, { color: c.textMuted, fontFamily: SANS }]}>
+                            {FORMAT_DESCRIPTIONS[fmt] ?? 'Standard scoring format'}
+                          </Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
 
               {/* Trip link */}
               <Pressable
@@ -1608,14 +1660,14 @@ export default function ScoreScreen() {
             {course && (
               <View style={[st.summaryRow, { borderColor: c.border, borderTopWidth: 1 }]}>
                 <View style={st.summaryInner}>
-                  {(linkedSeason || linkedTrip || linkedMatchup) && (
+                  {(linkedSeasons.length > 0 || linkedTrip || linkedMatchup) && (
                     <View style={[st.roundTypeBadge, { backgroundColor: `${c.gold}30` }]}>
                       <Text style={[st.roundTypeBadgeText, { color: c.gold, fontFamily: GEO }]}>
                         {roundContextLabel.toUpperCase()}
                       </Text>
                     </View>
                   )}
-                  {!linkedSeason && !linkedTrip && !linkedMatchup && roundType !== 'casual' && (
+                  {linkedSeasons.length === 0 && !linkedTrip && !linkedMatchup && roundType !== 'casual' && (
                     <View style={[st.roundTypeBadge, { backgroundColor: roundType === 'competitive' ? `${c.gold}30` : `${c.teal}30` }]}>
                       <Text style={[st.roundTypeBadgeText, { color: roundType === 'competitive' ? c.gold : c.teal, fontFamily: GEO }]}>
                         {roundType === 'competitive' ? 'COMPETITIVE' : 'MATCHUP'}
@@ -2145,6 +2197,51 @@ const st = StyleSheet.create({
   contextPillText: {
     fontSize: 11,
     fontWeight: '500',
+  },
+
+  /* Season multi-select */
+  seasonList: {
+    marginTop: 8,
+    gap: 6,
+  },
+  seasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  seasonRowInfo: {
+    flex: 1,
+  },
+  seasonRowName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  seasonRowMeta: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+
+  /* Format conflict */
+  formatConflictBanner: {
+    padding: 12,
+  },
+  formatConflictTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  formatConflictItem: {
+    fontSize: 12,
+    marginLeft: 4,
+    marginTop: 4,
+  },
+  formatConflictDesc: {
+    fontSize: 11,
+    marginLeft: 12,
+    marginTop: 2,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
 
   /* Add player modal */

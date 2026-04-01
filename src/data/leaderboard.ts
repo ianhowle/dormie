@@ -16,6 +16,8 @@ export type Season = {
   currentWeek: number;
   yourPosition: number;
   totalPlayers: number;
+  format?: string;
+  multiplier?: number;
 };
 
 export type LeaderboardScope = 'group' | 'field';
@@ -118,6 +120,8 @@ export const MOCK_SEASONS: Season[] = [
     currentWeek: 9,
     yourPosition: 2,
     totalPlayers: 8,
+    format: 'Stableford',
+    multiplier: 2,
   },
   {
     id: 's2',
@@ -126,6 +130,8 @@ export const MOCK_SEASONS: Season[] = [
     currentWeek: 12,
     yourPosition: 1,
     totalPlayers: 6,
+    format: 'Stroke Play',
+    multiplier: 1,
   },
 ];
 
