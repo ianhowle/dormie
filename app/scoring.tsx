@@ -495,7 +495,9 @@ function PlayerScoreInput({
   const gir = isGIR(score.gross, score.putts, holePar);
   const netScore = score.gross - netStrokes;
   const [showHighGrid, setShowHighGrid] = useState(false);
+  const [penaltiesExpanded, setPenaltiesExpanded] = useState(false);
   const penalties = score.penalties ?? { water: 0, ob: 0, lost: 0 };
+  const hasPenalties = penalties.water > 0 || penalties.ob > 0 || penalties.lost > 0;
 
   const setGross = (val: number) => {
     onChange({ ...score, gross: val });
@@ -541,9 +543,9 @@ function PlayerScoreInput({
           st.playerCardCompact,
           {
             backgroundColor: c.cardBg,
-            borderColor: isMe ? c.teal : c.border,
+            borderColor: isMe ? 'rgba(201, 162, 39, 0.2)' : c.border,
           },
-          isMe && { borderLeftWidth: 3, borderLeftColor: c.teal },
+          isMe && { borderLeftWidth: 3, borderLeftColor: c.gold },
           theme.isDark ? cardShadowDark : cardShadowLight,
         ]}
       >
@@ -643,9 +645,9 @@ function PlayerScoreInput({
         st.playerCard,
         {
           backgroundColor: c.cardBg,
-          borderColor: isMe ? c.teal : c.border,
+          borderColor: isMe ? 'rgba(201, 162, 39, 0.2)' : c.border,
         },
-        isMe && { borderLeftWidth: 3, borderLeftColor: c.teal },
+        isMe && { borderLeftWidth: 3, borderLeftColor: c.gold },
         theme.isDark ? cardShadowDark : cardShadowLight,
       ]}
     >
@@ -684,84 +686,93 @@ function PlayerScoreInput({
         </View>
       </View>
 
-      {/* Feature 7: Score entry grid */}
-      <View style={st.scoreGridRow}>
-        {gridNumbers.map((n) => (
+      {/* Feature 7: Score entry grid — 2x4 layout with golf notation */}
+      <View style={st.scoreGrid2Row}>
+        {/* Row 1: 1-4 */}
+        <View style={st.scoreGridRowInner}>
+          {[1, 2, 3, 4].map((n) => {
+            const selected = score.gross === n;
+            const diff = n - holePar;
+            // Golf notation: circle for birdie (-1), double circle for eagle (-2+), square for bogey (+1+)
+            const notation = selected ? (diff <= -2 ? 'eagle' : diff === -1 ? 'birdie' : diff >= 1 ? 'bogey' : 'par') : null;
+            return (
+              <Pressable
+                key={n}
+                onPress={() => setGross(n)}
+                accessibilityLabel={scoreCellLabel(n, holePar, n)}
+                style={({ pressed }) => [
+                  st.scoreGridCell2,
+                  {
+                    backgroundColor: selected ? c.teal : c.elevated,
+                    borderColor: selected ? c.teal : c.border,
+                  },
+                  selected && notation === 'birdie' && { borderWidth: 2, borderColor: c.teal },
+                  selected && notation === 'eagle' && { borderWidth: 3, borderColor: c.gold },
+                  selected && notation === 'bogey' && { borderWidth: 2, borderColor: c.urgent },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <Text style={[st.scoreGridText2, { color: selected ? '#fff' : c.text, fontFamily: GEO, fontWeight: selected ? '700' : '500' }]}>
+                  {n}
+                </Text>
+                {selected && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]}>{scoreName(n, holePar)}</Text>}
+              </Pressable>
+            );
+          })}
+        </View>
+        {/* Row 2: 5-8+ */}
+        <View style={st.scoreGridRowInner}>
+          {[5, 6, 7].map((n) => {
+            const selected = score.gross === n;
+            const diff = n - holePar;
+            const notation = selected ? (diff <= -2 ? 'eagle' : diff === -1 ? 'birdie' : diff >= 1 ? 'bogey' : 'par') : null;
+            return (
+              <Pressable
+                key={n}
+                onPress={() => setGross(n)}
+                accessibilityLabel={scoreCellLabel(n, holePar, n)}
+                style={({ pressed }) => [
+                  st.scoreGridCell2,
+                  {
+                    backgroundColor: selected ? c.teal : c.elevated,
+                    borderColor: selected ? c.teal : c.border,
+                  },
+                  selected && notation === 'birdie' && { borderWidth: 2, borderColor: c.teal },
+                  selected && notation === 'eagle' && { borderWidth: 3, borderColor: c.gold },
+                  selected && notation === 'bogey' && { borderWidth: 2, borderColor: c.urgent },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <Text style={[st.scoreGridText2, { color: selected ? '#fff' : c.text, fontFamily: GEO, fontWeight: selected ? '700' : '500' }]}>
+                  {n}
+                </Text>
+                {selected && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]}>{scoreName(n, holePar)}</Text>}
+              </Pressable>
+            );
+          })}
+          {/* 8+ cell */}
           <Pressable
-            key={n}
-            onPress={() => setGross(n)}
-            accessibilityLabel={scoreCellLabel(n, holePar, n)}
+            onPress={() => { if (score.gross < 8) setGross(8); else adjustGross(1); }}
+            onLongPress={() => { const n = Math.max(1, score.gross - 1); setGross(n); }}
             style={({ pressed }) => [
-              st.scoreGridCell,
-              {
-                backgroundColor: score.gross === n ? c.teal : c.elevated,
-                borderColor: score.gross === n ? c.teal : c.border,
-              },
-              pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-            ]}
-          >
-            <Text
-              style={[
-                st.scoreGridText,
-                {
-                  color: score.gross === n ? '#fff' : c.text,
-                  fontFamily: GEO,
-                  fontWeight: score.gross === n ? '700' : '500',
-                },
-              ]}
-            >
-              {n}
-            </Text>
-          </Pressable>
-        ))}
-        {/* 8+ cell */}
-        {!showHighGrid ? (
-          <Pressable
-            onPress={() => { setGross(8); setShowHighGrid(true); }}
-            style={({ pressed }) => [
-              st.scoreGridCell,
+              st.scoreGridCell2,
               {
                 backgroundColor: score.gross >= 8 ? c.teal : c.elevated,
                 borderColor: score.gross >= 8 ? c.teal : c.border,
               },
+              score.gross >= 8 && { borderWidth: 2, borderColor: c.urgent },
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
-            <Text
-              style={[
-                st.scoreGridText,
-                {
-                  color: score.gross >= 8 ? '#fff' : c.text,
-                  fontFamily: GEO,
-                  fontWeight: score.gross >= 8 ? '700' : '500',
-                },
-              ]}
-            >
+            <Text style={[st.scoreGridText2, { color: score.gross >= 8 ? '#fff' : c.text, fontFamily: GEO, fontWeight: score.gross >= 8 ? '700' : '500' }]}>
               {score.gross >= 8 ? score.gross : '8+'}
             </Text>
+            {score.gross >= 8 && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]}>{scoreName(score.gross, holePar)}</Text>}
           </Pressable>
-        ) : (
-          <View style={st.highScoreStepper}>
-            <Pressable
-              onPress={() => { const n = Math.max(1, score.gross - 1); setGross(n); if (n < 8) setShowHighGrid(false); }}
-              style={[st.miniBtn, { borderColor: c.border }]}
-            >
-              <Ionicons name="remove" size={14} color={c.textMuted} />
-            </Pressable>
-            <Text style={[st.scoreGridText, { color: c.teal, fontFamily: GEO, fontWeight: '700', minWidth: 24, textAlign: 'center' }]}>
-              {score.gross}
-            </Text>
-            <Pressable
-              onPress={() => adjustGross(1)}
-              style={[st.miniBtn, { borderColor: c.border }]}
-            >
-              <Ionicons name="add" size={14} color={c.textMuted} />
-            </Pressable>
-          </View>
-        )}
+        </View>
       </View>
 
-      {/* Score label */}
+      {/* Score label — now only shows net score, par label is inside grid button */}
       <View style={st.scoreLabelRow}>
         <Text
           style={[
@@ -780,25 +791,31 @@ function PlayerScoreInput({
 
       {/* Secondary inputs: Putts, FIR, GIR */}
       <View style={st.secondaryRow}>
-        {/* Putts */}
+        {/* Putts — 4 tappable buttons */}
         <View style={st.secondaryGroup}>
           <Text style={[st.secondaryLabel, { color: c.textMuted }]}>PUTTS</Text>
-          <View style={st.secondaryControls}>
-            <Pressable
-              onPress={() => adjustPutts(-1)}
-              style={[st.miniBtn, { borderColor: c.border }]}
-            >
-              <Ionicons name="remove" size={14} color={c.textMuted} />
-            </Pressable>
-            <Text style={[st.miniValue, { color: c.text, fontFamily: GEO }]}>
-              {score.putts}
-            </Text>
-            <Pressable
-              onPress={() => adjustPutts(1)}
-              style={[st.miniBtn, { borderColor: c.border }]}
-            >
-              <Ionicons name="add" size={14} color={c.textMuted} />
-            </Pressable>
+          <View style={st.puttsButtonRow}>
+            {[0, 1, 2, 3].map((n) => {
+              const selected = score.putts === n;
+              return (
+                <Pressable
+                  key={n}
+                  onPress={() => { haptics.light(); onChange({ ...score, putts: n }); }}
+                  style={({ pressed }) => [
+                    st.puttsButton,
+                    {
+                      backgroundColor: selected ? '#2A9D8F' : c.elevated,
+                      borderColor: selected ? '#2A9D8F' : c.border,
+                    },
+                    pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+                  ]}
+                >
+                  <Text style={[st.puttsButtonText, { color: selected ? '#fff' : c.text, fontFamily: GEO }]}>
+                    {n}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -846,7 +863,18 @@ function PlayerScoreInput({
         </View>
       </View>
 
-      {/* Feature 2: Penalty tracking */}
+      {/* Feature 2: Penalty tracking — collapsed by default */}
+      <Pressable
+        onPress={() => setPenaltiesExpanded(!penaltiesExpanded)}
+        style={[st.penaltyToggleRow, { borderTopColor: 'rgba(128,128,128,0.15)' }]}
+      >
+        <Ionicons name="flag-outline" size={14} color={hasPenalties ? c.urgent : c.textMuted} />
+        <Text style={[st.penaltyToggleLabel, { color: hasPenalties ? c.urgent : c.textMuted }]}>
+          Penalties{hasPenalties ? ` (${penalties.water + penalties.ob + penalties.lost})` : ''}
+        </Text>
+        <Ionicons name={penaltiesExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={c.textMuted} />
+      </Pressable>
+      {penaltiesExpanded && (
       <View style={st.penaltyRow}>
         {/* Water */}
         <View style={st.penaltyGroup}>
@@ -899,6 +927,7 @@ function PlayerScoreInput({
           </View>
         </View>
       </View>
+      )}
     </View>
   );
 }
@@ -3078,16 +3107,16 @@ export default function ScoringScreen() {
         holeNotes={holeNotes}
       />
 
-      {/* Item 36: Season Round Link Banner */}
-      {seasonName.length > 0 && (
-        <View style={st.seasonBanner}>
+      {/* Item 36: Season Round Link Banner — only show when seasons are linked */}
+      {linkedSeasons.length > 0 && linkedSeasons.map((ls) => (
+        <View key={ls.seasonId} style={st.seasonBanner}>
           <View style={st.seasonBannerContent}>
             <Text style={[st.seasonBannerName, { fontFamily: GEO }]}>
-              {seasonName} {'\u00B7'} Week {seasonWeek} {'\u00B7'} {seasonFormat} {'\u00B7'} {seasonMultiplier}x
+              {ls.seasonName} {'\u00B7'} Week {ls.weekNumber} {'\u00B7'} {ls.format} {'\u00B7'} {ls.multiplier}x
             </Text>
           </View>
         </View>
-      )}
+      ))}
 
       {/* Item 8: Collapsible Side Game Ticker */}
       {sideGameKeys.length > 0 && (
@@ -3619,9 +3648,9 @@ export default function ScoringScreen() {
                   <Pressable
                     key={tab.key}
                     onPress={() => setActiveCompTab(tab.key)}
-                    style={[st.compTabPill, { backgroundColor: active ? '#D4AF37' : 'rgba(255,255,255,0.08)', borderColor: active ? '#D4AF37' : 'rgba(255,255,255,0.15)', borderWidth: 1 }]}
+                    style={[st.compTabPill, { backgroundColor: active ? 'rgba(212,175,55,0.12)' : 'transparent', borderBottomWidth: active ? 2 : 0, borderBottomColor: '#D4AF37' }]}
                   >
-                    <Text style={[st.compTabPillText, { color: active ? '#1E4D2B' : 'rgba(255,255,255,0.5)', fontFamily: GEO }]}>
+                    <Text style={[st.compTabPillText, { color: active ? '#D4AF37' : 'rgba(255,255,255,0.45)', fontFamily: GEO }]} numberOfLines={1}>
                       {tab.label.toUpperCase()}
                     </Text>
                   </Pressable>
@@ -4235,6 +4264,21 @@ const st = StyleSheet.create({
     minWidth: 20,
     textAlign: 'center',
   },
+  puttsButtonRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  puttsButton: {
+    width: 36,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  puttsButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
   toggleChip: {
     width: 28,
     height: 28,
@@ -4432,15 +4476,28 @@ const st = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Feature 2: Penalty row */
+  /* Feature 2: Penalty toggle + row */
+  penaltyToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+  },
+  penaltyToggleLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
   penaltyRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 16,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(128,128,128,0.15)',
+    marginTop: 4,
+    paddingTop: 4,
   },
   penaltyGroup: {
     alignItems: 'center',
@@ -4481,7 +4538,35 @@ const st = StyleSheet.create({
     height: 5,
   },
 
-  /* Feature 7: Score entry grid */
+  /* Feature 7: Score entry grid — 2x4 layout */
+  scoreGrid2Row: {
+    gap: 6,
+    marginBottom: 8,
+  },
+  scoreGridRowInner: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  scoreGridCell2: {
+    flex: 1,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  scoreGridText2: {
+    fontSize: 22,
+    fontFamily: GEO,
+    fontWeight: '700',
+  },
+  scoreGridParLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  // Keep legacy name for compact grid references
   scoreGridRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -4811,16 +4896,18 @@ const st = StyleSheet.create({
   /* Competition tab pills */
   compTabRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 0,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 0,
   },
   compTabPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   compTabPillText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
