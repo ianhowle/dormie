@@ -396,34 +396,71 @@ const VERIFIED_COURSES: VerifiedCourse[] = [
   },
 ];
 
+// ─── Schema Discovery ───────────────────────────────────────────────────────
+
+let VALID_COLUMNS: string[] = [];
+
+async function discoverSchema(): Promise<string[]> {
+  console.log('Discovering courses table schema...\n');
+
+  // 1. Query a sample row to see actual columns
+  const { data: sample, error: schemaError } = await supabase.from('courses').select('*').limit(1);
+  console.log('Schema error:', schemaError ?? 'none');
+  if (sample && sample.length > 0) {
+    const cols = Object.keys(sample[0]);
+    console.log('Actual courses table columns:', cols);
+    return cols;
+  }
+
+  console.log('Table is empty — probing with test insert...');
+
+  // 2. Try inserting a minimal test row to discover columns from response
+  const { data: testInsert, error: testError } = await supabase
+    .from('courses')
+    .insert({ name: 'TEST COURSE DELETE ME', location: 'Test, XX' })
+    .select();
+  console.log('Test insert result:', testInsert);
+  console.log('Test insert error:', testError);
+
+  // Clean up test row
+  if (testInsert?.[0]?.id) {
+    await supabase.from('courses').delete().eq('id', testInsert[0].id);
+    console.log('Test row cleaned up.');
+    return Object.keys(testInsert[0]);
+  }
+
+  // 3. Fallback — if we can't discover, use the known migration schema
+  console.log('WARNING: Could not discover schema. Using fallback column list.');
+  return ['id', 'name', 'location', 'city', 'state', 'par', 'slope', 'rating', 'yards', 'image_gradient', 'hole_data', 'created_at'];
+}
+
 // ─── Upsert Logic ───────────────────────────────────────────────────────────
 
-async function upsertCourse(course: VerifiedCourse): Promise<{ success: boolean; action: string }> {
+function buildRow(course: VerifiedCourse): Record<string, unknown> {
   const location = [course.city, course.state].filter(Boolean).join(', ');
-
-  // Check if course already exists (by name + city)
-  const { data: existing } = await supabase
-    .from('courses')
-    .select('id, name')
-    .ilike('name', course.name)
-    .limit(1)
-    .maybeSingle();
-
-  // Get the primary (back) tee for top-level fields
   const primaryTee = course.tee_boxes[0];
 
-  // Only include columns that exist in the courses table:
-  // id, name, location, city, state, par, slope, rating, yards, image_gradient, hole_data, created_at
-  // Store tee_boxes and metadata in hole_data JSON
-  const row = {
+  // All possible fields we want to insert — keyed by column name
+  const allFields: Record<string, unknown> = {
     name: course.name,
     location,
     city: course.city,
     state: course.state,
+    country: course.country,
     par: course.par,
     rating: primaryTee.rating,
     slope: primaryTee.slope,
     yards: primaryTee.yards,
+    holes: course.holes,
+    access: course.access,
+    architect: course.architect ?? null,
+    year_opened: course.year_opened ?? null,
+    grass_greens: course.grass_greens ?? null,
+    grass_fairways: course.grass_fairways ?? null,
+    data_source: course.data_source,
+    data_quality: course.data_quality,
+    tee_boxes: JSON.stringify(course.tee_boxes),
+    // hole_data stores everything as JSON fallback
     hole_data: JSON.stringify({
       tee_boxes: course.tee_boxes,
       access: course.access,
@@ -437,20 +474,41 @@ async function upsertCourse(course: VerifiedCourse): Promise<{ success: boolean;
     }),
   };
 
+  // Only include fields whose column actually exists in the table
+  const row: Record<string, unknown> = {};
+  for (const col of VALID_COLUMNS) {
+    if (col === 'id' || col === 'created_at') continue; // auto-generated
+    if (col in allFields) {
+      row[col] = allFields[col];
+    }
+  }
+
+  return row;
+}
+
+async function upsertCourse(course: VerifiedCourse): Promise<{ success: boolean; action: string }> {
+  // Check if course already exists (by name)
+  const { data: existing } = await supabase
+    .from('courses')
+    .select('id, name')
+    .ilike('name', course.name)
+    .limit(1)
+    .maybeSingle();
+
+  const row = buildRow(course);
+
   if (existing) {
-    // Update existing course
     const { error } = await supabase
       .from('courses')
       .update(row)
       .eq('id', existing.id);
 
     if (error) return { success: false, action: `UPDATE FAILED: ${error.message}` };
-    return { success: true, action: `UPDATED (was ${existing.data_quality ?? 'unknown'})` };
+    return { success: true, action: 'UPDATED' };
   } else {
-    // Insert new course
     const { error } = await supabase
       .from('courses')
-      .insert({ ...row, created_at: new Date().toISOString() });
+      .insert(row);
 
     if (error) return { success: false, action: `INSERT FAILED: ${error.message}` };
     return { success: true, action: 'INSERTED' };
@@ -465,6 +523,10 @@ async function main() {
   console.log('==========================================\n');
   console.log(`Supabase: ${SUPABASE_URL}`);
   console.log(`Courses to seed: ${VERIFIED_COURSES.length}\n`);
+
+  // Discover actual table schema before any inserts
+  VALID_COLUMNS = await discoverSchema();
+  console.log(`\nUsing columns: [${VALID_COLUMNS.join(', ')}]\n`);
 
   let succeeded = 0;
   let failed = 0;
