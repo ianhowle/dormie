@@ -38,6 +38,24 @@ import { useToast } from '../src/components/Toast';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
 import { scoreColor, formatToPar as fmtToPar, toParColor as toParColorUtil, scoreName as scoreNameUtil } from '../src/lib/scoring-utils';
+import { MOCK_GROUP_PLAYERS } from '../src/data/leaderboard';
+import { MOCK_UPCOMING_TRIPS } from '../src/data/trips';
+
+// ─── Linked competition types ────────────────────────────────────────
+type LinkedSeason = {
+  seasonId: string;
+  seasonName: string;
+  weekNumber: number;
+  format: string;
+  multiplier: number;
+};
+
+type CompetitionTab = {
+  key: string;
+  label: string;
+  type: 'round' | 'season' | 'trip' | 'matchup';
+  data?: LinkedSeason;
+};
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -222,6 +240,7 @@ function ScoringHeader({
   onNextHole?: () => void;
   canPrevHole?: boolean;
   canNextHole?: boolean;
+  competitionCount?: number;
   roundType?: string;
 }) {
   const router = useRouter();
@@ -279,8 +298,13 @@ function ScoringHeader({
           )}
           {/* Leaderboard toggle (Feature 11) */}
           {onLeaderboard && (
-            <Pressable onPress={onLeaderboard} hitSlop={8}>
+            <Pressable onPress={onLeaderboard} hitSlop={8} style={{ position: 'relative' }}>
               <Ionicons name="trophy-outline" size={18} color="#D4AF37" />
+              {competitionCount != null && competitionCount > 1 && (
+                <View style={st.compBadge}>
+                  <Text style={st.compBadgeText}>{competitionCount}</Text>
+                </View>
+              )}
             </Pressable>
           )}
           <Text style={st.headerThrough}>
@@ -2242,6 +2266,10 @@ export default function ScoringScreen() {
     seasonWeek: string;
     seasonFormat: string;
     seasonMultiplier: string;
+    // Multi-competition params
+    linkedSeasons: string;
+    tripId: string;
+    matchupOpponent: string;
   }>();
 
   const courseName = params.courseName ?? 'Course';
@@ -2275,6 +2303,28 @@ export default function ScoringScreen() {
   const seasonWeek = params.seasonWeek || '7';
   const seasonFormat = params.seasonFormat || 'Stableford';
   const seasonMultiplier = Number(params.seasonMultiplier) || 2;
+
+  // Parse multi-competition params
+  const linkedSeasons: LinkedSeason[] = useMemo(() => {
+    if (!params.linkedSeasons) return [];
+    try { return JSON.parse(params.linkedSeasons); } catch { return []; }
+  }, [params.linkedSeasons]);
+
+  const tripId = params.tripId ?? null;
+  const matchupOpponent = params.matchupOpponent ?? null;
+  const linkedTrip = tripId ? MOCK_UPCOMING_TRIPS.find((t) => t.id === tripId) : null;
+
+  // Build competition tabs for scoreboard overlay
+  const competitionTabs: CompetitionTab[] = useMemo(() => {
+    const tabs: CompetitionTab[] = [];
+    linkedSeasons.forEach((s) => {
+      tabs.push({ key: `season-${s.seasonId}`, label: s.seasonName.length > 16 ? s.seasonName.slice(0, 14) + '…' : s.seasonName, type: 'season', data: s });
+    });
+    if (linkedTrip) tabs.push({ key: 'trip', label: linkedTrip.name, type: 'trip' });
+    if (matchupOpponent) tabs.push({ key: 'matchup', label: 'Matchup', type: 'matchup' });
+    tabs.push({ key: 'round', label: 'Round', type: 'round' });
+    return tabs;
+  }, [linkedSeasons, linkedTrip, matchupOpponent]);
 
   const players: PlayerConfig[] = useMemo(() => {
     try {
@@ -2353,6 +2403,7 @@ export default function ScoringScreen() {
 
   // Feature 11: Pinned floating scoreboard
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [activeCompTab, setActiveCompTab] = useState('round');
 
   // Feature 12: Live feed
   const [scoringEvents, setScoringEvents] = useState<ScoringEvent[]>([]);
@@ -3014,6 +3065,7 @@ export default function ScoringScreen() {
         onNextHole={() => { if (currentHoleIdx < holes.length - 1) setCurrentHoleIdx(currentHoleIdx + 1); }}
         canPrevHole={currentHoleIdx > 0}
         canNextHole={currentHoleIdx < holes.length - 1}
+        competitionCount={competitionTabs.length}
         roundType={roundType}
       />
 
@@ -3543,7 +3595,7 @@ export default function ScoringScreen() {
         </View>
       </Modal>
 
-      {/* Feature 11 / Item 10: Broadcast Leaderboard Modal */}
+      {/* Feature 11 / Item 10: Multi-Competition Scoreboard Modal */}
       <Modal visible={showLeaderboard} transparent animationType="fade">
         <View style={[st.leaderboardScreen, { backgroundColor: '#1E4D2B' }]}>
           <View style={st.leaderboardHeader}>
@@ -3556,37 +3608,354 @@ export default function ScoringScreen() {
             </View>
             <View style={{ width: 24 }} />
           </View>
-          <GoldDivider />
-          {/* Item 10: Broadcast-style scoreboard header */}
-          <View style={st.broadcastHeaderRow}>
-            <Text style={st.broadcastColPos}>POS</Text>
-            <Text style={st.broadcastColName}>PLAYER</Text>
-            <Text style={st.broadcastColThru}>THRU</Text>
-            <Text style={st.broadcastColTotal}>TOTAL</Text>
-            <Text style={st.broadcastColPar}>TO PAR</Text>
-          </View>
-          <ScrollView bounces={false} contentContainerStyle={{ paddingHorizontal: 0 }}>
-            {leaderboardData.map((row, i) => {
-              const isMe = row.player.id === '1';
-              const diff = row.total - row.par;
-              return (
-                <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(42,157,143,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
-                  <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
-                  <Avatar id={row.player.id} size={28} name={row.player.name} />
-                  <View style={st.lbNameWrap}>
-                    <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
-                      {isMe ? 'You' : row.player.name}
+
+          {/* Competition tab pills */}
+          {competitionTabs.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.compTabRow}>
+              {competitionTabs.map((tab) => {
+                const active = activeCompTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => setActiveCompTab(tab.key)}
+                    style={[st.compTabPill, { backgroundColor: active ? '#D4AF37' : 'rgba(255,255,255,0.08)', borderColor: active ? '#D4AF37' : 'rgba(255,255,255,0.15)', borderWidth: 1 }]}
+                  >
+                    <Text style={[st.compTabPillText, { color: active ? '#1E4D2B' : 'rgba(255,255,255,0.5)', fontFamily: GEO }]}>
+                      {tab.label.toUpperCase()}
                     </Text>
-                  </View>
-                  <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.count}</Text>
-                  <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
-                  <Text style={[st.lbToPar, { color: diff < 0 ? '#2A9D8F' : diff === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
-                    {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          <GoldDivider />
+
+          {/* ── ROUND VIEW (default) ── */}
+          {(activeCompTab === 'round' || !competitionTabs.find((t) => t.key === activeCompTab)) && (
+            <>
+              <View style={st.broadcastHeaderRow}>
+                <Text style={st.broadcastColPos}>POS</Text>
+                <Text style={st.broadcastColName}>PLAYER</Text>
+                <Text style={st.broadcastColThru}>THRU</Text>
+                <Text style={st.broadcastColTotal}>TOTAL</Text>
+                <Text style={st.broadcastColPar}>TO PAR</Text>
+              </View>
+              <ScrollView bounces={false} contentContainerStyle={{ paddingHorizontal: 0 }}>
+                {leaderboardData.map((row, i) => {
+                  const isMe = row.player.id === '1';
+                  const diff = row.total - row.par;
+                  return (
+                    <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(42,157,143,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                      <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
+                      <Avatar id={row.player.id} size={28} name={row.player.name} />
+                      <View style={st.lbNameWrap}>
+                        <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                          {isMe ? 'You' : row.player.name}
+                        </Text>
+                      </View>
+                      <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.count}</Text>
+                      <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
+                      <Text style={[st.lbToPar, { color: diff < 0 ? '#2A9D8F' : diff === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
+                        {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </>
+          )}
+
+          {/* ── SEASON VIEW ── */}
+          {competitionTabs.find((t) => t.key === activeCompTab && t.type === 'season') && (() => {
+            const tab = competitionTabs.find((t) => t.key === activeCompTab)!;
+            const season = tab.data!;
+            const myRunning = getRunningTotal('1');
+            const myGross = myRunning.total;
+            const myPar = myRunning.par;
+            const totalPar = holes.reduce((a, h) => a + h.par, 0);
+
+            // Calculate projected points based on format
+            let projectedPoints = 0;
+            if (season.format === 'Stableford') {
+              // Stableford: 0=double+, 1=bogey, 2=par, 3=birdie, 4=eagle, 5=albatross
+              let stablefordTotal = 0;
+              holes.forEach((h) => {
+                const score = allScores.get(h.number)?.get('1');
+                if (score) {
+                  const diff = score.gross - h.par;
+                  if (diff <= -3) stablefordTotal += 5;
+                  else if (diff === -2) stablefordTotal += 4;
+                  else if (diff === -1) stablefordTotal += 3;
+                  else if (diff === 0) stablefordTotal += 2;
+                  else if (diff === 1) stablefordTotal += 1;
+                }
+              });
+              projectedPoints = stablefordTotal * (season.multiplier || 1);
+            } else {
+              // Stroke Play: points based on score vs par
+              const diff = myGross - myPar;
+              projectedPoints = Math.max(0, 36 - diff) * (season.multiplier || 1);
+            }
+
+            // Mock season standings with projected movement
+            const standingsPlayers = MOCK_GROUP_PLAYERS.slice(0, 6).map((p, i) => ({
+              id: p.id,
+              name: p.name,
+              points: [185, 172, 168, 155, 142, 130][i] ?? 100,
+              position: i + 1,
+            }));
+            // Add projected points to "You" and re-sort
+            const projected = standingsPlayers.map((p) => ({
+              ...p,
+              projPoints: p.id === '1' ? p.points + projectedPoints : p.points + Math.floor(Math.random() * 20 + 10),
+            })).sort((a, b) => b.projPoints - a.projPoints).map((p, i) => ({ ...p, projPosition: i + 1 }));
+
+            return (
+              <ScrollView bounces={false} contentContainerStyle={{ padding: 16 }}>
+                {/* Season header info */}
+                <View style={st.seasonViewHeader}>
+                  <Text style={[st.seasonViewTitle, { fontFamily: GEO }]}>{season.seasonName}</Text>
+                  <Text style={st.seasonViewMeta}>
+                    Week {season.weekNumber} · {season.format} · {season.multiplier}x
                   </Text>
                 </View>
-              );
-            })}
-          </ScrollView>
+
+                {/* Your projected points */}
+                <View style={st.seasonProjectedCard}>
+                  <Text style={st.seasonProjectedLabel}>YOUR PROJECTED POINTS</Text>
+                  <Text style={[st.seasonProjectedValue, { fontFamily: GEO }]}>
+                    +{projectedPoints}
+                  </Text>
+                  {season.format === 'Stableford' && (
+                    <Text style={st.seasonProjectedSub}>
+                      Running Stableford: {(() => {
+                        let total = 0;
+                        holes.forEach((h) => {
+                          const score = allScores.get(h.number)?.get('1');
+                          if (score) {
+                            const d = score.gross - h.par;
+                            if (d <= -3) total += 5;
+                            else if (d === -2) total += 4;
+                            else if (d === -1) total += 3;
+                            else if (d === 0) total += 2;
+                            else if (d === 1) total += 1;
+                          }
+                        });
+                        return total;
+                      })()} pts thru {holesScored}
+                    </Text>
+                  )}
+                  {season.format === 'Stroke Play' && myGross > 0 && (
+                    <Text style={st.seasonProjectedSub}>
+                      {myGross} ({myGross - myPar >= 0 ? '+' : ''}{myGross - myPar}) thru {holesScored}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Season standings with projected movement */}
+                <Text style={st.seasonStandingsTitle}>SEASON STANDINGS</Text>
+                <View style={st.broadcastHeaderRow}>
+                  <Text style={st.broadcastColPos}>POS</Text>
+                  <Text style={st.broadcastColName}>PLAYER</Text>
+                  <Text style={[st.broadcastColThru, { width: 50 }]}>PTS</Text>
+                  <Text style={[st.broadcastColTotal, { width: 50 }]}>PROJ</Text>
+                  <Text style={[st.broadcastColPar, { width: 36 }]}>{' '}</Text>
+                </View>
+                {projected.map((p) => {
+                  const isMe = p.id === '1';
+                  const moved = p.position - p.projPosition;
+                  return (
+                    <View key={p.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(42,157,143,0.15)' : 'transparent' }]}>
+                      <Text style={[st.lbPos, { fontFamily: GEO }]}>{p.position}</Text>
+                      <Avatar id={p.id} size={28} name={p.name} />
+                      <View style={st.lbNameWrap}>
+                        <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                          {isMe ? 'You' : p.name.split(' ')[0]}
+                        </Text>
+                      </View>
+                      <Text style={[st.lbTotal, { fontFamily: GEO, width: 50 }]}>{p.points}</Text>
+                      <Text style={[st.lbTotal, { fontFamily: GEO, width: 50, color: '#D4AF37' }]}>{p.projPoints}</Text>
+                      <View style={{ width: 36, alignItems: 'center' }}>
+                        {moved > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="arrow-up" size={12} color="#2A9D8F" />
+                            <Text style={{ color: '#2A9D8F', fontSize: 11, fontFamily: GEO, fontWeight: '700' }}>{moved}</Text>
+                          </View>
+                        )}
+                        {moved < 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="arrow-down" size={12} color="#C44B4F" />
+                            <Text style={{ color: '#C44B4F', fontSize: 11, fontFamily: GEO, fontWeight: '700' }}>{Math.abs(moved)}</Text>
+                          </View>
+                        )}
+                        {moved === 0 && (
+                          <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>—</Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            );
+          })()}
+
+          {/* ── MATCHUP VIEW ── */}
+          {activeCompTab === 'matchup' && matchupOpponent && (() => {
+            const opponentPlayer = players.find((p) => p.id === matchupOpponent) ?? players.find((p) => p.id !== '1');
+            const opponentName = opponentPlayer?.name ?? 'Opponent';
+            const opponentId = opponentPlayer?.id ?? '2';
+
+            // Calculate match status
+            let myUp = 0;
+            let holesPlayed = 0;
+            const holeResults: { hole: number; myScore: number | null; oppScore: number | null; result: 'win' | 'loss' | 'halve' | 'pending' }[] = [];
+
+            holes.forEach((h) => {
+              const myScore = allScores.get(h.number)?.get('1');
+              const oppScore = allScores.get(h.number)?.get(opponentId);
+              if (myScore && oppScore) {
+                holesPlayed++;
+                const diff = myScore.gross - oppScore.gross;
+                if (diff < 0) myUp++;
+                else if (diff > 0) myUp--;
+                holeResults.push({ hole: h.number, myScore: myScore.gross, oppScore: oppScore.gross, result: diff < 0 ? 'win' : diff > 0 ? 'loss' : 'halve' });
+              } else {
+                holeResults.push({ hole: h.number, myScore: myScore?.gross ?? null, oppScore: oppScore?.gross ?? null, result: 'pending' });
+              }
+            });
+
+            const matchStatus = myUp === 0
+              ? `ALL SQUARE thru ${holesPlayed}`
+              : myUp > 0
+                ? `${myUp} UP thru ${holesPlayed}`
+                : `${Math.abs(myUp)} DOWN thru ${holesPlayed}`;
+
+            return (
+              <ScrollView bounces={false} contentContainerStyle={{ padding: 16 }}>
+                {/* Matchup header */}
+                <View style={st.matchupHeader}>
+                  <View style={st.matchupPlayerCol}>
+                    <Avatar id="1" size={40} name="Ian McGowan" />
+                    <Text style={[st.matchupPlayerName, { fontFamily: GEO }]}>YOU</Text>
+                  </View>
+                  <View style={st.matchupVs}>
+                    <Text style={[st.matchupVsText, { fontFamily: GEO }]}>VS</Text>
+                  </View>
+                  <View style={st.matchupPlayerCol}>
+                    <Avatar id={opponentId} size={40} name={opponentName} />
+                    <Text style={[st.matchupPlayerName, { fontFamily: GEO }]}>{opponentName.split(' ')[0].toUpperCase()}</Text>
+                  </View>
+                </View>
+
+                {/* Match status */}
+                <View style={[st.matchStatusBanner, { backgroundColor: myUp > 0 ? 'rgba(42,157,143,0.15)' : myUp < 0 ? 'rgba(196,75,79,0.15)' : 'rgba(212,175,55,0.15)' }]}>
+                  <Text style={[st.matchStatusText, { color: myUp > 0 ? '#2A9D8F' : myUp < 0 ? '#C44B4F' : '#D4AF37', fontFamily: GEO }]}>
+                    {matchStatus}
+                  </Text>
+                </View>
+
+                {/* Hole-by-hole comparison */}
+                <View style={st.matchupGrid}>
+                  <View style={st.matchupGridHeader}>
+                    <Text style={[st.matchupGridCell, st.matchupGridHole]}>HOLE</Text>
+                    <Text style={[st.matchupGridCell, st.matchupGridScore]}>YOU</Text>
+                    <Text style={[st.matchupGridCell, st.matchupGridScore]}>{opponentName.split(' ')[0].toUpperCase()}</Text>
+                    <Text style={[st.matchupGridCell, st.matchupGridResult]}>{' '}</Text>
+                  </View>
+                  {holeResults.map((hr) => (
+                    <View key={hr.hole} style={[st.matchupGridRow, hr.result === 'win' && { backgroundColor: 'rgba(42,157,143,0.08)' }, hr.result === 'loss' && { backgroundColor: 'rgba(196,75,79,0.08)' }]}>
+                      <Text style={[st.matchupGridCell, st.matchupGridHole, { fontFamily: GEO }]}>{hr.hole}</Text>
+                      <Text style={[st.matchupGridCell, st.matchupGridScore, { fontFamily: GEO, color: hr.myScore ? '#E8E4DE' : 'rgba(255,255,255,0.3)' }]}>
+                        {hr.myScore ?? '-'}
+                      </Text>
+                      <Text style={[st.matchupGridCell, st.matchupGridScore, { fontFamily: GEO, color: hr.oppScore ? '#E8E4DE' : 'rgba(255,255,255,0.3)' }]}>
+                        {hr.oppScore ?? '-'}
+                      </Text>
+                      <View style={[st.matchupGridCell, st.matchupGridResult]}>
+                        {hr.result === 'win' && <Ionicons name="checkmark-circle" size={14} color="#2A9D8F" />}
+                        {hr.result === 'loss' && <Ionicons name="close-circle" size={14} color="#C44B4F" />}
+                        {hr.result === 'halve' && <Text style={{ color: '#D4AF37', fontSize: 10, fontFamily: GEO }}>AS</Text>}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Live status */}
+                {!opponentPlayer && (
+                  <View style={st.matchupWaiting}>
+                    <Ionicons name="time-outline" size={16} color="rgba(255,255,255,0.4)" />
+                    <Text style={st.matchupWaitingText}>Waiting for {opponentName} to post scores</Text>
+                  </View>
+                )}
+              </ScrollView>
+            );
+          })()}
+
+          {/* ── TRIP VIEW ── */}
+          {activeCompTab === 'trip' && linkedTrip && (() => {
+            // Mock trip leaderboard with running totals
+            const tripPlayers = MOCK_GROUP_PLAYERS.filter((p) =>
+              linkedTrip.playerIds.includes(p.id)
+            ).map((p, i) => {
+              const isMe = p.id === '1';
+              const myRunning = isMe ? getRunningTotal('1') : null;
+              const prevTotal = [232, 238, 241, 245, 250, 255][i] ?? 250;
+              const todayScore = isMe && myRunning ? myRunning.total : (72 + Math.floor(Math.random() * 8));
+              return {
+                id: p.id,
+                name: p.name,
+                tripTotal: prevTotal + todayScore,
+                todayScore,
+                isMe,
+              };
+            }).sort((a, b) => a.tripTotal - b.tripTotal);
+
+            const leaderTotal = tripPlayers[0]?.tripTotal ?? 0;
+            const today = new Date();
+            const start = new Date(linkedTrip.startDate);
+            const dayNum = Math.max(1, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+            return (
+              <ScrollView bounces={false} contentContainerStyle={{ padding: 16 }}>
+                {/* Trip header */}
+                <View style={st.seasonViewHeader}>
+                  <Text style={[st.seasonViewTitle, { fontFamily: GEO }]}>{linkedTrip.name}</Text>
+                  <Text style={st.seasonViewMeta}>
+                    Day {dayNum} · {linkedTrip.destination}
+                  </Text>
+                </View>
+
+                {/* Trip leaderboard */}
+                <View style={st.broadcastHeaderRow}>
+                  <Text style={st.broadcastColPos}>POS</Text>
+                  <Text style={st.broadcastColName}>PLAYER</Text>
+                  <Text style={st.broadcastColThru}>TODAY</Text>
+                  <Text style={st.broadcastColTotal}>TOTAL</Text>
+                  <Text style={st.broadcastColPar}>BACK</Text>
+                </View>
+                {tripPlayers.map((p, i) => {
+                  const back = p.tripTotal - leaderTotal;
+                  return (
+                    <View key={p.id} style={[st.lbRow, { backgroundColor: p.isMe ? 'rgba(42,157,143,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                      <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
+                      <Avatar id={p.id} size={28} name={p.name} />
+                      <View style={st.lbNameWrap}>
+                        <Text style={[st.lbName, p.isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                          {p.isMe ? 'You' : p.name.split(' ')[0]}
+                        </Text>
+                      </View>
+                      <Text style={[st.lbThru, { width: 36, textAlign: 'center', fontFamily: GEO }]}>{p.todayScore}</Text>
+                      <Text style={[st.lbTotal, { fontFamily: GEO }]}>{p.tripTotal}</Text>
+                      <Text style={[st.lbToPar, { color: back === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
+                        {back === 0 ? 'LEAD' : `+${back}`}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            );
+          })()}
         </View>
       </Modal>
 
@@ -4436,6 +4805,176 @@ const st = StyleSheet.create({
     width: 40,
     textAlign: 'right',
     fontFamily: GEO,
+  },
+
+  /* Competition tab pills */
+  compTabRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  compTabPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  compTabPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  compBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    backgroundColor: '#D4AF37',
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compBadgeText: {
+    color: '#1E4D2B',
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: GEO,
+  },
+
+  /* Season view */
+  seasonViewHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  seasonViewTitle: {
+    color: '#D4AF37',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  seasonViewMeta: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    marginTop: 4,
+  },
+  seasonProjectedCard: {
+    backgroundColor: 'rgba(212,175,55,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  seasonProjectedLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  seasonProjectedValue: {
+    color: '#D4AF37',
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  seasonProjectedSub: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    marginTop: 4,
+  },
+  seasonStandingsTitle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+
+  /* Matchup view */
+  matchupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 16,
+  },
+  matchupPlayerCol: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  matchupPlayerName: {
+    color: '#E8E4DE',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  matchupVs: {
+    paddingHorizontal: 12,
+  },
+  matchupVsText: {
+    color: '#D4AF37',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  matchStatusBanner: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  matchStatusText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  matchupGrid: {
+    marginBottom: 16,
+  },
+  matchupGridHeader: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  matchupGridRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  matchupGridCell: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  matchupGridHole: {
+    width: 40,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  matchupGridScore: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  matchupGridResult: {
+    width: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchupWaiting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  matchupWaitingText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 
   /* Feature 12: Live feed */
