@@ -9,6 +9,7 @@
 //   npx ts-node scripts/import-courses.ts --resume
 //   npx ts-node scripts/import-courses.ts --backup-only
 //   npx ts-node scripts/import-courses.ts --stats
+//   npx ts-node scripts/import-courses.ts --update-nameonly
 //
 // Env vars required for Supabase write (not needed for --backup-only):
 //   EXPO_PUBLIC_SUPABASE_URL
@@ -437,6 +438,97 @@ function showStats(progress: ProgressData): void {
   console.log('\n' + '='.repeat(60));
 }
 
+// ─── Update name_only courses ───────────────────────────────────────────────
+
+async function updateNameOnlyCourses(client: SupabaseClient, progress: ProgressData): Promise<void> {
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('[Update] Fetching all name_only courses from Supabase...');
+  console.log(`${'='.repeat(60)}`);
+
+  const { data: nameOnlyCourses, error } = await client
+    .from('courses')
+    .select('id, name, city, state, location')
+    .eq('data_quality', 'name_only')
+    .order('name');
+
+  if (error) {
+    console.error(`[Update] Query error: ${error.message}`);
+    return;
+  }
+
+  if (!nameOnlyCourses || nameOnlyCourses.length === 0) {
+    console.log('[Update] No name_only courses found. Nothing to update.');
+    return;
+  }
+
+  console.log(`[Update] Found ${nameOnlyCourses.length} name_only courses to update.\n`);
+
+  let updated = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const course of nameOnlyCourses) {
+    const city = course.city ?? course.location?.split(',')[0]?.trim() ?? '';
+    const state = course.state ?? '';
+
+    process.stdout.write(`  [${updated + failed + skipped + 1}/${nameOnlyCourses.length}] ${course.name}... `);
+
+    if (!state) {
+      console.log('SKIPPED (no state)');
+      skipped++;
+      continue;
+    }
+
+    try {
+      const scraped = await scrapeNamedCourse(course.name, city, state);
+
+      if (!scraped || scraped.dataQuality === 'name_only') {
+        console.log('no better data found');
+        skipped++;
+        continue;
+      }
+
+      // Build update payload
+      const update: Record<string, unknown> = {
+        data_quality: scraped.dataQuality,
+        data_source: 'imported',
+        updated_at: new Date().toISOString(),
+      };
+
+      if (scraped.par && scraped.par !== 72) update.par = scraped.par;
+      if (scraped.city) update.city = scraped.city;
+      if (scraped.latitude) update.latitude = scraped.latitude;
+      if (scraped.longitude) update.longitude = scraped.longitude;
+
+      if (scraped.teeBoxes.length > 0) {
+        const backTee = scraped.teeBoxes[0];
+        if (backTee.slope) update.slope = backTee.slope;
+        if (backTee.rating) update.rating = backTee.rating;
+        if (backTee.yards) update.yards = backTee.yards;
+        update.tee_boxes = JSON.stringify(scraped.teeBoxes);
+      }
+
+      const { error: updateError } = await client.from('courses').update(update).eq('id', course.id);
+
+      if (updateError) {
+        console.log(`UPDATE FAILED: ${updateError.message}`);
+        failed++;
+      } else {
+        console.log(`UPDATED to ${scraped.dataQuality} (${scraped.teeBoxes.length} tees)`);
+        updated++;
+
+        // Track in progress
+        progress.stats.byQuality[scraped.dataQuality] = (progress.stats.byQuality[scraped.dataQuality] ?? 0) + 1;
+      }
+    } catch (err) {
+      console.log(`ERROR: ${(err as Error).message}`);
+      failed++;
+    }
+  }
+
+  console.log(`\n[Update] Results: ${updated} updated, ${skipped} skipped, ${failed} failed`);
+}
+
 // ─── CLI ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -449,6 +541,7 @@ async function main(): Promise<void> {
   const isResume = args.includes('--resume');
   const isBackupOnly = args.includes('--backup-only');
   const isStats = args.includes('--stats');
+  const isUpdateNameOnly = args.includes('--update-nameonly');
 
   // Load existing progress (for resume or stats)
   const progress = loadProgress();
@@ -460,7 +553,7 @@ async function main(): Promise<void> {
   }
 
   // Validate we have at least one mode
-  if (!stateArg && !isTerritory && !isNational && !isAll && !isResume && !isBackupOnly) {
+  if (!stateArg && !isTerritory && !isNational && !isAll && !isResume && !isBackupOnly && !isUpdateNameOnly) {
     console.log(`
 Dormie Course Import CLI
 ========================
@@ -473,6 +566,7 @@ Usage:
   npx ts-node scripts/import-courses.ts --resume           Continue from where it left off
   npx ts-node scripts/import-courses.ts --backup-only      Save to local JSON without Supabase write
   npx ts-node scripts/import-courses.ts --stats            Show import progress and counts
+  npx ts-node scripts/import-courses.ts --update-nameonly  Re-scrape name_only courses to fill data
 
 Flags can be combined:
   npx ts-node scripts/import-courses.ts --state=TN --backup-only
@@ -542,6 +636,11 @@ Environment variables (for Supabase write):
       for (const state of ALL_STATES) {
         await importState(state, progress, backupOnly, supabase);
       }
+    }
+
+    // --update-nameonly: re-scrape all name_only courses to fill in missing data
+    if (isUpdateNameOnly && supabase) {
+      await updateNameOnlyCourses(supabase, progress);
     }
   } catch (err) {
     console.error(`\n[Import] Fatal error: ${(err as Error).message}`);

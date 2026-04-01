@@ -654,17 +654,208 @@ function parseGolfPassTees(html: string): TeeBoxData[] {
   return tees;
 }
 
+// ─── Source 4: RapidAPI Golf Course Finder ──────────────────────────────────
+// https://rapidapi.com/golfambit-golfambit-default/api/golf-course-finder
+// Free tier: 500 requests/month. Has 30,000+ courses with scorecard data.
+// Requires EXPO_PUBLIC_RAPIDAPI_KEY env var (sign up at rapidapi.com).
+
+export async function scrapeRapidAPIState(stateCode: string, stateName: string, limit: number): Promise<ScrapedCourse[]> {
+  const apiKey = process.env.EXPO_PUBLIC_RAPIDAPI_KEY;
+  if (!apiKey) {
+    console.log('[RapidAPI] Skipped — EXPO_PUBLIC_RAPIDAPI_KEY not set. Sign up at https://rapidapi.com/golfambit-golfambit-default/api/golf-course-finder');
+    return [];
+  }
+
+  const courses: ScrapedCourse[] = [];
+  console.log(`[RapidAPI] Fetching ${stateName} (${stateCode}), target: ${limit === 0 ? 'ALL' : limit}...`);
+
+  let page = 1;
+  const perPage = 50;
+  const maxPages = limit === 0 ? 20 : Math.ceil(limit / perPage);
+
+  while (page <= maxPages && (limit === 0 || courses.length < limit)) {
+    try {
+      const url = `https://golf-course-finder.p.rapidapi.com/courses?state=${encodeURIComponent(stateName)}&page=${page}&per_page=${perPage}`;
+      const res = await fetchWithRapidAPI(url, apiKey);
+
+      if (!res || res.status !== 200) {
+        console.log(`[RapidAPI] ${stateCode} page ${page}: HTTP ${res?.status ?? 'timeout'}`);
+        break;
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(res.body);
+      } catch {
+        console.log(`[RapidAPI] ${stateCode} page ${page}: invalid JSON`);
+        break;
+      }
+
+      const items = Array.isArray(data) ? data : data?.courses ?? data?.results ?? [];
+      if (items.length === 0) break;
+
+      for (const item of items) {
+        if (limit > 0 && courses.length >= limit) break;
+        const course = parseRapidAPICourse(item, stateCode);
+        if (course) courses.push(course);
+      }
+
+      console.log(`[RapidAPI] ${stateCode} page ${page}: found ${items.length} (total: ${courses.length})`);
+      page++;
+
+      // Respect rate limit
+      await sleep(1000);
+    } catch (err) {
+      console.log(`[RapidAPI] ${stateCode} page ${page} error: ${(err as Error).message}`);
+      break;
+    }
+  }
+
+  return courses;
+}
+
+/**
+ * Search for a specific course by name via RapidAPI.
+ */
+export async function searchRapidAPICourse(name: string, state: string): Promise<ScrapedCourse | null> {
+  const apiKey = process.env.EXPO_PUBLIC_RAPIDAPI_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const url = `https://golf-course-finder.p.rapidapi.com/courses?name=${encodeURIComponent(name)}&state=${encodeURIComponent(state)}&per_page=5`;
+    const res = await fetchWithRapidAPI(url, apiKey);
+    if (!res || res.status !== 200) return null;
+
+    const data = JSON.parse(res.body);
+    const items = Array.isArray(data) ? data : data?.courses ?? data?.results ?? [];
+    if (items.length === 0) return null;
+
+    // Find best name match
+    const normalTarget = normalizeName(name);
+    const best = items.find((item: any) =>
+      normalizeName(item.name ?? item.club_name ?? '').includes(normalTarget.slice(0, 10))
+    ) ?? items[0];
+
+    return parseRapidAPICourse(best, state);
+  } catch {
+    return null;
+  }
+}
+
+function parseRapidAPICourse(item: any, stateCode: string): ScrapedCourse | null {
+  const name = item.name ?? item.club_name ?? item.course_name;
+  if (!name) return null;
+
+  const city = item.city ?? item.location?.city ?? '';
+
+  // Parse tee boxes from various possible API shapes
+  const teeBoxes: TeeBoxData[] = [];
+  const tees = item.tees ?? item.tee_boxes ?? item.scorecard?.tees ?? [];
+
+  if (Array.isArray(tees)) {
+    for (const tee of tees) {
+      const teeName = tee.name ?? tee.tee_name ?? tee.color ?? 'Default';
+      const rating = parseFloat(tee.rating ?? tee.course_rating ?? 0);
+      const slope = parseInt(tee.slope ?? tee.slope_rating ?? 0, 10);
+      const yards = parseInt(tee.yards ?? tee.yardage ?? tee.total_yards ?? 0, 10);
+
+      if (rating > 0 || slope > 0 || yards > 0) {
+        teeBoxes.push({
+          name: teeName,
+          color: inferTeeColor(teeName),
+          rating: isNaN(rating) ? 0 : rating,
+          slope: isNaN(slope) ? 0 : slope,
+          yards: isNaN(yards) ? 0 : yards,
+        });
+      }
+    }
+  }
+
+  // Top-level fallback for rating/slope/yards
+  if (teeBoxes.length === 0) {
+    const rating = parseFloat(item.rating ?? item.course_rating ?? 0);
+    const slope = parseInt(item.slope ?? item.slope_rating ?? 0, 10);
+    const yards = parseInt(item.yards ?? item.yardage ?? 0, 10);
+
+    if (rating > 0 || slope > 0 || yards > 0) {
+      teeBoxes.push({
+        name: 'Default',
+        color: '#1B2A4A',
+        rating: isNaN(rating) ? 0 : rating,
+        slope: isNaN(slope) ? 0 : slope,
+        yards: isNaN(yards) ? 0 : yards,
+      });
+    }
+  }
+
+  const par = parseInt(item.par ?? item.total_par ?? 72, 10);
+  const holes = parseInt(item.holes ?? item.number_of_holes ?? (par > 40 ? 18 : 9), 10);
+
+  let access: ScrapedCourse['access'] = 'unknown';
+  const type = (item.type ?? item.access ?? item.course_type ?? '').toLowerCase();
+  if (type.includes('public') || type.includes('daily')) access = 'public';
+  else if (type.includes('private')) access = 'private';
+  else if (type.includes('resort')) access = 'resort';
+
+  const course: ScrapedCourse = {
+    name: cleanCourseName(name),
+    city,
+    state: stateCode,
+    par: isNaN(par) ? 72 : par,
+    holes: isNaN(holes) ? 18 : holes,
+    teeBoxes,
+    access,
+    sourceUrl: `rapidapi:golf-course-finder:${item.id ?? name}`,
+    dataQuality: 'name_only',
+  };
+
+  if (item.latitude || item.lat) course.latitude = parseFloat(item.latitude ?? item.lat);
+  if (item.longitude || item.lng || item.lon) course.longitude = parseFloat(item.longitude ?? item.lng ?? item.lon);
+
+  course.dataQuality = assessQuality(course);
+  return course;
+}
+
+function fetchWithRapidAPI(url: string, apiKey: string): Promise<FetchResult | null> {
+  return new Promise((resolve) => {
+    const parsedUrl = new URL(url);
+    const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'golf-course-finder.p.rapidapi.com',
+        'Accept': 'application/json',
+      },
+      timeout: 15000,
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk: string) => { body += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
+      res.on('error', () => resolve(null));
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.end();
+  });
+}
+
 // ─── Unified multi-source scraper ────────────────────────────────────────────
 
-export type SourceName = 'golflink' | 'bluegolf' | 'golfpass';
+export type SourceName = 'rapidapi' | 'golflink' | 'bluegolf' | 'golfpass';
 
 const SOURCE_SCRAPERS: Record<SourceName, (state: string, name: string, limit: number) => Promise<ScrapedCourse[]>> = {
+  rapidapi: scrapeRapidAPIState,
   golflink: scrapeGolfLinkState,
   bluegolf: scrapeBlueGolfState,
   golfpass: scrapeGolfPassState,
 };
 
-const SOURCE_ORDER: SourceName[] = ['golflink', 'bluegolf', 'golfpass'];
+// RapidAPI first — it has structured JSON data (no scraping), then fall back to web scrapers
+const SOURCE_ORDER: SourceName[] = ['rapidapi', 'golflink', 'bluegolf', 'golfpass'];
 
 /**
  * Scrape courses for a state from all sources, merging and deduplicating.
@@ -718,6 +909,12 @@ export async function scrapeNamedCourse(
   for (const source of SOURCE_ORDER) {
     try {
       const searchQuery = encodeURIComponent(`${name} ${city} ${state}`);
+
+      // Try RapidAPI first (structured data, no scraping)
+      if (source === 'rapidapi') {
+        const result = await searchRapidAPICourse(name, state);
+        if (result && result.dataQuality !== 'name_only') return result;
+      }
 
       if (source === 'golflink') {
         const url = `https://www.golflink.com/golf-courses/search/?q=${searchQuery}`;
