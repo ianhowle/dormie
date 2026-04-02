@@ -11,7 +11,7 @@ Premium golf competition app for friend groups. Social scoring, trip planning, s
 ## Design System
 - Dark mode primary: bg #141210, cards #1A1816, elevated #262320, text #E8E4DE, textMuted #6B6560
 - Light mode: bg #FAF8F4, cards #FFFFFF, elevated #F5F1EB, text #1A1A1A, textMuted #8A857F
-- Accent colors: teal #2A9D8F, gold/champagne #D4AF37, Masters green #1E4D2B, urgent red #C44B4F
+- Accent colors: Augusta green #006747, gold #C9A227, Masters green #1E4D2B, urgent red #C41E3A
 - Fonts: Georgia serif for headings, numbers, and hero text. System sans-serif for body and labels.
 - No border-radius anywhere — sharp edges throughout (this is a key brand differentiator)
 
@@ -22,8 +22,8 @@ Each tab has its own stack navigator for drill-down screens.
 ## Conventions
 - All components use the shared theme from src/theme/
 - Use Georgia serif font for any number that matters (scores, rankings, countdowns)
-- Gold (#D4AF37) is used for championships, awards, and premium moments
-- Teal (#2A9D8F) is used for positive states, confirmations, and user highlights
+- Gold (#C9A227) is used for championships, awards, and premium moments
+- Augusta green (#006747) is used for positive states, confirmations, and user highlights
 - Masters green (#1E4D2B) is used for leaderboard headers and competition mode
 - Animations: use fadeUp for list items (staggered), fadeIn for tab content
 

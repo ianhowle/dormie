@@ -124,7 +124,7 @@ function WizardHeader({
   const progress = step / totalSteps;
   return (
     <LinearGradient
-      colors={['#1A3A5C', '#C44B4F']}
+      colors={['#1A3A5C', '#C41E3A']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={w.wizHeader}
@@ -168,7 +168,7 @@ function StepWelcome({ onBegin }: { onBegin: () => void }) {
   return (
     <View style={w.welcomeScreen}>
       <LinearGradient
-        colors={['#1A3A5C', '#0A0A0A', '#C44B4F']}
+        colors={['#1A3A5C', '#0A0A0A', '#C41E3A']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -180,7 +180,7 @@ function StepWelcome({ onBegin }: { onBegin: () => void }) {
 
         {/* Red-white-blue divider */}
         <View style={w.dividerRow}>
-          <View style={[w.dividerLine, { backgroundColor: '#C44B4F' }]} />
+          <View style={[w.dividerLine, { backgroundColor: '#C41E3A' }]} />
           <View style={[w.dividerLine, { backgroundColor: '#FFFFFF' }]} />
           <View style={[w.dividerLine, { backgroundColor: '#1A3A5C' }]} />
         </View>
@@ -214,7 +214,7 @@ function StepWelcome({ onBegin }: { onBegin: () => void }) {
 
         <Pressable onPress={onBegin} style={w.beginBtn}>
           <LinearGradient
-            colors={['#1A3A5C', '#C44B4F']}
+            colors={['#1A3A5C', '#C41E3A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
@@ -736,12 +736,12 @@ function StepSchedule({
       {/* One-tap RC format */}
       <Pressable onPress={applyRCFormat} style={[w.rcFormatBtn, { borderColor: c.teal }]}>
         <LinearGradient
-          colors={['#1A3A5C', '#C44B4F']}
+          colors={['#1A3A5C', '#C41E3A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
-        <Ionicons name="flash" size={18} color="#D4AF37" />
+        <Ionicons name="flash" size={18} color="#C9A227" />
         <Text style={[w.rcFormatBtnText, { fontFamily: GEO }]}>Use Ryder Cup Format</Text>
         <Text style={w.rcFormatBtnSub}>Foursomes → Four-Ball → Singles</Text>
       </Pressable>
@@ -951,7 +951,7 @@ function StepFormation({
       {/* Team naming */}
       <SectionLabel title="TEAM NAMES" />
       <View style={w.teamNameRow}>
-        <View style={[w.teamColorBar, { backgroundColor: '#C44B4F' }]} />
+        <View style={[w.teamColorBar, { backgroundColor: '#C41E3A' }]} />
         <TextInput
           style={[w.teamNameInput, { color: c.text, borderColor: c.border }]}
           placeholder="Team Red"
@@ -1184,7 +1184,7 @@ function StepReview({
       {/* Hero graphic */}
       <View style={w.reviewHero}>
         <LinearGradient
-          colors={['#C44B4F', '#1A1A1A', '#1A3A5C']}
+          colors={['#C41E3A', '#1A1A1A', '#1A3A5C']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
@@ -1192,7 +1192,7 @@ function StepReview({
         <View style={w.reviewHeroContent}>
           <View style={w.reviewVsRow}>
             <View style={w.reviewTeamSide}>
-              <View style={[w.reviewTeamDot, { backgroundColor: '#C44B4F' }]} />
+              <View style={[w.reviewTeamDot, { backgroundColor: '#C41E3A' }]} />
               <Text style={[w.reviewTeamName, { fontFamily: GEO }]}>{redName}</Text>
             </View>
             <Text style={[w.reviewVs, { fontFamily: GEO }]}>VS</Text>
@@ -1246,12 +1246,12 @@ function StepReview({
       {/* Launch button */}
       <Pressable onPress={onLaunch} style={w.launchBtn}>
         <LinearGradient
-          colors={['#1A3A5C', '#C44B4F']}
+          colors={['#1A3A5C', '#C41E3A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
-        <Ionicons name="trophy" size={20} color="#D4AF37" />
+        <Ionicons name="trophy" size={20} color="#C9A227" />
         <Text style={[w.launchBtnText, { fontFamily: GEO }]}>Launch Ryder Cup</Text>
       </Pressable>
 
@@ -1433,7 +1433,7 @@ export function RyderCupWizard({ onBack }: { onBack: () => void }) {
               <Text
                 style={[
                   w.nextBtnText,
-                  { color: canContinue() ? '#D4AF37' : c.textMuted, fontFamily: GEO },
+                  { color: canContinue() ? '#C9A227' : c.textMuted, fontFamily: GEO },
                 ]}
               >
                 Continue
@@ -1441,7 +1441,7 @@ export function RyderCupWizard({ onBack }: { onBack: () => void }) {
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={canContinue() ? '#D4AF37' : c.textMuted}
+                color={canContinue() ? '#C9A227' : c.textMuted}
               />
             </Pressable>
           </View>
@@ -1479,7 +1479,7 @@ const w = StyleSheet.create({
   },
   progressFill: {
     height: 3,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#C9A227',
   },
 
   /* Step body */
@@ -1549,7 +1549,7 @@ const w = StyleSheet.create({
     alignItems: 'center',
   },
   beginBtnText: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 3,
@@ -1727,7 +1727,7 @@ const w = StyleSheet.create({
     borderWidth: 1,
   },
   rcFormatBtnText: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 1,
@@ -1908,13 +1908,13 @@ const w = StyleSheet.create({
     fontWeight: '700',
   },
   reviewVs: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: -1,
   },
   reviewCupName: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 2,
@@ -1959,7 +1959,7 @@ const w = StyleSheet.create({
     marginTop: 24,
   },
   launchBtnText: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 2,

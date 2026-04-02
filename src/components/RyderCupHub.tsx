@@ -196,7 +196,7 @@ const MOCK_RC_CHAT: ChatMessage[] = [
 
 const EMOJI_OPTIONS = ['👍', '🔥', '⛳', '😂', '💪', '🏆'];
 
-const RC_RED = '#C44B4F';
+const RC_RED = '#C41E3A';
 const RC_BLUE = '#1A3A5C';
 
 // ─── Match types ────────────────────────────────────────────────────────
@@ -833,7 +833,7 @@ function RCTeamDraft({
           style={[d.confirmBtn, { opacity: canConfirm ? 1 : 0.4 }]}
         >
           <LinearGradient colors={[RC_RED, RC_BLUE]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-          <Ionicons name="checkmark-circle" size={20} color="#D4AF37" />
+          <Ionicons name="checkmark-circle" size={20} color="#C9A227" />
           <Text style={[d.confirmBtnText, { fontFamily: GEO }]}>Confirm Teams</Text>
         </Pressable>
 
@@ -895,7 +895,7 @@ function RCMatchupReveal({
 
         <Text style={[rv.title, { fontFamily: GEO }]}>MATCHUP REVEAL</Text>
         <View style={rv.formatRow}>
-          <Ionicons name={session.formatIcon as any} size={18} color="#D4AF37" />
+          <Ionicons name={session.formatIcon as any} size={18} color="#C9A227" />
           <Text style={[rv.formatText, { fontFamily: GEO }]}>{session.formatLabel}</Text>
         </View>
 
@@ -1053,7 +1053,7 @@ function RCMatchList({
         {allComplete && (
           <Pressable onPress={onFinalize} style={ml.finalizeBtn}>
             <LinearGradient colors={[RC_BLUE, RC_RED]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-            <Ionicons name="checkmark-circle" size={20} color="#D4AF37" />
+            <Ionicons name="checkmark-circle" size={20} color="#C9A227" />
             <Text style={[ml.finalizeBtnText, { fontFamily: GEO }]}>Finalize Session</Text>
           </Pressable>
         )}
@@ -1324,10 +1324,10 @@ function RCMatchScoring({
             }}
             style={[ms.navBtn, { backgroundColor: currentHole === totalHoles ? '#1E4D2B' : c.elevated, borderColor: currentHole === totalHoles ? '#1E4D2B' : c.border }]}
           >
-            <Text style={[ms.navBtnText, { color: currentHole === totalHoles ? '#D4AF37' : c.text }]}>
+            <Text style={[ms.navBtnText, { color: currentHole === totalHoles ? '#C9A227' : c.text }]}>
               {currentHole === totalHoles ? 'Finish' : 'Next'}
             </Text>
-            <Ionicons name="chevron-forward" size={18} color={currentHole === totalHoles ? '#D4AF37' : c.text} />
+            <Ionicons name="chevron-forward" size={18} color={currentHole === totalHoles ? '#C9A227' : c.text} />
           </Pressable>
         </View>
 
@@ -1369,7 +1369,7 @@ function RCCompletion({
   onDone: () => void;
 }) {
   const winner = redTotal > blueTotal ? 'red' : redTotal < blueTotal ? 'blue' : 'tied';
-  const winnerColor = winner === 'red' ? RC_RED : winner === 'blue' ? RC_BLUE : '#D4AF37';
+  const winnerColor = winner === 'red' ? RC_RED : winner === 'blue' ? RC_BLUE : '#C9A227';
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -1384,7 +1384,7 @@ function RCCompletion({
             ? [RC_RED, '#0A0A0A', '#2A1A1A']
             : winner === 'blue'
             ? [RC_BLUE, '#0A0A0A', '#1A1A2A']
-            : ['#D4AF37', '#0A0A0A', '#2A2A1A']
+            : ['#C9A227', '#0A0A0A', '#2A2A1A']
         }
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }}
@@ -1639,14 +1639,14 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
                 end={{ x: 1, y: 0 }}
                 style={StyleSheet.absoluteFill}
               />
-              <Ionicons name="people" size={22} color="#D4AF37" />
+              <Ionicons name="people" size={22} color="#C9A227" />
               <View style={{ flex: 1 }}>
                 <Text style={[h.draftCtaTitle, { fontFamily: GEO }]}>Draft Teams</Text>
                 <Text style={h.draftCtaSub}>
                   Captain&apos;s Picks · {trip.playerIds.length} players
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#D4AF37" />
+              <Ionicons name="chevron-forward" size={20} color="#C9A227" />
             </Pressable>
           )}
 
@@ -1654,7 +1654,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
           {allSessionsComplete && (
             <Pressable onPress={() => setSubView('completion')} style={h.draftCta}>
               <LinearGradient
-                colors={[RC_RED, '#D4AF37', RC_BLUE]}
+                colors={[RC_RED, '#C9A227', RC_BLUE]}
                 locations={[0, 0.5, 1]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -1953,7 +1953,7 @@ const h = StyleSheet.create({
     overflow: 'hidden',
   },
   draftCtaTitle: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -2376,7 +2376,7 @@ const d = StyleSheet.create({
     marginTop: 24,
     overflow: 'hidden',
   },
-  confirmBtnText: { color: '#D4AF37', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
+  confirmBtnText: { color: '#C9A227', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
 });
 
 // ─── Matchup Reveal styles ──────────────────────────────────────────
@@ -2392,7 +2392,7 @@ const rv = StyleSheet.create({
   skipText: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
   title: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: 4, marginBottom: 8 },
   formatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 32 },
-  formatText: { color: '#D4AF37', fontSize: 14, fontWeight: '700' },
+  formatText: { color: '#C9A227', fontSize: 14, fontWeight: '700' },
   matchCard: {
     width: '100%',
     flexDirection: 'row',
@@ -2408,7 +2408,7 @@ const rv = StyleSheet.create({
   matchColorBar: { width: 4, height: 32 },
   matchPlayers: { flex: 1 },
   matchPlayerName: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  matchVs: { color: '#D4AF37', fontSize: 12, fontWeight: '800', marginHorizontal: 8 },
+  matchVs: { color: '#C9A227', fontSize: 12, fontWeight: '800', marginHorizontal: 8 },
   revealBtn: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
@@ -2424,7 +2424,7 @@ const rv = StyleSheet.create({
     paddingHorizontal: 40,
     marginTop: 20,
   },
-  startBtnText: { color: '#D4AF37', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
+  startBtnText: { color: '#C9A227', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
 });
 
 // ─── Match List styles ──────────────────────────────────────────────
@@ -2472,7 +2472,7 @@ const ml = StyleSheet.create({
     marginTop: 16,
     overflow: 'hidden',
   },
-  finalizeBtnText: { color: '#D4AF37', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
+  finalizeBtnText: { color: '#C9A227', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
 });
 
 // ─── Match Scoring styles ───────────────────────────────────────────
@@ -2645,5 +2645,5 @@ const cp = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  doneBtnText: { color: '#D4AF37', fontSize: 15, fontWeight: '800', letterSpacing: 2 },
+  doneBtnText: { color: '#C9A227', fontSize: 15, fontWeight: '800', letterSpacing: 2 },
 });

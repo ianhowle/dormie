@@ -41,9 +41,9 @@ const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 :
 
 // ─── Mock data ──────────────────────────────────────────────────────
 const MOCK_GROUPS = [
-  { id: 'g1', name: 'The Dormie Boys', color: '#2A9D8F', memberCount: 8 },
-  { id: 'g2', name: 'Nashville Golf Club', color: '#D4AF37', memberCount: 12 },
-  { id: 'g3', name: 'Work League', color: '#C44B4F', memberCount: 6 },
+  { id: 'g1', name: 'The Dormie Boys', color: '#006747', memberCount: 8 },
+  { id: 'g2', name: 'Nashville Golf Club', color: '#C9A227', memberCount: 12 },
+  { id: 'g3', name: 'Work League', color: '#C41E3A', memberCount: 6 },
 ];
 
 // Season format types for adaptive standings display
@@ -179,7 +179,7 @@ function HeaderBar({
       {/* Logo button — flagstick on green square */}
       <Pressable onPress={() => { haptics.light(); onLogoPress(); }} style={({ pressed }) => [st.logoBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
         <View style={st.logoBg}>
-          <Ionicons name="flag" size={16} color="#D4AF37" />
+          <Ionicons name="flag" size={16} color="#C9A227" />
         </View>
       </Pressable>
 
@@ -265,15 +265,15 @@ function LogoMenu({
               onPress={() => { haptics.light(); onGroupSelect(group.id); onClose(); }}
               style={({ pressed }) => [
                 st.menuItem,
-                isActive && { borderLeftWidth: 3, borderLeftColor: '#2A9D8F', backgroundColor: 'rgba(42,157,143,0.15)' },
+                isActive && { borderLeftWidth: 3, borderLeftColor: '#006747', backgroundColor: 'rgba(0,103,71,0.15)' },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
               <View style={[st.menuGroupDot, { backgroundColor: group.color }]} />
-              <Text style={[st.menuItemText, { color: isActive ? '#2A9D8F' : c.text, flex: 1, fontFamily: SANS }]}>
+              <Text style={[st.menuItemText, { color: isActive ? '#006747' : c.text, flex: 1, fontFamily: SANS }]}>
                 {group.name}
               </Text>
-              {isActive && <Ionicons name="checkmark" size={14} color="#2A9D8F" />}
+              {isActive && <Ionicons name="checkmark" size={14} color="#006747" />}
             </Pressable>
           );
         })}
@@ -299,7 +299,7 @@ function GreetingSection({ name, groupName, weather }: { name: string; groupName
     >
       <Pinstripes />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={[st.greetingText, isMastersTheme() && { color: '#D4AF37' }]}>{getGreeting(name)}</Text>
+        <Text style={[st.greetingText, isMastersTheme() && { color: '#C9A227' }]}>{getGreeting(name)}</Text>
         {weather && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4 }}>
             <Text style={{ fontSize: 12 }}>{weather.emoji}</Text>
@@ -310,11 +310,11 @@ function GreetingSection({ name, groupName, weather }: { name: string; groupName
       {subtitle && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
           {playoffs && (
-            <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 6, paddingVertical: 2 }}>
+            <View style={{ backgroundColor: '#C9A227', paddingHorizontal: 6, paddingVertical: 2 }}>
               <Text style={{ color: '#141210', fontSize: 9, fontWeight: '800', letterSpacing: 1, fontFamily: 'Georgia' }}>PLAYOFFS</Text>
             </View>
           )}
-          <Text style={{ color: eventAccent ?? '#D4AF37', fontSize: 12, fontStyle: 'italic', fontFamily: 'Georgia' }}>{subtitle}</Text>
+          <Text style={{ color: eventAccent ?? '#C9A227', fontSize: 12, fontStyle: 'italic', fontFamily: 'Georgia' }}>{subtitle}</Text>
         </View>
       )}
       <Text style={st.greetingGroup}>{groupName}</Text>
@@ -349,7 +349,7 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
       >
         {standings.map((p, i) => {
           const arrowChar = p.movement === 'up' ? '\u25B2' : p.movement === 'down' ? '\u25BC' : '\u2013';
-          const arrowColor = p.movement === 'up' ? '#2A9D8F' : p.movement === 'down' ? '#C44B4F' : '#6B6560';
+          const arrowColor = p.movement === 'up' ? '#006747' : p.movement === 'down' ? '#C41E3A' : '#6B6560';
           return (
             <View
               key={i}
@@ -431,7 +431,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
       case 'ryder_cup':
         return (
           <View style={[st.seasonRow, { borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6 }]}>
-            <Text style={[st.seasonHeaderCol, { color: '#C44B4F', fontFamily: GEO }]}>TEAM RED</Text>
+            <Text style={[st.seasonHeaderCol, { color: '#C41E3A', fontFamily: GEO }]}>TEAM RED</Text>
             <Text style={[st.seasonHeaderCol, { color: c.textMuted, fontFamily: GEO, textAlign: 'center' }]}>SCORE</Text>
             <Text style={[st.seasonHeaderCol, { color: '#1B2A4A', fontFamily: GEO, textAlign: 'right' }]}>TEAM BLUE</Text>
           </View>
@@ -481,8 +481,8 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={[st.seasonRank, { color: isFirst ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
-            <Text style={[st.seasonName, { color: isFirst ? '#2A9D8F' : c.text, fontFamily: SANS }]}>{s.name}</Text>
+            <Text style={[st.seasonRank, { color: isFirst ? '#006747' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
+            <Text style={[st.seasonName, { color: isFirst ? '#006747' : c.text, fontFamily: SANS }]}>{s.name}</Text>
             <Text style={[{ width: 50, fontSize: 12, fontWeight: '600', textAlign: 'center', color: c.text, fontFamily: GEO }]}>
               {s.wins ?? 0}-{s.losses ?? 0}-{s.ties ?? 0}
             </Text>
@@ -501,8 +501,8 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={[st.seasonRank, { color: isFirst ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
-            <Text style={[st.seasonName, { color: isFirst ? '#2A9D8F' : c.text, fontFamily: SANS }]}>{s.name}</Text>
+            <Text style={[st.seasonRank, { color: isFirst ? '#006747' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
+            <Text style={[st.seasonName, { color: isFirst ? '#006747' : c.text, fontFamily: SANS }]}>{s.name}</Text>
             <Text style={[{ width: 40, fontSize: 14, fontWeight: '700', textAlign: 'center', color: c.gold, fontFamily: GEO }]}>
               {s.avg?.toFixed(1) ?? '--'}
             </Text>
@@ -523,8 +523,8 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={[st.seasonRank, { color: isFirst ? '#2A9D8F' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
-            <Text style={[st.seasonName, { color: isFirst ? '#2A9D8F' : c.text, fontFamily: SANS }]}>{s.name}</Text>
+            <Text style={[st.seasonRank, { color: isFirst ? '#006747' : c.textMuted, fontFamily: GEO }]}>{s.rank}</Text>
+            <Text style={[st.seasonName, { color: isFirst ? '#006747' : c.text, fontFamily: SANS }]}>{s.name}</Text>
             <Text style={[st.seasonPoints, { color: c.gold, fontFamily: GEO }]}>{s.points}</Text>
           </Pressable>
         );
@@ -596,7 +596,7 @@ function RoundResultCard() {
 
         {/* Center badge */}
         <View style={st.resultCenter}>
-          <View style={[st.resultBadge, { backgroundColor: isWin ? '#2A9D8F' : '#C44B4F' }]}>
+          <View style={[st.resultBadge, { backgroundColor: isWin ? '#006747' : '#C41E3A' }]}>
             <Text style={st.resultBadgeText}>{r.result}</Text>
           </View>
           <Text style={[st.resultMargin, { color: c.textMuted, fontFamily: SANS }]}>{r.margin}</Text>
@@ -643,7 +643,7 @@ function NextMatchupCard() {
           <Avatar id="1" size={40} name="McGowan" />
           <Text style={[st.matchupName, { color: c.text, fontFamily: SANS }]}>McGowan</Text>
           <Text style={[st.matchupPos, { color: c.textMuted, fontFamily: GEO }]}>#{m.userPosition}</Text>
-          <Text style={[st.matchupPts, { color: '#2A9D8F', fontFamily: GEO }]}>{m.userPoints} pts</Text>
+          <Text style={[st.matchupPts, { color: '#006747', fontFamily: GEO }]}>{m.userPoints} pts</Text>
         </View>
 
         {/* VS */}
@@ -657,7 +657,7 @@ function NextMatchupCard() {
           <Avatar id={m.opponentId} size={40} name={m.opponentName} />
           <Text style={[st.matchupName, { color: c.text, fontFamily: SANS }]}>{m.opponentName}</Text>
           <Text style={[st.matchupPos, { color: c.textMuted, fontFamily: GEO }]}>#{m.opponentPosition}</Text>
-          <Text style={[st.matchupPts, { color: '#2A9D8F', fontFamily: GEO }]}>{m.opponentPoints} pts</Text>
+          <Text style={[st.matchupPts, { color: '#006747', fontFamily: GEO }]}>{m.opponentPoints} pts</Text>
         </View>
       </View>
     </View>
@@ -693,10 +693,10 @@ function MyGroupsSection({
                 backgroundColor: c.cardBg,
                 borderColor: c.border,
                 borderLeftWidth: isActive ? 3 : 1,
-                borderLeftColor: isActive ? '#2A9D8F' : c.border,
+                borderLeftColor: isActive ? '#006747' : c.border,
               },
               isDark ? cardShadowDark : cardShadowLight,
-              isActive && { backgroundColor: 'rgba(42,157,143,0.15)' },
+              isActive && { backgroundColor: 'rgba(0,103,71,0.15)' },
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
@@ -709,7 +709,7 @@ function MyGroupsSection({
                 {group.memberCount} members
               </Text>
             </View>
-            {isActive && <Ionicons name="checkmark-circle" size={20} color="#2A9D8F" />}
+            {isActive && <Ionicons name="checkmark-circle" size={20} color="#006747" />}
           </Pressable>
         );
       })}
@@ -809,19 +809,19 @@ function FavoriteCourseSection() {
           <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>PLAYED</Text>
-              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.timesPlayed}</Text>
+              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.timesPlayed}</Text>
             </View>
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>BEST</Text>
-              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestGross}</Text>
+              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestGross}</Text>
             </View>
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>NET</Text>
-              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestNet}</Text>
+              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestNet}</Text>
             </View>
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>AVG</Text>
-              <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.avgScore.toFixed(1)}</Text>
+              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.avgScore.toFixed(1)}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -1104,7 +1104,7 @@ export default function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={c.teal}
-            colors={['#2A9D8F']}
+            colors={['#006747']}
           />
         }
       >
@@ -1138,7 +1138,7 @@ export default function HomeScreen() {
         {shouldShowMonthlyDigest() && !monthlyDismissed && monthlyDigest && (
           <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 8, paddingVertical: 3 }}>
+              <View style={{ backgroundColor: '#C9A227', paddingHorizontal: 8, paddingVertical: 3 }}>
                 <Text style={{ color: '#141210', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>{getPreviousMonthName()} RECAP</Text>
               </View>
               <Pressable onPress={() => setMonthlyDismissed(true)} hitSlop={12}>
@@ -1161,7 +1161,7 @@ export default function HomeScreen() {
               {monthlyDigest.hcpStart != null && monthlyDigest.hcpEnd != null && (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
-                  <Text style={{ color: '#2A9D8F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.hcpStart.toFixed(1)} {'\u2192'} {monthlyDigest.hcpEnd.toFixed(1)}</Text>
+                  <Text style={{ color: '#006747', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>{monthlyDigest.hcpStart.toFixed(1)} {'\u2192'} {monthlyDigest.hcpEnd.toFixed(1)}</Text>
                 </View>
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -1293,7 +1293,7 @@ export default function HomeScreen() {
               {new Date().getDay() === 1 && !weeklyDismissed && weeklyDigestData && weeklyDigestData.roundsLogged > 0 && (
                 <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View style={{ backgroundColor: '#D4AF37', paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <View style={{ backgroundColor: '#C9A227', paddingHorizontal: 8, paddingVertical: 3 }}>
                       <Text style={{ color: '#141210', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>THIS WEEK IN DORMIE</Text>
                     </View>
                     <Pressable onPress={() => setWeeklyDismissed(true)} hitSlop={12}>
@@ -1314,7 +1314,7 @@ export default function HomeScreen() {
                     {weeklyDigestData.handicapChange != null && weeklyDigestData.handicapChange !== 0 && (
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Handicap</Text>
-                        <Text style={{ color: weeklyDigestData.handicapChange < 0 ? '#2A9D8F' : '#C44B4F', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>
+                        <Text style={{ color: weeklyDigestData.handicapChange < 0 ? '#006747' : '#C41E3A', fontSize: 12, fontWeight: '700', fontFamily: GEO }}>
                           {weeklyDigestData.handicapChange < 0 ? '\u2193' : '\u2191'}{Math.abs(weeklyDigestData.handicapChange).toFixed(1)}
                         </Text>
                       </View>
@@ -1425,7 +1425,7 @@ const st = StyleSheet.create({
     position: 'absolute',
     top: 4,
     right: 2,
-    backgroundColor: '#C44B4F',
+    backgroundColor: '#C41E3A',
     minWidth: 16,
     height: 16,
     justifyContent: 'center',
@@ -1493,7 +1493,7 @@ const st = StyleSheet.create({
     fontFamily: 'Georgia',
   },
   greetingGroup: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 13,
     fontWeight: '600',
     fontFamily: 'Georgia',
@@ -1523,7 +1523,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
   },
   tickerLabel: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
@@ -1568,7 +1568,7 @@ const st = StyleSheet.create({
     color: '#FFFFFF',
   },
   tickerScore: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 10,
     fontWeight: '700',
     fontFamily: 'Georgia',
@@ -1776,7 +1776,7 @@ const st = StyleSheet.create({
     right: -2,
     width: 22,
     height: 22,
-    backgroundColor: '#2A9D8F',
+    backgroundColor: '#006747',
     justifyContent: 'center',
     alignItems: 'center',
   },

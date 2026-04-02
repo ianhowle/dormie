@@ -13,7 +13,7 @@ const GRADIENTS: [string, string][] = [
   ['#B8860B', '#8B6508'],   // Championship gold
   ['#002366', '#001744'],   // Midnight navy
   ['#8B4513', '#5C2E0D'],   // Links brown
-  ['#2A9D8F', '#1E4D2B'],   // Dormie teal
+  ['#006747', '#1E4D2B'],   // Dormie teal
   ['#2D6A3F', '#1E4D2B'],   // Masters green
   ['#1E4D2B', '#0D2818'],   // Deep green
 ];

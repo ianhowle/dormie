@@ -2,9 +2,9 @@ import { Platform } from 'react-native';
 
 // Shared accent colors — identical in both themes
 const accents = {
-  teal: '#2A9D8F',
-  gold: '#D4AF37',
-  urgent: '#C44B4F',
+  teal: '#006747',
+  gold: '#C9A227',
+  urgent: '#C41E3A',
   green: '#2D6A3F',
   greenDark: '#1E4D2B',
   greenDeep: '#0D2818',

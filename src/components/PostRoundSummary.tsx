@@ -485,7 +485,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
 
         {/* Score display */}
         <View style={styles.heroScoreRow}>
-          <Text style={[styles.heroGross, { color: '#D4AF37', fontFamily: GEO }]}>
+          <Text style={[styles.heroGross, { color: '#C9A227', fontFamily: GEO }]}>
             {player.grossScore}
           </Text>
           <View style={styles.heroMeta}>
@@ -685,8 +685,8 @@ const styles = StyleSheet.create({
   shareModalTitle: { fontSize: 16, fontWeight: '600' },
   shareCard: { alignSelf: 'center', overflow: 'hidden' },
   shareCardInner: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  shareCardApp: { color: '#D4AF37', fontSize: 12, fontWeight: '800', letterSpacing: 3 },
-  shareCardScore: { color: '#D4AF37', fontSize: 64, fontWeight: '700', marginTop: 8, letterSpacing: -1 },
+  shareCardApp: { color: '#C9A227', fontSize: 12, fontWeight: '800', letterSpacing: 3 },
+  shareCardScore: { color: '#C9A227', fontSize: 64, fontWeight: '700', marginTop: 8, letterSpacing: -1 },
   shareCardToPar: { color: '#FFFFFFCC', fontSize: 20, fontWeight: '600', marginTop: 4 },
   shareCardCourse: { color: '#FFFFFF88', fontSize: 14, marginTop: 8 },
   shareHoleRow: { flexDirection: 'row', marginTop: 12, gap: 2 },

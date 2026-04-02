@@ -19,7 +19,7 @@ const badgeStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#C44B4F',
+    backgroundColor: '#C41E3A',
   },
 });
 
@@ -158,7 +158,7 @@ export default function TabLayout() {
           title: 'Trips',
           tabBarBadge: tripsBadge > 0 ? tripsBadge : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: '#C44B4F',
+            backgroundColor: '#C41E3A',
             color: '#FFFFFF',
             fontSize: 10,
             fontWeight: '700',

@@ -151,7 +151,7 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
             style={[z.typeCard, { overflow: 'hidden' }]}
           >
             <LinearGradient
-              colors={['#1A3A5C', '#C44B4F']}
+              colors={['#1A3A5C', '#C41E3A']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={z.rcGradientBg}
@@ -592,7 +592,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               <Text
                 style={[
                   z.createBtnText,
-                  { color: canCreate ? '#D4AF37' : c.textMuted, fontFamily: GEO },
+                  { color: canCreate ? '#C9A227' : c.textMuted, fontFamily: GEO },
                 ]}
               >
                 Create Trip

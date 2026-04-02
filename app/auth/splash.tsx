@@ -47,8 +47,8 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' },
   center: { alignItems: 'center' },
-  logo: { fontSize: 28, fontFamily: GEO, fontStyle: 'italic', color: '#D4AF37', letterSpacing: 5, fontWeight: '700' },
-  divider: { width: 60, height: 1, backgroundColor: '#D4AF37', marginTop: 16 },
+  logo: { fontSize: 28, fontFamily: GEO, fontStyle: 'italic', color: '#C9A227', letterSpacing: 5, fontWeight: '700' },
+  divider: { width: 60, height: 1, backgroundColor: '#C9A227', marginTop: 16 },
   buttons: { position: 'absolute', bottom: 80, width: '100%', paddingHorizontal: 20, gap: 12 },
   primary: {
     backgroundColor: '#1E4D2B',
@@ -59,11 +59,11 @@ const styles = StyleSheet.create({
   primaryText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', fontFamily: GEO },
   secondary: {
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: '#C9A227',
     paddingVertical: 16,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-  secondaryText: { fontSize: 16, fontWeight: '600', color: '#D4AF37', fontFamily: GEO },
+  secondaryText: { fontSize: 16, fontWeight: '600', color: '#C9A227', fontFamily: GEO },
   pressedState: { opacity: 0.7, transform: [{ scale: 0.98 }] },
 });

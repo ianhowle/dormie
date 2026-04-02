@@ -233,7 +233,7 @@ function TabBar({
             accessibilityLabel={`${t} tab${isActive ? ', selected' : ''}`}
             style={({ pressed }) => [
               styles.tab,
-              isActive && { backgroundColor: 'rgba(42,157,143,0.15)' },
+              isActive && { backgroundColor: 'rgba(0,103,71,0.15)' },
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
@@ -322,9 +322,9 @@ function PlayerRow({
 
   const flashColor =
     'movement' in player && (player as any).movement === 'up'
-      ? 'rgba(42,157,143,0.2)'
+      ? 'rgba(0,103,71,0.2)'
       : 'movement' in player && (player as any).movement === 'down'
-        ? 'rgba(196,75,79,0.2)'
+        ? 'rgba(196,30,58,0.2)'
         : 'transparent';
 
   const animatedBg = flashOpacity.interpolate({
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   dormieLabel: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 7,
     letterSpacing: 3,
     fontStyle: 'italic',
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   yourAvg: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 28,
     fontWeight: '700',
   },

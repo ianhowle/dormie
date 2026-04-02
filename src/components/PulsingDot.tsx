@@ -6,7 +6,7 @@ type Props = {
   size?: number;
 };
 
-export function PulsingDot({ color = '#C44B4F', size = 6 }: Props) {
+export function PulsingDot({ color = '#C41E3A', size = 6 }: Props) {
   const anim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

@@ -42,16 +42,16 @@ function scoreColorForCell(score: number, par: number, colors: any): string {
   if (diff === -1) return colors.teal;      // Birdie
   if (diff === 0) return colors.text;       // Par
   if (diff === 1) return colors.urgent;     // Bogey
-  return '#C44B4F';                         // Double+
+  return '#C41E3A';                         // Double+
 }
 
 function scoreBgForCell(score: number, par: number): string {
   const diff = score - par;
-  if (diff <= -2) return '#D4AF3718';
-  if (diff === -1) return '#2A9D8F18';
+  if (diff <= -2) return '#C9A22718';
+  if (diff === -1) return '#00674718';
   if (diff === 0) return 'transparent';
-  if (diff === 1) return '#C44B4F12';
-  return '#C44B4F20';
+  if (diff === 1) return '#C41E3A12';
+  return '#C41E3A20';
 }
 
 export default function RoundDetailScreen() {
@@ -88,10 +88,10 @@ export default function RoundDetailScreen() {
 
   const totalHoles = 18;
   const distSegments = [
-    { label: 'Eagles', count: distribution.eagles, color: '#D4AF37' },
-    { label: 'Birdies', count: distribution.birdies, color: '#2A9D8F' },
+    { label: 'Eagles', count: distribution.eagles, color: '#C9A227' },
+    { label: 'Birdies', count: distribution.birdies, color: '#006747' },
     { label: 'Pars', count: distribution.pars, color: c.textMuted },
-    { label: 'Bogeys', count: distribution.bogeys, color: '#C44B4F' },
+    { label: 'Bogeys', count: distribution.bogeys, color: '#C41E3A' },
     { label: 'Doubles+', count: distribution.doubles, color: '#7A2E30' },
   ];
 
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   headerScore: {
     fontSize: 56,
     fontWeight: '800',
-    color: '#D4AF37',
+    color: '#C9A227',
     fontFamily: GEO,
   },
   headerToPar: {

@@ -323,12 +323,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   recordScore: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 18,
     fontWeight: '700',
   },
   recordLabel: {
-    color: 'rgba(212,175,55,0.7)',
+    color: 'rgba(201,162,39,0.7)',
     fontSize: 7,
     fontWeight: '700',
     letterSpacing: 1,

@@ -90,10 +90,10 @@ function WelcomeScreen({ onNext, onToggleTheme }: { onNext: () => void; onToggle
         </Pressable>
 
         {/* Gold corner brackets */}
-        <View style={[styles.cornerTL, { borderColor: '#D4AF37' }]} />
-        <View style={[styles.cornerTR, { borderColor: '#D4AF37' }]} />
-        <View style={[styles.cornerBL, { borderColor: '#D4AF37' }]} />
-        <View style={[styles.cornerBR, { borderColor: '#D4AF37' }]} />
+        <View style={[styles.cornerTL, { borderColor: '#C9A227' }]} />
+        <View style={[styles.cornerTR, { borderColor: '#C9A227' }]} />
+        <View style={[styles.cornerBL, { borderColor: '#C9A227' }]} />
+        <View style={[styles.cornerBR, { borderColor: '#C9A227' }]} />
 
         <View style={styles.welcomeCenter}>
           <Text style={styles.welcomeLogo}>DORMIE</Text>
@@ -764,7 +764,7 @@ function LaunchMontage({ userName, onComplete }: { userName: string; onComplete:
       left: Math.random() * SCREEN_W,
       top: Math.random() * SCREEN_H,
       size: 4 + Math.random() * 6,
-      color: i % 2 === 0 ? '#D4AF37' : '#1E4D2B',
+      color: i % 2 === 0 ? '#C9A227' : '#1E4D2B',
       rotation: Math.random() * 360,
     })),
   []);
@@ -984,12 +984,12 @@ const styles = StyleSheet.create({
   welcomeTop: { height: SCREEN_H * 0.45, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   welcomeBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 60, paddingHorizontal: 20 },
   welcomeCenter: { alignItems: 'center' },
-  welcomeLogo: { fontSize: 32, fontFamily: GEO, fontStyle: 'italic', color: '#D4AF37', letterSpacing: 5, fontWeight: '700' },
-  welcomeDivider: { width: 60, height: 1, backgroundColor: '#D4AF37', marginVertical: 14 },
+  welcomeLogo: { fontSize: 32, fontFamily: GEO, fontStyle: 'italic', color: '#C9A227', letterSpacing: 5, fontWeight: '700' },
+  welcomeDivider: { width: 60, height: 1, backgroundColor: '#C9A227', marginVertical: 14 },
   welcomeTagline: { fontSize: 15, fontFamily: GEO, fontStyle: 'italic', color: '#FFFFFF' },
   welcomeSub: { fontSize: 13, color: '#FFFFFF88', marginTop: 6 },
   themeToggle: { position: 'absolute', top: STATUS_BAR_H + 8, right: 16 },
-  getStartedBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4AF37', paddingVertical: 16, gap: 8 },
+  getStartedBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#C9A227', paddingVertical: 16, gap: 8 },
   getStartedText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
 
   // Corner brackets
@@ -1102,9 +1102,9 @@ const styles = StyleSheet.create({
 
   // Final
   finalCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  finalLogo: { fontSize: 36, fontFamily: GEO, fontStyle: 'italic', color: '#D4AF37', letterSpacing: 5 },
+  finalLogo: { fontSize: 36, fontFamily: GEO, fontStyle: 'italic', color: '#C9A227', letterSpacing: 5 },
   finalWelcome: { fontSize: 18, fontFamily: GEO, marginTop: 16 },
-  enterBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4AF37', paddingVertical: 16, paddingHorizontal: 32, gap: 8, marginTop: 40 },
+  enterBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#C9A227', paddingVertical: 16, paddingHorizontal: 32, gap: 8, marginTop: 40 },
   enterBtnText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
 
   // Micro-interaction

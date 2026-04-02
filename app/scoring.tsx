@@ -151,7 +151,7 @@ function scoreNameColor(
   if (diff === -1) return c.teal;
   if (diff === 0) return c.text;
   if (diff === 1) return c.urgent;
-  return '#C44B4F';
+  return '#C41E3A';
 }
 
 const formatToPar = fmtToPar;
@@ -300,7 +300,7 @@ function ScoringHeader({
           {/* Leaderboard toggle (Feature 11) */}
           {onLeaderboard && (
             <Pressable onPress={onLeaderboard} hitSlop={8} style={{ position: 'relative' }}>
-              <Ionicons name="trophy-outline" size={18} color="#D4AF37" />
+              <Ionicons name="trophy-outline" size={18} color="#C9A227" />
               {competitionCount != null && competitionCount > 1 && (
                 <View style={st.compBadge}>
                   <Text style={st.compBadgeText}>{competitionCount}</Text>
@@ -347,10 +347,10 @@ function ScoringHeader({
           <View style={[
             st.roundTypeBadge,
             {
-              backgroundColor: roundType.includes('\u00B7') ? '#D4AF37' :
-                roundType === 'Competitive' ? '#D4AF37' :
-                roundType === 'Matchup' ? '#2A9D8F' :
-                roundType.toLowerCase() === 'casual' ? 'rgba(255,255,255,0.25)' : '#D4AF37',
+              backgroundColor: roundType.includes('\u00B7') ? '#C9A227' :
+                roundType === 'Competitive' ? '#C9A227' :
+                roundType === 'Matchup' ? '#006747' :
+                roundType.toLowerCase() === 'casual' ? 'rgba(255,255,255,0.25)' : '#C9A227',
             },
           ]}>
             <Text style={[st.roundTypeBadgeText, {
@@ -408,11 +408,11 @@ function HoleStrip({
             st.holeChip,
             {
               backgroundColor: isCurrent
-                ? '#D4AF37'
+                ? '#C9A227'
                 : hasScores
                   ? `${c.teal}25`
                   : c.elevated,
-              borderColor: isCurrent ? '#D4AF37' : hasScores ? c.teal : c.border,
+              borderColor: isCurrent ? '#C9A227' : hasScores ? c.teal : c.border,
             },
             isCurrent && { borderLeftWidth: 3, borderLeftColor: '#1E4D2B' },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -804,8 +804,8 @@ function PlayerScoreInput({
                   style={({ pressed }) => [
                     st.puttsButton,
                     {
-                      backgroundColor: selected ? '#2A9D8F' : c.elevated,
-                      borderColor: selected ? '#2A9D8F' : c.border,
+                      backgroundColor: selected ? '#006747' : c.elevated,
+                      borderColor: selected ? '#006747' : c.border,
                     },
                     pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
                   ]}
@@ -1026,10 +1026,10 @@ function NavButtons({
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
-          <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>
+          <Text style={[st.navBtnText, { color: '#C9A227', fontFamily: GEO }]}>
             Finish Round
           </Text>
-          <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
+          <Ionicons name="checkmark-circle" size={18} color="#C9A227" />
         </Pressable>
       ) : (
         <Pressable
@@ -1190,7 +1190,7 @@ function ScorecardTab({
     if (diff === -1) return c.teal;
     if (diff === 0) return c.text;
     if (diff === 1) return c.urgent;
-    return '#C44B4F';
+    return '#C41E3A';
   }
 
   function cellWeight(gross: number, par: number): '400' | '700' | '800' {
@@ -1899,7 +1899,7 @@ function ShareCard({
                 <Text
                   style={[
                     ps.sharePlayerToPar,
-                    { color: diff < 0 ? '#2A9D8F' : diff === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO },
+                    { color: diff < 0 ? '#006747' : diff === 0 ? '#C9A227' : '#C41E3A', fontFamily: GEO },
                   ]}
                 >
                   {formatToPar(row.gross, totalPar)}
@@ -2061,7 +2061,7 @@ function PostRoundSummary({
 
           {/* Save button */}
           <Pressable onPress={onDone} style={({ pressed }) => [ps.saveBtn, { backgroundColor: '#1E4D2B' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
-            <Text style={[ps.saveBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Post Score</Text>
+            <Text style={[ps.saveBtnText, { color: '#C9A227', fontFamily: GEO }]}>Post Score</Text>
           </Pressable>
         </View>
 
@@ -2716,7 +2716,7 @@ export default function ScoringScreen() {
       if (!s) return;
       results.push({
         name: p.id === '1' ? 'You' : p.name.split(' ')[0],
-        avatarColor: p.id === '1' ? '#2A9D8F' : '#D4AF37',
+        avatarColor: p.id === '1' ? '#006747' : '#C9A227',
         gross: s.gross,
         putts: s.putts,
         fir: s.fir,
@@ -2968,8 +2968,8 @@ export default function ScoringScreen() {
               onPress={() => { setShowConfirmation(false); setShowSummary(true); }}
               style={[st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B', flex: 1 }]}
             >
-              <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>Post Score</Text>
-              <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
+              <Text style={[st.navBtnText, { color: '#C9A227', fontFamily: GEO }]}>Post Score</Text>
+              <Ionicons name="checkmark-circle" size={18} color="#C9A227" />
             </Pressable>
           </View>
         </ScrollView>
@@ -3633,7 +3633,7 @@ export default function ScoringScreen() {
               <Ionicons name="close" size={24} color="#fff" />
             </Pressable>
             <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={[st.leaderboardTitle, { color: '#D4AF37', fontFamily: GEO }]}>LIVE LEADERBOARD</Text>
+              <Text style={[st.leaderboardTitle, { color: '#C9A227', fontFamily: GEO }]}>LIVE LEADERBOARD</Text>
               <Text style={st.leaderboardCourse}>{courseName}</Text>
             </View>
             <View style={{ width: 24 }} />
@@ -3648,9 +3648,9 @@ export default function ScoringScreen() {
                   <Pressable
                     key={tab.key}
                     onPress={() => setActiveCompTab(tab.key)}
-                    style={[st.compTabPill, { backgroundColor: active ? 'rgba(212,175,55,0.12)' : 'transparent', borderBottomWidth: active ? 2 : 0, borderBottomColor: '#D4AF37' }]}
+                    style={[st.compTabPill, { backgroundColor: active ? 'rgba(201,162,39,0.12)' : 'transparent', borderBottomWidth: active ? 2 : 0, borderBottomColor: '#C9A227' }]}
                   >
-                    <Text style={[st.compTabPillText, { color: active ? '#D4AF37' : 'rgba(255,255,255,0.45)', fontFamily: GEO }]} numberOfLines={1}>
+                    <Text style={[st.compTabPillText, { color: active ? '#C9A227' : 'rgba(255,255,255,0.45)', fontFamily: GEO }]} numberOfLines={1}>
                       {tab.label.toUpperCase()}
                     </Text>
                   </Pressable>
@@ -3676,17 +3676,17 @@ export default function ScoringScreen() {
                   const isMe = row.player.id === '1';
                   const diff = row.total - row.par;
                   return (
-                    <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(42,157,143,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                    <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(0,103,71,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
                       <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
                       <Avatar id={row.player.id} size={28} name={row.player.name} />
                       <View style={st.lbNameWrap}>
-                        <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                        <Text style={[st.lbName, isMe && { color: '#006747', fontWeight: '700' }]}>
                           {isMe ? 'You' : row.player.name}
                         </Text>
                       </View>
                       <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.count}</Text>
                       <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
-                      <Text style={[st.lbToPar, { color: diff < 0 ? '#2A9D8F' : diff === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
+                      <Text style={[st.lbToPar, { color: diff < 0 ? '#006747' : diff === 0 ? '#C9A227' : '#C41E3A', fontFamily: GEO }]}>
                         {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
                       </Text>
                     </View>
@@ -3796,27 +3796,27 @@ export default function ScoringScreen() {
                   const isMe = p.id === '1';
                   const moved = p.position - p.projPosition;
                   return (
-                    <View key={p.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(42,157,143,0.15)' : 'transparent' }]}>
+                    <View key={p.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(0,103,71,0.15)' : 'transparent' }]}>
                       <Text style={[st.lbPos, { fontFamily: GEO }]}>{p.position}</Text>
                       <Avatar id={p.id} size={28} name={p.name} />
                       <View style={st.lbNameWrap}>
-                        <Text style={[st.lbName, isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                        <Text style={[st.lbName, isMe && { color: '#006747', fontWeight: '700' }]}>
                           {isMe ? 'You' : p.name.split(' ')[0]}
                         </Text>
                       </View>
                       <Text style={[st.lbTotal, { fontFamily: GEO, width: 50 }]}>{p.points}</Text>
-                      <Text style={[st.lbTotal, { fontFamily: GEO, width: 50, color: '#D4AF37' }]}>{p.projPoints}</Text>
+                      <Text style={[st.lbTotal, { fontFamily: GEO, width: 50, color: '#C9A227' }]}>{p.projPoints}</Text>
                       <View style={{ width: 36, alignItems: 'center' }}>
                         {moved > 0 && (
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="arrow-up" size={12} color="#2A9D8F" />
-                            <Text style={{ color: '#2A9D8F', fontSize: 11, fontFamily: GEO, fontWeight: '700' }}>{moved}</Text>
+                            <Ionicons name="arrow-up" size={12} color="#006747" />
+                            <Text style={{ color: '#006747', fontSize: 11, fontFamily: GEO, fontWeight: '700' }}>{moved}</Text>
                           </View>
                         )}
                         {moved < 0 && (
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="arrow-down" size={12} color="#C44B4F" />
-                            <Text style={{ color: '#C44B4F', fontSize: 11, fontFamily: GEO, fontWeight: '700' }}>{Math.abs(moved)}</Text>
+                            <Ionicons name="arrow-down" size={12} color="#C41E3A" />
+                            <Text style={{ color: '#C41E3A', fontSize: 11, fontFamily: GEO, fontWeight: '700' }}>{Math.abs(moved)}</Text>
                           </View>
                         )}
                         {moved === 0 && (
@@ -3879,8 +3879,8 @@ export default function ScoringScreen() {
                 </View>
 
                 {/* Match status */}
-                <View style={[st.matchStatusBanner, { backgroundColor: myUp > 0 ? 'rgba(42,157,143,0.15)' : myUp < 0 ? 'rgba(196,75,79,0.15)' : 'rgba(212,175,55,0.15)' }]}>
-                  <Text style={[st.matchStatusText, { color: myUp > 0 ? '#2A9D8F' : myUp < 0 ? '#C44B4F' : '#D4AF37', fontFamily: GEO }]}>
+                <View style={[st.matchStatusBanner, { backgroundColor: myUp > 0 ? 'rgba(0,103,71,0.15)' : myUp < 0 ? 'rgba(196,30,58,0.15)' : 'rgba(201,162,39,0.15)' }]}>
+                  <Text style={[st.matchStatusText, { color: myUp > 0 ? '#006747' : myUp < 0 ? '#C41E3A' : '#C9A227', fontFamily: GEO }]}>
                     {matchStatus}
                   </Text>
                 </View>
@@ -3894,7 +3894,7 @@ export default function ScoringScreen() {
                     <Text style={[st.matchupGridCell, st.matchupGridResult]}>{' '}</Text>
                   </View>
                   {holeResults.map((hr) => (
-                    <View key={hr.hole} style={[st.matchupGridRow, hr.result === 'win' && { backgroundColor: 'rgba(42,157,143,0.08)' }, hr.result === 'loss' && { backgroundColor: 'rgba(196,75,79,0.08)' }]}>
+                    <View key={hr.hole} style={[st.matchupGridRow, hr.result === 'win' && { backgroundColor: 'rgba(0,103,71,0.08)' }, hr.result === 'loss' && { backgroundColor: 'rgba(196,30,58,0.08)' }]}>
                       <Text style={[st.matchupGridCell, st.matchupGridHole, { fontFamily: GEO }]}>{hr.hole}</Text>
                       <Text style={[st.matchupGridCell, st.matchupGridScore, { fontFamily: GEO, color: hr.myScore ? '#E8E4DE' : 'rgba(255,255,255,0.3)' }]}>
                         {hr.myScore ?? '-'}
@@ -3903,9 +3903,9 @@ export default function ScoringScreen() {
                         {hr.oppScore ?? '-'}
                       </Text>
                       <View style={[st.matchupGridCell, st.matchupGridResult]}>
-                        {hr.result === 'win' && <Ionicons name="checkmark-circle" size={14} color="#2A9D8F" />}
-                        {hr.result === 'loss' && <Ionicons name="close-circle" size={14} color="#C44B4F" />}
-                        {hr.result === 'halve' && <Text style={{ color: '#D4AF37', fontSize: 10, fontFamily: GEO }}>AS</Text>}
+                        {hr.result === 'win' && <Ionicons name="checkmark-circle" size={14} color="#006747" />}
+                        {hr.result === 'loss' && <Ionicons name="close-circle" size={14} color="#C41E3A" />}
+                        {hr.result === 'halve' && <Text style={{ color: '#C9A227', fontSize: 10, fontFamily: GEO }}>AS</Text>}
                       </View>
                     </View>
                   ))}
@@ -3967,17 +3967,17 @@ export default function ScoringScreen() {
                 {tripPlayers.map((p, i) => {
                   const back = p.tripTotal - leaderTotal;
                   return (
-                    <View key={p.id} style={[st.lbRow, { backgroundColor: p.isMe ? 'rgba(42,157,143,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                    <View key={p.id} style={[st.lbRow, { backgroundColor: p.isMe ? 'rgba(0,103,71,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
                       <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
                       <Avatar id={p.id} size={28} name={p.name} />
                       <View style={st.lbNameWrap}>
-                        <Text style={[st.lbName, p.isMe && { color: '#2A9D8F', fontWeight: '700' }]}>
+                        <Text style={[st.lbName, p.isMe && { color: '#006747', fontWeight: '700' }]}>
                           {p.isMe ? 'You' : p.name.split(' ')[0]}
                         </Text>
                       </View>
                       <Text style={[st.lbThru, { width: 36, textAlign: 'center', fontFamily: GEO }]}>{p.todayScore}</Text>
                       <Text style={[st.lbTotal, { fontFamily: GEO }]}>{p.tripTotal}</Text>
-                      <Text style={[st.lbToPar, { color: back === 0 ? '#D4AF37' : '#C44B4F', fontFamily: GEO }]}>
+                      <Text style={[st.lbToPar, { color: back === 0 ? '#C9A227' : '#C41E3A', fontFamily: GEO }]}>
                         {back === 0 ? 'LEAD' : `+${back}`}
                       </Text>
                     </View>
@@ -4099,13 +4099,13 @@ const st = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headerParValue: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 20,
     fontWeight: '700',
     fontFamily: GEO,
   },
   headerFormat: {
-    color: 'rgba(212,175,55,0.7)',
+    color: 'rgba(201,162,39,0.7)',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1,
@@ -4464,7 +4464,7 @@ const st = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#C44B4F',
+    backgroundColor: '#C41E3A',
     width: 14,
     height: 14,
     alignItems: 'center',
@@ -4528,7 +4528,7 @@ const st = StyleSheet.create({
     right: 2,
     width: 5,
     height: 5,
-    backgroundColor: '#C44B4F',
+    backgroundColor: '#C41E3A',
   },
   holeChipNoteDot: {
     position: 'absolute',
@@ -4648,7 +4648,7 @@ const st = StyleSheet.create({
     paddingVertical: 2,
   },
   hammerMultiplierText: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -4782,7 +4782,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   confirmTitle: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 2,
@@ -4857,7 +4857,7 @@ const st = StyleSheet.create({
     gap: 10,
   },
   lbPos: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 18,
     fontWeight: '700',
     width: 28,
@@ -4915,7 +4915,7 @@ const st = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -8,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#C9A227',
     width: 14,
     height: 14,
     justifyContent: 'center',
@@ -4934,7 +4934,7 @@ const st = StyleSheet.create({
     marginBottom: 16,
   },
   seasonViewTitle: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1,
@@ -4946,9 +4946,9 @@ const st = StyleSheet.create({
     marginTop: 4,
   },
   seasonProjectedCard: {
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: 'rgba(201,162,39,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: 'rgba(201,162,39,0.3)',
     padding: 16,
     alignItems: 'center',
     marginBottom: 20,
@@ -4961,7 +4961,7 @@ const st = StyleSheet.create({
     marginBottom: 4,
   },
   seasonProjectedValue: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 32,
     fontWeight: '700',
   },
@@ -5000,7 +5000,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
   },
   matchupVsText: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -5219,7 +5219,7 @@ const st = StyleSheet.create({
 
   /* Feature 24: Season banner */
   seasonBanner: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#C9A227',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -5257,7 +5257,7 @@ const st = StyleSheet.create({
     paddingVertical: 3,
   },
   seasonMultiplierText: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -5316,7 +5316,7 @@ const st = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sideGameTickerTitle: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,
@@ -5335,7 +5335,7 @@ const st = StyleSheet.create({
     paddingTop: 8,
   },
   tagSectionTitle: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,
@@ -5438,7 +5438,7 @@ const ps = StyleSheet.create({
     marginTop: 4,
   },
   headerFormat: {
-    color: 'rgba(212,175,55,0.7)',
+    color: 'rgba(201,162,39,0.7)',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,
@@ -5663,7 +5663,7 @@ const ps = StyleSheet.create({
     alignItems: 'center',
   },
   shareDormie: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 9,
     fontWeight: '700',
     fontStyle: 'italic',

@@ -238,14 +238,14 @@ export default function DiscoverScreen() {
                     onPress={() => { haptics.light(); toggleSaved(dest.id); }}
                     style={[
                       s.starBtn,
-                      isSaved && { backgroundColor: 'rgba(212,175,55,0.25)' },
+                      isSaved && { backgroundColor: 'rgba(201,162,39,0.25)' },
                     ]}
                     hitSlop={8}
                   >
                     <Ionicons
                       name={isSaved ? 'star' : 'star-outline'}
                       size={18}
-                      color={isSaved ? '#D4AF37' : 'rgba(255,255,255,0.6)'}
+                      color={isSaved ? '#C9A227' : 'rgba(255,255,255,0.6)'}
                     />
                   </Pressable>
 

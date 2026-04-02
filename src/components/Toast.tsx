@@ -25,10 +25,10 @@ export function useToast() {
 }
 
 const TOAST_COLORS: Record<ToastType, { bg: string; text: string; icon: string }> = {
-  success: { bg: '#1E4D2B', text: '#FFFFFF', icon: '#2A9D8F' },
-  info: { bg: '#1A1816', text: '#E8E4DE', icon: '#2A9D8F' },
-  gold: { bg: '#2A2318', text: '#D4AF37', icon: '#D4AF37' },
-  error: { bg: '#3A1A1A', text: '#FFFFFF', icon: '#C44B4F' },
+  success: { bg: '#1E4D2B', text: '#FFFFFF', icon: '#006747' },
+  info: { bg: '#1A1816', text: '#E8E4DE', icon: '#006747' },
+  gold: { bg: '#2A2318', text: '#C9A227', icon: '#C9A227' },
+  error: { bg: '#3A1A1A', text: '#FFFFFF', icon: '#C41E3A' },
 };
 
 const DEFAULT_ICONS: Record<ToastType, keyof typeof Ionicons.glyphMap> = {

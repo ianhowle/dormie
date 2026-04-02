@@ -228,8 +228,8 @@ type TripTool = {
 };
 
 const TRIP_TOOLS: TripTool[] = [
-  { id: 'tt1', label: 'Budget', icon: 'cash-outline', color: '#2A9D8F' },
-  { id: 'tt2', label: 'Packing List', icon: 'bag-outline', color: '#D4AF37' },
+  { id: 'tt1', label: 'Budget', icon: 'cash-outline', color: '#006747' },
+  { id: 'tt2', label: 'Packing List', icon: 'bag-outline', color: '#C9A227' },
   { id: 'tt3', label: 'Tee Groups', icon: 'people-outline', color: '#5B7FA5' },
   { id: 'tt4', label: 'RSVP Preview', icon: 'mail-outline', color: '#8B6DAF' },
   { id: 'tt5', label: 'Trip Awards', icon: 'trophy-outline', color: '#C47B3B' },
@@ -960,8 +960,8 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
       {showTrashTalk && (
         <View style={[s.trashTalkPanel, { backgroundColor: c.elevated, borderColor: c.border }]}>
           <View style={s.trashTalkHeader}>
-            <Ionicons name="flame" size={14} color="#D4AF37" />
-            <Text style={[s.trashTalkTitle, { color: '#D4AF37' }]}>TRASH TALK</Text>
+            <Ionicons name="flame" size={14} color="#C9A227" />
+            <Text style={[s.trashTalkTitle, { color: '#C9A227' }]}>TRASH TALK</Text>
             <Pressable onPress={() => setShowTrashTalk(false)} hitSlop={8}>
               <Ionicons name="close" size={16} color={c.textMuted} />
             </Pressable>
@@ -971,7 +971,7 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
               <Pressable
                 key={idx}
                 onPress={() => sendTrashTalk(msg)}
-                style={[s.trashTalkChip, { backgroundColor: c.cardBg, borderColor: '#D4AF37' }]}
+                style={[s.trashTalkChip, { backgroundColor: c.cardBg, borderColor: '#C9A227' }]}
               >
                 <Text style={[s.trashTalkChipText, { color: c.text }]}>{msg}</Text>
               </Pressable>
@@ -993,12 +993,12 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
         />
         <Pressable
           onPress={() => setShowTrashTalk(!showTrashTalk)}
-          style={[s.trashTalkBtn, { backgroundColor: showTrashTalk ? `${'#D4AF37'}20` : c.elevated }]}
+          style={[s.trashTalkBtn, { backgroundColor: showTrashTalk ? `${'#C9A227'}20` : c.elevated }]}
         >
           <Ionicons
             name="flame-outline"
             size={18}
-            color={showTrashTalk ? '#D4AF37' : c.textMuted}
+            color={showTrashTalk ? '#C9A227' : c.textMuted}
           />
         </Pressable>
         <Pressable
@@ -1065,7 +1065,7 @@ function BudgetCalculator({
           <Ionicons name="chevron-back" size={24} color={c.text} />
         </Pressable>
         <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Budget Calculator</Text>
-        <Ionicons name="cash-outline" size={20} color="#2A9D8F" />
+        <Ionicons name="cash-outline" size={20} color="#006747" />
       </View>
 
       <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -1206,7 +1206,7 @@ function PackingList({ onBack }: { onBack: () => void }) {
           <Ionicons name="chevron-back" size={24} color={c.text} />
         </Pressable>
         <Text style={[tt.toolTitle, { color: c.text, fontFamily: GEO }]}>Packing List</Text>
-        <Ionicons name="bag-outline" size={20} color="#D4AF37" />
+        <Ionicons name="bag-outline" size={20} color="#C9A227" />
       </View>
 
       <ScrollView contentContainerStyle={tt.toolBody} showsVerticalScrollIndicator={false}>
@@ -1634,7 +1634,7 @@ function WeatherForecast({
                 <Text style={[tt.weatherDate, { color: c.textMuted }]}>{day.date}</Text>
               </View>
               <View style={tt.weatherTempRow}>
-                <Ionicons name={day.icon as any} size={28} color={day.condition.includes('Sunny') || day.condition.includes('sunny') ? '#D4AF37' : c.textMuted} />
+                <Ionicons name={day.icon as any} size={28} color={day.condition.includes('Sunny') || day.condition.includes('sunny') ? '#C9A227' : c.textMuted} />
                 <View style={tt.weatherTemps}>
                   <Text style={[tt.weatherHigh, { color: c.text, fontFamily: GEO }]}>{day.high}°</Text>
                   <Text style={[tt.weatherLow, { color: c.textMuted, fontFamily: GEO }]}>{day.low}°</Text>
@@ -2004,7 +2004,7 @@ function CompetitionView({
           <View style={cm.actionBtns}>
             <Pressable onPress={onScoreHole} style={cm.actionPrimary}>
               <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-              <Ionicons name="golf" size={18} color="#D4AF37" />
+              <Ionicons name="golf" size={18} color="#C9A227" />
               <Text style={[cm.actionPrimaryText, { fontFamily: GEO }]}>Score Hole-by-Hole</Text>
             </Pressable>
             <Pressable onPress={onQuickEntry} style={[cm.actionSecondary, { borderColor: c.border, backgroundColor: c.cardBg }]}>
@@ -2273,9 +2273,9 @@ export default function TripDetailScreen() {
                 <TripCountdownRing daysUntil={daysUntil} size={80} totalDays={60} textColor="#FFFFFF" />
                 <Pressable
                   onPress={() => setShowCeremony(true)}
-                  style={[s.startTripBtn, { backgroundColor: 'rgba(212,175,55,0.15)', borderColor: 'rgba(212,175,55,0.3)', borderWidth: 1 }]}
+                  style={[s.startTripBtn, { backgroundColor: 'rgba(201,162,39,0.15)', borderColor: 'rgba(201,162,39,0.3)', borderWidth: 1 }]}
                 >
-                  <Ionicons name="play" size={12} color="#D4AF37" />
+                  <Ionicons name="play" size={12} color="#C9A227" />
                   <Text style={[s.startTripText, { fontFamily: GEO }]}>Start Trip</Text>
                 </Pressable>
               </View>
@@ -2433,7 +2433,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  startTripText: { color: '#D4AF37', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  startTripText: { color: '#C9A227', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
 
   /* Player row */
   playerRowContainer: {
@@ -2892,7 +2892,7 @@ const s = StyleSheet.create({
     right: -4,
     width: 20,
     height: 20,
-    backgroundColor: '#C44B4F',
+    backgroundColor: '#C41E3A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3182,10 +3182,10 @@ const cm = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 0,
-    backgroundColor: '#2A9D8F',
+    backgroundColor: '#006747',
   },
   ceremonyLive: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 3,
@@ -3229,10 +3229,10 @@ const cm = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 0,
-    backgroundColor: '#2A9D8F',
+    backgroundColor: '#006747',
   },
   compLiveText: {
-    color: '#2A9D8F',
+    color: '#006747',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 2,
@@ -3255,10 +3255,10 @@ const cm = StyleSheet.create({
     paddingVertical: 5,
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  dayPillActive: { backgroundColor: 'rgba(212,175,55,0.2)', borderWidth: 1, borderColor: '#D4AF37' },
-  dayPillComplete: { backgroundColor: 'rgba(42,157,143,0.15)' },
+  dayPillActive: { backgroundColor: 'rgba(201,162,39,0.2)', borderWidth: 1, borderColor: '#C9A227' },
+  dayPillComplete: { backgroundColor: 'rgba(0,103,71,0.15)' },
   dayPillText: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  dayPillTextActive: { color: '#D4AF37' },
+  dayPillTextActive: { color: '#C9A227' },
 
   compBody: { paddingHorizontal: 16 },
   compSectionTitle: {
@@ -3337,7 +3337,7 @@ const cm = StyleSheet.create({
     paddingVertical: 16,
     overflow: 'hidden',
   },
-  actionPrimaryText: { color: '#D4AF37', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+  actionPrimaryText: { color: '#C9A227', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
   actionSecondary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3421,7 +3421,7 @@ const cm = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 0,
-    backgroundColor: '#C44B4F',
+    backgroundColor: '#C41E3A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3438,7 +3438,7 @@ const cm = StyleSheet.create({
   freshnessDot: {
     width: 6,
     height: 6,
-    backgroundColor: '#2A9D8F',
+    backgroundColor: '#006747',
   },
   freshnessText: {
     fontSize: 10,

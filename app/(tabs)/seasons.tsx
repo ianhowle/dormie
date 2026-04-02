@@ -138,7 +138,7 @@ function ActiveSeasonCard({ season }: { season: MockSeason }) {
       <View style={st.cardBody}>
         {/* Status badge */}
         <View style={st.cardTopRow}>
-          <View style={[st.statusBadge, { backgroundColor: '#2A9D8F' }]}>
+          <View style={[st.statusBadge, { backgroundColor: '#006747' }]}>
             <Text style={st.statusText}>ACTIVE</Text>
           </View>
           <Text style={[st.formatLabel, { color: c.textMuted, fontFamily: SANS }]}>{season.format}</Text>

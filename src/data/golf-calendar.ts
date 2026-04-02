@@ -25,7 +25,7 @@ export const GOLF_CALENDAR: GolfEvent[] = [
   { name: 'Memorial Tournament', startMonth: 6, startDay: 5, endMonth: 6, endDay: 8, type: 'signature' },
 
   // Majors
-  { name: 'The Masters', startMonth: 4, startDay: 7, endMonth: 4, endDay: 13, type: 'major', accent: '#D4AF37' },
+  { name: 'The Masters', startMonth: 4, startDay: 7, endMonth: 4, endDay: 13, type: 'major', accent: '#C9A227' },
   { name: 'PGA Championship', startMonth: 5, startDay: 15, endMonth: 5, endDay: 18, type: 'major' },
   { name: 'US Open', startMonth: 6, startDay: 12, endMonth: 6, endDay: 15, type: 'major' },
   { name: 'The Open Championship', startMonth: 7, startDay: 17, endMonth: 7, endDay: 20, type: 'major' },
@@ -36,7 +36,7 @@ export const GOLF_CALENDAR: GolfEvent[] = [
   { name: 'Tour Championship', startMonth: 8, startDay: 28, endMonth: 8, endDay: 31, type: 'playoff' },
 
   // Team events — Ryder Cup odd years, Presidents Cup even years
-  { name: 'Presidents Cup', startMonth: 9, startDay: 22, endMonth: 9, endDay: 27, type: 'team', accent: '#C44B4F' },
+  { name: 'Presidents Cup', startMonth: 9, startDay: 22, endMonth: 9, endDay: 27, type: 'team', accent: '#C41E3A' },
 ];
 
 export type ActiveEvent = {
@@ -81,7 +81,7 @@ export function getActiveEvent(date: Date = new Date()): ActiveEvent | null {
   if (isMasters) {
     label = "It's Masters Week \uD83C\uDF3A";
     subtitle = 'A tradition unlike any other';
-    accentColor = '#D4AF37';
+    accentColor = '#C9A227';
     isGoldHeader = true;
   } else if (isMajor) {
     label = `It's ${event.name} Week \u26F3`;
@@ -89,10 +89,10 @@ export function getActiveEvent(date: Date = new Date()): ActiveEvent | null {
   } else if (isTeam) {
     const isRyder = event.name.includes('Ryder');
     label = isRyder ? '\uD83C\uDDFA\uD83C\uDDF8 Ryder Cup Week' : '\uD83C\uDDFA\uD83C\uDDF8 Presidents Cup Week';
-    accentColor = '#C44B4F';
+    accentColor = '#C41E3A';
   } else if (isPlayoff) {
     label = 'FedEx Cup Playoffs';
-    accentColor = '#D4AF37';
+    accentColor = '#C9A227';
     isGoldHeader = true;
   } else {
     // Signature event

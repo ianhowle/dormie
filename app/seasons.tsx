@@ -94,8 +94,8 @@ const CUT_OPTIONS: CutOption[] = [
 const DEFAULT_MAJOR_NAMES = ['The Dormie Invitational', 'The Dormie Championship'];
 
 const MOCK_FRIENDS: Friend[] = [
-  { id: '2', name: 'Drew Patterson', handicap: 12, avatarColor: '#D4AF37' },
-  { id: '3', name: 'Jake Sullivan', handicap: 15, avatarColor: '#C44B4F' },
+  { id: '2', name: 'Drew Patterson', handicap: 12, avatarColor: '#C9A227' },
+  { id: '3', name: 'Jake Sullivan', handicap: 15, avatarColor: '#C41E3A' },
   { id: '4', name: 'Tommy Fleetwood', handicap: 3, avatarColor: '#6B8E23' },
   { id: '5', name: 'Mike Chen', handicap: 18, avatarColor: '#8B4513' },
   { id: '6', name: 'Sam Rodriguez', handicap: 22, avatarColor: '#4682B4' },

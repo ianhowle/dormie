@@ -452,7 +452,7 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={() => Alert.alert('Edit Profile', 'Profile editing would open here.')}
-              style={({ pressed }) => [s.editBtn, { borderColor: 'rgba(212,175,55,0.4)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+              style={({ pressed }) => [s.editBtn, { borderColor: 'rgba(201,162,39,0.4)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Ionicons name="pencil-outline" size={14} color={c.gold} />
               <Text style={[s.editBtnText, { color: c.gold }]}>Edit Profile</Text>
@@ -628,7 +628,7 @@ export default function ProfileScreen() {
                 <Text style={[s.integrityScoreLabel, { color: c.textMuted }]}>Fair Play Score</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
                   <Text style={[s.integrityScoreValue, { color: c.teal, fontFamily: GEO }]}>92</Text>
-                  <View style={[s.integrityBadge, { backgroundColor: '#2A9D8F22' }]}>
+                  <View style={[s.integrityBadge, { backgroundColor: '#00674722' }]}>
                     <Text style={[s.integrityBadgeText, { color: c.teal }]}>CLEAN</Text>
                   </View>
                 </View>
@@ -671,7 +671,7 @@ export default function ProfileScreen() {
                   style={s.favCourseGradient}
                 >
                   <Pinstripes />
-                  <Ionicons name="golf" size={20} color="#D4AF37" />
+                  <Ionicons name="golf" size={20} color="#C9A227" />
                   <Text style={s.favCourseName}>{favoriteCourse}</Text>
                   <View style={s.favCourseStats}>
                     <View style={s.favCourseStat}>
@@ -894,7 +894,7 @@ const s = StyleSheet.create({
     right: 0,
     width: 24,
     height: 24,
-    backgroundColor: '#2A9D8F',
+    backgroundColor: '#006747',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1104,7 +1104,7 @@ const s = StyleSheet.create({
   favCourseStatValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#D4AF37',
+    color: '#C9A227',
     fontFamily: GEO,
     letterSpacing: -0.5,
   },

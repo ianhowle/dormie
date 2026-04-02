@@ -117,10 +117,10 @@ function inferTeeColor(name: string): string {
   const lower = name.toLowerCase();
   if (lower.includes('black') || lower.includes('champion')) return '#000000';
   if (lower.includes('blue') || lower.includes('back')) return '#1B2A4A';
-  if (lower.includes('gold') || lower.includes('senior')) return '#D4AF37';
+  if (lower.includes('gold') || lower.includes('senior')) return '#C9A227';
   if (lower.includes('white') || lower.includes('middle')) return '#FFFFFF';
-  if (lower.includes('green')) return '#2A9D8F';
-  if (lower.includes('red') || lower.includes('forward') || lower.includes('ladies')) return '#C44B4F';
+  if (lower.includes('green')) return '#006747';
+  if (lower.includes('red') || lower.includes('forward') || lower.includes('ladies')) return '#C41E3A';
   if (lower.includes('silver')) return '#C0C0C0';
   if (lower.includes('combo') || lower.includes('maroon')) return '#800000';
   return '#1B2A4A'; // default

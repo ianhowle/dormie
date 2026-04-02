@@ -136,8 +136,8 @@ const MOCK_TEE_BOXES = [
   { name: 'Championship', color: '#1E4D2B', rating: 74.2, slope: 142, yards: 7200 },
   { name: 'Blue', color: '#1B2A4A', rating: 72.1, slope: 135, yards: 6800 },
   { name: 'White', color: '#FFFFFF', rating: 70.0, slope: 128, yards: 6400 },
-  { name: 'Gold', color: '#D4AF37', rating: 68.2, slope: 121, yards: 5900 },
-  { name: 'Red', color: '#C44B4F', rating: 66.1, slope: 115, yards: 5400 },
+  { name: 'Gold', color: '#C9A227', rating: 68.2, slope: 121, yards: 5900 },
+  { name: 'Red', color: '#C41E3A', rating: 66.1, slope: 115, yards: 5400 },
 ];
 
 // ─── Mock friends for player search ──────────────────────────────────
@@ -798,7 +798,7 @@ function FormatPicker({
               style={({ pressed }) => [
                 st.pill,
                 {
-                  backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
+                  backgroundColor: active ? 'rgba(0,103,71,0.08)' : c.elevated,
                   borderColor: active ? c.teal : c.border,
                 },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -852,7 +852,7 @@ function SideGamePicker({
               style={({ pressed }) => [
                 st.sidePill,
                 {
-                  backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
+                  backgroundColor: active ? 'rgba(0,103,71,0.08)' : c.elevated,
                   borderColor: active ? c.teal : c.border,
                 },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -903,7 +903,7 @@ function ToggleRow<T extends string>({
             onPress={() => onSelect(opt.key)}
             style={({ pressed }) => [
               st.toggleBtn,
-              active && { backgroundColor: 'rgba(42,157,143,0.08)' },
+              active && { backgroundColor: 'rgba(0,103,71,0.08)' },
               pressed && { opacity: 0.7 },
             ]}
           >
@@ -1258,7 +1258,7 @@ export default function ScoreScreen() {
                       style={({ pressed }) => [
                         st.teeDropdownRow,
                         {
-                          backgroundColor: active ? 'rgba(42,157,143,0.08)' : c.elevated,
+                          backgroundColor: active ? 'rgba(0,103,71,0.08)' : c.elevated,
                           borderColor: active ? c.teal : c.border,
                         },
                         pressed && { opacity: 0.7 },
@@ -1354,7 +1354,7 @@ export default function ScoreScreen() {
                     style={({ pressed }) => [
                       st.roundTypeCard,
                       {
-                        backgroundColor: active ? 'rgba(42,157,143,0.05)' : c.elevated,
+                        backgroundColor: active ? 'rgba(0,103,71,0.05)' : c.elevated,
                         borderColor: active ? c.teal : c.border,
                         borderWidth: 1,
                       },
@@ -1380,7 +1380,7 @@ export default function ScoreScreen() {
             <SectionLabel title="LINK TO" />
             <View style={st.contextSection}>
               {/* Season link — multi-select */}
-              <View style={[st.contextCard, { backgroundColor: linkedSeasons.length > 0 ? 'rgba(212,175,55,0.05)' : c.elevated, borderColor: linkedSeasons.length > 0 ? c.gold : c.border, borderWidth: 1 }]}>
+              <View style={[st.contextCard, { backgroundColor: linkedSeasons.length > 0 ? 'rgba(201,162,39,0.05)' : c.elevated, borderColor: linkedSeasons.length > 0 ? c.gold : c.border, borderWidth: 1 }]}>
                 <View style={st.contextCardHeader}>
                   <Ionicons name="trophy" size={16} color={linkedSeasons.length > 0 ? c.gold : c.textMuted} />
                   <Text style={[st.contextCardTitle, { color: linkedSeasons.length > 0 ? c.gold : c.text, fontFamily: SANS }]}>
@@ -1398,7 +1398,7 @@ export default function ScoreScreen() {
                           style={({ pressed }) => [
                             st.seasonRow,
                             {
-                              backgroundColor: selected ? 'rgba(212,175,55,0.08)' : 'transparent',
+                              backgroundColor: selected ? 'rgba(201,162,39,0.08)' : 'transparent',
                               borderColor: selected ? c.gold : c.border,
                               borderWidth: 1,
                             },
@@ -1470,7 +1470,7 @@ export default function ScoreScreen() {
                 style={({ pressed }) => [
                   st.contextCard,
                   {
-                    backgroundColor: linkedTrip ? 'rgba(42,157,143,0.08)' : c.elevated,
+                    backgroundColor: linkedTrip ? 'rgba(0,103,71,0.08)' : c.elevated,
                     borderColor: linkedTrip ? c.teal : c.border,
                     borderWidth: 1,
                   },
@@ -1498,7 +1498,7 @@ export default function ScoreScreen() {
                             <Pressable
                               key={t.id}
                               onPress={() => { haptics.selection(); setLinkedTrip(t.id); }}
-                              style={[st.contextPill, { borderColor: t.id === linkedTrip ? c.teal : c.border, backgroundColor: t.id === linkedTrip ? 'rgba(42,157,143,0.12)' : 'transparent' }]}
+                              style={[st.contextPill, { borderColor: t.id === linkedTrip ? c.teal : c.border, backgroundColor: t.id === linkedTrip ? 'rgba(0,103,71,0.12)' : 'transparent' }]}
                             >
                               <Text style={[st.contextPillText, { color: t.id === linkedTrip ? c.teal : c.textMuted, fontFamily: SANS }]} numberOfLines={1}>{t.name}</Text>
                             </Pressable>
@@ -1531,7 +1531,7 @@ export default function ScoreScreen() {
                 style={({ pressed }) => [
                   st.contextCard,
                   {
-                    backgroundColor: linkedMatchup ? 'rgba(42,157,143,0.08)' : c.elevated,
+                    backgroundColor: linkedMatchup ? 'rgba(0,103,71,0.08)' : c.elevated,
                     borderColor: linkedMatchup ? c.teal : c.border,
                     borderWidth: 1,
                   },
@@ -1555,7 +1555,7 @@ export default function ScoreScreen() {
                         <Pressable
                           key={f.id}
                           onPress={() => { haptics.selection(); setLinkedMatchup(f.id); }}
-                          style={[st.contextPill, { borderColor: f.id === linkedMatchup ? c.teal : c.border, backgroundColor: f.id === linkedMatchup ? 'rgba(42,157,143,0.12)' : 'transparent' }]}
+                          style={[st.contextPill, { borderColor: f.id === linkedMatchup ? c.teal : c.border, backgroundColor: f.id === linkedMatchup ? 'rgba(0,103,71,0.12)' : 'transparent' }]}
                         >
                           <Text style={[st.contextPillText, { color: f.id === linkedMatchup ? c.teal : c.textMuted, fontFamily: SANS }]} numberOfLines={1}>{f.name.split(' ')[0]}</Text>
                         </Pressable>
@@ -1619,7 +1619,7 @@ export default function ScoreScreen() {
                     style={({ pressed }) => [
                       st.trackingCard,
                       {
-                        backgroundColor: active ? 'rgba(42,157,143,0.05)' : c.elevated,
+                        backgroundColor: active ? 'rgba(0,103,71,0.05)' : c.elevated,
                         borderColor: active ? c.teal : c.border,
                         borderWidth: 1,
                       },
@@ -1735,7 +1735,7 @@ const st = StyleSheet.create({
     overflow: 'hidden',
   },
   headerDormie: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 7,
     letterSpacing: 3,
     fontStyle: 'italic',

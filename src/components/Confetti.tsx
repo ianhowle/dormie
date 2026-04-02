@@ -5,7 +5,7 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const PARTICLE_COUNT = 30;
 const DURATION = 1500;
 
-const GOLD_SHADES = ['#D4AF37', '#C5A028', '#E6C64A', '#B8960F', '#F0D76C', '#A88B00'];
+const GOLD_SHADES = ['#C9A227', '#C5A028', '#E6C64A', '#B8960F', '#F0D76C', '#A88B00'];
 
 type ConfettiProps = {
   visible: boolean;

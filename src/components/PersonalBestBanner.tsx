@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: '#2A2318',
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: '#C9A227',
     padding: 16,
     zIndex: 9998,
   },
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: '#D4AF37',
+    color: '#C9A227',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 2,

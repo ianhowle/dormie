@@ -80,9 +80,9 @@ const MOCK_WEEKS: Week[] = Array.from({ length: 10 }, (_, i) => ({
 const POINTS_TABLE = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
 
 const MOCK_STANDINGS: Standing[] = [
-  { playerId: '1', name: 'Ian McGowan', handicap: 8, avatarColor: '#2A9D8F', points: 72, weekResults: [15, 10, 12, 15, 8, 12, null, null, null, null], wins: 2, topFives: 5, eventsPlayed: 6, bestFinish: 1, worstDrop: 8, isCut: false },
-  { playerId: '2', name: 'Drew Patterson', handicap: 12, avatarColor: '#D4AF37', points: 65, weekResults: [12, 15, 8, 10, 12, 8, null, null, null, null], wins: 1, topFives: 4, eventsPlayed: 6, bestFinish: 1, worstDrop: 8, isCut: false },
-  { playerId: '3', name: 'Jake Sullivan', handicap: 15, avatarColor: '#C44B4F', points: 55, weekResults: [10, 8, 15, 6, 10, 6, null, null, null, null], wins: 1, topFives: 3, eventsPlayed: 6, bestFinish: 1, worstDrop: 6, isCut: false },
+  { playerId: '1', name: 'Ian McGowan', handicap: 8, avatarColor: '#006747', points: 72, weekResults: [15, 10, 12, 15, 8, 12, null, null, null, null], wins: 2, topFives: 5, eventsPlayed: 6, bestFinish: 1, worstDrop: 8, isCut: false },
+  { playerId: '2', name: 'Drew Patterson', handicap: 12, avatarColor: '#C9A227', points: 65, weekResults: [12, 15, 8, 10, 12, 8, null, null, null, null], wins: 1, topFives: 4, eventsPlayed: 6, bestFinish: 1, worstDrop: 8, isCut: false },
+  { playerId: '3', name: 'Jake Sullivan', handicap: 15, avatarColor: '#C41E3A', points: 55, weekResults: [10, 8, 15, 6, 10, 6, null, null, null, null], wins: 1, topFives: 3, eventsPlayed: 6, bestFinish: 1, worstDrop: 6, isCut: false },
   { playerId: '4', name: 'Tommy Fleetwood', handicap: 3, avatarColor: '#6B8E23', points: 48, weekResults: [8, 12, 6, 12, 6, 4, null, null, null, null], wins: 0, topFives: 2, eventsPlayed: 6, bestFinish: 2, worstDrop: 4, isCut: false },
   { playerId: '5', name: 'Mike Chen', handicap: 18, avatarColor: '#8B4513', points: 42, weekResults: [6, 6, 10, 8, 4, 8, null, null, null, null], wins: 0, topFives: 1, eventsPlayed: 6, bestFinish: 3, worstDrop: 4, isCut: false },
   { playerId: '6', name: 'Sam Rodriguez', handicap: 22, avatarColor: '#4682B4', points: 32, weekResults: [5, 4, 4, 5, 5, 10, null, null, null, null], wins: 0, topFives: 0, eventsPlayed: 6, bestFinish: 3, worstDrop: null, isCut: true },
@@ -116,9 +116,9 @@ const FORMAT_LABELS: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 function getWeekBadge(w: Week) {
-  if (w.isChampionship) return { label: 'CHAMPIONSHIP', color: '#D4AF37' };
-  if (w.isPlayoff) return { label: 'PLAYOFF', color: '#C44B4F' };
-  if (w.isMajor) return { label: 'MAJOR', color: '#D4AF37' };
+  if (w.isChampionship) return { label: 'CHAMPIONSHIP', color: '#C9A227' };
+  if (w.isPlayoff) return { label: 'PLAYOFF', color: '#C41E3A' };
+  if (w.isMajor) return { label: 'MAJOR', color: '#C9A227' };
   return null;
 }
 
@@ -185,27 +185,27 @@ function ChampionCeremony({
     <Modal transparent animationType="fade" visible={visible} onShow={show}>
       <View style={styles.ceremonyOverlay}>
         <Animated.View style={[styles.ceremonyContent, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-          <View style={[styles.cornerTL, { borderColor: '#D4AF37' }]} />
-          <View style={[styles.cornerTR, { borderColor: '#D4AF37' }]} />
-          <View style={[styles.cornerBL, { borderColor: '#D4AF37' }]} />
-          <View style={[styles.cornerBR, { borderColor: '#D4AF37' }]} />
+          <View style={[styles.cornerTL, { borderColor: '#C9A227' }]} />
+          <View style={[styles.cornerTR, { borderColor: '#C9A227' }]} />
+          <View style={[styles.cornerBL, { borderColor: '#C9A227' }]} />
+          <View style={[styles.cornerBR, { borderColor: '#C9A227' }]} />
 
           <Text style={styles.ceremonyTrophy}>🏆</Text>
-          <Text style={[styles.ceremonyLabel, { color: '#D4AF37' }]}>CHAMPION</Text>
+          <Text style={[styles.ceremonyLabel, { color: '#C9A227' }]}>CHAMPION</Text>
           <GoldDivider style={{ marginVertical: 12 }} />
           <Text style={[styles.ceremonyName, { color: '#FFFFFF' }]}>{champion.name}</Text>
-          <Text style={[styles.ceremonyPoints, { color: '#D4AF37' }]}>{champion.points} points</Text>
+          <Text style={[styles.ceremonyPoints, { color: '#C9A227' }]}>{champion.points} points</Text>
           <View style={styles.ceremonyStats}>
             <View style={styles.ceremonyStat}>
               <Text style={[styles.ceremonyStatVal, { color: '#FFFFFF' }]}>{champion.wins}</Text>
               <Text style={[styles.ceremonyStatLabel, { color: c.textMuted }]}>Wins</Text>
             </View>
-            <View style={[styles.ceremonyStatDivider, { backgroundColor: '#D4AF37' }]} />
+            <View style={[styles.ceremonyStatDivider, { backgroundColor: '#C9A227' }]} />
             <View style={styles.ceremonyStat}>
               <Text style={[styles.ceremonyStatVal, { color: '#FFFFFF' }]}>{champion.topFives}</Text>
               <Text style={[styles.ceremonyStatLabel, { color: c.textMuted }]}>Top 5s</Text>
             </View>
-            <View style={[styles.ceremonyStatDivider, { backgroundColor: '#D4AF37' }]} />
+            <View style={[styles.ceremonyStatDivider, { backgroundColor: '#C9A227' }]} />
             <View style={styles.ceremonyStat}>
               <Text style={[styles.ceremonyStatVal, { color: '#FFFFFF' }]}>{champion.eventsPlayed}</Text>
               <Text style={[styles.ceremonyStatLabel, { color: c.textMuted }]}>Played</Text>
@@ -215,16 +215,16 @@ function ChampionCeremony({
           {/* Top 3 Final Standings */}
           <GoldDivider style={{ marginTop: 24, marginBottom: 8 }} />
           <View style={styles.ceremonyStandings}>
-            <Text style={[styles.ceremonyStandingsTitle, { color: '#D4AF37' }]}>FINAL STANDINGS</Text>
+            <Text style={[styles.ceremonyStandingsTitle, { color: '#C9A227' }]}>FINAL STANDINGS</Text>
             {topThree.map((p, i) => (
               <View key={p.playerId} style={styles.ceremonyStandingRow}>
-                <Text style={[styles.ceremonyStandingRank, { color: i === 0 ? '#D4AF37' : '#FFFFFF', fontFamily: GEO }]}>
+                <Text style={[styles.ceremonyStandingRank, { color: i === 0 ? '#C9A227' : '#FFFFFF', fontFamily: GEO }]}>
                   {ordinal(i + 1)}
                 </Text>
-                <Text style={[styles.ceremonyStandingName, { color: i === 0 ? '#D4AF37' : '#FFFFFF' }]}>
+                <Text style={[styles.ceremonyStandingName, { color: i === 0 ? '#C9A227' : '#FFFFFF' }]}>
                   {p.name}
                 </Text>
-                <Text style={[styles.ceremonyStandingPts, { color: i === 0 ? '#D4AF37' : '#FFFFFF99', fontFamily: GEO }]}>
+                <Text style={[styles.ceremonyStandingPts, { color: i === 0 ? '#C9A227' : '#FFFFFF99', fontFamily: GEO }]}>
                   {p.points}
                 </Text>
               </View>
@@ -355,7 +355,7 @@ function PlayerStatsModal({
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Seasons Played</Text>
                 </View>
                 <View style={styles.careerStatItem}>
-                  <Text style={[styles.careerStatVal, { color: '#D4AF37', fontFamily: GEO }]}>
+                  <Text style={[styles.careerStatVal, { color: '#C9A227', fontFamily: GEO }]}>
                     {MOCK_CAREER_STATS[player.playerId].championships}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Championships</Text>
@@ -367,7 +367,7 @@ function PlayerStatsModal({
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Playoff Apps</Text>
                 </View>
                 <View style={styles.careerStatItem}>
-                  <Text style={[styles.careerStatVal, { color: '#2A9D8F', fontFamily: GEO }]}>
+                  <Text style={[styles.careerStatVal, { color: '#006747', fontFamily: GEO }]}>
                     {ordinal(MOCK_CAREER_STATS[player.playerId].bestFinish)}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Best Finish</Text>
@@ -379,7 +379,7 @@ function PlayerStatsModal({
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Avg Rank</Text>
                 </View>
                 <View style={styles.careerStatItem}>
-                  <Text style={[styles.careerStatVal, { color: '#D4AF37', fontFamily: GEO }]}>
+                  <Text style={[styles.careerStatVal, { color: '#C9A227', fontFamily: GEO }]}>
                     {MOCK_CAREER_STATS[player.playerId].careerPoints}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Career Points</Text>
@@ -518,7 +518,7 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
 
   return (
     <View style={styles.bracketContainer}>
-      <Text style={[styles.bracketTitle, { color: '#D4AF37', fontFamily: GEO }]}>PLAYOFF BRACKET</Text>
+      <Text style={[styles.bracketTitle, { color: '#C9A227', fontFamily: GEO }]}>PLAYOFF BRACKET</Text>
 
       {/* Bracket visualization */}
       <View style={styles.bracketVisual}>
@@ -530,22 +530,22 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
           <View style={[styles.bracketMatchup, { backgroundColor: c.elevated }]}>
             {semi1A && (
               <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-                <Text style={[styles.bracketSeed, { color: '#D4AF37', fontFamily: GEO }]}>1</Text>
+                <Text style={[styles.bracketSeed, { color: '#C9A227', fontFamily: GEO }]}>1</Text>
                 <Avatar id={semi1A.playerId} name={semi1A.name} size={20} />
                 <Text style={[styles.bracketName, { color: semi1Winner === semi1A ? c.text : c.textMuted }]} numberOfLines={1}>
                   {semi1A.name}
                 </Text>
-                <Text style={[styles.bracketPts, { color: '#D4AF37', fontFamily: GEO }]}>{semi1A.points}</Text>
+                <Text style={[styles.bracketPts, { color: '#C9A227', fontFamily: GEO }]}>{semi1A.points}</Text>
               </View>
             )}
             {semi1B && (
               <View style={styles.bracketMatchupRow}>
-                <Text style={[styles.bracketSeed, { color: '#D4AF37', fontFamily: GEO }]}>4</Text>
+                <Text style={[styles.bracketSeed, { color: '#C9A227', fontFamily: GEO }]}>4</Text>
                 <Avatar id={semi1B.playerId} name={semi1B.name} size={20} />
                 <Text style={[styles.bracketName, { color: semi1Winner === semi1B ? c.text : c.textMuted }]} numberOfLines={1}>
                   {semi1B.name}
                 </Text>
-                <Text style={[styles.bracketPts, { color: '#D4AF37', fontFamily: GEO }]}>{semi1B.points}</Text>
+                <Text style={[styles.bracketPts, { color: '#C9A227', fontFamily: GEO }]}>{semi1B.points}</Text>
               </View>
             )}
           </View>
@@ -554,22 +554,22 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
           <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, marginTop: 12 }]}>
             {semi2A && (
               <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-                <Text style={[styles.bracketSeed, { color: '#D4AF37', fontFamily: GEO }]}>2</Text>
+                <Text style={[styles.bracketSeed, { color: '#C9A227', fontFamily: GEO }]}>2</Text>
                 <Avatar id={semi2A.playerId} name={semi2A.name} size={20} />
                 <Text style={[styles.bracketName, { color: semi2Winner === semi2A ? c.text : c.textMuted }]} numberOfLines={1}>
                   {semi2A.name}
                 </Text>
-                <Text style={[styles.bracketPts, { color: '#D4AF37', fontFamily: GEO }]}>{semi2A.points}</Text>
+                <Text style={[styles.bracketPts, { color: '#C9A227', fontFamily: GEO }]}>{semi2A.points}</Text>
               </View>
             )}
             {semi2B && (
               <View style={styles.bracketMatchupRow}>
-                <Text style={[styles.bracketSeed, { color: '#D4AF37', fontFamily: GEO }]}>3</Text>
+                <Text style={[styles.bracketSeed, { color: '#C9A227', fontFamily: GEO }]}>3</Text>
                 <Avatar id={semi2B.playerId} name={semi2B.name} size={20} />
                 <Text style={[styles.bracketName, { color: semi2Winner === semi2B ? c.text : c.textMuted }]} numberOfLines={1}>
                   {semi2B.name}
                 </Text>
-                <Text style={[styles.bracketPts, { color: '#D4AF37', fontFamily: GEO }]}>{semi2B.points}</Text>
+                <Text style={[styles.bracketPts, { color: '#C9A227', fontFamily: GEO }]}>{semi2B.points}</Text>
               </View>
             )}
           </View>
@@ -577,9 +577,9 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
 
         {/* Bracket connector lines */}
         <View style={styles.bracketConnectors}>
-          <View style={[styles.bracketLineTop, { borderColor: '#D4AF37' }]} />
-          <View style={[styles.bracketLineBottom, { borderColor: '#D4AF37' }]} />
-          <View style={[styles.bracketLineCenter, { backgroundColor: '#D4AF37' }]} />
+          <View style={[styles.bracketLineTop, { borderColor: '#C9A227' }]} />
+          <View style={[styles.bracketLineBottom, { borderColor: '#C9A227' }]} />
+          <View style={[styles.bracketLineCenter, { backgroundColor: '#C9A227' }]} />
         </View>
 
         {/* Finals Column */}
@@ -590,28 +590,28 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
             {semi1Winner && (
               <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
                 <Avatar id={semi1Winner.playerId} name={semi1Winner.name} size={20} />
-                <Text style={[styles.bracketName, { color: champion === semi1Winner ? '#D4AF37' : c.textMuted }]} numberOfLines={1}>
+                <Text style={[styles.bracketName, { color: champion === semi1Winner ? '#C9A227' : c.textMuted }]} numberOfLines={1}>
                   {semi1Winner.name}
                 </Text>
-                <Text style={[styles.bracketPts, { color: '#D4AF37', fontFamily: GEO }]}>{semi1Winner.points}</Text>
+                <Text style={[styles.bracketPts, { color: '#C9A227', fontFamily: GEO }]}>{semi1Winner.points}</Text>
               </View>
             )}
             {semi2Winner && (
               <View style={styles.bracketMatchupRow}>
                 <Avatar id={semi2Winner.playerId} name={semi2Winner.name} size={20} />
-                <Text style={[styles.bracketName, { color: champion === semi2Winner ? '#D4AF37' : c.textMuted }]} numberOfLines={1}>
+                <Text style={[styles.bracketName, { color: champion === semi2Winner ? '#C9A227' : c.textMuted }]} numberOfLines={1}>
                   {semi2Winner.name}
                 </Text>
-                <Text style={[styles.bracketPts, { color: '#D4AF37', fontFamily: GEO }]}>{semi2Winner.points}</Text>
+                <Text style={[styles.bracketPts, { color: '#C9A227', fontFamily: GEO }]}>{semi2Winner.points}</Text>
               </View>
             )}
           </View>
 
           {/* Champion display */}
           {champion && (
-            <View style={[styles.bracketChampion, { borderColor: '#D4AF37' }]}>
-              <Ionicons name="trophy" size={16} color="#D4AF37" />
-              <Text style={[styles.bracketChampionName, { color: '#D4AF37', fontFamily: GEO }]}>{champion.name}</Text>
+            <View style={[styles.bracketChampion, { borderColor: '#C9A227' }]}>
+              <Ionicons name="trophy" size={16} color="#C9A227" />
+              <Text style={[styles.bracketChampionName, { color: '#C9A227', fontFamily: GEO }]}>{champion.name}</Text>
             </View>
           )}
         </View>
@@ -619,11 +619,11 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
 
       {/* Eliminated section */}
       <View style={[styles.bracketSection, { backgroundColor: c.elevated, marginTop: 16, opacity: 0.5 }]}>
-        <Text style={[styles.bracketSectionLabel, { color: '#C44B4F' }]}>ELIMINATED</Text>
+        <Text style={[styles.bracketSectionLabel, { color: '#C41E3A' }]}>ELIMINATED</Text>
         {eliminated.map((p) => (
           <View key={p.playerId} style={[styles.bracketRow, { borderBottomColor: c.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="close-circle" size={16} color="#C44B4F" />
+              <Ionicons name="close-circle" size={16} color="#C41E3A" />
               <Text style={[styles.bracketName, { color: c.textMuted }]}>{p.name}</Text>
             </View>
             <Text style={[styles.bracketPts, { color: c.textMuted, fontFamily: GEO }]}>{p.points}</Text>
@@ -690,7 +690,7 @@ function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: numbe
 
             {w.isMajor && w.majorName && (
               <LinearGradient
-                colors={['#D4AF3710', '#D4AF3700']}
+                colors={['#C9A22710', '#C9A22700']}
                 style={styles.majorGlow}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}

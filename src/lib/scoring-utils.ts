@@ -5,7 +5,7 @@
 export const SCORE_COLORS = {
   eagle: '#B8860B',
   birdie: '#C41E3A',
-  par: '#2A9D8F',
+  par: '#006747',
   bogey: '#6B8E23',
   double: '#8B4513', // uses textMuted in practice for double+
 } as const;
@@ -202,7 +202,7 @@ export function movementArrow(movement: Movement): string {
 }
 
 export function movementColor(movement: Movement): string {
-  if (movement === 'up') return '#2A9D8F'; // green/teal
-  if (movement === 'down') return '#C44B4F'; // red
+  if (movement === 'up') return '#006747'; // green/teal
+  if (movement === 'down') return '#C41E3A'; // red
   return '#6B6560'; // muted
 }
