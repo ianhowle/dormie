@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import GoldDivider from '../src/components/GoldDivider';
 import { haptics } from '../src/lib/haptics';
+import { useAuth } from '../src/lib/auth';
+import { bucketListService } from '../src/services/bucketList.service';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -131,8 +133,44 @@ export default function DiscoverScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const { user } = useAuth();
 
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [bucketCourseIds, setBucketCourseIds] = useState<Set<string>>(new Set());
+
+  // Load bucket list course IDs from Supabase
+  useEffect(() => {
+    if (!user) return;
+    bucketListService.getIds(user.id).then(setBucketCourseIds).catch(() => {});
+  }, [user]);
+
+  const toggleBucketList = async (courseId: string, courseName: string) => {
+    if (!user) return;
+    haptics.light();
+    const isInList = bucketCourseIds.has(courseId);
+    // Optimistic update
+    setBucketCourseIds((prev) => {
+      const next = new Set(prev);
+      if (isInList) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+    try {
+      if (isInList) {
+        await bucketListService.remove(user.id, courseId);
+      } else {
+        await bucketListService.add(user.id, courseId);
+      }
+    } catch {
+      // Revert on failure
+      setBucketCourseIds((prev) => {
+        const next = new Set(prev);
+        if (isInList) next.add(courseId);
+        else next.delete(courseId);
+        return next;
+      });
+    }
+  };
 
   const toggleSaved = (id: string) => {
     setSavedIds((prev) => {
@@ -274,12 +312,28 @@ export default function DiscoverScreen() {
 
                   {/* Top courses */}
                   <View style={s.destCoursesList}>
-                    {dest.courses.map((course) => (
-                      <View key={course} style={[s.destCourseRow, { borderColor: c.border }]}>
-                        <Ionicons name="golf" size={12} color={c.textMuted} />
-                        <Text style={[s.destCourseName, { color: c.text }]}>{course}</Text>
-                      </View>
-                    ))}
+                    {dest.courses.map((course) => {
+                      // Use a deterministic ID from destination + course name
+                      const courseKey = `${dest.id}-${course}`;
+                      const isInBucket = bucketCourseIds.has(courseKey);
+                      return (
+                        <View key={course} style={[s.destCourseRow, { borderColor: c.border }]}>
+                          <Ionicons name="golf" size={12} color={c.textMuted} />
+                          <Text style={[s.destCourseName, { color: c.text, flex: 1 }]}>{course}</Text>
+                          <Pressable
+                            onPress={() => toggleBucketList(courseKey, course)}
+                            hitSlop={8}
+                            style={s.bucketBtn}
+                          >
+                            <Ionicons
+                              name={isInBucket ? 'checkmark-circle' : 'add-circle-outline'}
+                              size={18}
+                              color={isInBucket ? c.gold : c.textMuted}
+                            />
+                          </Pressable>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               </View>
@@ -411,4 +465,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
   },
   destCourseName: { fontSize: 12, fontWeight: '600' },
+  bucketBtn: {
+    padding: 4,
+  },
 });

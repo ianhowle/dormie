@@ -14,12 +14,15 @@ import {
   Alert,
   Clipboard,
   Modal,
+  Image,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
@@ -36,7 +39,8 @@ import { sounds } from '../src/lib/sounds';
 import { useToast } from '../src/components/Toast';
 import { messagesService } from '../src/services/messages.service';
 import { tripsService } from '../src/services/trips.service';
-import type { TripMessageWithUser } from '../src/lib/database.types';
+import { momentsService } from '../src/services/moments.service';
+import type { TripMessageWithUser, TripMomentWithUser } from '../src/lib/database.types';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -249,6 +253,17 @@ function formatInviteCode(trip: typeof MOCK_UPCOMING_TRIPS[0]): string {
   return `DORMIE-${prefix}-${year}`;
 }
 
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 // ─── Pinstripes texture ─────────────────────────────────────────────────
 function Pinstripes() {
   const lines = Array.from({ length: 40 });
@@ -291,11 +306,15 @@ function ClubhouseTab({
   checklist,
   onToggleCheck,
   onToolPress,
+  realMoments,
+  onAddMoment,
 }: {
   trip: typeof MOCK_UPCOMING_TRIPS[0];
   checklist: ChecklistItem[];
   onToggleCheck: (id: string) => void;
   onToolPress: (toolId: string) => void;
+  realMoments: TripMomentWithUser[];
+  onAddMoment: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -441,16 +460,34 @@ function ClubhouseTab({
 
       {/* Trip moments */}
       <SectionLabel title="TRIP MOMENTS" />
-      {MOCK_MOMENTS.map((m) => (
-        <View key={m.id} style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-          <Text style={[s.momentText, { color: c.text }]}>{m.text}</Text>
-          <View style={s.momentMeta}>
-            <Text style={[s.momentAuthor, { color: c.textMuted }]}>{m.author}</Text>
-            <Text style={[s.momentTime, { color: c.textMuted }]}>{m.time}</Text>
+      {(realMoments.length > 0 ? realMoments : MOCK_MOMENTS).map((m: any) => {
+        const authorName = m.user?.name ?? m.author ?? '';
+        const timeStr = m.created_at
+          ? formatTimeAgo(m.created_at)
+          : m.time ?? '';
+        return (
+          <View key={m.id} style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            {m.user && (
+              <View style={s.momentHeader}>
+                <Avatar id={m.user.id} size={24} name={authorName} />
+                <Text style={[s.momentAuthorName, { color: c.text }]}>{authorName}</Text>
+              </View>
+            )}
+            <Text style={[s.momentText, { color: c.text }]}>{m.text}</Text>
+            {m.photo_url && (
+              <Image source={{ uri: m.photo_url }} style={s.momentPhoto} resizeMode="cover" />
+            )}
+            <View style={s.momentMeta}>
+              {!m.user && <Text style={[s.momentAuthor, { color: c.textMuted }]}>{authorName}</Text>}
+              <Text style={[s.momentTime, { color: c.textMuted }]}>{timeStr}</Text>
+            </View>
           </View>
-        </View>
-      ))}
-      <Pressable style={[s.addMomentBtn, { borderColor: c.border }]}>
+        );
+      })}
+      <Pressable
+        onPress={() => { haptics.light(); onAddMoment(); }}
+        style={[s.addMomentBtn, { borderColor: c.border }]}
+      >
         <Ionicons name="add-circle-outline" size={16} color={c.teal} />
         <Text style={[s.addMomentText, { color: c.teal }]}>Add Moment</Text>
       </Pressable>
@@ -1805,9 +1842,16 @@ function CompetitionView({
 
   const [scoreMode, setScoreMode] = useState<'gross' | 'net'>('gross');
   const [expandedSideGame, setExpandedSideGame] = useState<string | null>(null);
-  const [moments, setMoments] = useState(MOCK_COMP_MOMENTS);
+  const [moments, setMoments] = useState<any[]>(MOCK_COMP_MOMENTS);
   const [unreadChat] = useState(3);
   const [compPlayers, setCompPlayers] = useState<CompPlayer[]>([]);
+
+  // Load real moments
+  useEffect(() => {
+    momentsService.getByTrip(trip.id).then((data) => {
+      if (data.length > 0) setMoments(data);
+    }).catch(() => {});
+  }, [trip.id]);
 
   useEffect(() => {
     tripsService.getLeaderboard(trip.id).then((entries) => {
@@ -2082,15 +2126,28 @@ function CompetitionView({
 
           {/* TRIP MOMENTS */}
           <Text style={[cm.compSectionTitle, { color: c.gold, fontFamily: GEO }]}>TRIP MOMENTS</Text>
-          {moments.map((m) => (
-            <View key={m.id} style={[cm.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Text style={[cm.momentText, { color: c.text }]}>{m.text}</Text>
-              <View style={cm.momentMeta}>
-                <Text style={[cm.momentAuthor, { color: c.textMuted }]}>{m.author}</Text>
-                <Text style={[cm.momentTime, { color: c.textMuted }]}>{m.time}</Text>
+          {moments.map((m: any) => {
+            const authorName = m.user?.name ?? m.author ?? '';
+            const timeStr = m.created_at ? formatTimeAgo(m.created_at) : m.time ?? '';
+            return (
+              <View key={m.id} style={[cm.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                {m.user && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Avatar id={m.user.id} size={24} name={authorName} />
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: c.text }}>{authorName}</Text>
+                  </View>
+                )}
+                <Text style={[cm.momentText, { color: c.text }]}>{m.text}</Text>
+                {m.photo_url && (
+                  <Image source={{ uri: m.photo_url }} style={{ width: '100%', height: 160, marginTop: 8 }} resizeMode="cover" />
+                )}
+                <View style={cm.momentMeta}>
+                  {!m.user && <Text style={[cm.momentAuthor, { color: c.textMuted }]}>{authorName}</Text>}
+                  <Text style={[cm.momentTime, { color: c.textMuted }]}>{timeStr}</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
           <Pressable style={[cm.addMomentBtn, { borderColor: c.border }]}>
             <Ionicons name="add-circle-outline" size={16} color={c.teal} />
             <Text style={[cm.addMomentText, { color: c.teal }]}>Add Moment</Text>
@@ -2153,6 +2210,47 @@ export default function TripDetailScreen() {
   const [showCeremony, setShowCeremony] = useState(false);
   const [competitionMode, setCompetitionMode] = useState(false);
   const [chatLastActive, setChatLastActive] = useState<Date>(new Date());
+
+  // Moments state
+  const [realMoments, setRealMoments] = useState<TripMomentWithUser[]>([]);
+  const [showAddMoment, setShowAddMoment] = useState(false);
+  const [momentText, setMomentText] = useState('');
+  const [momentPhoto, setMomentPhoto] = useState<string | null>(null);
+  const [submittingMoment, setSubmittingMoment] = useState(false);
+
+  // Load moments from Supabase
+  useEffect(() => {
+    momentsService.getByTrip(trip.id).then(setRealMoments).catch(() => {});
+  }, [trip.id]);
+
+  const handlePickPhoto = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setMomentPhoto(result.assets[0].uri);
+    }
+  }, []);
+
+  const handleSubmitMoment = useCallback(async () => {
+    if (!user || !momentText.trim()) return;
+    setSubmittingMoment(true);
+    try {
+      await momentsService.create(trip.id, user.id, momentText.trim(), momentPhoto ?? undefined);
+      const updated = await momentsService.getByTrip(trip.id);
+      setRealMoments(updated);
+      setMomentText('');
+      setMomentPhoto(null);
+      setShowAddMoment(false);
+      haptics.success();
+      showToast({ message: 'Moment added', type: 'success' });
+    } catch {
+      Alert.alert('Error', 'Failed to add moment. Please try again.');
+    }
+    setSubmittingMoment(false);
+  }, [user, trip.id, momentText, momentPhoto, showToast]);
 
   // Haptic-enhanced tab switching
   const handleTabSwitch = useCallback((tab: Tab) => {
@@ -2420,7 +2518,7 @@ export default function TripDetailScreen() {
         {/* Index 3: TAB CONTENT */}
         <View style={{ minHeight: 500, backgroundColor: c.bg }}>
           {activeTab === 'Clubhouse' && (
-            <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} />
+            <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} realMoments={realMoments} onAddMoment={() => setShowAddMoment(true)} />
           )}
           {activeTab === 'Courses' && <CoursesTab />}
           {activeTab === 'Players' && <PlayersTab />}
@@ -2450,6 +2548,61 @@ export default function TripDetailScreen() {
         visible={showCeremony}
         onComplete={handleCeremonyComplete}
       />
+
+      {/* Add Moment Modal */}
+      <Modal visible={showAddMoment} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={s.modalOverlay}
+        >
+          <View style={[s.momentModal, { backgroundColor: c.surface }]}>
+            <View style={s.momentModalHeader}>
+              <Text style={[s.momentModalTitle, { color: c.text, fontFamily: GEO }]}>Add Moment</Text>
+              <Pressable onPress={() => { setShowAddMoment(false); setMomentText(''); setMomentPhoto(null); }} hitSlop={12}>
+                <Ionicons name="close" size={24} color={c.textMuted} />
+              </Pressable>
+            </View>
+
+            <TextInput
+              style={[s.momentInput, { color: c.text, backgroundColor: c.cardBg, borderColor: c.border }]}
+              placeholder="What happened on the course?"
+              placeholderTextColor={c.textMuted}
+              value={momentText}
+              onChangeText={setMomentText}
+              multiline
+              maxLength={500}
+            />
+
+            {momentPhoto && (
+              <View style={s.momentPhotoPreview}>
+                <Image source={{ uri: momentPhoto }} style={s.momentPhotoImg} resizeMode="cover" />
+                <Pressable onPress={() => setMomentPhoto(null)} style={s.momentPhotoRemove}>
+                  <Ionicons name="close-circle" size={24} color="#fff" />
+                </Pressable>
+              </View>
+            )}
+
+            <View style={s.momentModalActions}>
+              <Pressable onPress={handlePickPhoto} style={[s.momentPhotoBtn, { borderColor: c.border }]}>
+                <Ionicons name="camera-outline" size={20} color={c.teal} />
+                <Text style={[s.momentPhotoBtnText, { color: c.teal }]}>Photo</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSubmitMoment}
+                disabled={!momentText.trim() || submittingMoment}
+                style={[
+                  s.momentSubmitBtn,
+                  { backgroundColor: momentText.trim() ? c.teal : c.elevated },
+                ]}
+              >
+                <Text style={s.momentSubmitText}>
+                  {submittingMoment ? 'Posting...' : 'Post Moment'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -2687,6 +2840,81 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   addMomentText: { fontSize: 12, fontWeight: '600' },
+  momentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  momentAuthorName: { fontSize: 12, fontWeight: '600' },
+  momentPhoto: {
+    width: '100%',
+    height: 160,
+    marginTop: 8,
+  },
+
+  /* Add Moment Modal */
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  momentModal: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  momentModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  momentModalTitle: { fontSize: 18, fontWeight: '700' },
+  momentInput: {
+    borderWidth: 1,
+    padding: 14,
+    fontSize: 14,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  momentPhotoPreview: {
+    marginTop: 12,
+    position: 'relative',
+  },
+  momentPhotoImg: {
+    width: '100%',
+    height: 160,
+  },
+  momentPhotoRemove: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  momentModalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
+  momentPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+  },
+  momentPhotoBtnText: { fontSize: 13, fontWeight: '600' },
+  momentSubmitBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  momentSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 
   /* H2H */
   h2hRow: {

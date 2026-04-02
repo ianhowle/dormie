@@ -134,6 +134,17 @@ export interface TripMoment {
   created_at: string;
 }
 
+export interface BucketListItem {
+  id: string;
+  user_id: string;
+  course_id: string;
+  created_at: string;
+  notes: string | null;
+}
+
+export type BucketListItemInsert = Pick<BucketListItem, 'user_id' | 'course_id'> &
+  Partial<Pick<BucketListItem, 'notes'>>;
+
 export interface Season {
   id: string;
   name: string;
@@ -287,4 +298,12 @@ export interface SeasonWithMembers extends Season {
 
 export interface SeasonWeekWithScores extends SeasonWeek {
   season_scores: (SeasonScore & { user: Pick<User, 'id' | 'name'> })[];
+}
+
+export interface TripMomentWithUser extends TripMoment {
+  user: Pick<User, 'id' | 'name' | 'avatar_color'>;
+}
+
+export interface BucketListItemWithCourse extends BucketListItem {
+  course: Pick<Course, 'id' | 'name' | 'location'>;
 }

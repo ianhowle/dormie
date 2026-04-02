@@ -23,11 +23,12 @@ import GoldDivider from '../../src/components/GoldDivider';
 import { TripCountdownRing } from '../../src/components/TripCountdownRing';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
+import { bucketListService } from '../../src/services/bucketList.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { getDreamImage } from '../../src/services/courseImages.service';
-import type { TripWithMembers } from '../../src/lib/database.types';
+import type { TripWithMembers, BucketListItemWithCourse } from '../../src/lib/database.types';
 import {
   MOCK_TRIP_STATS,
   MOCK_UPCOMING_TRIPS,
@@ -319,17 +320,31 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
 }
 
 // ─── Bucket list ──────────────────────────────────────────────────────
-function BucketList({ courses }: { courses: BucketCourse[] }) {
+function BucketList({ courses, realItems }: { courses: BucketCourse[]; realItems: BucketListItemWithCourse[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
 
-  if (courses.length === 0) return null;
+  // Merge real data with mock fallback
+  const hasRealData = realItems.length > 0;
+  const displayCourses = hasRealData
+    ? realItems.map((item) => {
+        const parts = item.course.location?.split(',') ?? ['', ''];
+        return {
+          id: item.id,
+          name: item.course.name,
+          city: parts[0]?.trim() ?? '',
+          state: parts[1]?.trim() ?? '',
+        };
+      })
+    : courses;
+
+  if (displayCourses.length === 0) return null;
 
   return (
     <View>
       <SectionLabel title="BUCKET LIST" />
-      {courses.map((course) => (
+      {displayCourses.map((course) => (
         <View
           key={course.id}
           style={[
@@ -343,11 +358,11 @@ function BucketList({ courses }: { courses: BucketCourse[] }) {
             ...(isDark ? [cardShadowDark] : [cardShadowLight]),
           ]}
         >
-          <Ionicons name="star" size={14} color={c.gold} />
+          <Ionicons name="checkmark-circle" size={14} color={c.gold} />
           <View style={s.bucketInfo}>
             <Text style={[s.bucketName, { color: c.text, fontFamily: SANS }]}>{course.name}</Text>
             <Text style={[s.bucketLocation, { color: c.textMuted }]}>
-              {course.city}, {course.state}
+              {course.city}{course.state ? `, ${course.state}` : ''}
             </Text>
           </View>
         </View>
@@ -410,6 +425,7 @@ export default function TripsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
+  const [bucketItems, setBucketItems] = useState<BucketListItemWithCourse[]>([]);
   const [showDemoData, setShowDemoData] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
@@ -418,14 +434,19 @@ export default function TripsScreen() {
   useEffect(() => {
     if (!user) return;
     tripsService.getByUser(user.id).then(setRealTrips).catch(() => {});
+    bucketListService.getByUser(user.id).then(setBucketItems).catch(() => {});
   }, [user]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (user) {
-        const trips = await tripsService.getByUser(user.id);
+        const [trips, bucket] = await Promise.all([
+          tripsService.getByUser(user.id),
+          bucketListService.getByUser(user.id),
+        ]);
         setRealTrips(trips);
+        setBucketItems(bucket);
       }
       setLastRefreshed(new Date());
       showToast({ message: 'Trips updated', type: 'success' });
@@ -511,7 +532,7 @@ export default function TripsScreen() {
           {(realTrips.length > 0 || showDemoData) && (
             <>
               <GoldDivider style={{ marginTop: 24 }} />
-              <BucketList courses={MOCK_BUCKET_COURSES} />
+              <BucketList courses={MOCK_BUCKET_COURSES} realItems={bucketItems} />
             </>
           )}
 
