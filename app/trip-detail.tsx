@@ -1790,12 +1790,14 @@ function CompetitionView({
   onScoreHole,
   onQuickEntry,
   onExit,
+  onFinishTrip,
 }: {
   trip: typeof MOCK_UPCOMING_TRIPS[0];
   courses: TripCourse[];
   onScoreHole: () => void;
   onQuickEntry: () => void;
   onExit: () => void;
+  onFinishTrip: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -2094,6 +2096,18 @@ function CompetitionView({
             <Text style={[cm.addMomentText, { color: c.teal }]}>Add Moment</Text>
           </Pressable>
 
+          {/* FINISH TRIP */}
+          <Pressable
+            onPress={() => {
+              haptics.light();
+              onFinishTrip();
+            }}
+            style={[cm.actionPrimary, { marginTop: 24, backgroundColor: c.gold }]}
+          >
+            <Ionicons name="flag" size={18} color="#000000" />
+            <Text style={[cm.actionPrimaryText, { fontFamily: GEO, color: '#000000' }]}>Finish Trip</Text>
+          </Pressable>
+
           <View style={{ height: 80 }} />
         </View>
       </ScrollView>
@@ -2168,15 +2182,64 @@ export default function TripDetailScreen() {
     showToast({ message: 'Trip created', type: 'success', icon: 'flag-outline' });
   }, [showToast]);
 
+  const [tripCompleted, setTripCompleted] = useState(false);
+
+  const handleFinishTrip = useCallback(async () => {
+    Alert.alert(
+      'Finish Trip',
+      `End ${trip.name} and see the final results?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Finish',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await tripsService.update(trip.id, { status: 'completed' });
+
+              // Fetch leaderboard for recap
+              const leaderboard = await tripsService.getLeaderboard(trip.id);
+              const winner = leaderboard[0];
+              const coursesPlayed = MOCK_COURSES.length;
+              const bestRound = leaderboard.reduce(
+                (best: any, entry: any) => (!best || (entry.best_round && entry.best_round < best.score))
+                  ? { player: entry.user_name, score: entry.best_round }
+                  : best,
+                null as { player: string; score: number } | null,
+              );
+
+              setTripCompleted(true);
+              setCompetitionMode(false);
+              haptics.success();
+
+              Alert.alert(
+                `${trip.name} Complete!`,
+                [
+                  winner ? `Winner: ${winner.user_name}` : '',
+                  `Courses Played: ${coursesPlayed}`,
+                  bestRound ? `Best Round: ${bestRound.score} by ${bestRound.player}` : '',
+                ].filter(Boolean).join('\n'),
+                [{ text: 'Celebrate', onPress: () => showToast({ message: `${winner?.user_name ?? 'Champion'} wins!`, type: 'success', icon: 'trophy-outline' }) }],
+              );
+            } catch {
+              Alert.alert('Error', 'Failed to finish trip. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [trip, showToast]);
+
   // Competition mode routing
   if (competitionMode) {
     return (
       <CompetitionView
         trip={trip}
         courses={MOCK_COURSES}
-        onScoreHole={() => router.push('/scoring')}
+        onScoreHole={() => router.push({ pathname: '/scoring', params: { tripId: trip.id } })}
         onQuickEntry={() => Alert.alert('Quick Entry', 'Enter total score for the round.')}
         onExit={() => setCompetitionMode(false)}
+        onFinishTrip={handleFinishTrip}
       />
     );
   }

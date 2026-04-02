@@ -11,6 +11,7 @@ import {
   StatusBar,
   Animated,
   Modal,
+  Alert,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +25,8 @@ import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
+import { getPlayoffCutLine } from '../src/data/seasons-detail';
+import { supabase } from '../src/lib/supabase';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -723,14 +726,15 @@ export default function SeasonDetailScreen() {
   const [realStandings, setRealStandings] = useState<Standing[]>([]);
   const [realWeeks, setRealWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
+  const [advancing, setAdvancing] = useState(false);
 
-  useEffect(() => {
+  const refreshData = useCallback(async () => {
     if (!seasonId) return;
-    setLoading(true);
-    Promise.all([
-      seasonsService.getStandings(seasonId),
-      seasonsService.getWeeks(seasonId),
-    ]).then(([standingsData, weeksData]) => {
+    try {
+      const [standingsData, weeksData] = await Promise.all([
+        seasonsService.getStandings(seasonId),
+        seasonsService.getWeeks(seasonId),
+      ]);
       if (standingsData && standingsData.length > 0) {
         setRealStandings(standingsData.map((s: any, i: number) => ({
           playerId: s.user_id,
@@ -760,8 +764,13 @@ export default function SeasonDetailScreen() {
           allScoresSubmitted: w.all_scores_submitted ?? false,
         })));
       }
-    }).catch(() => {}).finally(() => setLoading(false));
+    } catch {}
   }, [seasonId]);
+
+  useEffect(() => {
+    setLoading(true);
+    refreshData().finally(() => setLoading(false));
+  }, [refreshData]);
 
   const [tab, setTab] = useState<Tab>('standings');
   const [selectedPlayer, setSelectedPlayer] = useState<Standing | null>(null);
@@ -788,11 +797,95 @@ export default function SeasonDetailScreen() {
     setShowPlayerModal(true);
   }, []);
 
-  const handleAdvanceWeek = useCallback(() => {
-    if (isSeasonComplete) {
-      setShowChampionCeremony(true);
+  const handleAdvanceWeek = useCallback(async () => {
+    if (!seasonId || !currentWeekData || advancing) return;
+
+    const doAdvance = async () => {
+      setAdvancing(true);
+      try {
+        // 1. Get the week row id for the current week
+        const weeksData = await seasonsService.getWeeks(seasonId);
+        const weekRow = weeksData.find((w: any) => w.week_number === currentWeek);
+        if (!weekRow) return;
+
+        // 2. Apply multipliers: update scores for playoff/championship weeks
+        const multiplier = currentWeekData.isPlayoff || currentWeekData.isChampionship
+          ? currentWeekData.multiplier
+          : 1;
+        if (multiplier > 1 && weekRow.season_scores) {
+          for (const score of (weekRow as any).season_scores) {
+            const newPoints = Math.round(score.points * multiplier);
+            await supabase
+              .from('season_scores')
+              .update({ points: newPoints })
+              .eq('id', score.id);
+          }
+        }
+
+        // 3. Mark current week as completed
+        await supabase
+          .from('season_weeks')
+          .update({ status: 'completed' })
+          .eq('id', weekRow.id);
+
+        // 4. If this is a cut line week (playoff start), eliminate players below cut
+        if (currentWeekData.isPlayoff) {
+          const cutSize = getPlayoffCutLine(standings.length, 67);
+          const eliminated = standings.slice(cutSize);
+          for (const player of eliminated) {
+            await supabase
+              .from('season_members')
+              .update({ eliminated: true })
+              .eq('season_id', seasonId)
+              .eq('user_id', player.playerId);
+          }
+        }
+
+        // 5. Determine next week or complete the season
+        const nextWeek = weeks.find((w) => w.number === currentWeek + 1);
+        if (!nextWeek || currentWeekData.isChampionship) {
+          // Season complete
+          await seasonsService.update(seasonId, { status: 'completed' });
+          setShowChampionCeremony(true);
+        } else {
+          // Move to the next week — update season status if entering playoffs
+          const updates: any = {};
+          if (nextWeek.isPlayoff) {
+            updates.status = 'playoffs';
+          }
+          if (Object.keys(updates).length > 0) {
+            await seasonsService.update(seasonId, updates);
+          }
+        }
+
+        // 6. Refresh standings and weeks
+        await refreshData();
+        haptics.success();
+      } catch (err) {
+        Alert.alert('Error', 'Failed to advance week. Please try again.');
+      } finally {
+        setAdvancing(false);
+      }
+    };
+
+    // Check if all members have submitted scores
+    if (!currentWeekData.allScoresSubmitted) {
+      const weeksData = await seasonsService.getWeeks(seasonId);
+      const weekRow = weeksData.find((w: any) => w.week_number === currentWeek);
+      const submitted = (weekRow as any)?.season_scores?.length ?? 0;
+      const missing = standings.length - submitted;
+      Alert.alert(
+        'Missing Scores',
+        `${missing} player${missing !== 1 ? 's' : ''} haven't submitted. Advance anyway?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Advance', style: 'destructive', onPress: doAdvance },
+        ],
+      );
+    } else {
+      await doAdvance();
     }
-  }, [isSeasonComplete]);
+  }, [seasonId, currentWeek, currentWeekData, standings, weeks, advancing, refreshData]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
