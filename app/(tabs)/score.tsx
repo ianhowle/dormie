@@ -23,11 +23,15 @@ import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
-import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES } from '../../src/data/courses';
-import { MOCK_SEASONS } from '../../src/data/leaderboard';
-import { MOCK_UPCOMING_TRIPS } from '../../src/data/trips';
+import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES as COMMUNITY_COURSES } from '../../src/data/courses';
 import { coursesService, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
 import { usgaService, type USGATeeBox } from '../../src/services/usga.service';
+import { friendsService } from '../../src/services/friends.service';
+import { seasonsService } from '../../src/services/seasons.service';
+import { tripsService } from '../../src/services/trips.service';
+import { useAuth } from '../../src/lib/auth';
+import type { FriendshipWithUser } from '../../src/lib/database.types';
+import type { Season, Trip } from '../../src/lib/database.types';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import {
@@ -128,27 +132,17 @@ type Player = {
 // ─── All searchable courses ───────────────────────────────────────────
 const ALL_COURSES = [
   ...PLAYED_SORTED.map((c) => ({ id: c.id, name: c.name, par: c.par, city: c.city, state: c.state, location: `${c.city}, ${c.state}` })),
-  ...MOCK_COMMUNITY_COURSES.map((c) => ({ id: c.id, name: c.name, par: 72, city: c.city, state: c.state, location: `${c.city}, ${c.state}` })),
+  ...COMMUNITY_COURSES.map((c) => ({ id: c.id, name: c.name, par: 72, city: c.city, state: c.state, location: `${c.city}, ${c.state}` })),
 ];
 
-// ─── Mock tee boxes ──────────────────────────────────────────────────
-const MOCK_TEE_BOXES = [
-  { name: 'Championship', color: '#1E4D2B', rating: 74.2, slope: 142, yards: 7200 },
-  { name: 'Blue', color: '#1B2A4A', rating: 72.1, slope: 135, yards: 6800 },
-  { name: 'White', color: '#FFFFFF', rating: 70.0, slope: 128, yards: 6400 },
-  { name: 'Gold', color: '#C9A227', rating: 68.2, slope: 121, yards: 5900 },
-  { name: 'Red', color: '#C41E3A', rating: 66.1, slope: 115, yards: 5400 },
-];
 
-// ─── Mock friends for player search ──────────────────────────────────
-const MOCK_FRIENDS = [
-  { id: 'f1', name: 'Drew Patterson', handicap: 12 },
-  { id: 'f2', name: 'Jake Sullivan', handicap: 15 },
-  { id: 'f3', name: 'Tommy Fleetwood', handicap: 3 },
-  { id: 'f4', name: 'Mike Chen', handicap: 18 },
-  { id: 'f5', name: 'Sam Rodriguez', handicap: 22 },
-  { id: 'f6', name: 'Nate Harmon', handicap: 14 },
-];
+// Friend type for player selection (mapped from FriendshipWithUser)
+type FriendPlayer = {
+  id: string;
+  name: string;
+  handicap: number;
+  avatarColor?: string;
+};
 
 // ─── Side game descriptions ─────────────────────────────────────────
 const SIDE_GAME_DESCRIPTIONS: Record<string, string> = {
@@ -615,12 +609,16 @@ function AddPlayerInline({
 function AddPlayerModal({
   visible,
   existingPlayerIds,
+  friends,
+  loadingFriends,
   onAddFriend,
   onAddManual,
   onClose,
 }: {
   visible: boolean;
   existingPlayerIds: Set<string>;
+  friends: FriendPlayer[];
+  loadingFriends: boolean;
   onAddFriend: (friend: { id: string; name: string; handicap: number }) => void;
   onAddManual: (name: string, hcp: number) => void;
   onClose: () => void;
@@ -634,10 +632,10 @@ function AddPlayerModal({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return MOCK_FRIENDS.filter(
+    return friends.filter(
       (f) => !existingPlayerIds.has(f.id) && (q.length === 0 || f.name.toLowerCase().includes(q)),
     );
-  }, [search, existingPlayerIds]);
+  }, [search, existingPlayerIds, friends]);
 
   const handleClose = () => {
     setSearch('');
@@ -711,7 +709,7 @@ function AddPlayerModal({
             )}
             ListEmptyComponent={
               <Text style={[st.modalEmptyText, { color: c.textMuted }]}>
-                {search.length > 0 ? 'No friends found' : 'No more friends to add'}
+                {loadingFriends ? 'Loading friends...' : search.length > 0 ? 'No friends found' : friends.length === 0 ? 'No friends yet — add a manual player below' : 'No more friends to add'}
               </Text>
             }
           />
@@ -929,6 +927,7 @@ export default function ScoreScreen() {
   const c = theme.colors;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
   // State
   const [course, setCourse] = useState<SelectedCourse>(null);
@@ -960,9 +959,43 @@ export default function ScoreScreen() {
   const [linkedMatchup, setLinkedMatchup] = useState<string | null>(null);
   const [expandedFormat, setExpandedFormat] = useState<string | null>(null);
 
-  // Active seasons/trips for linking
-  const activeSeasons = MOCK_SEASONS.filter((s) => s.currentWeek <= s.totalWeeks);
-  const activeTrips = MOCK_UPCOMING_TRIPS.filter((t) => t.status === 'upcoming');
+  // Real data: friends, seasons, trips
+  const [friends, setFriends] = useState<FriendPlayer[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [activeSeasons, setActiveSeasons] = useState<Season[]>([]);
+  const [activeTrips, setActiveTrips] = useState<Trip[]>([]);
+
+  // Fetch friends, seasons, trips on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    const userId = user.id;
+
+    setLoadingFriends(true);
+    friendsService.getActiveFriends(userId)
+      .then((friendships) => {
+        const mapped: FriendPlayer[] = friendships.map((fs) => ({
+          id: fs.friend.id,
+          name: fs.friend.name,
+          handicap: fs.friend.handicap_index ?? 0,
+          avatarColor: fs.friend.avatar_color ?? undefined,
+        }));
+        setFriends(mapped);
+      })
+      .catch(() => setFriends([]))
+      .finally(() => setLoadingFriends(false));
+
+    seasonsService.getByUser(userId)
+      .then((seasons) => {
+        setActiveSeasons(seasons.filter((s) => s.status === 'active' || s.status === 'playoffs'));
+      })
+      .catch(() => setActiveSeasons([]));
+
+    tripsService.getByUser(userId)
+      .then((trips) => {
+        setActiveTrips(trips.filter((t) => t.status === 'upcoming' || t.status === 'active'));
+      })
+      .catch(() => setActiveTrips([]));
+  }, [user?.id]);
 
   const toggleSeason = (id: string) => {
     haptics.selection();
@@ -973,7 +1006,11 @@ export default function ScoreScreen() {
 
   // Detect format conflicts across selected seasons
   const selectedSeasonData = activeSeasons.filter((s) => linkedSeasons.includes(s.id));
-  const seasonFormats = [...new Set(selectedSeasonData.map((s) => s.format ?? 'Stroke Play'))];
+  const getSeasonFormat = (s: Season) => {
+    const cfg = s.config as any;
+    return cfg?.format ?? cfg?.scoring_format ?? 'Stroke Play';
+  };
+  const seasonFormats = [...new Set(selectedSeasonData.map(getSeasonFormat))];
   const hasFormatConflict = seasonFormats.length > 1;
 
   const isCustom = course?.id.startsWith('custom-');
@@ -1323,6 +1360,8 @@ export default function ScoreScreen() {
             <AddPlayerModal
               visible={showAddPlayerModal}
               existingPlayerIds={new Set(players.map((p) => p.id))}
+              friends={friends}
+              loadingFriends={loadingFriends}
               onAddFriend={handleAddFriend}
               onAddManual={handleAddPlayer}
               onClose={() => setShowAddPlayerModal(false)}
@@ -1391,6 +1430,7 @@ export default function ScoreScreen() {
                   <View style={st.seasonList}>
                     {activeSeasons.map((s) => {
                       const selected = linkedSeasons.includes(s.id);
+                      const fmt = getSeasonFormat(s);
                       return (
                         <Pressable
                           key={s.id}
@@ -1410,7 +1450,7 @@ export default function ScoreScreen() {
                               {s.name}
                             </Text>
                             <Text style={[st.seasonRowMeta, { color: c.textMuted, fontFamily: SANS }]}>
-                              Week {s.currentWeek}/{s.totalWeeks} {'\u00B7'} {s.format ?? 'Stroke Play'}
+                              {s.type === 'fedex' ? 'FedEx Cup' : s.type === 'ryder' ? 'Ryder Cup' : 'Custom'} {'\u00B7'} {fmt}
                             </Text>
                           </View>
                           <Ionicons
@@ -1439,7 +1479,7 @@ export default function ScoreScreen() {
                     </Text>
                   </View>
                   {selectedSeasonData.map((s) => {
-                    const fmt = s.format ?? 'Stroke Play';
+                    const fmt = getSeasonFormat(s);
                     const isExpanded = expandedFormat === s.id;
                     return (
                       <Pressable key={s.id} onPress={() => setExpandedFormat(isExpanded ? null : s.id)}>
@@ -1489,7 +1529,7 @@ export default function ScoreScreen() {
                     <View style={st.contextDetail}>
                       {activeTrips.filter((t) => t.id === linkedTrip).map((t) => (
                         <Text key={t.id} style={[st.contextDetailText, { color: c.textMuted, fontFamily: SANS }]}>
-                          {t.name} {'\u00B7'} {t.destination}
+                          {t.name} {'\u00B7'} {t.location}
                         </Text>
                       ))}
                       {activeTrips.length > 1 && (
@@ -1513,7 +1553,7 @@ export default function ScoreScreen() {
                   )
                 ) : (
                   <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
-                    No active trips
+                    No upcoming trips
                   </Text>
                 )}
               </Pressable>
@@ -1524,8 +1564,8 @@ export default function ScoreScreen() {
                   haptics.selection();
                   if (linkedMatchup) {
                     setLinkedMatchup(null);
-                  } else if (MOCK_FRIENDS.length > 0) {
-                    setLinkedMatchup(MOCK_FRIENDS[0].id);
+                  } else if (friends.length > 0) {
+                    setLinkedMatchup(friends[0].id);
                   }
                 }}
                 style={({ pressed }) => [
@@ -1548,10 +1588,10 @@ export default function ScoreScreen() {
                 {linkedMatchup ? (
                   <View style={st.contextDetail}>
                     <Text style={[st.contextDetailText, { color: c.textMuted, fontFamily: SANS }]}>
-                      vs {MOCK_FRIENDS.find((f) => f.id === linkedMatchup)?.name ?? 'Opponent'}
+                      vs {friends.find((f) => f.id === linkedMatchup)?.name ?? 'Opponent'}
                     </Text>
                     <View style={st.contextPickerRow}>
-                      {MOCK_FRIENDS.slice(0, 4).map((f) => (
+                      {friends.slice(0, 4).map((f) => (
                         <Pressable
                           key={f.id}
                           onPress={() => { haptics.selection(); setLinkedMatchup(f.id); }}
@@ -1564,7 +1604,7 @@ export default function ScoreScreen() {
                   </View>
                 ) : (
                   <Text style={[st.contextMuted, { color: c.textMuted, fontFamily: SANS }]}>
-                    Tap to set up a 1v1 matchup
+                    {friends.length > 0 ? 'Tap to set up a 1v1 matchup' : 'Add friends to set up matchups'}
                   </Text>
                 )}
               </Pressable>
