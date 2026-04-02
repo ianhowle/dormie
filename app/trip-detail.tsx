@@ -32,7 +32,7 @@ import GoldDivider from '../src/components/GoldDivider';
 import { TripCountdownRing } from '../src/components/TripCountdownRing';
 import { PulsingDot } from '../src/components/PulsingDot';
 import { RyderCupHub } from '../src/components/RyderCupHub';
-import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS } from '../src/data/trips';
+import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS, type Trip, type TripStatus } from '../src/data/trips';
 import { useAuth } from '../src/lib/auth';
 import { haptics } from '../src/lib/haptics';
 import { sounds } from '../src/lib/sounds';
@@ -2193,7 +2193,48 @@ export default function TripDetailScreen() {
   const params = useLocalSearchParams<{ tripId?: string }>();
   const { user } = useAuth();
 
-  const trip = MOCK_UPCOMING_TRIPS.find((t) => t.id === params.tripId) ?? MOCK_UPCOMING_TRIPS[0];
+  const mockTrip = MOCK_UPCOMING_TRIPS.find((t) => t.id === params.tripId);
+
+  // Fetch real trip from Supabase for Ryder Cup trips (when tripId doesn't match mock data)
+  const [dbTrip, setDbTrip] = useState<Trip | null>(null);
+  const [dbLoading, setDbLoading] = useState(!mockTrip && !!params.tripId);
+
+  useEffect(() => {
+    if (!mockTrip && params.tripId) {
+      tripsService.getById(params.tripId).then((data) => {
+        if (data) {
+          // Map DB Trip to local Trip shape
+          setDbTrip({
+            id: data.id,
+            name: data.name,
+            destination: data.location,
+            city: (data.city || data.location?.split(',')[0]) ?? '',
+            state: (data.state || data.location?.split(',')[1]?.trim()) ?? '',
+            startDate: data.start_date,
+            endDate: data.end_date,
+            status: data.status as TripStatus,
+            inviteCode: data.invite_code || '',
+            isRyderCup: data.trip_type === 'ryder',
+            createdBy: data.organizer_id,
+            playerIds: (data.trip_members || []).map((m: any) => m.user_id),
+            roundsPlanned: (data.ryder_cup_config as any)?.sessions?.length ?? 3,
+            gradient: (data.gradient as [string, string]) ?? ['#1565C0', '#B71C1C'],
+          });
+        }
+        setDbLoading(false);
+      }).catch(() => setDbLoading(false));
+    }
+  }, [mockTrip, params.tripId]);
+
+  const trip = mockTrip ?? dbTrip ?? MOCK_UPCOMING_TRIPS[0];
+
+  if (dbLoading) {
+    return (
+      <View style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, { backgroundColor: c.bg }]}>
+        <Text style={{ color: c.textMuted }}>Loading...</Text>
+      </View>
+    );
+  }
 
   // Ryder Cup trips get their own dedicated view
   if (trip.isRyderCup) {

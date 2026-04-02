@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
   Clipboard,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,9 @@ import { cardShadowDark, cardShadowLight, dark as darkColors } from '../theme/co
 import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import type { Trip } from '../data/trips';
+import { tripsService } from '../services/trips.service';
+import { useAuth } from '../lib/auth';
+import type { RyderCupConfig, TripMemberWithUser } from '../lib/database.types';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -72,7 +76,59 @@ type ChatMessage = {
   reactions: { emoji: string; count: number; reacted: boolean }[];
 };
 
-// ─── Mock data ──────────────────────────────────────────────────────────
+// ─── Helpers to build data from Supabase ─────────────────────────────
+const FORMAT_LABELS: Record<string, string> = {
+  foursomes: 'Foursomes',
+  fourball: 'Four-Ball',
+  singles: 'Singles',
+  shamble: 'Shamble',
+  scramble: 'Scramble',
+  greensomes: 'Greensomes',
+};
+
+const FORMAT_ICONS: Record<string, string> = {
+  foursomes: 'swap-horizontal',
+  fourball: 'people',
+  singles: 'person',
+  shamble: 'golf',
+  scramble: 'people-circle',
+  greensomes: 'git-merge',
+};
+
+function buildSessionsFromConfig(
+  config: RyderCupConfig | null,
+  tripCourses: { day_number: number; course?: { name: string } }[],
+): RCSession[] {
+  if (!config || !config.sessions) return [];
+  return (config.sessions as any[]).map((s: any, i: number) => {
+    const courseForSession = tripCourses[i];
+    const format = s.format || 'singles';
+    const holeRange = s.holeRange || 'full18';
+    const holeCount = holeRange === 'full18' ? 18 : 9;
+    return {
+      id: s.id || `s${i}`,
+      day: i + 1,
+      format: format as RCFormat,
+      formatLabel: FORMAT_LABELS[format] || format,
+      formatIcon: FORMAT_ICONS[format] || 'golf',
+      status: 'not_started' as SessionStatus,
+      matchCount: s.points || 4,
+      holeCount,
+      courseName: courseForSession?.course?.name || 'TBD',
+    };
+  });
+}
+
+function buildPlayersFromMembers(members: TripMemberWithUser[]): RCPlayer[] {
+  return members.map((m) => ({
+    id: m.user_id,
+    name: m.user?.name || 'Player',
+    handicap: m.user?.handicap_index || 0,
+    team: m.team,
+  }));
+}
+
+// ─── Mock data (fallback when no Supabase data) ─────────────────────
 const MOCK_RC_SESSIONS: RCSession[] = [
   {
     id: 'rs1',
@@ -335,7 +391,7 @@ function RCChecklist({
 // ═══════════════════════════════════════════════════════════════════════
 // RC CHAT VIEW (19th Hole)
 // ═══════════════════════════════════════════════════════════════════════
-function RCChat({ onBack }: { onBack: () => void }) {
+function RCChat({ onBack, rcPlayers }: { onBack: () => void; rcPlayers: RCPlayer[] }) {
   const { theme } = useTheme();
   const c = darkColors;
   const [messages, setMessages] = useState(MOCK_RC_CHAT);
@@ -413,7 +469,7 @@ function RCChat({ onBack }: { onBack: () => void }) {
       >
         {messages.map((msg) => {
           const isMe = msg.userId === '1';
-          const player = MOCK_RC_PLAYERS.find((p) => p.id === msg.userId);
+          const player = rcPlayers.find((p) => p.id === msg.userId);
           const teamColor = player?.team === 'red' ? RC_RED : RC_BLUE;
           return (
             <View key={msg.id} style={h.chatMsgWrap}>
@@ -500,12 +556,12 @@ function RCChat({ onBack }: { onBack: () => void }) {
 // ═══════════════════════════════════════════════════════════════════════
 // RC SETTINGS VIEW
 // ═══════════════════════════════════════════════════════════════════════
-function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
+function RCSettings({ trip, onBack, rcPlayers, rcSessions }: { trip: Trip; onBack: () => void; rcPlayers: RCPlayer[]; rcSessions: RCSession[] }) {
   const { theme, toggleTheme } = useTheme();
   const c = darkColors;
 
-  const redPlayers = MOCK_RC_PLAYERS.filter((p) => p.team === 'red');
-  const bluePlayers = MOCK_RC_PLAYERS.filter((p) => p.team === 'blue');
+  const redPlayers = rcPlayers.filter((p) => p.team === 'red');
+  const bluePlayers = rcPlayers.filter((p) => p.team === 'blue');
 
   const configRows: [string, string][] = [
     ['Competition', trip.name],
@@ -513,7 +569,7 @@ function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
     ['Course', trip.destination],
     ['Dates', `${trip.startDate} → ${trip.endDate}`],
     ['Team Size', `${trip.playerIds.length / 2}v${trip.playerIds.length / 2}`],
-    ['Sessions', `${MOCK_RC_SESSIONS.length}`],
+    ['Sessions', `${sessions.length}`],
     ['Win Condition', 'Most Points'],
     ['Scoring', 'Win = 1 · Halve = ½ · Loss = 0'],
     ['Invite Code', formatInviteCode(trip)],
@@ -587,7 +643,7 @@ function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
 
         {/* All players list */}
         <Text style={[h.settingsSection, { color: c.gold, fontFamily: GEO }]}>ALL PLAYERS</Text>
-        {MOCK_RC_PLAYERS.map((p) => (
+        {rcPlayers.map((p) => (
           <View key={p.id} style={[h.settingsPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
             <View style={[h.teamDot, { backgroundColor: p.team === 'red' ? RC_RED : RC_BLUE }]} />
             <Avatar id={p.id} size={32} name={p.name} />
@@ -636,10 +692,12 @@ function RCSettings({ trip, onBack }: { trip: Trip; onBack: () => void }) {
 // ═══════════════════════════════════════════════════════════════════════
 function RCTeamDraft({
   players,
+  tripId,
   onConfirm,
   onBack,
 }: {
   players: RCPlayer[];
+  tripId?: string;
   onConfirm: (drafted: RCPlayer[]) => void;
   onBack: () => void;
 }) {
@@ -650,6 +708,7 @@ function RCTeamDraft({
     players.map((p) => ({ ...p, team: null })),
   );
   const [snakePickIdx, setSnakePickIdx] = useState(0);
+  const [confirming, setConfirming] = useState(false);
 
   const available = draftedPlayers.filter((p) => p.team === null);
   const redTeam = draftedPlayers.filter((p) => p.team === 'red');
@@ -669,7 +728,13 @@ function RCTeamDraft({
     setDraftedPlayers((prev) =>
       prev.map((p) => (p.id === playerId ? { ...p, team } : p)),
     );
-    if (formation === 'snake_draft') setSnakePickIdx((i) => i + 1);
+    if (formation === 'snake_draft') {
+      setSnakePickIdx((i) => i + 1);
+    }
+    // Persist each pick immediately
+    if (tripId) {
+      tripsService.updateMemberTeam(tripId, playerId, team).catch(() => {});
+    }
   };
 
   const autoBalance = () => {
@@ -688,6 +753,30 @@ function RCTeamDraft({
   const resetDraft = () => {
     setDraftedPlayers(players.map((p) => ({ ...p, team: null })));
     setSnakePickIdx(0);
+  };
+
+  const handleConfirm = async () => {
+    if (confirming) return;
+    setConfirming(true);
+    haptics.medium();
+    try {
+      // Persist all team assignments to Supabase
+      if (tripId) {
+        const members = draftedPlayers
+          .filter((p) => p.team !== null)
+          .map((p) => ({
+            user_id: p.id,
+            role: 'player' as const,
+            team: p.team,
+          }));
+        await tripsService.addMembers(tripId, members);
+      }
+      onConfirm(draftedPlayers);
+    } catch {
+      Alert.alert('Error', 'Failed to save team assignments. Please try again.');
+    } finally {
+      setConfirming(false);
+    }
   };
 
   const canConfirm = redTeam.length === maxPerSide && blueTeam.length === maxPerSide;
@@ -828,9 +917,9 @@ function RCTeamDraft({
 
         {/* Confirm button */}
         <Pressable
-          onPress={() => canConfirm && onConfirm(draftedPlayers)}
-          disabled={!canConfirm}
-          style={[d.confirmBtn, { opacity: canConfirm ? 1 : 0.4 }]}
+          onPress={() => canConfirm && handleConfirm()}
+          disabled={!canConfirm || confirming}
+          style={[d.confirmBtn, { opacity: canConfirm && !confirming ? 1 : 0.4 }]}
         >
           <LinearGradient colors={[RC_RED, RC_BLUE]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
           <Ionicons name="checkmark-circle" size={20} color="#C9A227" />
@@ -1434,13 +1523,125 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   const { theme } = useTheme();
   const c = darkColors;
   const router = useRouter();
+  const { user } = useAuth();
 
   const [subView, setSubView] = useState<SubView>('hub');
   const [checklist, setChecklist] = useState(MOCK_RC_CHECKLIST);
-  const [teamsDrafted, setTeamsDrafted] = useState(true);
   const [activeSession, setActiveSession] = useState<RCSession | null>(null);
   const [activeMatch, setActiveMatch] = useState<{ match: RCMatch; idx: number } | null>(null);
-  const [players, setPlayers] = useState(MOCK_RC_PLAYERS);
+  const [loading, setLoading] = useState(true);
+
+  // Real data from Supabase
+  const [players, setPlayers] = useState<RCPlayer[]>(MOCK_RC_PLAYERS);
+  const [sessions, setSessions] = useState<RCSession[]>(MOCK_RC_SESSIONS);
+  const [matches, setMatches] = useState<Record<string, RCMatch[]>>(MOCK_MATCHES);
+
+  // Derived: teams drafted when all players have a team assigned
+  const teamsDrafted = players.length > 0 && players.every((p) => p.team !== null);
+
+  // Fetch real data from Supabase
+  const fetchData = useCallback(async () => {
+    if (!trip.id) return;
+    try {
+      // Fetch members
+      const members = await tripsService.getMembers(trip.id);
+      if (members.length > 0) {
+        setPlayers(buildPlayersFromMembers(members));
+      }
+
+      // Fetch courses
+      const tripCourses = await tripsService.getCourses(trip.id);
+
+      // Build sessions from ryder_cup_config
+      const tripData = await tripsService.getById(trip.id);
+      const config = (tripData as any).ryder_cup_config as RyderCupConfig | null;
+      if (config && config.sessions && (config.sessions as any[]).length > 0) {
+        const builtSessions = buildSessionsFromConfig(config, tripCourses);
+        if (builtSessions.length > 0) {
+          // Compute session scores from rounds
+          const rounds = await tripsService.getTripRounds(trip.id);
+          const memberMap = new Map(members.map((m) => [m.user_id, m.team]));
+
+          builtSessions.forEach((session, idx) => {
+            // Find rounds played on this session's day
+            const dayRounds = rounds.filter((r: any) => {
+              const courseMatch = tripCourses[idx];
+              return courseMatch && r.course_id === courseMatch.course_id;
+            });
+
+            if (dayRounds.length > 0) {
+              let redScore = 0;
+              let blueScore = 0;
+              dayRounds.forEach((r: any) => {
+                const team = memberMap.get(r.user_id);
+                if (team === 'red') redScore += 1;
+                else if (team === 'blue') blueScore += 1;
+              });
+              // Normalize to match-play points (each round = portion of session)
+              const matchCount = session.matchCount || 4;
+              session.redScore = Math.min(redScore / 2, matchCount);
+              session.blueScore = Math.min(blueScore / 2, matchCount);
+              session.status = dayRounds.length >= matchCount * 2 ? 'complete' : 'live';
+            }
+          });
+
+          setSessions(builtSessions);
+
+          // Build match stubs from sessions (for matchup reveals)
+          const newMatches: Record<string, RCMatch[]> = {};
+          const redPlayers = members.filter((m) => m.team === 'red');
+          const bluePlayers = members.filter((m) => m.team === 'blue');
+
+          builtSessions.forEach((session) => {
+            const sessionMatches: RCMatch[] = [];
+            const pairCount = Math.min(
+              session.format === 'singles' ? redPlayers.length : Math.floor(redPlayers.length / 2),
+              session.matchCount,
+            );
+            for (let i = 0; i < pairCount; i++) {
+              if (session.format === 'singles') {
+                const rp = redPlayers[i % redPlayers.length];
+                const bp = bluePlayers[i % bluePlayers.length];
+                sessionMatches.push({
+                  id: `${session.id}-m${i}`,
+                  redPlayers: [rp?.user?.name || 'TBD'],
+                  bluePlayers: [bp?.user?.name || 'TBD'],
+                  status: 'AS',
+                  redScore: 0,
+                  blueScore: 0,
+                  holesPlayed: 0,
+                });
+              } else {
+                const r1 = redPlayers[i * 2 % redPlayers.length];
+                const r2 = redPlayers[(i * 2 + 1) % redPlayers.length];
+                const b1 = bluePlayers[i * 2 % bluePlayers.length];
+                const b2 = bluePlayers[(i * 2 + 1) % bluePlayers.length];
+                sessionMatches.push({
+                  id: `${session.id}-m${i}`,
+                  redPlayers: [r1?.user?.name || 'TBD', r2?.user?.name || 'TBD'],
+                  bluePlayers: [b1?.user?.name || 'TBD', b2?.user?.name || 'TBD'],
+                  status: 'AS',
+                  redScore: 0,
+                  blueScore: 0,
+                  holesPlayed: 0,
+                });
+              }
+            }
+            newMatches[session.id] = sessionMatches;
+          });
+          setMatches(newMatches);
+        }
+      }
+    } catch {
+      // Silently fall back to mock data
+    } finally {
+      setLoading(false);
+    }
+  }, [trip.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const toggleCheck = (id: string) => {
     haptics.light();
@@ -1450,28 +1651,28 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   };
 
   // Scores
-  const redTotal = MOCK_RC_SESSIONS.reduce((s, ss) => s + (ss.redScore ?? 0), 0);
-  const blueTotal = MOCK_RC_SESSIONS.reduce((s, ss) => s + (ss.blueScore ?? 0), 0);
-  const totalPoints = MOCK_RC_SESSIONS.reduce((s, ss) => s + ss.matchCount, 0);
-  const allSessionsComplete = MOCK_RC_SESSIONS.every((ss) => ss.status === 'complete');
+  const redTotal = sessions.reduce((s, ss) => s + (ss.redScore ?? 0), 0);
+  const blueTotal = sessions.reduce((s, ss) => s + (ss.blueScore ?? 0), 0);
+  const totalPoints = sessions.reduce((s, ss) => s + ss.matchCount, 0);
+  const allSessionsComplete = sessions.every((ss) => ss.status === 'complete');
 
   // Sub-views
   if (subView === 'checklist') {
     return <RCChecklist checklist={checklist} onToggle={toggleCheck} onBack={() => setSubView('hub')} />;
   }
   if (subView === 'chat') {
-    return <RCChat onBack={() => setSubView('hub')} />;
+    return <RCChat onBack={() => setSubView('hub')} rcPlayers={players} />;
   }
   if (subView === 'settings') {
-    return <RCSettings trip={trip} onBack={() => setSubView('hub')} />;
+    return <RCSettings trip={trip} onBack={() => setSubView('hub')} rcPlayers={players} rcSessions={sessions} />;
   }
   if (subView === 'draft') {
     return (
       <RCTeamDraft
         players={players}
+        tripId={trip.id}
         onConfirm={(drafted) => {
           setPlayers(drafted);
-          setTeamsDrafted(true);
           setSubView('hub');
         }}
         onBack={() => setSubView('hub')}
@@ -1479,22 +1680,22 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
     );
   }
   if (subView === 'reveal' && activeSession) {
-    const matches = MOCK_MATCHES[activeSession.id] ?? [];
+    const sessionMatches = matches[activeSession.id] ?? [];
     return (
       <RCMatchupReveal
         session={activeSession}
-        matches={matches}
+        matches={sessionMatches}
         onStartScoring={() => setSubView('matchlist')}
         onBack={() => { setSubView('hub'); setActiveSession(null); }}
       />
     );
   }
   if (subView === 'matchlist' && activeSession) {
-    const matches = MOCK_MATCHES[activeSession.id] ?? [];
+    const sessionMatches = matches[activeSession.id] ?? [];
     return (
       <RCMatchList
         session={activeSession}
-        matches={matches}
+        matches={sessionMatches}
         onMatchPress={(match, idx) => {
           setActiveMatch({ match, idx });
           setSubView('scoring');
@@ -1624,7 +1825,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
 
           {/* Win condition callout */}
           <View style={h.winCallout}>
-            <Text style={h.winCalloutText}>Most points after {MOCK_RC_SESSIONS.length} sessions wins</Text>
+            <Text style={h.winCalloutText}>Most points after {sessions.length} sessions wins</Text>
           </View>
         </LinearGradient>
 
@@ -1671,7 +1872,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
 
           {/* SESSIONS */}
           <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>SESSIONS</Text>
-          {MOCK_RC_SESSIONS.map((session) => (
+          {sessions.map((session) => (
             <Pressable
               key={session.id}
               onPress={() => handleSessionPress(session)}
@@ -1784,7 +1985,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
 
       {/* Players row sits outside ScrollView for consistent placement */}
       <FlatList
-        data={MOCK_RC_PLAYERS}
+        data={players}
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}

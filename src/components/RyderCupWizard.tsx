@@ -23,6 +23,9 @@ import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import { SIDE_GAMES, type SideGame } from '../data/scoring';
+import { useAuth } from '../lib/auth';
+import { tripsService } from '../services/trips.service';
+import { coursesService } from '../services/courses.service';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -1265,7 +1268,9 @@ function StepReview({
 // ═══════════════════════════════════════════════════════════════════════
 export function RyderCupWizard({ onBack }: { onBack: () => void }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   // Step 1: Basics
   const [name, setName] = useState('');
@@ -1331,12 +1336,114 @@ export function RyderCupWizard({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const handleLaunch = () => {
-    Alert.alert(
-      'Ryder Cup Created!',
-      `${name || 'Ryder Cup'} has been created. ${teamAName || 'Team Red'} vs ${teamBName || 'Team Blue'}!`,
-      [{ text: 'Let\'s Go!', onPress: () => router.back() }],
-    );
+  const handleLaunch = async () => {
+    if (!user || saving) return;
+    setSaving(true);
+    haptics.medium();
+
+    try {
+      // 1. Build ryder_cup_config
+      const ryderCupConfig = {
+        teamRedName: teamAName || 'Team Red',
+        teamBlueName: teamBName || 'Team Blue',
+        sessions: sessions.map((s) => ({
+          id: s.id,
+          format: s.format,
+          holeRange: s.holeRange,
+          courseId: s.courseId,
+          points: s.points,
+        })),
+        formation,
+        teamSize,
+        winCondition,
+        firstToTarget: winCondition === 'first_to' ? firstToTarget : null,
+        nineHoleMatches,
+        sideGames: Array.from(sideGames),
+      };
+
+      // 2. Create the trip
+      const trip = await tripsService.create({
+        name: name || 'Ryder Cup',
+        location: destination || 'TBD',
+        start_date: startDate || new Date().toISOString().slice(0, 10),
+        end_date: endDate || new Date().toISOString().slice(0, 10),
+        organizer_id: user.id,
+        trip_type: 'ryder',
+        status: 'planning',
+        ryder_cup_config: ryderCupConfig,
+        side_games: Array.from(sideGames),
+        gradient: ['#1565C0', '#B71C1C'],
+      });
+
+      // 3. Add players as trip_members
+      // Auto-balance assigns teams now if formation is 'auto_balance'
+      let teamAssignments: { userId: string; team: 'red' | 'blue' | null }[] = [];
+
+      if (formation === 'auto_balance') {
+        // Snake-by-handicap assignment
+        const sorted = [...players].sort((a, b) => a.handicap - b.handicap);
+        sorted.forEach((p, i) => {
+          const round = Math.floor(i / 2);
+          const isSecond = i % 2 === 1;
+          const team: 'red' | 'blue' = (round % 2 === 0) === !isSecond ? 'red' : 'blue';
+          teamAssignments.push({ userId: p.id, team });
+        });
+      } else {
+        // For captain/snake_draft/import, teams will be assigned later in draft
+        teamAssignments = players.map((p) => ({ userId: p.id, team: null }));
+      }
+
+      // Skip the organizer (already added by tripsService.create) — update their team instead
+      const otherMembers = teamAssignments
+        .filter((m) => m.userId !== user.id)
+        .map((m) => ({
+          user_id: m.userId,
+          role: 'player' as const,
+          team: m.team,
+        }));
+
+      if (otherMembers.length > 0) {
+        await tripsService.addMembers(trip.id, otherMembers);
+      }
+
+      // Update organizer's team if auto-balanced
+      const orgAssignment = teamAssignments.find((m) => m.userId === user.id);
+      if (orgAssignment?.team) {
+        await tripsService.updateMemberTeam(trip.id, user.id, orgAssignment.team);
+      }
+
+      // 4. Add courses as trip_courses
+      for (let i = 0; i < courses.length; i++) {
+        const course = courses[i];
+        // Ensure course exists in DB
+        let courseRecord;
+        try {
+          courseRecord = await coursesService.ensureCourse({
+            name: course.name,
+            location: `${course.city}, ${course.state}`,
+          });
+        } catch {
+          continue; // Skip if course creation fails
+        }
+        await tripsService.addCourse({
+          trip_id: trip.id,
+          course_id: courseRecord.id,
+          day_number: i + 1,
+        });
+      }
+
+      // 5. Navigate to the trip detail screen
+      haptics.success();
+      router.dismissAll();
+      router.push({ pathname: '/trip-detail', params: { tripId: trip.id } });
+    } catch (err) {
+      setSaving(false);
+      Alert.alert(
+        'Error',
+        'Failed to create Ryder Cup. Please try again.',
+        [{ text: 'OK' }],
+      );
+    }
   };
 
   // Step 0: Welcome

@@ -5,6 +5,7 @@ import type {
   TripUpdate,
   TripWithMembers,
   TripMember,
+  TripMemberWithUser,
   TripCourse,
   TripCourseInsert,
   TripLeaderboardEntry,
@@ -118,6 +119,59 @@ export const tripsService = {
     });
     if (error) throw error;
     return data as TripLeaderboardEntry[];
+  },
+
+  /** Add multiple members to a trip in bulk. */
+  async addMembers(
+    tripId: string,
+    members: { user_id: string; role?: TripMember['role']; team?: TripMember['team'] }[],
+  ): Promise<void> {
+    const rows = members.map((m) => ({
+      trip_id: tripId,
+      user_id: m.user_id,
+      rsvp_status: 'confirmed' as const,
+      role: m.role ?? 'player',
+      team: m.team ?? null,
+    }));
+    const { error } = await supabase.from('trip_members').upsert(rows, {
+      onConflict: 'trip_id,user_id',
+    });
+    if (error) throw error;
+  },
+
+  /** Update a member's team assignment. */
+  async updateMemberTeam(
+    tripId: string,
+    userId: string,
+    team: 'red' | 'blue' | null,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('trip_members')
+      .update({ team })
+      .eq('trip_id', tripId)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  /** Get all members for a trip with user profiles. */
+  async getMembers(tripId: string): Promise<TripMemberWithUser[]> {
+    const { data, error } = await supabase
+      .from('trip_members')
+      .select('*, user:users(id, name, handicap_index, avatar_color)')
+      .eq('trip_id', tripId);
+    if (error) throw error;
+    return (data ?? []) as TripMemberWithUser[];
+  },
+
+  /** Get rounds linked to a trip, with course info. */
+  async getTripRounds(tripId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('rounds')
+      .select('*, course:courses(name, par)')
+      .eq('trip_id', tripId)
+      .order('played_at', { ascending: true });
+    if (error) throw error;
+    return data ?? [];
   },
 
   /** Subscribe to real-time trip member changes (joins, RSVPs). */
