@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,13 @@ import {
   Alert,
   Share,
   Modal,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import ViewShot from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import { useTheme } from '../theme/ThemeContext';
 import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
@@ -307,13 +311,19 @@ function ShareCardModal({
   player,
   format,
   onClose,
-  onShare,
+  onShareImage,
+  onShareText,
+  onSaveToCameraRoll,
+  viewShotRef,
 }: {
   visible: boolean;
   player: PlayerRound;
   format: 'story' | 'feed';
   onClose: () => void;
-  onShare: () => void;
+  onShareImage: () => void;
+  onShareText: () => void;
+  onSaveToCameraRoll: () => void;
+  viewShotRef: React.RefObject<ViewShot | null>;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -337,76 +347,121 @@ function ShareCardModal({
           </View>
 
           {/* Card preview */}
-          <View style={[styles.shareCard, { width: cardWidth, height: Math.min(cardHeight, 500) }]}>
-            <LinearGradient
-              colors={['#1E4D2B', '#0A2614']}
-              style={StyleSheet.absoluteFill}
-            />
-            {/* Pinstripe texture */}
-            {Array.from({ length: 30 }).map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  position: 'absolute',
-                  top: -100,
-                  left: i * 16 - 50,
-                  width: 1,
-                  height: cardHeight + 200,
-                  backgroundColor: '#FFFFFF',
-                  opacity: 0.03,
-                  transform: [{ rotate: '35deg' }],
-                }}
-              />
-            ))}
-
-            <View style={styles.shareCardInner}>
-              <Text style={styles.shareCardApp}>DORMIE</Text>
-              <Text style={[styles.shareCardScore, { fontFamily: GEO }]}>{player.grossScore}</Text>
-              <Text style={styles.shareCardToPar}>{toPar}</Text>
-              <Text style={styles.shareCardCourse}>{player.courseName}</Text>
-
-              {/* Mini hole strip */}
-              <View style={styles.shareHoleRow}>
-                {player.holes.slice(0, 9).map((h) => {
-                  const color = scoreColor(h.gross, h.par);
-                  return (
-                    <View key={h.hole} style={styles.shareHoleCell}>
-                      <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-              {player.holes.length > 9 && (
-                <View style={styles.shareHoleRow}>
-                  {player.holes.slice(9, 18).map((h) => {
-                    const color = scoreColor(h.gross, h.par);
-                    return (
-                      <View key={h.hole} style={styles.shareHoleCell}>
-                        <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              <Text style={styles.shareCaption}>
-                Shot {player.grossScore} ({toPar}) at {player.courseName} today!{'\n'}
-                Tracked with @dormiegolf
-              </Text>
-            </View>
-          </View>
+          <ShareCardContent
+            player={player}
+            toPar={toPar}
+            cardWidth={cardWidth}
+            cardHeight={cardHeight}
+            viewShotRef={viewShotRef}
+          />
 
           {/* Share buttons */}
           <View style={styles.shareActions}>
-            <Pressable onPress={onShare} style={({ pressed }) => [styles.shareBtn, { backgroundColor: c.greenDark, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
-              <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+            <Pressable onPress={onShareImage} style={({ pressed }) => [styles.shareBtn, { backgroundColor: c.greenDark, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+              <Ionicons name="image-outline" size={18} color="#FFFFFF" />
               <Text style={styles.shareBtnText}>Share</Text>
             </Pressable>
+            <View style={styles.shareSecondaryRow}>
+              <Pressable onPress={onShareText} style={({ pressed }) => [styles.shareSecondaryBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1 }]}>
+                <Ionicons name="text-outline" size={16} color={c.text} />
+                <Text style={[styles.shareSecondaryBtnText, { color: c.text }]}>Share as Text</Text>
+              </Pressable>
+              <Pressable onPress={onSaveToCameraRoll} style={({ pressed }) => [styles.shareSecondaryBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1 }]}>
+                <Ionicons name="download-outline" size={16} color={c.text} />
+                <Text style={[styles.shareSecondaryBtnText, { color: c.text }]}>Save to Camera Roll</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
     </Modal>
   );
+}
+
+// ─── Share Card Content (used for both display and capture) ──────────
+function ShareCardContent({
+  player,
+  toPar,
+  cardWidth,
+  cardHeight,
+  viewShotRef,
+}: {
+  player: PlayerRound;
+  toPar: string;
+  cardWidth: number;
+  cardHeight: number;
+  viewShotRef?: React.RefObject<ViewShot | null>;
+}) {
+  const inner = (
+    <View style={[styles.shareCard, { width: cardWidth, height: Math.min(cardHeight, 500) }]}>
+      <LinearGradient
+        colors={['#1E4D2B', '#0A2614']}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Pinstripe texture */}
+      {Array.from({ length: 30 }).map((_, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            top: -100,
+            left: i * 16 - 50,
+            width: 1,
+            height: cardHeight + 200,
+            backgroundColor: '#FFFFFF',
+            opacity: 0.03,
+            transform: [{ rotate: '35deg' }],
+          }}
+        />
+      ))}
+
+      <View style={styles.shareCardInner}>
+        <Text style={styles.shareCardApp}>DORMIE</Text>
+        <Text style={[styles.shareCardScore, { fontFamily: GEO }]}>{player.grossScore}</Text>
+        <Text style={styles.shareCardToPar}>{toPar}</Text>
+        <Text style={styles.shareCardCourse}>{player.courseName}</Text>
+
+        {/* Mini hole strip */}
+        <View style={styles.shareHoleRow}>
+          {player.holes.slice(0, 9).map((h) => {
+            const color = scoreColor(h.gross, h.par);
+            return (
+              <View key={h.hole} style={styles.shareHoleCell}>
+                <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
+              </View>
+            );
+          })}
+        </View>
+        {player.holes.length > 9 && (
+          <View style={styles.shareHoleRow}>
+            {player.holes.slice(9, 18).map((h) => {
+              const color = scoreColor(h.gross, h.par);
+              return (
+                <View key={h.hole} style={styles.shareHoleCell}>
+                  <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        <Text style={styles.shareCaption}>
+          Shot {player.grossScore} ({toPar}) at {player.courseName} today!{'\n'}
+          Tracked with @dormiegolf
+        </Text>
+      </View>
+    </View>
+  );
+
+  if (viewShotRef) {
+    return (
+      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+        {inner}
+      </ViewShot>
+    );
+  }
+
+  return inner;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────
@@ -417,6 +472,7 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
   const [activePlayerIdx, setActivePlayerIdx] = useState(0);
   const [shareVisible, setShareVisible] = useState(false);
   const [shareFormat, setShareFormat] = useState<'story' | 'feed'>('story');
+  const viewShotRef = useRef<ViewShot | null>(null);
 
   const player = players[activePlayerIdx];
 
@@ -435,14 +491,55 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
   const front9 = (player.holes?.length ?? 0) >= 9 ? splitNine(player.holes, 'front') : null;
   const back9 = (player.holes?.length ?? 0) >= 18 ? splitNine(player.holes, 'back') : null;
 
-  const handleShare = useCallback(async () => {
+  const captureCard = useCallback(async (): Promise<string | null> => {
+    try {
+      if (viewShotRef.current?.capture) {
+        return await viewShotRef.current.capture();
+      }
+    } catch {}
+    return null;
+  }, []);
+
+  const handleShareImage = useCallback(async () => {
+    const uri = await captureCard();
+    if (uri) {
+      try {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png' });
+      } catch {}
+    } else {
+      Alert.alert('Error', 'Could not capture share card.');
+    }
+    setShareVisible(false);
+  }, [captureCard]);
+
+  const handleShareText = useCallback(async () => {
     try {
       await Share.share({
         message: `Shot ${player.grossScore} (${toPar}) at ${player.courseName} today! Tracked with @dormiegolf`,
       });
-    } catch { }
+    } catch {}
     setShareVisible(false);
   }, [player, toPar]);
+
+  const handleSaveToCameraRoll = useCallback(async () => {
+    const uri = await captureCard();
+    if (!uri) {
+      Alert.alert('Error', 'Could not capture share card.');
+      return;
+    }
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to save images.');
+        return;
+      }
+      await MediaLibrary.saveToLibraryAsync(uri);
+      haptics.success();
+      Alert.alert('Saved', 'Share card saved to your camera roll.');
+    } catch {
+      Alert.alert('Error', 'Could not save to camera roll.');
+    }
+  }, [captureCard]);
 
   const handleSave = useCallback(() => {
     haptics.success();
@@ -592,7 +689,10 @@ export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: P
         player={player}
         format={shareFormat}
         onClose={() => setShareVisible(false)}
-        onShare={handleShare}
+        onShareImage={handleShareImage}
+        onShareText={handleShareText}
+        onSaveToCameraRoll={handleSaveToCameraRoll}
+        viewShotRef={viewShotRef}
       />
     </View>
   );
@@ -693,9 +793,12 @@ const styles = StyleSheet.create({
   shareHoleCell: { width: 22, alignItems: 'center' },
   shareHoleCellVal: { fontSize: 11, fontWeight: '700' },
   shareCaption: { color: '#FFFFFF66', fontSize: 10, textAlign: 'center', marginTop: 16, lineHeight: 14 },
-  shareActions: { marginTop: 16 },
+  shareActions: { marginTop: 16, gap: 10 },
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8 },
   shareBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  shareSecondaryRow: { flexDirection: 'row', gap: 8 },
+  shareSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 6 },
+  shareSecondaryBtnText: { fontSize: 12, fontWeight: '600' },
 
   // Save
   saveSection: { padding: 16, paddingBottom: 40 },
