@@ -196,8 +196,8 @@ const MOCK_RC_CHAT: ChatMessage[] = [
 
 const EMOJI_OPTIONS = ['👍', '🔥', '⛳', '😂', '💪', '🏆'];
 
-const RC_RED = '#C41E3A';
-const RC_BLUE = '#1A3A5C';
+const RC_RED = '#B71C1C';
+const RC_BLUE = '#1565C0';
 
 // ─── Match types ────────────────────────────────────────────────────────
 type MatchStatus = 'AS' | '1 UP' | '2 UP' | '3 UP' | '4 UP' | '5 UP' | 'DORMIE' | 'HALVED' | 'FINAL';

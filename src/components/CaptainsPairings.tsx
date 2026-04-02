@@ -204,7 +204,7 @@ export function CaptainsPairings({
   const [selectedPairingId, setSelectedPairingId] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<1 | 2 | null>(null);
 
-  const teamColor = activeTeam === 'red' ? c.urgent : '#4169E1';
+  const teamColor = activeTeam === 'red' ? '#B71C1C' : '#1565C0';
   const teamName = activeTeam === 'red' ? teamRedName : teamBlueName;
   const teamPlayers = activeTeam === 'red' ? teamRed : teamBlue;
   const allPlayers = [...teamRed, ...teamBlue];
@@ -287,11 +287,11 @@ export function CaptainsPairings({
           onPress={() => setActiveTeam('red')}
           style={[
             styles.teamToggleBtn,
-            activeTeam === 'red' && { backgroundColor: c.urgent + '22' },
+            activeTeam === 'red' && { backgroundColor: '#B71C1C22' },
           ]}
         >
-          <View style={[styles.teamDot, { backgroundColor: c.urgent }]} />
-          <Text style={[styles.teamToggleText, { color: activeTeam === 'red' ? c.urgent : c.textMuted }]}>
+          <View style={[styles.teamDot, { backgroundColor: '#B71C1C' }]} />
+          <Text style={[styles.teamToggleText, { color: activeTeam === 'red' ? '#B71C1C' : c.textMuted }]}>
             {teamRedName}
           </Text>
         </Pressable>
@@ -299,11 +299,11 @@ export function CaptainsPairings({
           onPress={() => setActiveTeam('blue')}
           style={[
             styles.teamToggleBtn,
-            activeTeam === 'blue' && { backgroundColor: '#4169E122' },
+            activeTeam === 'blue' && { backgroundColor: '#1565C022' },
           ]}
         >
-          <View style={[styles.teamDot, { backgroundColor: '#4169E1' }]} />
-          <Text style={[styles.teamToggleText, { color: activeTeam === 'blue' ? '#4169E1' : c.textMuted }]}>
+          <View style={[styles.teamDot, { backgroundColor: '#1565C0' }]} />
+          <Text style={[styles.teamToggleText, { color: activeTeam === 'blue' ? '#1565C0' : c.textMuted }]}>
             {teamBlueName}
           </Text>
         </Pressable>

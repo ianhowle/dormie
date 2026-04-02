@@ -124,7 +124,7 @@ function WizardHeader({
   const progress = step / totalSteps;
   return (
     <LinearGradient
-      colors={['#1A3A5C', '#C41E3A']}
+      colors={['#1565C0', '#B71C1C']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={w.wizHeader}
@@ -168,7 +168,7 @@ function StepWelcome({ onBegin }: { onBegin: () => void }) {
   return (
     <View style={w.welcomeScreen}>
       <LinearGradient
-        colors={['#1A3A5C', '#0A0A0A', '#C41E3A']}
+        colors={['#1565C0', '#0A0A0A', '#B71C1C']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -180,9 +180,9 @@ function StepWelcome({ onBegin }: { onBegin: () => void }) {
 
         {/* Red-white-blue divider */}
         <View style={w.dividerRow}>
-          <View style={[w.dividerLine, { backgroundColor: '#C41E3A' }]} />
+          <View style={[w.dividerLine, { backgroundColor: '#B71C1C' }]} />
           <View style={[w.dividerLine, { backgroundColor: '#FFFFFF' }]} />
-          <View style={[w.dividerLine, { backgroundColor: '#1A3A5C' }]} />
+          <View style={[w.dividerLine, { backgroundColor: '#1565C0' }]} />
         </View>
 
         <Text style={w.welcomeSub}>The ultimate team competition</Text>
@@ -214,7 +214,7 @@ function StepWelcome({ onBegin }: { onBegin: () => void }) {
 
         <Pressable onPress={onBegin} style={w.beginBtn}>
           <LinearGradient
-            colors={['#1A3A5C', '#C41E3A']}
+            colors={['#1565C0', '#B71C1C']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
@@ -736,7 +736,7 @@ function StepSchedule({
       {/* One-tap RC format */}
       <Pressable onPress={applyRCFormat} style={[w.rcFormatBtn, { borderColor: c.teal }]}>
         <LinearGradient
-          colors={['#1A3A5C', '#C41E3A']}
+          colors={['#1565C0', '#B71C1C']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
@@ -951,7 +951,7 @@ function StepFormation({
       {/* Team naming */}
       <SectionLabel title="TEAM NAMES" />
       <View style={w.teamNameRow}>
-        <View style={[w.teamColorBar, { backgroundColor: '#C41E3A' }]} />
+        <View style={[w.teamColorBar, { backgroundColor: '#B71C1C' }]} />
         <TextInput
           style={[w.teamNameInput, { color: c.text, borderColor: c.border }]}
           placeholder="Team Red"
@@ -961,7 +961,7 @@ function StepFormation({
         />
       </View>
       <View style={[w.teamNameRow, { marginTop: 8 }]}>
-        <View style={[w.teamColorBar, { backgroundColor: '#1A3A5C' }]} />
+        <View style={[w.teamColorBar, { backgroundColor: '#1565C0' }]} />
         <TextInput
           style={[w.teamNameInput, { color: c.text, borderColor: c.border }]}
           placeholder="Team Blue"
@@ -1184,7 +1184,7 @@ function StepReview({
       {/* Hero graphic */}
       <View style={w.reviewHero}>
         <LinearGradient
-          colors={['#C41E3A', '#1A1A1A', '#1A3A5C']}
+          colors={['#B71C1C', '#1A1A1A', '#1565C0']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
@@ -1192,12 +1192,12 @@ function StepReview({
         <View style={w.reviewHeroContent}>
           <View style={w.reviewVsRow}>
             <View style={w.reviewTeamSide}>
-              <View style={[w.reviewTeamDot, { backgroundColor: '#C41E3A' }]} />
+              <View style={[w.reviewTeamDot, { backgroundColor: '#B71C1C' }]} />
               <Text style={[w.reviewTeamName, { fontFamily: GEO }]}>{redName}</Text>
             </View>
             <Text style={[w.reviewVs, { fontFamily: GEO }]}>VS</Text>
             <View style={w.reviewTeamSide}>
-              <View style={[w.reviewTeamDot, { backgroundColor: '#1A3A5C' }]} />
+              <View style={[w.reviewTeamDot, { backgroundColor: '#1565C0' }]} />
               <Text style={[w.reviewTeamName, { fontFamily: GEO }]}>{blueName}</Text>
             </View>
           </View>
@@ -1246,7 +1246,7 @@ function StepReview({
       {/* Launch button */}
       <Pressable onPress={onLaunch} style={w.launchBtn}>
         <LinearGradient
-          colors={['#1A3A5C', '#C41E3A']}
+          colors={['#1565C0', '#B71C1C']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}

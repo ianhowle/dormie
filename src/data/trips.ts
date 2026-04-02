@@ -106,7 +106,7 @@ export const MOCK_UPCOMING_TRIPS: Trip[] = [
     createdBy: '1',
     playerIds: ['1', '2', '3', '4', '5', '6', '7', '8'],
     roundsPlanned: 4,
-    gradient: ['#1A3A5C', '#C41E3A'],
+    gradient: ['#1565C0', '#B71C1C'],
   },
 ];
 

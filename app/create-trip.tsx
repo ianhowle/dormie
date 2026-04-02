@@ -151,7 +151,7 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
             style={[z.typeCard, { overflow: 'hidden' }]}
           >
             <LinearGradient
-              colors={['#1A3A5C', '#C41E3A']}
+              colors={['#1565C0', '#B71C1C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={z.rcGradientBg}
