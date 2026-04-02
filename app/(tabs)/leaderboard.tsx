@@ -40,6 +40,8 @@ import { roundsService } from '../../src/services/rounds.service';
 import { seasonsService } from '../../src/services/seasons.service';
 import { movementArrow, movementColor, formatToPar as fmtToPar } from '../../src/lib/scoring-utils';
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
+import { LeaderboardGhostEmpty } from '../../src/components/EmptyStates';
+import { DemoPeekToggle, DemoBanner, DEMO_LEADERBOARD } from '../../src/components/DemoPeek';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -651,31 +653,32 @@ export default function LeaderboardScreen() {
           <TabBar active={tab} onSelect={setTab} />
         </View>
 
+        {/* Demo peek toggle — show when empty */}
+        {dataLoaded && leaderboardPlayers.length === 0 && (
+          <DemoPeekToggle
+            isActive={showDemoData}
+            onToggle={() => setShowDemoData(!showDemoData)}
+          />
+        )}
+
+        {/* Demo banner — persistent when demo mode active */}
+        {showDemoData && leaderboardPlayers.length === 0 && <DemoBanner />}
+
         {/* ── Tab content ── */}
         {!dataLoaded ? (
           <SkeletonLeaderboard />
         ) : leaderboardPlayers.length === 0 && !showDemoData ? (
-          <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border, borderStyle: 'dashed' as any }, isDark ? cardShadowDark : cardShadowLight]}>
-            <Text style={styles.emptyEmoji}>🏌️</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>No rounds logged yet</Text>
-            <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Score a round to see the leaderboard</Text>
-            <Pressable
-              onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')}
-              style={({ pressed }) => [styles.emptyBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-            >
-              <Text style={styles.emptyBtnText}>Invite Friends</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setShowDemoData(true)}
-              style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-            >
-              <Text style={[styles.demoToggle, { color: c.teal }]}>Show demo data</Text>
-            </Pressable>
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <LeaderboardGhostEmpty />
           </View>
         ) : (
           <View>
             {tab === 'Leaderboard' && (
-              <LeaderboardTable players={leaderboardPlayers} myId={myId} scope={scope} />
+              <LeaderboardTable
+                players={showDemoData && leaderboardPlayers.length === 0 ? DEMO_LEADERBOARD : leaderboardPlayers}
+                myId={myId}
+                scope={scope}
+              />
             )}
             {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
             {tab === 'H2H' && <H2HTab />}

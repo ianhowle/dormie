@@ -38,7 +38,7 @@ const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 :
 type AvatarMode = 'initials' | 'theme' | 'photo';
 type AvatarTheme = 'green' | 'ocean' | 'gold' | 'navy' | 'brown';
 type GolferType = 'competitive' | 'social' | 'improving';
-type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 const AVATAR_THEMES: { key: AvatarTheme; label: string; color: string }[] = [
   { key: 'green', label: 'Augusta Green', color: '#046A38' },
@@ -247,7 +247,7 @@ function YourGameScreen({
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.stepTitle, { color: c.text }]}>Your Game</Text>
-        <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 1 of 3</Text>
+        <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 1 of 3 — Customize</Text>
 
         {/* Avatar picker */}
         <Text style={[styles.fieldLabel, { color: c.gold }]}>Avatar</Text>
@@ -530,7 +530,7 @@ function BuildGroupScreen() {
   return (
     <ScrollView style={[styles.screenScroll, { backgroundColor: c.bg }]} showsVerticalScrollIndicator={false}>
       <Text style={[styles.stepTitle, { color: c.text }]}>Build Your Group</Text>
-      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 2 of 3</Text>
+      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 2 of 3 — Connect</Text>
       <Text style={[styles.stepDesc, { color: c.textMuted }]}>
         Dormie is built for your golf crew, anywhere.
       </Text>
@@ -603,7 +603,7 @@ function FeatureScreen() {
   return (
     <ScrollView style={[styles.screenScroll, { backgroundColor: c.bg }]} showsVerticalScrollIndicator={false}>
       <Text style={[styles.stepTitle, { color: c.text }]}>What Dormie Does</Text>
-      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 3 of 3</Text>
+      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 3 of 3 — Explore</Text>
 
       {/* Tabs */}
       <View style={styles.featureTabs}>
@@ -818,6 +818,284 @@ function LaunchMontage({ userName, onComplete }: { userName: string; onComplete:
   );
 }
 
+// ─── INTRO SCREEN 1: WHAT DORMIE DOES ────────────────────────────────
+function IntroScreen1({ onNext }: { onNext: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Mini leaderboard animation
+  const rowAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+    Animated.stagger(150, rowAnims.map(a =>
+      Animated.spring(a, { toValue: 1, damping: 15, stiffness: 200, useNativeDriver: true })
+    )).start();
+  }, []);
+
+  const demoRows = [
+    { rank: 1, name: 'McGowan', score: '-2.1', color: '#C9A227' },
+    { rank: 2, name: 'Fletcher', score: '+0.4', color: c.teal },
+    { rank: 3, name: 'Patterson', score: '+1.2', color: c.textMuted },
+    { rank: 4, name: 'You', score: '---', color: c.textMuted },
+  ];
+
+  return (
+    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
+      <Animated.View style={[styles.introCenter, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <Ionicons name="stats-chart" size={48} color={c.teal} />
+        <Text style={[styles.introTitle, { color: c.text }]}>
+          Dormie tracks your rounds, runs your competitions, and settles your bets.
+        </Text>
+
+        {/* Mini leaderboard animation */}
+        <View style={[styles.introPreview, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <View style={[styles.introPreviewHeader, { backgroundColor: '#1E4D2B' }]}>
+            <Text style={styles.introPreviewLabel}>LEADERBOARD</Text>
+          </View>
+          {demoRows.map((row, i) => (
+            <Animated.View
+              key={row.rank}
+              style={[
+                styles.introPreviewRow,
+                i < demoRows.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+                { opacity: rowAnims[i], transform: [{ translateX: rowAnims[i].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] },
+              ]}
+            >
+              <Text style={[styles.introPreviewRank, { color: c.textMuted, fontFamily: GEO }]}>{row.rank}</Text>
+              <Text style={[styles.introPreviewName, { color: row.rank === 4 ? c.teal : c.text }]}>{row.name}</Text>
+              <Text style={[styles.introPreviewScore, { color: row.color, fontFamily: GEO }]}>{row.score}</Text>
+            </Animated.View>
+          ))}
+        </View>
+      </Animated.View>
+
+      <View style={styles.introBottom}>
+        <Pressable onPress={onNext} style={({ pressed }) => [styles.introBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
+          <Text style={[styles.introBtnText, { fontFamily: GEO }]}>Next</Text>
+          <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── INTRO SCREEN 2: SMARTER WITH TIME ──────────────────────────────
+function IntroScreen2({ onNext }: { onNext: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+    Animated.timing(progressAnim, { toValue: 1, duration: 1500, delay: 500, useNativeDriver: false }).start();
+  }, []);
+
+  const hcpWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['100%', '60%'] });
+
+  return (
+    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+      <ExpoStatusBar style="light" />
+      <Animated.View style={[styles.introCenter, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <Ionicons name="trending-down" size={48} color={c.gold} />
+        <Text style={[styles.introTitle, { color: c.text }]}>
+          The more you play, the smarter Dormie gets.
+        </Text>
+        <Text style={[styles.introSubtitle, { color: c.textMuted }]}>
+          Your handicap, your rivals, your course records — all automatic.
+        </Text>
+
+        {/* Animated handicap preview */}
+        <View style={[styles.introPreview, { backgroundColor: c.cardBg, borderColor: c.border, padding: 16 }]}>
+          <Text style={[styles.introStatLabel, { color: c.gold, fontFamily: GEO }]}>HANDICAP INDEX</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
+            <Animated.Text style={[styles.introStatBig, { color: c.teal, fontFamily: GEO }]}>
+              12.4
+            </Animated.Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Ionicons name="trending-down" size={14} color={c.teal} />
+              <Text style={{ color: c.teal, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>-1.2</Text>
+            </View>
+          </View>
+          <View style={[styles.introHcpTrack, { backgroundColor: c.elevated, marginTop: 12 }]}>
+            <Animated.View style={[styles.introHcpFill, { width: hcpWidth, backgroundColor: c.teal }]} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ color: c.textMuted, fontSize: 10 }}>20 rounds ago</Text>
+            <Text style={{ color: c.textMuted, fontSize: 10 }}>Now</Text>
+          </View>
+        </View>
+      </Animated.View>
+
+      <View style={styles.introBottom}>
+        <Pressable onPress={onNext} style={({ pressed }) => [styles.introBtn, { backgroundColor: c.gold }, pressed && styles.pressedState]}>
+          <Text style={[styles.introBtnText, { color: '#141210', fontFamily: GEO }]}>Next</Text>
+          <Ionicons name="arrow-forward" size={18} color="#141210" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── INTRO SCREEN 3: PROFILE SETUP ─────────────────────────────────
+function IntroScreen3({
+  handicap,
+  setHandicap,
+  homeCourse,
+  setHomeCourse,
+  homeCourseId,
+  setHomeCourseId,
+  onNext,
+}: {
+  handicap: string;
+  setHandicap: (v: string) => void;
+  homeCourse: string;
+  setHomeCourse: (v: string) => void;
+  homeCourseId: string;
+  setHomeCourseId: (v: string) => void;
+  onNext: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const [courseResults, setCourseResults] = useState<any[]>([]);
+  const [courseSearching, setCourseSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const handleCourseSearch = useCallback((text: string) => {
+    setHomeCourse(text);
+    setHomeCourseId('');
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (text.trim().length < 2) {
+      setCourseResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    setCourseSearching(true);
+    setShowDropdown(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const apiRes = await coursesService.searchAPI(text.trim());
+        let list: any[] = [];
+        if (apiRes && typeof apiRes === 'object') {
+          list = Array.isArray(apiRes) ? apiRes : Array.isArray(apiRes.courses) ? apiRes.courses : [];
+        }
+        if (list.length === 0) {
+          const db = await coursesService.search(text.trim(), 5);
+          list = Array.isArray(db) ? db : [];
+        }
+        setCourseResults(list.slice(0, 5));
+      } catch {
+        setCourseResults([]);
+      } finally {
+        setCourseSearching(false);
+      }
+    }, 300);
+  }, [setHomeCourse, setHomeCourseId]);
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+        <ExpoStatusBar style="light" />
+        <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} keyboardShouldPersistTaps="handled">
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], marginTop: STATUS_BAR_H + 40 }}>
+            <Ionicons name="person-circle-outline" size={48} color={c.teal} style={{ alignSelf: 'center' }} />
+            <Text style={[styles.introTitle, { color: c.text, textAlign: 'center', marginTop: 16 }]}>
+              Let's set up your profile.
+            </Text>
+            <Text style={[styles.introSubtitle, { color: c.textMuted, textAlign: 'center' }]}>
+              You can always change these later.
+            </Text>
+
+            {/* Handicap input */}
+            <Text style={[styles.fieldLabel, { color: c.gold, marginTop: 32 }]}>HANDICAP INDEX</Text>
+            <TextInput
+              value={handicap}
+              onChangeText={setHandicap}
+              placeholder="e.g., 12.4"
+              placeholderTextColor={c.textMuted}
+              style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
+              keyboardType="numeric"
+            />
+            <Pressable onPress={() => setHandicap('')}>
+              <Text style={[styles.helperLink, { color: c.teal }]}>I don't know my handicap</Text>
+            </Pressable>
+
+            {/* Home course search */}
+            <Text style={[styles.fieldLabel, { color: c.gold, marginTop: 24 }]}>HOME COURSE</Text>
+            <TextInput
+              value={homeCourse}
+              onChangeText={handleCourseSearch}
+              placeholder="Search courses..."
+              placeholderTextColor={c.textMuted}
+              style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
+              onFocus={() => { if (courseResults.length > 0) setShowDropdown(true); }}
+            />
+            {showDropdown && (
+              <View style={[styles.courseDropdown, { backgroundColor: c.elevated, borderColor: c.border }]}>
+                {courseSearching && (
+                  <View style={styles.courseSearchingRow}>
+                    <ActivityIndicator size="small" color={c.teal} />
+                    <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>Searching...</Text>
+                  </View>
+                )}
+                {courseResults.map((course, i) => {
+                  const name = course.name ?? course.club_name ?? '';
+                  const id = course.id ?? '';
+                  const loc = course.location ?? (course.city && course.state ? `${course.city}, ${course.state}` : '');
+                  return (
+                    <Pressable
+                      key={id || i}
+                      onPress={() => { setHomeCourse(name); setHomeCourseId(id); setShowDropdown(false); setCourseResults([]); }}
+                      style={[styles.courseResultRow, i < courseResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
+                    >
+                      <Ionicons name="golf" size={16} color={c.teal} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.courseResultName, { color: c.text }]} numberOfLines={1}>{name}</Text>
+                        {loc ? <Text style={[styles.courseResultLocation, { color: c.textMuted }]} numberOfLines={1}>{loc}</Text> : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
+          <View style={{ height: 120 }} />
+        </ScrollView>
+
+        <View style={styles.introBottom}>
+          <Pressable onPress={onNext} style={({ pressed }) => [styles.introBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
+            <Text style={[styles.introBtnText, { fontFamily: GEO }]}>
+              {handicap || homeCourse ? 'Continue' : 'Skip for Now'}
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
 // ─── Main Onboarding ──────────────────────────────────────────────────
 export default function OnboardingScreen() {
   const { theme, toggleTheme } = useTheme();
@@ -843,7 +1121,7 @@ export default function OnboardingScreen() {
   const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
 
   const handleNext = useCallback(() => {
-    if (step < 6) {
+    if (step < 9) {
       haptics.medium();
       setStep((step + 1) as OnboardingStep);
     }
@@ -887,9 +1165,9 @@ export default function OnboardingScreen() {
     setTimeout(() => router.replace('/(tabs)'), 0);
   }, [user, themeColor, handicap, homeCourse, homeCourseId, router]);
 
-  // Step 6: trigger navigation via useEffect to avoid "Cannot update component while rendering"
+  // Step 9: trigger navigation via useEffect to avoid "Cannot update component while rendering"
   useEffect(() => {
-    if (step === 6) {
+    if (step === 9) {
       handleComplete();
     }
   }, [step, handleComplete]);
@@ -899,7 +1177,28 @@ export default function OnboardingScreen() {
     return <WelcomeScreen onNext={handleNext} onToggleTheme={toggleTheme} />;
   }
 
-  if (step === 4) {
+  // New intro screens (steps 1-3)
+  if (step === 1) {
+    return <IntroScreen1 onNext={handleNext} />;
+  }
+  if (step === 2) {
+    return <IntroScreen2 onNext={handleNext} />;
+  }
+  if (step === 3) {
+    return (
+      <IntroScreen3
+        handicap={handicap}
+        setHandicap={setHandicap}
+        homeCourse={homeCourse}
+        setHomeCourse={setHomeCourse}
+        homeCourseId={homeCourseId}
+        setHomeCourseId={setHomeCourseId}
+        onNext={handleNext}
+      />
+    );
+  }
+
+  if (step === 7) {
     return (
       <NotificationsScreen
         notifPref={notifPref}
@@ -908,15 +1207,16 @@ export default function OnboardingScreen() {
     );
   }
 
-  if (step === 5) {
+  if (step === 8) {
     return <LaunchMontage userName={displayName} onComplete={handleNext} />;
   }
 
-  if (step === 6) {
+  if (step === 9) {
     return null;
   }
 
-  // Steps 1-3 share layout with nav bar
+  // Steps 4-6 share layout with nav bar (Your Game, Build Group, Features)
+  const navStep = step - 3; // Maps 4->1, 5->2, 6->3
   return (
     <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
@@ -932,8 +1232,8 @@ export default function OnboardingScreen() {
               style={[
                 styles.progressDot,
                 {
-                  backgroundColor: s < step ? c.gold : s === step ? c.teal : c.elevated,
-                  width: s === step ? 20 : 6,
+                  backgroundColor: s < navStep ? c.gold : s === navStep ? c.teal : c.elevated,
+                  width: s === navStep ? 20 : 6,
                 },
               ]}
             />
@@ -945,7 +1245,7 @@ export default function OnboardingScreen() {
       </View>
 
       {/* Content */}
-      {step === 1 && (
+      {step === 4 && (
         <YourGameScreen
           avatarMode={avatarMode} setAvatarMode={setAvatarMode}
           avatarTheme={avatarTheme} setAvatarTheme={setAvatarTheme}
@@ -959,16 +1259,16 @@ export default function OnboardingScreen() {
           photoUri={photoUri} setPhotoUri={setPhotoUri}
         />
       )}
-      {step === 2 && <BuildGroupScreen />}
-      {step === 3 && <FeatureScreen />}
+      {step === 5 && <BuildGroupScreen />}
+      {step === 6 && <FeatureScreen />}
 
       {/* Bottom button */}
       <View style={[styles.bottomBar, { borderTopColor: c.border }]}>
-        <Pressable onPress={handleNext} style={({ pressed }) => [styles.continueBtn, { backgroundColor: step === 3 ? c.gold : c.teal }, pressed && styles.pressedState]}>
-          <Text style={[styles.continueBtnText, { color: step === 3 ? '#000000' : '#FFFFFF', fontFamily: GEO }]}>
-            {step === 3 ? "Let's Play" : 'Continue'}
+        <Pressable onPress={handleNext} style={({ pressed }) => [styles.continueBtn, { backgroundColor: step === 6 ? c.gold : c.teal }, pressed && styles.pressedState]}>
+          <Text style={[styles.continueBtnText, { color: step === 6 ? '#000000' : '#FFFFFF', fontFamily: GEO }]}>
+            {step === 6 ? "Let's Play" : 'Continue'}
           </Text>
-          <Ionicons name="arrow-forward" size={18} color={step === 3 ? '#000000' : '#FFFFFF'} />
+          <Ionicons name="arrow-forward" size={18} color={step === 6 ? '#000000' : '#FFFFFF'} />
         </Pressable>
       </View>
     </View>
@@ -1093,6 +1393,25 @@ const styles = StyleSheet.create({
   notifPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
   notifPrimaryText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
   notifSkip: { fontSize: 14, textAlign: 'center', paddingVertical: 8 },
+
+  // Intro screens
+  introCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  introTitle: { fontSize: 20, fontFamily: GEO, fontWeight: '700', textAlign: 'center', marginTop: 16, lineHeight: 28 },
+  introSubtitle: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  introPreview: { width: '100%', borderWidth: 1, overflow: 'hidden', marginTop: 24 },
+  introPreviewHeader: { paddingHorizontal: 14, paddingVertical: 8 },
+  introPreviewLabel: { color: '#C9A227', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, fontFamily: GEO },
+  introPreviewRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
+  introPreviewRank: { width: 24, fontSize: 14, fontWeight: '700' },
+  introPreviewName: { flex: 1, fontSize: 13, fontWeight: '600' },
+  introPreviewScore: { fontSize: 14, fontWeight: '700' },
+  introBottom: { padding: 20, paddingBottom: 60 },
+  introBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
+  introBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  introStatLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2 },
+  introStatBig: { fontSize: 36, fontWeight: '700' },
+  introHcpTrack: { height: 6, overflow: 'hidden' },
+  introHcpFill: { height: '100%' },
 
   // Montage
   montageCard: { flex: 1, justifyContent: 'center', alignItems: 'center' },

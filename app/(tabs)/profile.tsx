@@ -31,6 +31,7 @@ import { haptics } from '../../src/lib/haptics';
 import { isSoundEnabled, setSoundEnabled } from '../../src/lib/sounds';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
+import { ProfileStatsEmpty, HandicapGraphEmpty } from '../../src/components/EmptyStates';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -476,6 +477,13 @@ export default function ProfileScreen() {
             ))}
           </ScrollView>
 
+          {/* Profile stats empty state with shimmer */}
+          {!realStats && !showDemoData && (
+            <View style={{ marginTop: 16 }}>
+              <ProfileStatsEmpty />
+            </View>
+          )}
+
           {/* Demo data toggle for new users */}
           {!realStats && !showDemoData && (
             <Pressable
@@ -487,6 +495,15 @@ export default function ProfileScreen() {
           )}
 
           <GoldDivider style={{ marginTop: 24 }} />
+
+          {/* ─── HANDICAP TREND (empty state when < 3 rounds) ─── */}
+          {displayHandicapTrend.length === 0 && (
+            <>
+              <SectionLabel title="HANDICAP TREND" />
+              <HandicapGraphEmpty />
+              <GoldDivider style={{ marginTop: 12 }} />
+            </>
+          )}
 
           {/* ─── HANDICAP TREND ───────────────────────────────────── */}
           {displayHandicapTrend.length > 0 && (

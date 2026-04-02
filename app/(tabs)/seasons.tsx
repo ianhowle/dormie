@@ -19,6 +19,9 @@ import { Avatar } from '../../src/components/Avatar';
 import GoldDivider from '../../src/components/GoldDivider';
 import { useAuth } from '../../src/lib/auth';
 import { haptics } from '../../src/lib/haptics';
+import { SeasonEmpty } from '../../src/components/EmptyStates';
+import { DemoPeekToggle, DemoBanner, DEMO_SEASON } from '../../src/components/DemoPeek';
+import { seasonsService } from '../../src/services/seasons.service';
 
 // ─── Mock data ──────────────────────────────────────────────────────
 
@@ -229,14 +232,30 @@ export default function SeasonsTab() {
   const isDark = theme.isDark;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [realSeasons, setRealSeasons] = useState<any[]>([]);
+  const [showDemoData, setShowDemoData] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    seasonsService.getByUser(user.id).then((s) => {
+      setRealSeasons(s);
+      setDataLoaded(true);
+    }).catch(() => setDataLoaded(true));
+  }, [user]);
+
+  const hasRealSeasons = realSeasons.length > 0;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Would fetch real seasons from Supabase
-    await new Promise((r) => setTimeout(r, 500));
+    if (user) {
+      const s = await seasonsService.getByUser(user.id).catch(() => []);
+      setRealSeasons(s);
+    }
     setRefreshing(false);
-  }, []);
+  }, [user]);
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
@@ -272,8 +291,17 @@ export default function SeasonsTab() {
         <GoldDivider />
 
         <View style={st.body}>
+          {/* Demo peek toggle — show when empty */}
+          {dataLoaded && !hasRealSeasons && (
+            <DemoPeekToggle
+              isActive={showDemoData}
+              onToggle={() => setShowDemoData(!showDemoData)}
+            />
+          )}
+          {showDemoData && !hasRealSeasons && <DemoBanner />}
+
           {/* Active Seasons */}
-          {MOCK_ACTIVE_SEASONS.length > 0 && (
+          {(hasRealSeasons || showDemoData) && (MOCK_ACTIVE_SEASONS.length > 0 || showDemoData) && (
             <>
               <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO }]}>ACTIVE</Text>
               <GoldDivider style={{ marginBottom: 12 }} />
@@ -284,7 +312,7 @@ export default function SeasonsTab() {
           )}
 
           {/* Past Seasons */}
-          {MOCK_PAST_SEASONS.length > 0 && (
+          {(hasRealSeasons || showDemoData) && MOCK_PAST_SEASONS.length > 0 && (
             <>
               <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO, marginTop: 24 }]}>
                 COMPLETED
@@ -296,25 +324,9 @@ export default function SeasonsTab() {
             </>
           )}
 
-          {/* Empty state */}
-          {MOCK_ACTIVE_SEASONS.length === 0 && MOCK_PAST_SEASONS.length === 0 && (
-            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Ionicons name="trophy-outline" size={40} color={c.gold} />
-              <Text style={[st.emptyTitle, { color: c.text, fontFamily: GEO }]}>No seasons yet</Text>
-              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>
-                Create your first season to track competitions with your crew
-              </Text>
-              <Pressable
-                onPress={() => { haptics.light(); router.push('/seasons'); }}
-                style={({ pressed }) => [
-                  st.emptyBtn,
-                  { backgroundColor: c.gold },
-                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-                ]}
-              >
-                <Text style={st.emptyBtnText}>Create Season</Text>
-              </Pressable>
-            </View>
+          {/* Smart empty state */}
+          {dataLoaded && !hasRealSeasons && !showDemoData && (
+            <SeasonEmpty />
           )}
         </View>
 

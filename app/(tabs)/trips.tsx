@@ -29,6 +29,8 @@ import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { getDreamImage } from '../../src/services/courseImages.service';
 import type { TripWithMembers, BucketListItemWithCourse } from '../../src/lib/database.types';
+import { TripsEmpty } from '../../src/components/EmptyStates';
+import { DemoPeekToggle, DemoBanner } from '../../src/components/DemoPeek';
 import {
   MOCK_TRIP_STATS,
   MOCK_UPCOMING_TRIPS,
@@ -467,31 +469,18 @@ export default function TripsScreen() {
         <Header />
 
         <View style={s.body}>
-          {/* Empty state for new users */}
+          {/* Demo peek toggle — for empty state */}
+          {realTrips.length === 0 && (
+            <DemoPeekToggle
+              isActive={showDemoData}
+              onToggle={() => setShowDemoData(!showDemoData)}
+            />
+          )}
+          {showDemoData && realTrips.length === 0 && <DemoBanner />}
+
+          {/* Smart empty state for new users — with destinations still visible */}
           {realTrips.length === 0 && !showDemoData && (
-            <View style={[s.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Text style={s.emptyEmoji}>✈️</Text>
-              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>Where to next?</Text>
-              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Plan your first golf trip</Text>
-              <Pressable
-                onPress={() => router.push('/create-trip')}
-                style={({ pressed }) => [
-                  s.emptyBtn,
-                  { backgroundColor: c.teal },
-                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-                ]}
-              >
-                <Text style={s.emptyBtnText}>New Trip</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowDemoData(true)}
-                style={({ pressed }) => [
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Text style={[s.demoToggle, { color: c.textMuted }]}>Show demo data</Text>
-              </Pressable>
-            </View>
+            <TripsEmpty />
           )}
 
           {/* Trip stats */}
@@ -500,8 +489,8 @@ export default function TripsScreen() {
           {/* Gold divider after stats */}
           {(realTrips.length > 0 || showDemoData) && <GoldDivider style={{ marginTop: 24 }} />}
 
-          {/* Dream board */}
-          {(realTrips.length > 0 || showDemoData) && <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />}
+          {/* Dream board — always visible (destination data is not user-specific) */}
+          <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />
 
           {/* Upcoming */}
           {(realTrips.length > 0 || showDemoData) && MOCK_UPCOMING_TRIPS.length > 0 && (

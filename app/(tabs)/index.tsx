@@ -18,6 +18,10 @@ import { haptics } from '../../src/lib/haptics';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
+import { GetStartedChecklist } from '../../src/components/GetStartedChecklist';
+import { HomeFeedEmpty } from '../../src/components/EmptyStates';
+import { NudgeCard } from '../../src/components/ContextualNudges';
+import { NUDGE_TOASTS } from '../../src/components/ContextualNudges';
 import { getGreeting, getGreetingSubtitle, isMastersTheme, getEventAccentColor, isPlayoffsTheme } from '../../src/lib/greeting';
 import { fetchWeather, type WeatherData } from '../../src/lib/weather';
 import { computeStreaks, type Streak } from '../../src/lib/streaks';
@@ -957,6 +961,11 @@ export default function HomeScreen() {
   const [monthlyDismissed, setMonthlyDismissed] = useState(false);
   const [weeklyDismissed, setWeeklyDismissed] = useState(false);
   const [upcomingItems, setUpcomingItems] = useState<UpcomingItem[]>([]);
+  const [checklistDismissed, setChecklistDismissed] = useState(false);
+  const [firstRoundNudgeDismissed, setFirstRoundNudgeDismissed] = useState(false);
+  const [friendNudgeDismissed, setFriendNudgeDismissed] = useState(false);
+  const [realFriends, setRealFriends] = useState<FriendshipWithUser[]>([]);
+  const [realTrips, setRealTrips] = useState<any[]>([]);
 
   const handleGroupSelect = useCallback((id: string) => {
     const group = MOCK_GROUPS.find((g) => g.id === id);
@@ -975,6 +984,9 @@ export default function HomeScreen() {
       setRealRounds(rounds);
       setPendingRequests(requests);
       setLastUpdated(new Date());
+      setRealTrips(trips as any[]);
+      // Load active friends for checklist
+      friendsService.getActiveFriends(user.id).then(setRealFriends).catch(() => {});
 
       // Build upcoming items from real trips and seasons
       const now = new Date();
@@ -1159,6 +1171,17 @@ export default function HomeScreen() {
         {/* Gold divider below green header */}
         <GoldDivider />
 
+        {/* Get Started Checklist — new user experience */}
+        {!checklistDismissed && !loading && realRounds.length === 0 && realFriends.length === 0 && realTrips.length === 0 && (
+          <GetStartedChecklist
+            hasHandicap={!!user?.user_metadata?.handicap_index}
+            hasHomeCourse={!!user?.user_metadata?.home_course}
+            hasFriend={realFriends.length > 0}
+            hasRound={realRounds.length > 0}
+            onDismiss={() => setChecklistDismissed(true)}
+          />
+        )}
+
         {/* Data freshness indicator */}
         <View style={st.freshnessWrap}>
           <DataFreshness updatedAt={lastUpdated} />
@@ -1292,19 +1315,38 @@ export default function HomeScreen() {
             onGroupSelect={handleGroupSelect}
           />
 
-          {/* Empty state for new users — no rounds: show demo toggle prominently */}
+          {/* Contextual nudges — shown after milestones */}
+          {realRounds.length > 0 && realRounds.length <= 3 && !firstRoundNudgeDismissed && (
+            <NudgeCard
+              message="Invite your crew to see them on the leaderboard"
+              actionLabel="Add Friends"
+              actionRoute="/(tabs)/leaderboard"
+              icon="people-outline"
+              accentColor={c.teal}
+              onDismiss={() => setFirstRoundNudgeDismissed(true)}
+            />
+          )}
+          {realFriends.length > 0 && realFriends.length <= 2 && !friendNudgeDismissed && realRounds.length > 0 && (
+            <NudgeCard
+              message="Nice — check the Board tab to see how you stack up."
+              actionLabel="View Leaderboard"
+              actionRoute="/(tabs)/leaderboard"
+              icon="trophy-outline"
+              accentColor={c.gold}
+              onDismiss={() => setFriendNudgeDismissed(true)}
+            />
+          )}
+
+          {/* Smart empty state for new users — action-oriented */}
           {realRounds.length === 0 && !showDemoData && (
-            <View style={[st.emptyState, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Text style={st.emptyEmoji}>{'\u26F3'}</Text>
-              <Text style={[st.emptyTitle, { color: c.text }]}>Your scorecard awaits</Text>
-              <Text style={[st.emptyDesc, { color: c.textMuted, fontFamily: SANS }]}>Every great golfer started with Round 1</Text>
-              <Pressable onPress={() => { haptics.light(); router.push('/(tabs)/score'); }} style={({ pressed }) => [st.emptyBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
-                <Text style={[st.emptyBtnText, { fontFamily: SANS }]}>Log Round</Text>
-              </Pressable>
-              <Pressable onPress={() => setShowDemoData(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <Text style={[st.demoToggle, { color: c.textMuted, fontFamily: SANS }]}>Show demo data</Text>
-              </Pressable>
-            </View>
+            <>
+              <HomeFeedEmpty />
+              <View style={{ alignItems: 'center', marginTop: 12 }}>
+                <Pressable onPress={() => setShowDemoData(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                  <Text style={[st.demoToggle, { color: c.textMuted, fontFamily: SANS }]}>Show demo data</Text>
+                </Pressable>
+              </View>
+            </>
           )}
 
           {/* Friend requests */}
