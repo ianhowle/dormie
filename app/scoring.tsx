@@ -91,6 +91,22 @@ type HammerResult = {
   accepted: boolean;
 };
 
+// ─── Wolf state types ────────────────────────────────────────────────
+type WolfDecision = 'partner' | 'lone' | 'blind' | null;
+
+type WolfHoleState = {
+  wolfPlayerId: string;
+  decision: WolfDecision;
+  partnerId: string | null;
+};
+
+// ─── BBB state type ──────────────────────────────────────────────────
+type BBBHolePoints = {
+  bingo: string | null; // playerId
+  bango: string | null; // playerId
+  bongo: string | null; // playerId
+};
+
 // ─── Scoring event for live feed ─────────────────────────────────────
 type ScoringEvent = {
   text: string;
@@ -1056,6 +1072,7 @@ const SIDE_GAME_DISPLAY: Record<string, string> = {
   dots: 'Dots', snake: 'Snake', greenies: 'Greenies', skins: 'Skins',
   hammer: 'Hammer', nassau: 'Nassau', wolf: 'Wolf', sandies: 'Sandies',
   bark: 'Barkies', arnies: 'Arnies', close_shave: 'KP',
+  bingo_bango_bongo: 'Bingo Bango Bongo',
 };
 
 // ─── Compute helpers for summary ──────────────────────────────────────
@@ -1436,11 +1453,15 @@ function GamesTab({
   players,
   holes,
   allScores,
+  wolfHoleDecisions,
+  bbbHolePoints,
 }: {
   sideGameKeys: string[];
   players: PlayerConfig[];
   holes: HoleData[];
   allScores: Map<number, Map<string, HoleScore>>;
+  wolfHoleDecisions?: Map<number, WolfHoleState>;
+  bbbHolePoints?: Map<number, BBBHolePoints>;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1454,7 +1475,7 @@ function GamesTab({
     );
   }
 
-  // Generate mock results for each side game
+  // Generate results for each side game
   const results = sideGameKeys.map((key) => {
     const label = SIDE_GAME_DISPLAY[key] ?? key;
 
@@ -1463,6 +1484,8 @@ function GamesTab({
     if (key === 'greenies') return buildGreeniesResult(label, players, holes, allScores);
     if (key === 'nassau') return buildNassauResult(label, players, holes, allScores);
     if (key === 'dots') return buildDotsResult(label, players, holes, allScores);
+    if (key === 'wolf' && wolfHoleDecisions) return buildWolfResult(label, players, holes, allScores, wolfHoleDecisions);
+    if (key === 'bingo_bango_bongo' && bbbHolePoints) return buildBBBResult(label, players, bbbHolePoints);
     // Generic for others
     return buildGenericResult(label, players);
   });
@@ -1673,17 +1696,138 @@ function buildGenericResult(label: string, players: PlayerConfig[]): GameResult 
   };
 }
 
+function buildWolfResult(
+  label: string, players: PlayerConfig[], holes: HoleData[],
+  allScores: Map<number, Map<string, HoleScore>>,
+  wolfHoleDecisions: Map<number, WolfHoleState>,
+): GameResult {
+  const points = new Map<string, number>();
+  players.forEach((p) => points.set(p.id, 0));
+
+  holes.forEach((h, idx) => {
+    const holeScores = allScores.get(h.number);
+    const decision = wolfHoleDecisions.get(h.number);
+    if (!holeScores || !decision || holeScores.size < players.length) return;
+
+    const wolfId = decision.wolfPlayerId;
+
+    // Determine best gross on the hole
+    if (decision.decision === 'lone' || decision.decision === 'blind') {
+      // Wolf vs all others
+      const wolfScore = holeScores.get(wolfId);
+      if (!wolfScore) return;
+      const othersScores: number[] = [];
+      players.forEach((p) => {
+        if (p.id !== wolfId) {
+          const s = holeScores.get(p.id);
+          if (s) othersScores.push(s.gross);
+        }
+      });
+      const bestOther = Math.min(...othersScores);
+      const wolfWins = wolfScore.gross < bestOther;
+      const isBlind = decision.decision === 'blind';
+
+      if (wolfWins) {
+        const wolfPts = isBlind ? 4 : 3;
+        points.set(wolfId, (points.get(wolfId) ?? 0) + wolfPts);
+      } else {
+        const otherPts = isBlind ? 2 : 1;
+        players.forEach((p) => {
+          if (p.id !== wolfId) {
+            points.set(p.id, (points.get(p.id) ?? 0) + otherPts);
+          }
+        });
+      }
+    } else if (decision.decision === 'partner' && decision.partnerId) {
+      // Wolf + partner vs other 2
+      const teamIds = [wolfId, decision.partnerId];
+      const opponentIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
+
+      let teamBest = Infinity;
+      teamIds.forEach((id) => {
+        const s = holeScores.get(id);
+        if (s && s.gross < teamBest) teamBest = s.gross;
+      });
+      let oppBest = Infinity;
+      opponentIds.forEach((id) => {
+        const s = holeScores.get(id);
+        if (s && s.gross < oppBest) oppBest = s.gross;
+      });
+
+      if (teamBest < oppBest) {
+        teamIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
+      } else if (oppBest < teamBest) {
+        opponentIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
+      }
+      // Tie: no points
+    }
+  });
+
+  return {
+    title: label,
+    lines: players
+      .map((p) => ({
+        text: pName(p),
+        value: `${points.get(p.id) ?? 0} pts`,
+        highlight: p.id === '1',
+      }))
+      .sort((a, b) => parseInt(b.value!) - parseInt(a.value!)),
+  };
+}
+
+function buildBBBResult(
+  label: string, players: PlayerConfig[],
+  bbbHolePoints: Map<number, BBBHolePoints>,
+): GameResult {
+  const totals = new Map<string, { bingo: number; bango: number; bongo: number }>();
+  players.forEach((p) => totals.set(p.id, { bingo: 0, bango: 0, bongo: 0 }));
+
+  bbbHolePoints.forEach((hp) => {
+    if (hp.bingo) {
+      const t = totals.get(hp.bingo);
+      if (t) t.bingo++;
+    }
+    if (hp.bango) {
+      const t = totals.get(hp.bango);
+      if (t) t.bango++;
+    }
+    if (hp.bongo) {
+      const t = totals.get(hp.bongo);
+      if (t) t.bongo++;
+    }
+  });
+
+  return {
+    title: label,
+    lines: players
+      .map((p) => {
+        const t = totals.get(p.id) ?? { bingo: 0, bango: 0, bongo: 0 };
+        const total = t.bingo + t.bango + t.bongo;
+        return {
+          text: pName(p),
+          value: `${total} pts (${t.bingo}/${t.bango}/${t.bongo})`,
+          highlight: p.id === '1',
+        };
+      })
+      .sort((a, b) => parseInt(b.value!) - parseInt(a.value!)),
+  };
+}
+
 // ─── Feature 5: Settlement Section ────────────────────────────────────
 function SettlementSection({
   sideGameKeys,
   players,
   holes,
   allScores,
+  wolfHoleDecisions,
+  bbbHolePoints,
 }: {
   sideGameKeys: string[];
   players: PlayerConfig[];
   holes: HoleData[];
   allScores: Map<number, Map<string, HoleScore>>;
+  wolfHoleDecisions?: Map<number, WolfHoleState>;
+  bbbHolePoints?: Map<number, BBBHolePoints>;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1792,6 +1936,65 @@ function SettlementSection({
         players.forEach((p) => {
           if (p.id !== holder) payouts.set(p.id, (payouts.get(p.id) ?? 0) + 5);
         });
+      }
+    }
+
+    if (key === 'wolf' && wolfHoleDecisions) {
+      // $1 per point, net differences
+      const wolfPts = new Map<string, number>();
+      players.forEach((p) => wolfPts.set(p.id, 0));
+      holes.forEach((h) => {
+        const holeScores = allScores.get(h.number);
+        const decision = wolfHoleDecisions.get(h.number);
+        if (!holeScores || !decision || holeScores.size < players.length) return;
+        const wolfId = decision.wolfPlayerId;
+        if (decision.decision === 'lone' || decision.decision === 'blind') {
+          const wolfScore = holeScores.get(wolfId);
+          if (!wolfScore) return;
+          const others: number[] = [];
+          players.forEach((p) => { if (p.id !== wolfId) { const s = holeScores.get(p.id); if (s) others.push(s.gross); } });
+          const wolfWins = wolfScore.gross < Math.min(...others);
+          const isBlind = decision.decision === 'blind';
+          if (wolfWins) {
+            wolfPts.set(wolfId, (wolfPts.get(wolfId) ?? 0) + (isBlind ? 4 : 3));
+          } else {
+            players.forEach((p) => { if (p.id !== wolfId) wolfPts.set(p.id, (wolfPts.get(p.id) ?? 0) + (isBlind ? 2 : 1)); });
+          }
+        } else if (decision.decision === 'partner' && decision.partnerId) {
+          const teamIds = [wolfId, decision.partnerId];
+          const oppIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
+          let teamBest = Infinity, oppBest = Infinity;
+          teamIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < teamBest) teamBest = s.gross; });
+          oppIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < oppBest) oppBest = s.gross; });
+          if (teamBest < oppBest) teamIds.forEach((id) => wolfPts.set(id, (wolfPts.get(id) ?? 0) + 1));
+          else if (oppBest < teamBest) oppIds.forEach((id) => wolfPts.set(id, (wolfPts.get(id) ?? 0) + 1));
+        }
+      });
+      // Pairwise settlement at $1 per point diff
+      for (let ii = 0; ii < players.length; ii++) {
+        for (let jj = ii + 1; jj < players.length; jj++) {
+          const diff = (wolfPts.get(players[ii].id) ?? 0) - (wolfPts.get(players[jj].id) ?? 0);
+          payouts.set(players[ii].id, (payouts.get(players[ii].id) ?? 0) + diff);
+          payouts.set(players[jj].id, (payouts.get(players[jj].id) ?? 0) - diff);
+        }
+      }
+    }
+
+    if (key === 'bingo_bango_bongo' && bbbHolePoints) {
+      // $1 per point, net differences
+      const bbbPts = new Map<string, number>();
+      players.forEach((p) => bbbPts.set(p.id, 0));
+      bbbHolePoints.forEach((hp) => {
+        if (hp.bingo) bbbPts.set(hp.bingo, (bbbPts.get(hp.bingo) ?? 0) + 1);
+        if (hp.bango) bbbPts.set(hp.bango, (bbbPts.get(hp.bango) ?? 0) + 1);
+        if (hp.bongo) bbbPts.set(hp.bongo, (bbbPts.get(hp.bongo) ?? 0) + 1);
+      });
+      for (let ii = 0; ii < players.length; ii++) {
+        for (let jj = ii + 1; jj < players.length; jj++) {
+          const diff = (bbbPts.get(players[ii].id) ?? 0) - (bbbPts.get(players[jj].id) ?? 0);
+          payouts.set(players[ii].id, (payouts.get(players[ii].id) ?? 0) + diff);
+          payouts.set(players[jj].id, (payouts.get(players[jj].id) ?? 0) - diff);
+        }
       }
     }
   });
@@ -1943,6 +2146,8 @@ function PostRoundSummary({
   courseName,
   formatLabel,
   sideGameKeys,
+  wolfHoleDecisions,
+  bbbHolePoints,
   onDone,
 }: {
   players: PlayerConfig[];
@@ -1953,6 +2158,8 @@ function PostRoundSummary({
   courseName: string;
   formatLabel: string;
   sideGameKeys: string[];
+  wolfHoleDecisions?: Map<number, WolfHoleState>;
+  bbbHolePoints?: Map<number, BBBHolePoints>;
   onDone: () => void;
 }) {
   const { theme } = useTheme();
@@ -2038,6 +2245,8 @@ function PostRoundSummary({
               players={players}
               holes={holes}
               allScores={allScores}
+              wolfHoleDecisions={wolfHoleDecisions}
+              bbbHolePoints={bbbHolePoints}
             />
           )}
 
@@ -2049,6 +2258,8 @@ function PostRoundSummary({
               players={players}
               holes={holes}
               allScores={allScores}
+              wolfHoleDecisions={wolfHoleDecisions}
+              bbbHolePoints={bbbHolePoints}
             />
           )}
 
@@ -2273,6 +2484,120 @@ function RunningSnakePanel({
   );
 }
 
+// ─── Running Wolf Panel ──────────────────────────────────────────────
+function RunningWolfPanel({
+  players, holes, allScores, wolfHoleDecisions, currentHoleNumber,
+}: {
+  players: PlayerConfig[];
+  holes: HoleData[];
+  allScores: Map<number, Map<string, HoleScore>>;
+  wolfHoleDecisions: Map<number, WolfHoleState>;
+  currentHoleNumber: number;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const points = new Map<string, number>();
+  players.forEach((p) => points.set(p.id, 0));
+
+  holes.forEach((h) => {
+    if (h.number > currentHoleNumber) return;
+    const holeScores = allScores.get(h.number);
+    const decision = wolfHoleDecisions.get(h.number);
+    if (!holeScores || !decision || holeScores.size < players.length) return;
+    const wolfId = decision.wolfPlayerId;
+    if (decision.decision === 'lone' || decision.decision === 'blind') {
+      const ws = holeScores.get(wolfId);
+      if (!ws) return;
+      const others: number[] = [];
+      players.forEach((p) => { if (p.id !== wolfId) { const s = holeScores.get(p.id); if (s) others.push(s.gross); } });
+      const wolfWins = ws.gross < Math.min(...others);
+      if (wolfWins) {
+        points.set(wolfId, (points.get(wolfId) ?? 0) + (decision.decision === 'blind' ? 4 : 3));
+      } else {
+        players.forEach((p) => { if (p.id !== wolfId) points.set(p.id, (points.get(p.id) ?? 0) + (decision.decision === 'blind' ? 2 : 1)); });
+      }
+    } else if (decision.decision === 'partner' && decision.partnerId) {
+      const teamIds = [wolfId, decision.partnerId];
+      const oppIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
+      let teamBest = Infinity, oppBest = Infinity;
+      teamIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < teamBest) teamBest = s.gross; });
+      oppIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < oppBest) oppBest = s.gross; });
+      if (teamBest < oppBest) teamIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
+      else if (oppBest < teamBest) oppIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
+    }
+  });
+
+  // Find current wolf
+  const wolfDecision = wolfHoleDecisions.get(currentHoleNumber);
+  const wolfPlayer = wolfDecision ? players.find((p) => p.id === wolfDecision.wolfPlayerId) : null;
+
+  return (
+    <View style={st.runningGameSection}>
+      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>WOLF</Text>
+      {wolfPlayer && (
+        <View style={st.runningGameRow}>
+          <Text style={[st.runningGameName, { color: c.textMuted }]}>Current Wolf</Text>
+          <Text style={[st.runningGameValue, { color: c.teal }]}>
+            {pName(wolfPlayer)}{wolfDecision?.decision === 'lone' ? ' (Lone)' : wolfDecision?.decision === 'blind' ? ' (Blind)' : ''}
+          </Text>
+        </View>
+      )}
+      {players.map((p) => (
+        <View key={p.id} style={st.runningGameRow}>
+          <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+            {p.id === '1' ? 'You' : p.name.split(' ')[0]}
+          </Text>
+          <Text style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
+            {points.get(p.id) ?? 0} pts
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ─── Running BBB Panel ───────────────────────────────────────────────
+function RunningBBBPanel({
+  players, bbbHolePoints,
+}: {
+  players: PlayerConfig[];
+  bbbHolePoints: Map<number, BBBHolePoints>;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const totals = new Map<string, { bingo: number; bango: number; bongo: number }>();
+  players.forEach((p) => totals.set(p.id, { bingo: 0, bango: 0, bongo: 0 }));
+
+  bbbHolePoints.forEach((hp) => {
+    if (hp.bingo) { const t = totals.get(hp.bingo); if (t) t.bingo++; }
+    if (hp.bango) { const t = totals.get(hp.bango); if (t) t.bango++; }
+    if (hp.bongo) { const t = totals.get(hp.bongo); if (t) t.bongo++; }
+  });
+
+  return (
+    <View style={st.runningGameSection}>
+      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>BINGO BANGO BONGO</Text>
+      {players.map((p) => {
+        const t = totals.get(p.id) ?? { bingo: 0, bango: 0, bongo: 0 };
+        const total = t.bingo + t.bango + t.bongo;
+        return (
+          <View key={p.id} style={st.runningGameRow}>
+            <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+              {p.id === '1' ? 'You' : p.name.split(' ')[0]}
+            </Text>
+            <Text style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
+              {total} ({t.bingo}/{t.bango}/{t.bongo})
+            </Text>
+          </View>
+        );
+      })}
+      <Text style={[st.runningGameNote, { color: c.textMuted }]}>
+        Bi/Ba/Bo
+      </Text>
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────
 export default function ScoringScreen() {
   const { theme } = useTheme();
@@ -2469,6 +2794,17 @@ export default function ScoringScreen() {
   // Item 32: Side game toast events
   const [sideGameToastEvents, setSideGameToastEvents] = useState<SideGameEvent[]>([]);
 
+  // Wolf state
+  const wolfOrder = useMemo(() => players.map((p) => p.id), [players]);
+  const [wolfHoleDecisions, setWolfHoleDecisions] = useState<Map<number, WolfHoleState>>(new Map());
+  const [showWolfModal, setShowWolfModal] = useState(false);
+  const [wolfPickStep, setWolfPickStep] = useState<'choose' | 'partner'>('choose');
+
+  // BBB state
+  const [bbbHolePoints, setBBBHolePoints] = useState<Map<number, BBBHolePoints>>(new Map());
+  const [showBangoPrompt, setShowBangoPrompt] = useState(false);
+  const [bangoHoleNumber, setBangoHoleNumber] = useState(0);
+
   // Item 33: Hole transition banner
   const [transitionBanner, setTransitionBanner] = useState<{
     visible: boolean;
@@ -2528,6 +2864,37 @@ export default function ScoringScreen() {
     },
     [allScores, holes],
   );
+
+  // Wolf: current wolf for this hole
+  const currentWolfIdx = useMemo(() => {
+    if (!sideGameKeys.includes('wolf') || players.length < 3) return -1;
+    return (currentHoleIdx % wolfOrder.length);
+  }, [currentHoleIdx, wolfOrder, players.length, sideGameKeys]);
+
+  const currentWolfId = currentWolfIdx >= 0 ? wolfOrder[currentWolfIdx] : null;
+  const currentWolfDecision = wolfHoleDecisions.get(currentHole.number) ?? null;
+
+  // Show wolf modal automatically when entering a new hole with wolf active
+  const prevHoleRef = useRef(currentHole.number);
+  useEffect(() => {
+    if (prevHoleRef.current !== currentHole.number) {
+      prevHoleRef.current = currentHole.number;
+      if (sideGameKeys.includes('wolf') && currentWolfId && !wolfHoleDecisions.has(currentHole.number)) {
+        setWolfPickStep('choose');
+        setShowWolfModal(true);
+      }
+    }
+  }, [currentHole.number, sideGameKeys, currentWolfId, wolfHoleDecisions]);
+
+  // Show wolf modal on mount for hole 1
+  const wolfInitRef = useRef(false);
+  useEffect(() => {
+    if (!wolfInitRef.current && sideGameKeys.includes('wolf') && currentWolfId && !wolfHoleDecisions.has(currentHole.number)) {
+      wolfInitRef.current = true;
+      setWolfPickStep('choose');
+      setShowWolfModal(true);
+    }
+  }, [sideGameKeys, currentWolfId, currentHole.number, wolfHoleDecisions]);
 
   // Count scored holes
   const holesScored = useMemo(() => {
@@ -2755,6 +3122,80 @@ export default function ScoringScreen() {
 
     // Item 32: Detect side game toasts
     detectToastEvents(currentHole.number);
+
+    // BBB auto-detection: bingo (first GIR) and bongo (first to score)
+    if (sideGameKeys.includes('bingo_bango_bongo')) {
+      const holeScores = allScores.get(currentHole.number);
+      if (holeScores) {
+        const existing = bbbHolePoints.get(currentHole.number) ?? { bingo: null, bango: null, bongo: null };
+        let bingo = existing.bingo;
+        let bongo = existing.bongo;
+
+        // BINGO: first player with GIR
+        if (!bingo) {
+          players.forEach((p) => {
+            if (bingo) return;
+            const s = holeScores.get(p.id);
+            if (s && isGIR(s.gross, s.putts, currentHole.par)) {
+              bingo = p.id;
+            }
+          });
+        }
+
+        // BONGO: first player to have score entered (lowest gross as proxy for first to hole out)
+        if (!bongo) {
+          let bestGross = Infinity;
+          let bongoId: string | null = null;
+          holeScores.forEach((s, pid) => {
+            if (s.gross < bestGross) { bestGross = s.gross; bongoId = pid; }
+          });
+          bongo = bongoId;
+        }
+
+        setBBBHolePoints((prev) => {
+          const next = new Map(prev);
+          next.set(currentHole.number, { bingo, bango: existing.bango, bongo });
+          return next;
+        });
+
+        // Trigger bango prompt for "closest to pin"
+        setBangoHoleNumber(currentHole.number);
+        setShowBangoPrompt(true);
+      }
+    }
+
+    // Wolf: check for Lone/Blind Wolf victory moments
+    if (sideGameKeys.includes('wolf')) {
+      const decision = wolfHoleDecisions.get(currentHole.number);
+      const holeScores = allScores.get(currentHole.number);
+      if (decision && holeScores && (decision.decision === 'lone' || decision.decision === 'blind')) {
+        const wolfScore = holeScores.get(decision.wolfPlayerId);
+        if (wolfScore) {
+          const others: number[] = [];
+          players.forEach((p) => {
+            if (p.id !== decision.wolfPlayerId) {
+              const s = holeScores.get(p.id);
+              if (s) others.push(s.gross);
+            }
+          });
+          const wolfWins = wolfScore.gross < Math.min(...others);
+          if (wolfWins) {
+            const wolfPlayer = players.find((p) => p.id === decision.wolfPlayerId);
+            const wolfName = wolfPlayer ? (wolfPlayer.id === '1' ? 'You' : wolfPlayer.name) : 'Wolf';
+            haptics.heavy();
+            sounds.chime();
+            setDormieMoment({
+              visible: true,
+              type: decision.decision === 'blind' ? 'BLIND_WOLF_WIN' : 'LONE_WOLF_VICTORY',
+              playerName: wolfName,
+              detail: decision.decision === 'blind'
+                ? `Blind Wolf wins Hole ${currentHole.number}!`
+                : `Lone Wolf wins Hole ${currentHole.number}!`,
+            });
+          }
+        }
+      }
+    }
 
     // Item 33: Show hole transition banner
     showTransitionBanner(currentHole.number);
@@ -2990,6 +3431,8 @@ export default function ScoringScreen() {
         courseName={courseName}
         formatLabel={formatLabel}
         sideGameKeys={sideGameKeys}
+        wolfHoleDecisions={wolfHoleDecisions}
+        bbbHolePoints={bbbHolePoints}
         onDone={async () => {
           if (!user) { router.dismissAll(); return; }
           try {
@@ -3220,6 +3663,31 @@ export default function ScoringScreen() {
         </>
       )}
 
+      {/* Wolf: Current Wolf Banner */}
+      {sideGameKeys.includes('wolf') && currentWolfId && (
+        <Pressable
+          onPress={() => { setWolfPickStep('choose'); setShowWolfModal(true); }}
+          style={[st.wolfBanner, { backgroundColor: c.elevated, borderColor: c.border }]}
+        >
+          <Ionicons name="paw" size={16} color={c.gold} />
+          <Text style={[st.wolfBannerText, { color: c.text }]}>
+            Wolf: {(() => {
+              const wp = players.find((p) => p.id === currentWolfId);
+              return wp ? (wp.id === '1' ? 'You' : wp.name.split(' ')[0]) : '';
+            })()}
+            {currentWolfDecision?.decision === 'lone' ? ' (Lone Wolf)' :
+             currentWolfDecision?.decision === 'blind' ? ' (Blind Wolf)' :
+             currentWolfDecision?.decision === 'partner' ? ` + ${(() => {
+               const pp = players.find((p) => p.id === currentWolfDecision.partnerId);
+               return pp ? (pp.id === '1' ? 'You' : pp.name.split(' ')[0]) : '';
+             })()}` : ' — Tap to decide'}
+          </Text>
+          {!currentWolfDecision && (
+            <Ionicons name="chevron-forward" size={14} color={c.gold} />
+          )}
+        </Pressable>
+      )}
+
       {/* Feature 4: Best Ball Team Banner */}
       {isBestBall && !showBestBallSetup && (
         <View style={[st.bestBallBanner, { backgroundColor: c.elevated, borderColor: c.border }]}>
@@ -3439,6 +3907,12 @@ export default function ScoringScreen() {
                   {sideGameKeys.includes('snake') && (
                     <RunningSnakePanel players={players} holes={holes} allScores={allScores} />
                   )}
+                  {sideGameKeys.includes('wolf') && (
+                    <RunningWolfPanel players={players} holes={holes} allScores={allScores} wolfHoleDecisions={wolfHoleDecisions} currentHoleNumber={currentHole.number} />
+                  )}
+                  {sideGameKeys.includes('bingo_bango_bongo') && (
+                    <RunningBBBPanel players={players} bbbHolePoints={bbbHolePoints} />
+                  )}
                 </View>
               )}
             </View>
@@ -3505,6 +3979,157 @@ export default function ScoringScreen() {
                 style={({ pressed }) => [st.modalBtn, { backgroundColor: c.urgent }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Text style={st.modalBtnText}>Fold</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Wolf Decision Modal */}
+      <Modal visible={showWolfModal} transparent animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.gold }]}>
+            {(() => {
+              const wolfPlayer = currentWolfId ? players.find((p) => p.id === currentWolfId) : null;
+              const wolfName = wolfPlayer ? (wolfPlayer.id === '1' ? 'You' : wolfPlayer.name.split(' ')[0]) : 'Wolf';
+              return (
+                <>
+                  <Ionicons name="paw" size={28} color={c.gold} style={{ alignSelf: 'center', marginBottom: 8 }} />
+                  <Text style={[st.modalTitle, { color: c.gold, fontFamily: GEO }]}>WOLF — HOLE {currentHole.number}</Text>
+                  <Text style={[st.modalText, { color: c.text, textAlign: 'center', marginBottom: 16 }]}>
+                    {wolfName} {wolfPlayer?.id === '1' ? 'are' : 'is'} the Wolf
+                  </Text>
+
+                  {wolfPickStep === 'choose' && (
+                    <View style={{ gap: 10 }}>
+                      <Pressable
+                        onPress={() => setWolfPickStep('partner')}
+                        style={({ pressed }) => [st.modalBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7 }]}
+                      >
+                        <Text style={st.modalBtnText}>Pick a Partner</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          if (currentWolfId) {
+                            setWolfHoleDecisions((prev) => {
+                              const next = new Map(prev);
+                              next.set(currentHole.number, { wolfPlayerId: currentWolfId, decision: 'lone', partnerId: null });
+                              return next;
+                            });
+                          }
+                          setShowWolfModal(false);
+                          haptics.medium();
+                        }}
+                        style={({ pressed }) => [st.modalBtn, { backgroundColor: c.urgent }, pressed && { opacity: 0.7 }]}
+                      >
+                        <Text style={st.modalBtnText}>Lone Wolf (3x risk)</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          if (currentWolfId) {
+                            setWolfHoleDecisions((prev) => {
+                              const next = new Map(prev);
+                              next.set(currentHole.number, { wolfPlayerId: currentWolfId, decision: 'blind', partnerId: null });
+                              return next;
+                            });
+                          }
+                          setShowWolfModal(false);
+                          haptics.heavy();
+                        }}
+                        style={({ pressed }) => [st.modalBtn, { backgroundColor: '#1A1A2A', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7 }]}
+                      >
+                        <Text style={[st.modalBtnText, { color: c.gold }]}>Blind Wolf (4x risk)</Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {wolfPickStep === 'partner' && (
+                    <View style={{ gap: 10 }}>
+                      <Text style={[st.modalText, { color: c.textMuted, fontSize: 12, marginBottom: 4 }]}>Choose your partner:</Text>
+                      {players.filter((p) => p.id !== currentWolfId).map((p) => (
+                        <Pressable
+                          key={p.id}
+                          onPress={() => {
+                            if (currentWolfId) {
+                              setWolfHoleDecisions((prev) => {
+                                const next = new Map(prev);
+                                next.set(currentHole.number, { wolfPlayerId: currentWolfId, decision: 'partner', partnerId: p.id });
+                                return next;
+                              });
+                            }
+                            setShowWolfModal(false);
+                            haptics.light();
+                          }}
+                          style={({ pressed }) => [st.modalBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }, pressed && { opacity: 0.7 }]}
+                        >
+                          <Text style={[st.modalBtnText, { color: c.text }]}>
+                            {p.id === '1' ? 'You' : p.name.split(' ')[0]}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      <Pressable
+                        onPress={() => setWolfPickStep('choose')}
+                        style={({ pressed }) => [{ paddingVertical: 8, alignItems: 'center' } as any, pressed && { opacity: 0.7 }]}
+                      >
+                        <Text style={{ color: c.textMuted, fontSize: 13 }}>Back</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* BBB Bango Prompt — closest to pin */}
+      <Modal visible={showBangoPrompt} transparent animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.gold }]}>
+            <Ionicons name="flag" size={28} color={c.gold} style={{ alignSelf: 'center', marginBottom: 8 }} />
+            <Text style={[st.modalTitle, { color: c.gold, fontFamily: GEO }]}>BANGO — HOLE {bangoHoleNumber}</Text>
+            <Text style={[st.modalText, { color: c.text, textAlign: 'center', marginBottom: 16 }]}>
+              Who was closest to the pin?
+            </Text>
+            <View style={{ gap: 10 }}>
+              {players.map((p) => (
+                <Pressable
+                  key={p.id}
+                  onPress={() => {
+                    setBBBHolePoints((prev) => {
+                      const next = new Map(prev);
+                      const existing = next.get(bangoHoleNumber) ?? { bingo: null, bango: null, bongo: null };
+                      next.set(bangoHoleNumber, { ...existing, bango: p.id });
+                      return next;
+                    });
+                    setShowBangoPrompt(false);
+                    haptics.light();
+
+                    // Check BBB Triple Crown
+                    const hp = bbbHolePoints.get(bangoHoleNumber);
+                    if (hp && hp.bingo === p.id && hp.bongo === p.id) {
+                      haptics.heavy();
+                      sounds.chime();
+                      setDormieMoment({
+                        visible: true,
+                        type: 'BBB_TRIPLE_CROWN',
+                        playerName: p.id === '1' ? 'You' : p.name,
+                        detail: `All three points on Hole ${bangoHoleNumber}!`,
+                      });
+                    }
+                  }}
+                  style={({ pressed }) => [st.modalBtn, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={[st.modalBtnText, { color: c.text }]}>
+                    {p.id === '1' ? 'You' : p.name.split(' ')[0]}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => setShowBangoPrompt(false)}
+                style={({ pressed }) => [{ paddingVertical: 8, alignItems: 'center' } as any, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={{ color: c.textMuted, fontSize: 13 }}>Skip</Text>
               </Pressable>
             </View>
           </View>
@@ -5821,5 +6446,20 @@ const ps = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  /* Wolf banner */
+  wolfBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  wolfBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
 });

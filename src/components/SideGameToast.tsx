@@ -195,6 +195,43 @@ export function detectSideGameEvents(
         });
       }
       break;
+
+    case 'bingo_bango_bongo':
+      // BINGO: first on green (auto-detect from GIR)
+      if (isGir) {
+        events.push({
+          id: `${id}-bingo`,
+          gameKey: 'bingo_bango_bongo',
+          label: 'Bingo!',
+          trigger: 'auto',
+          playerName,
+          holeNumber,
+          description: `${playerName} hit the green in regulation`,
+        });
+      }
+      // BONGO: first to hole out (auto-detect from score entry)
+      if (gross > 0) {
+        events.push({
+          id: `${id}-bongo`,
+          gameKey: 'bingo_bango_bongo',
+          label: 'Bongo!',
+          trigger: 'auto',
+          playerName,
+          holeNumber,
+          description: `${playerName} holed out`,
+        });
+      }
+      // BANGO: closest to pin (semi-auto prompt)
+      events.push({
+        id: `${id}-bango`,
+        gameKey: 'bingo_bango_bongo',
+        label: 'Bango — Closest to pin?',
+        trigger: 'semi_auto',
+        playerName,
+        holeNumber,
+        description: `Was ${playerName} closest to the pin once all were on the green?`,
+      });
+      break;
   }
 
   return events;

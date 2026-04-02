@@ -69,6 +69,7 @@ export const SIDE_GAMES: SideGameInfo[] = [
   { key: 'hammer', label: 'Hammer' },
   { key: 'nassau', label: 'Nassau' },
   { key: 'wolf', label: 'Wolf' },
+  { key: 'bingo_bango_bongo', label: 'Bingo Bango Bongo' },
   { key: 'sandies', label: 'Sandies' },
   { key: 'bark', label: 'Barkies' },
   { key: 'arnies', label: 'Arnies' },

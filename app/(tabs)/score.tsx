@@ -153,6 +153,7 @@ const SIDE_GAME_DESCRIPTIONS: Record<string, string> = {
   hammer: 'Double the bet by throwing the hammer; opponent can re-hammer',
   nassau: 'Three separate bets: front 9, back 9, and overall',
   wolf: 'Rotating wolf picks a partner or goes alone each hole',
+  bingo_bango_bongo: 'Three points per hole: first on green, closest to pin, first to hole out',
   sandies: 'Up and down from a bunker for par or better',
   bark: 'Hit a tree and still make par or better',
   arnies: 'Make par without hitting the fairway',
