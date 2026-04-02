@@ -65,30 +65,9 @@ type BonusChallenge = {
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────
-const MOCK_WEEKS: Week[] = Array.from({ length: 10 }, (_, i) => ({
-  number: i + 1,
-  format: ['stableford', 'modified_stableford', 'stroke_net', 'quota', 'best9'][i % 5],
-  isPlayoff: i >= 8,
-  isChampionship: i === 9,
-  isMajor: i === 3 || i === 7,
-  majorName: i === 3 ? 'The Dormie Invitational' : i === 7 ? 'The Dormie Championship' : null,
-  multiplier: i === 9 ? 3 : i >= 8 ? 2 : i === 3 || i === 7 ? 2 : 1,
-  completed: i < 6,
-  allScoresSubmitted: i < 6,
-}));
 
 const POINTS_TABLE = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
 
-const MOCK_STANDINGS: Standing[] = [
-  { playerId: '1', name: 'Ian McGowan', handicap: 8, avatarColor: '#006747', points: 72, weekResults: [15, 10, 12, 15, 8, 12, null, null, null, null], wins: 2, topFives: 5, eventsPlayed: 6, bestFinish: 1, worstDrop: 8, isCut: false },
-  { playerId: '2', name: 'Drew Patterson', handicap: 12, avatarColor: '#C9A227', points: 65, weekResults: [12, 15, 8, 10, 12, 8, null, null, null, null], wins: 1, topFives: 4, eventsPlayed: 6, bestFinish: 1, worstDrop: 8, isCut: false },
-  { playerId: '3', name: 'Jake Sullivan', handicap: 15, avatarColor: '#C41E3A', points: 55, weekResults: [10, 8, 15, 6, 10, 6, null, null, null, null], wins: 1, topFives: 3, eventsPlayed: 6, bestFinish: 1, worstDrop: 6, isCut: false },
-  { playerId: '4', name: 'Tommy Fleetwood', handicap: 3, avatarColor: '#6B8E23', points: 48, weekResults: [8, 12, 6, 12, 6, 4, null, null, null, null], wins: 0, topFives: 2, eventsPlayed: 6, bestFinish: 2, worstDrop: 4, isCut: false },
-  { playerId: '5', name: 'Mike Chen', handicap: 18, avatarColor: '#8B4513', points: 42, weekResults: [6, 6, 10, 8, 4, 8, null, null, null, null], wins: 0, topFives: 1, eventsPlayed: 6, bestFinish: 3, worstDrop: 4, isCut: false },
-  { playerId: '6', name: 'Sam Rodriguez', handicap: 22, avatarColor: '#4682B4', points: 32, weekResults: [5, 4, 4, 5, 5, 10, null, null, null, null], wins: 0, topFives: 0, eventsPlayed: 6, bestFinish: 3, worstDrop: null, isCut: true },
-  { playerId: '7', name: 'Will Harrison', handicap: 25, avatarColor: '#9370DB', points: 24, weekResults: [4, 5, 3, 4, 3, 5, null, null, null, null], wins: 0, topFives: 0, eventsPlayed: 6, bestFinish: 4, worstDrop: null, isCut: true },
-  { playerId: '8', name: 'Chris Lee', handicap: 28, avatarColor: '#20B2AA', points: 18, weekResults: [3, 3, 5, 3, 2, 2, null, null, null, null], wins: 0, topFives: 0, eventsPlayed: 6, bestFinish: 5, worstDrop: null, isCut: true },
-];
 
 const MOCK_CHALLENGES: BonusChallenge[] = [
   { id: 'b1', label: 'Low Round', description: 'Lowest single-round gross score', leader: 'Ian McGowan', value: '74' },
@@ -741,11 +720,47 @@ export default function SeasonDetailScreen() {
   const { user } = useAuth();
   const seasonId = params.id;
 
+  const [realStandings, setRealStandings] = useState<Standing[]>([]);
+  const [realWeeks, setRealWeeks] = useState<Week[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     if (!seasonId) return;
-    seasonsService.getStandings(seasonId).then(data => {
-      // Use real data when available
-    }).catch(() => {});
+    setLoading(true);
+    Promise.all([
+      seasonsService.getStandings(seasonId),
+      seasonsService.getWeeks(seasonId),
+    ]).then(([standingsData, weeksData]) => {
+      if (standingsData && standingsData.length > 0) {
+        setRealStandings(standingsData.map((s: any, i: number) => ({
+          playerId: s.user_id,
+          name: s.user_name,
+          handicap: s.handicap ?? 0,
+          avatarColor: '#006747',
+          points: s.total_points,
+          weekResults: s.week_results ?? [],
+          wins: s.wins ?? 0,
+          topFives: s.top_fives ?? 0,
+          eventsPlayed: s.weeks_played,
+          bestFinish: s.best_finish,
+          worstDrop: s.worst_drop ?? null,
+          isCut: false,
+        })));
+      }
+      if (weeksData && weeksData.length > 0) {
+        setRealWeeks(weeksData.map((w: any) => ({
+          number: w.week_number,
+          format: w.format ?? 'stableford',
+          isPlayoff: w.is_playoff ?? false,
+          isChampionship: w.is_championship ?? false,
+          isMajor: w.is_major ?? false,
+          majorName: w.major_name ?? null,
+          multiplier: w.multiplier ?? 1,
+          completed: w.completed ?? false,
+          allScoresSubmitted: w.all_scores_submitted ?? false,
+        })));
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
   }, [seasonId]);
 
   const [tab, setTab] = useState<Tab>('standings');
@@ -753,8 +768,8 @@ export default function SeasonDetailScreen() {
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [showChampionCeremony, setShowChampionCeremony] = useState(false);
 
-  const standings = MOCK_STANDINGS;
-  const weeks = MOCK_WEEKS;
+  const standings = realStandings;
+  const weeks = realWeeks;
   const currentWeek = weeks.find((w) => !w.completed)?.number ?? weeks.length;
   const cutLineIndex = Math.ceil(standings.length * CUT_PERCENTAGE);
   const isSeasonComplete = weeks.every((w) => w.completed);
@@ -836,7 +851,12 @@ export default function SeasonDetailScreen() {
 
       <TabBar tab={tab} onSelect={setTab} colors={c} />
 
-      {tab === 'standings' && (
+      {tab === 'standings' && standings.length === 0 && !loading && (
+        <View style={{ alignItems: 'center', padding: 32 }}>
+          <Text style={{ color: c.textMuted, fontSize: 14, textAlign: 'center' }}>No scores submitted yet</Text>
+        </View>
+      )}
+      {tab === 'standings' && standings.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={{ minWidth: SCREEN_W }}>
             <StandingsTab

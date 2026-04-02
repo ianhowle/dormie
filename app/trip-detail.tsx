@@ -1757,12 +1757,7 @@ type CompPlayer = {
   total: number | null;
 };
 
-const MOCK_COMP_PLAYERS: CompPlayer[] = [
-  { id: '6', name: 'Tommy Fleetwood', handicap: 3, rounds: [71, 68, null], total: 139 },
-  { id: '1', name: 'Ian McGowan', handicap: 8, rounds: [76, 74, null], total: 150 },
-  { id: '2', name: 'Drew Patterson', handicap: 12, rounds: [82, 79, null], total: 161 },
-  { id: '4', name: 'Jake Sullivan', handicap: 15, rounds: [86, 83, null], total: 169 },
-];
+// CompPlayer data is now fetched from tripsService.getLeaderboard()
 
 type SideGameEntry = {
   id: string;
@@ -1810,13 +1805,26 @@ function CompetitionView({
   const [expandedSideGame, setExpandedSideGame] = useState<string | null>(null);
   const [moments, setMoments] = useState(MOCK_COMP_MOMENTS);
   const [unreadChat] = useState(3);
+  const [compPlayers, setCompPlayers] = useState<CompPlayer[]>([]);
+
+  useEffect(() => {
+    tripsService.getLeaderboard(trip.id).then((entries) => {
+      setCompPlayers(entries.map((e: any) => ({
+        id: e.user_id,
+        name: e.user_name,
+        handicap: e.handicap ?? 0,
+        rounds: [],
+        total: e.total_gross ?? null,
+      })));
+    }).catch(() => {});
+  }, [trip.id]);
 
   const coursePar = 72;
   const currentDay = 2;
   const totalDays = trip.roundsPlanned ?? 3;
 
   // Sort players
-  const sortedPlayers = [...MOCK_COMP_PLAYERS].sort((a, b) => {
+  const sortedPlayers = [...compPlayers].sort((a, b) => {
     if (a.total === null && b.total === null) return 0;
     if (a.total === null) return 1;
     if (b.total === null) return -1;

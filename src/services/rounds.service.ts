@@ -2,6 +2,43 @@ import { supabase } from '../lib/supabase';
 import type { Round, RoundInsert, RoundUpdate, RoundWithCourse } from '../lib/database.types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+/**
+ * Calculate handicap index client-side:
+ * Fetch last 20 rounds, take best 8 differentials, average, multiply by 0.96.
+ * Differential = (gross - rating) * 113 / slope
+ */
+async function recalculateHandicap(userId: string): Promise<void> {
+  try {
+    const { data: rounds } = await supabase
+      .from('rounds')
+      .select('gross_score, course:courses(par, slope, rating)')
+      .eq('user_id', userId)
+      .order('played_at', { ascending: false })
+      .limit(20);
+
+    if (!rounds || rounds.length < 3) return;
+
+    const differentials = rounds
+      .map((r: any) => {
+        const rating = r.course?.rating ?? 72;
+        const slope = r.course?.slope ?? 113;
+        return ((r.gross_score - rating) * 113) / slope;
+      })
+      .sort((a: number, b: number) => a - b);
+
+    const best8 = differentials.slice(0, Math.min(8, Math.ceil(differentials.length * 0.4)));
+    const avg = best8.reduce((a: number, b: number) => a + b, 0) / best8.length;
+    const handicapIndex = Math.round(avg * 0.96 * 10) / 10;
+
+    await supabase
+      .from('users')
+      .update({ handicap_index: handicapIndex })
+      .eq('id', userId);
+  } catch {
+    // Handicap calculation is non-critical
+  }
+}
+
 export const roundsService = {
   /** Create a round and trigger handicap recalculation. */
   async create(round: RoundInsert): Promise<Round> {
@@ -13,7 +50,12 @@ export const roundsService = {
     if (error) throw error;
 
     // Trigger async handicap recalculation (non-blocking)
-    supabase.rpc('calculate_handicap', { p_user_id: round.user_id }).catch(() => {});
+    // Try RPC first, fall back to client-side calculation
+    supabase.rpc('calculate_handicap', { p_user_id: round.user_id })
+      .then(({ error: rpcErr }) => {
+        if (rpcErr) recalculateHandicap(round.user_id);
+      })
+      .catch(() => recalculateHandicap(round.user_id));
 
     return data as Round;
   },
@@ -62,7 +104,7 @@ export const roundsService = {
       .single();
     if (error) throw error;
 
-    supabase.rpc('calculate_handicap', { p_user_id: userId }).catch(() => {});
+    recalculateHandicap(userId);
 
     return data as Round;
   },
@@ -75,7 +117,7 @@ export const roundsService = {
       .eq('id', roundId);
     if (error) throw error;
 
-    supabase.rpc('calculate_handicap', { p_user_id: userId }).catch(() => {});
+    recalculateHandicap(userId);
   },
 
   /** Subscribe to real-time score updates for a specific round. */

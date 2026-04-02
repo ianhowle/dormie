@@ -29,9 +29,6 @@ import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database
 /** Toggle to show mock/demo data for screenshots and demos */
 const DEV_DEMO_MODE = false;
 import {
-  MOCK_QUICK_STATS,
-  MOCK_FEED,
-  MOCK_UPCOMING,
   type FeedItem,
   type QuickStats,
   type UpcomingItem,
@@ -61,22 +58,6 @@ type SeasonStandingEntry = {
   team?: 'red' | 'blue';
 };
 
-const MOCK_ACTIVE_SEASON = {
-  id: 's1',
-  name: '2026 Spring Championship',
-  format: 'fedex_cup' as SeasonFormat,
-  currentRound: 4,
-  totalRounds: 12,
-  groupName: 'The Dormie Boys',
-};
-
-const MOCK_SEASON_STANDINGS: SeasonStandingEntry[] = [
-  { rank: 1, name: 'McGowan', points: 72 },
-  { rank: 2, name: 'Patterson', points: 65 },
-  { rank: 3, name: 'Sullivan', points: 55 },
-  { rank: 4, name: 'Fleetwood', points: 48 },
-  { rank: 5, name: 'Chen', points: 42 },
-];
 
 const MOCK_FAVORITE_COURSE = {
   name: 'Hermitage Golf Course',
@@ -424,7 +405,37 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
   const c = theme.colors;
   const isDark = theme.isDark;
   const router = useRouter();
-  const season = MOCK_ACTIVE_SEASON;
+  const { user } = useAuth();
+  const [season, setSeason] = useState(null as any);
+  const [standings, setStandings] = useState<SeasonStandingEntry[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    import('../../src/services/seasons.service').then(({ seasonsService }) => {
+      seasonsService.getByUser(user.id).then(async (seasons) => {
+        const active = seasons.find((s: any) => s.status === 'active') ?? seasons[0];
+        if (!active) return;
+        setSeason({
+          id: active.id,
+          name: active.name,
+          format: (active as any).format ?? 'fedex_cup',
+          currentRound: (active as any).current_week ?? 1,
+          totalRounds: (active as any).total_weeks ?? 12,
+          groupName,
+        });
+        try {
+          const data = await seasonsService.getStandings(active.id);
+          setStandings(data.map((d: any, i: number) => ({
+            rank: i + 1,
+            name: d.user_name,
+            points: d.total_points,
+          })));
+        } catch {}
+      }).catch(() => {});
+    });
+  }, [user, groupName]);
+
+  if (!season) return null;
 
   const renderColumnHeaders = () => {
     switch (season.format) {
@@ -476,7 +487,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
             onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
             style={({ pressed }) => [
               st.seasonRow,
-              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              i < standings.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
               isFirst && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
               pressed && { opacity: 0.7 },
             ]}
@@ -496,7 +507,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
             onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
             style={({ pressed }) => [
               st.seasonRow,
-              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              i < standings.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
               isFirst && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
               pressed && { opacity: 0.7 },
             ]}
@@ -518,7 +529,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
             onPress={() => { haptics.light(); router.push({ pathname: '/season-detail', params: { id: season.id } }); }}
             style={({ pressed }) => [
               st.seasonRow,
-              i < MOCK_SEASON_STANDINGS.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+              i < standings.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
               isFirst && { backgroundColor: 'rgba(42, 157, 143, 0.08)' },
               pressed && { opacity: 0.7 },
             ]}
@@ -555,7 +566,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
       </View>
       <View style={[st.seasonList, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
         {renderColumnHeaders()}
-        {MOCK_SEASON_STANDINGS.map((s, i) => renderRow(s, i))}
+        {standings.map((s, i) => renderRow(s, i))}
       </View>
     </View>
   );
@@ -945,6 +956,7 @@ export default function HomeScreen() {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [monthlyDismissed, setMonthlyDismissed] = useState(false);
   const [weeklyDismissed, setWeeklyDismissed] = useState(false);
+  const [upcomingItems, setUpcomingItems] = useState<UpcomingItem[]>([]);
 
   const handleGroupSelect = useCallback((id: string) => {
     const group = MOCK_GROUPS.find((g) => g.id === id);
@@ -954,13 +966,44 @@ export default function HomeScreen() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
-      const [rounds, requests] = await Promise.all([
+      const [rounds, requests, trips, seasons] = await Promise.all([
         roundsService.getByUser(user.id, 10).catch(() => [] as RoundWithCourse[]),
         friendsService.getPendingRequests(user.id).catch(() => [] as FriendshipWithUser[]),
+        tripsService.getByUser(user.id).catch(() => []),
+        import('../../src/services/seasons.service').then(m => m.seasonsService.getByUser(user.id)).catch(() => []),
       ]);
       setRealRounds(rounds);
       setPendingRequests(requests);
       setLastUpdated(new Date());
+
+      // Build upcoming items from real trips and seasons
+      const now = new Date();
+      const upcoming: UpcomingItem[] = [];
+      for (const trip of trips as any[]) {
+        const start = new Date(trip.start_date);
+        const daysAway = Math.ceil((start.getTime() - now.getTime()) / 86400000);
+        if (daysAway > 0) {
+          upcoming.push({
+            id: trip.id,
+            type: 'trip',
+            title: trip.name,
+            subtitle: trip.location ?? '',
+            daysAway,
+          });
+        }
+      }
+      for (const season of seasons as any[]) {
+        if (season.status === 'active') {
+          upcoming.push({
+            id: season.id,
+            type: 'season',
+            title: season.name,
+            subtitle: `${season.format ?? 'Season'}`,
+            daysAway: 0,
+          });
+        }
+      }
+      setUpcomingItems(upcoming.sort((a, b) => a.daysAway - b.daysAway).slice(0, 5));
     } finally {
       setLoading(false);
     }
@@ -1001,7 +1044,6 @@ export default function HomeScreen() {
 
   // Build real quick stats
   const quickStats = useMemo(() => {
-    if (realRounds.length === 0 && showDemoData) return MOCK_QUICK_STATS;
     const now = new Date();
     const thisMonth = realRounds.filter(r => {
       const d = new Date(r.played_at);
@@ -1018,7 +1060,6 @@ export default function HomeScreen() {
 
   // Build feed from real rounds
   const feedItems: FeedItem[] = useMemo(() => {
-    if (realRounds.length === 0 && showDemoData) return MOCK_FEED;
     if (realRounds.length === 0) return [];
     return realRounds.slice(0, 6).map((r) => ({
       id: r.id,
@@ -1328,7 +1369,7 @@ export default function HomeScreen() {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ color: c.textMuted, fontSize: 12, fontFamily: SANS }}>Upcoming</Text>
                       <Text style={{ color: c.gold, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>
-                        {MOCK_UPCOMING.length > 0 ? `${MOCK_UPCOMING[0].title} in ${MOCK_UPCOMING[0].daysAway}d` : 'No events \u2014 create one?'}
+                        {upcomingItems.length > 0 ? `${upcomingItems[0].title} in ${upcomingItems[0].daysAway}d` : 'No events \u2014 create one?'}
                       </Text>
                     </View>
                   </View>
@@ -1349,11 +1390,11 @@ export default function HomeScreen() {
           )}
 
           {/* Upcoming */}
-          {(realRounds.length > 0 || showDemoData) && MOCK_UPCOMING.length > 0 && (
+          {(realRounds.length > 0 || showDemoData) && upcomingItems.length > 0 && (
             <>
               <SectionHeader title="UPCOMING" />
               <GoldDivider style={{ marginBottom: 12 }} />
-              {MOCK_UPCOMING.map((item) => (
+              {upcomingItems.map((item) => (
                 <UpcomingCard key={item.id} item={item} />
               ))}
             </>

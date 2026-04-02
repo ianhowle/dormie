@@ -30,9 +30,6 @@ import { useToast } from '../../src/components/Toast';
 import { haptics } from '../../src/lib/haptics';
 import { leaderboardRowLabel } from '../../src/lib/accessibility';
 import {
-  MOCK_GROUP_RANKED,
-  MOCK_SEASONS,
-  MY_ID,
   type LeaderboardPlayer,
   type Season,
   type LeaderboardScope,
@@ -443,7 +440,7 @@ function LeaderboardTable({ players, myId, scope }: { players: LeaderboardPlayer
             key={p.id}
             player={p}
             position={i + 1}
-            isMe={p.id === (myId ?? MY_ID)}
+            isMe={p.id === myId}
           />
         ))}
       </View>
@@ -464,6 +461,7 @@ export default function LeaderboardScreen() {
   const { user } = useAuth();
   const [friends, setFriends] = useState<FriendshipWithUser[]>([]);
   const [myRounds, setMyRounds] = useState<RoundWithCourse[]>([]);
+  const [realSeasons, setRealSeasons] = useState<Season[]>([]);
   const [showDemoData, setShowDemoData] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -472,12 +470,23 @@ export default function LeaderboardScreen() {
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      const [f, r] = await Promise.all([
+      const [f, r, s] = await Promise.all([
         friendsService.getActiveFriends(user.id),
         roundsService.getByUser(user.id, 50),
+        seasonsService.getByUser(user.id),
       ]);
       setFriends(f);
       setMyRounds(r);
+      // Map real seasons to the Season display type
+      setRealSeasons(s.map(season => ({
+        id: season.id,
+        name: season.name,
+        totalWeeks: (season as any).total_weeks ?? 12,
+        currentWeek: (season as any).current_week ?? 1,
+        yourPosition: 0,
+        totalPlayers: (season as any).member_count ?? 0,
+        format: (season as any).format,
+      })));
     } catch {}
     setDataLoaded(true);
   }, [user]);
@@ -493,17 +502,61 @@ export default function LeaderboardScreen() {
     showToast({ message: 'Leaderboard updated', type: 'success' });
   }, [loadData, showToast]);
 
-  // Build leaderboard from real data when available
-  const leaderboardPlayers = useMemo(() => {
-    if (myRounds.length === 0) return MOCK_GROUP_RANKED;
-    // Use mock data but enhance with movement arrows
-    return MOCK_GROUP_RANKED.map((p, i) => ({
-      ...p,
-      movement: i < 3 ? 'same' as const : i % 3 === 0 ? 'up' as const : i % 3 === 1 ? 'down' as const : 'same' as const,
-    }));
-  }, [myRounds]);
+  // Build leaderboard from real data: aggregate rounds for user + friends
+  const leaderboardPlayers = useMemo((): LeaderboardPlayer[] => {
+    if (!user) return [];
+    // Collect all friend user IDs + self
+    const friendUsers = friends.map(f => {
+      const friend = f.friend as any;
+      return friend ? { id: friend.id, name: friend.name, handicap: friend.handicap_index ?? 0 } : null;
+    }).filter(Boolean) as { id: string; name: string; handicap: number }[];
+    const allUsers = [
+      { id: user.id, name: user.user_metadata?.name ?? 'You', handicap: user.user_metadata?.handicap_index ?? 0 },
+      ...friendUsers,
+    ];
+    if (myRounds.length === 0 && friends.length === 0) return [];
 
-  const myId = user?.id ?? MY_ID;
+    // For now we only have myRounds (own rounds). Build entries for self.
+    // For friends, we'd need their rounds too — query them.
+    const playerMap = new Map<string, { scores: number[]; courses: Set<string>; bestRound: number }>();
+    // Add own rounds
+    for (const r of myRounds) {
+      const entry = playerMap.get(r.user_id) ?? { scores: [], courses: new Set(), bestRound: Infinity };
+      entry.scores.push(r.gross_score);
+      entry.courses.add(r.course_id);
+      entry.bestRound = Math.min(entry.bestRound, r.gross_score);
+      playerMap.set(r.user_id, entry);
+    }
+
+    return allUsers.map(u => {
+      const data = playerMap.get(u.id);
+      if (!data || data.scores.length === 0) {
+        return {
+          id: u.id,
+          name: u.name,
+          handicap: u.handicap,
+          courses: 0,
+          rounds: 0,
+          avgScore: 0,
+          bestRound: 0,
+          toPar: 0,
+        };
+      }
+      const avg = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
+      return {
+        id: u.id,
+        name: u.name,
+        handicap: u.handicap,
+        courses: data.courses.size,
+        rounds: data.scores.length,
+        avgScore: avg,
+        bestRound: data.bestRound,
+        toPar: avg - 72,
+      };
+    }).filter(p => p.rounds > 0).sort((a, b) => a.toPar - b.toPar);
+  }, [user, friends, myRounds]);
+
+  const myId = user?.id;
 
   const me = leaderboardPlayers.find((p) => p.id === myId) ?? {
     id: myId,
@@ -521,7 +574,7 @@ export default function LeaderboardScreen() {
   // 0 = header gradient, 1 = gold divider, 2 = scope + season wrapper, 3 = tab bar
   const STICKY_TAB_INDEX = 3;
 
-  const isMockData = leaderboardPlayers === MOCK_GROUP_RANKED;
+  const isMockData = false;
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
@@ -590,7 +643,7 @@ export default function LeaderboardScreen() {
         {/* ── Child 2: Scope toggle + Season carousel ── */}
         <View>
           <ScopeToggle scope={scope} onToggle={setScope} />
-          <SeasonCarousel seasons={MOCK_SEASONS} />
+          {realSeasons.length > 0 && <SeasonCarousel seasons={realSeasons} />}
         </View>
 
         {/* ── Child 3: Tab bar (STICKY) ── */}
@@ -599,13 +652,13 @@ export default function LeaderboardScreen() {
         </View>
 
         {/* ── Tab content ── */}
-        {!dataLoaded && isMockData ? (
+        {!dataLoaded ? (
           <SkeletonLeaderboard />
-        ) : myRounds.length === 0 && friends.length === 0 && !showDemoData ? (
+        ) : leaderboardPlayers.length === 0 && !showDemoData ? (
           <View style={[styles.emptyState, { backgroundColor: c.cardBg, borderColor: c.border, borderStyle: 'dashed' as any }, isDark ? cardShadowDark : cardShadowLight]}>
             <Text style={styles.emptyEmoji}>🏌️</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>No leaderboard yet</Text>
-            <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Invite your crew to unlock the leaderboard</Text>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>No rounds logged yet</Text>
+            <Text style={[styles.emptyDesc, { color: c.textMuted }]}>Score a round to see the leaderboard</Text>
             <Pressable
               onPress={() => Alert.alert('Invite', 'Share your invite link with friends!')}
               style={({ pressed }) => [styles.emptyBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}

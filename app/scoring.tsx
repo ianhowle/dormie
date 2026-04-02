@@ -37,6 +37,7 @@ import { scoreCellLabel } from '../src/lib/accessibility';
 import { useToast } from '../src/components/Toast';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
+import { seasonsService } from '../src/services/seasons.service';
 import { scoreColor, formatToPar as fmtToPar, toParColor as toParColorUtil, scoreName as scoreNameUtil } from '../src/lib/scoring-utils';
 import { MOCK_GROUP_PLAYERS } from '../src/data/leaderboard';
 import { MOCK_UPCOMING_TRIPS } from '../src/data/trips';
@@ -3015,7 +3016,7 @@ export default function ScoringScreen() {
               const course = await coursesService.ensureCourse({ name: courseName, location: courseName });
               finalCourseId = course.id;
             }
-            await roundsService.create({
+            const savedRound = await roundsService.create({
               user_id: user.id,
               course_id: finalCourseId,
               gross_score: grossTotal,
@@ -3023,7 +3024,31 @@ export default function ScoringScreen() {
               hole_scores: holeScores,
               source: 'app',
               played_at: new Date().toISOString(),
+              ...(tripId ? { trip_id: tripId } : {}),
+              ...(linkedSeasons.length > 0 ? { season_week_id: linkedSeasons[0].seasonId } : {}),
             });
+
+            // Auto-submit season scores for linked seasons
+            if (linkedSeasons.length > 0) {
+              for (const ls of linkedSeasons) {
+                try {
+                  let points = grossTotal;
+                  if (ls.format?.toLowerCase().includes('stableford') && holeScores.length > 0) {
+                    const { calculateStablefordPoints } = await import('../src/data/scoring');
+                    points = holeScores.reduce((sum, h) => {
+                      const holePar = holes.find(hole => hole.number === h.hole)?.par ?? 4;
+                      return sum + calculateStablefordPoints(h.gross, holePar, 0);
+                    }, 0);
+                  }
+                  await seasonsService.submitScore({
+                    season_week_id: ls.seasonId,
+                    user_id: user.id,
+                    points,
+                    round_id: savedRound.id,
+                  });
+                } catch {}
+              }
+            }
 
             // Elite polish: haptic, toast, confetti on round save
             haptics.success();

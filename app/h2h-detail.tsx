@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,10 +10,9 @@ import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import { haptics } from '../src/lib/haptics';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
-import { MOCK_H2H, type CourseH2H } from '../src/data/h2h';
-
-const MY_NAME = 'Ian McGowan';
-const MY_ID = '1';
+import { useAuth } from '../src/lib/auth';
+import { roundsService } from '../src/services/rounds.service';
+import type { CourseH2H, H2HMatchup } from '../src/data/h2h';
 
 // ─── Course row ──────────────────────────────────────────────────────
 function CourseRow({ course }: { course: CourseH2H }) {
@@ -75,11 +75,68 @@ export default function H2HDetailScreen() {
   const c = theme.colors;
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { opponentId } = useLocalSearchParams<{ opponentId: string }>();
+  const { opponentId, opponentName: paramName } = useLocalSearchParams<{ opponentId: string; opponentName?: string }>();
+  const { user } = useAuth();
 
-  const matchup = MOCK_H2H.find((m) => m.opponentId === opponentId);
+  const [matchup, setMatchup] = useState<H2HMatchup | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!matchup) {
+  useEffect(() => {
+    if (!user || !opponentId) { setLoading(false); return; }
+    Promise.all([
+      roundsService.getByUser(user.id, 100),
+      roundsService.getByUser(opponentId, 100),
+    ]).then(([myRounds, theirRounds]) => {
+      // Find shared courses
+      const myCourses = new Map<string, { score: number; name: string }[]>();
+      for (const r of myRounds) {
+        const list = myCourses.get(r.course_id) ?? [];
+        list.push({ score: r.gross_score, name: r.course?.name ?? 'Unknown' });
+        myCourses.set(r.course_id, list);
+      }
+      const theirCourses = new Map<string, { score: number; name: string }[]>();
+      for (const r of theirRounds) {
+        const list = theirCourses.get(r.course_id) ?? [];
+        list.push({ score: r.gross_score, name: r.course?.name ?? 'Unknown' });
+        theirCourses.set(r.course_id, list);
+      }
+
+      let myWins = 0, theirWins = 0, ties = 0;
+      const courseBreakdown: CourseH2H[] = [];
+
+      for (const [courseId, myScores] of myCourses) {
+        const theirScores = theirCourses.get(courseId);
+        if (!theirScores) continue;
+        const myBest = Math.min(...myScores.map(s => s.score));
+        const theirBest = Math.min(...theirScores.map(s => s.score));
+        if (myBest < theirBest) myWins++;
+        else if (theirBest < myBest) theirWins++;
+        else ties++;
+        courseBreakdown.push({
+          courseId,
+          courseName: myScores[0].name,
+          myBest,
+          theirBest,
+        });
+      }
+
+      setMatchup({
+        opponentId,
+        opponentName: paramName ?? 'Opponent',
+        opponentHandicap: 0,
+        myWins,
+        theirWins,
+        ties,
+        totalMatches: myWins + theirWins + ties,
+        courseBreakdown,
+      });
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [user, opponentId, paramName]);
+
+  const MY_NAME = user?.user_metadata?.name ?? 'You';
+  const MY_ID = user?.id ?? '';
+
+  if (loading || !matchup) {
     return (
       <View style={[s.screen, { backgroundColor: c.bg, paddingTop: insets.top }]}>
         <Pressable onPress={() => { haptics.light(); router.back(); }} style={s.backBtn}>
@@ -87,7 +144,7 @@ export default function H2HDetailScreen() {
         </Pressable>
         <View style={s.notFound}>
           <Text style={[s.notFoundText, { color: c.textMuted }]}>
-            Matchup not found
+            {loading ? 'Loading...' : 'No shared rounds yet'}
           </Text>
         </View>
       </View>

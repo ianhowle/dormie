@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,9 @@ import {
   type ScoreEntry,
   type LeaderboardRow,
 } from '../src/data/courseDetail';
+import { coursesService } from '../src/services/courses.service';
+import { roundsService } from '../src/services/rounds.service';
+import { useAuth } from '../src/lib/auth';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -455,10 +458,59 @@ export default function CourseDetailScreen() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const router = useRouter();
 
+  const { user } = useAuth();
   const [scope, setScope] = useState<Scope>('group');
   const [scoreMode, setScoreMode] = useState<ScoreMode>('gross');
+  const [realLeaderboard, setRealLeaderboard] = useState<LeaderboardRow[] | null>(null);
+  const [realHistory, setRealHistory] = useState<{ best: number; avg: number; worst: number; rounds: number; scores: ScoreEntry[] } | null>(undefined as any);
 
-  const course = useMemo(() => getCourseDetail(courseId ?? ''), [courseId]);
+  // Fetch real course leaderboard
+  useEffect(() => {
+    if (!courseId) return;
+    coursesService.getLeaderboard(courseId).then((entries) => {
+      setRealLeaderboard(entries.map((e: any) => ({
+        playerId: e.user_id,
+        playerName: e.user_name,
+        handicap: 0,
+        bestScore: e.best_score,
+        toPar: e.best_to_par,
+        datePlayed: '',
+        isMe: e.user_id === user?.id,
+      })));
+    }).catch(() => {});
+
+    // Fetch personal history at this course
+    if (user) {
+      roundsService.fetchByCourse(courseId, user.id).then((rounds) => {
+        if (rounds.length === 0) { setRealHistory(null); return; }
+        const scores = rounds.map(r => r.gross_score);
+        setRealHistory({
+          best: Math.min(...scores),
+          avg: scores.reduce((a, b) => a + b, 0) / scores.length,
+          worst: Math.max(...scores),
+          rounds: rounds.length,
+          scores: rounds.slice(0, 10).map(r => ({
+            id: r.id,
+            score: r.gross_score,
+            date: r.played_at,
+            source: (r.trip_id ? 'trip' : r.season_week_id ? 'season' : 'casual') as 'trip' | 'season' | 'casual',
+            label: r.course?.name ?? 'Round',
+          })),
+        });
+      }).catch(() => {});
+    }
+  }, [courseId, user]);
+
+  // Use static mock for course metadata, but override leaderboard and history with real data
+  const baseCourse = useMemo(() => getCourseDetail(courseId ?? ''), [courseId]);
+  const course = useMemo(() => {
+    if (!baseCourse) return null;
+    return {
+      ...baseCourse,
+      leaderboard: realLeaderboard ?? baseCourse.leaderboard,
+      myHistory: realHistory !== undefined ? realHistory : baseCourse.myHistory,
+    } as CourseDetailData;
+  }, [baseCourse, realLeaderboard, realHistory]);
 
   if (!course) {
     return (

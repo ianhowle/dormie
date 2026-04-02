@@ -34,26 +34,6 @@ import { DataFreshness } from '../../src/components/DataFreshness';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
-// ─── Mock data (fallback when no real data) ──────────────────────────
-const MOCK_USER = {
-  id: '1',
-  name: 'Ian McGowan',
-  handicap: 8.2,
-  city: 'Nashville',
-  state: 'TN',
-  email: 'ian@dormie.golf',
-  memberSince: '2024',
-};
-
-const MOCK_STATS = {
-  totalRounds: 142,
-  coursesPlayed: 38,
-  bestRound: { score: 68, course: 'TPC Sawgrass', par: 72 },
-  scoringAvg: 76.8,
-  courseRecords: 3,
-  tripsPlayed: 7,
-};
-
 type RecentRound = {
   id: string;
   course: string;
@@ -63,19 +43,7 @@ type RecentRound = {
   source: 'manual' | 'ghin' | 'app';
 };
 
-const MOCK_RECENT_ROUNDS: RecentRound[] = [
-  { id: 'r1', course: 'Hermitage Golf Course', score: 74, par: 72, date: 'Mar 8, 2026', source: 'app' },
-  { id: 'r2', course: 'Gaylord Springs', score: 79, par: 72, date: 'Mar 1, 2026', source: 'app' },
-  { id: 'r3', course: 'TPC Scottsdale', score: 76, par: 71, date: 'Feb 22, 2026', source: 'app' },
-  { id: 'r4', course: 'We-Ko-Pa Saguaro', score: 82, par: 72, date: 'Feb 21, 2026', source: 'manual' },
-  { id: 'r5', course: 'Grayhawk Raptor', score: 78, par: 72, date: 'Feb 20, 2026', source: 'ghin' },
-];
-
-// Last 20 rounds handicap trend
-const HANDICAP_TREND = [
-  12.1, 11.8, 11.4, 10.9, 10.6, 10.2, 10.0, 9.8, 9.5, 9.3,
-  9.6, 9.2, 8.9, 8.7, 8.4, 8.6, 8.3, 8.1, 8.4, 8.2,
-];
+// Handicap trend is now computed from real rounds below
 
 // ─── Pinstripe overlay ───────────────────────────────────────────────
 function Pinstripes() {
@@ -232,19 +200,16 @@ export default function ProfileScreen() {
 
   const cardShadow = isDark ? cardShadowDark : cardShadowLight;
 
-  // Use real auth data when available, fall back to mock
   const profileUser = useMemo(() => {
-    if (user) {
-      return {
-        ...MOCK_USER,
-        id: user.id,
-        name: user.user_metadata?.name ?? MOCK_USER.name,
-        email: user.email ?? MOCK_USER.email,
-        handicap: user.user_metadata?.handicap_index ?? MOCK_USER.handicap,
-        memberSince: new Date(user.created_at).getFullYear().toString(),
-      };
-    }
-    return MOCK_USER;
+    return {
+      id: user?.id ?? '',
+      name: user?.user_metadata?.name ?? 'Golfer',
+      email: user?.email ?? '',
+      handicap: user?.user_metadata?.handicap_index ?? 0,
+      city: user?.user_metadata?.city ?? '',
+      state: user?.user_metadata?.state ?? '',
+      memberSince: user ? new Date(user.created_at).getFullYear().toString() : '',
+    };
   }, [user]);
 
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
@@ -302,7 +267,7 @@ export default function ProfileScreen() {
     tripsPlayed: '--' as any,
   };
 
-  const displayStats = realStats ?? (showDemoData ? MOCK_STATS : EMPTY_STATS);
+  const displayStats = realStats ?? EMPTY_STATS;
 
   // Build recent rounds from real data
   const displayRounds: RecentRound[] = useMemo(() => {
@@ -316,22 +281,29 @@ export default function ProfileScreen() {
         source: r.source as 'manual' | 'ghin' | 'app',
       }));
     }
-    if (showDemoData) return MOCK_RECENT_ROUNDS;
     return [];
-  }, [realRounds, showDemoData]);
+  }, [realRounds]);
 
-  // Build handicap trend from real rounds
+  // Build handicap trend from real rounds using proper differential calculation
   const displayHandicapTrend = useMemo(() => {
-    if (realRounds.length >= 3) {
-      // Approximate trend from scoring differentials
-      return realRounds.slice(0, 20).reverse().map(r => {
-        const diff = r.gross_score - (r.course?.par ?? 72);
-        return Math.max(0, diff * 0.96); // rough handicap approximation
-      });
+    if (realRounds.length < 3) return [];
+    // Reverse to chronological order (oldest first) for running calculation
+    const chronological = [...realRounds].reverse();
+    const trend: number[] = [];
+    for (let i = 2; i < chronological.length; i++) {
+      // Use rounds 0..i to compute running handicap at point i
+      const window = chronological.slice(Math.max(0, i - 19), i + 1);
+      const diffs = window.map(r => {
+        const rating = (r.course as any)?.rating ?? (r.course?.par ?? 72);
+        const slope = (r.course as any)?.slope ?? 113;
+        return ((r.gross_score - rating) * 113) / slope;
+      }).sort((a, b) => a - b);
+      const best = diffs.slice(0, Math.min(8, Math.ceil(diffs.length * 0.4)));
+      const avg = best.reduce((a, b) => a + b, 0) / best.length;
+      trend.push(Math.round(avg * 0.96 * 10) / 10);
     }
-    if (showDemoData) return HANDICAP_TREND;
-    return [];
-  }, [realRounds, showDemoData]);
+    return trend;
+  }, [realRounds]);
 
   const toPar = (score: number, par: number) => {
     const diff = score - par;
