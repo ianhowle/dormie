@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,10 @@ import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight, dark as darkColors } from '../theme/colors';
 import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
+import { CaptainsPairings } from './CaptainsPairings';
+import { DormieMoment } from './DormieMoment';
+import type { MomentType } from './DormieMoment';
+import type { RCPlayer as CaptainsRCPlayer, Pairing } from './CaptainsPairings';
 import type { Trip } from '../data/trips';
 import { tripsService } from '../services/trips.service';
 import { useAuth } from '../lib/auth';
@@ -276,6 +280,60 @@ type HoleResult = {
   winner: 'red' | 'blue' | 'halved';
 };
 
+// ─── Match play helpers ──────────────────────────────────────────────
+/** Compute match play status string from hole results. */
+function computeMatchStatus(
+  holeResults: Record<number, HoleResult>,
+  totalHoles: number,
+): { status: MatchStatus; leader: 'red' | 'blue' | null; lead: number; holesPlayed: number; finalResult: string | null; winner: 'red' | 'blue' | 'halved' | undefined } {
+  const holesPlayed = Object.keys(holeResults).length;
+  const redWins = Object.values(holeResults).filter((r) => r.winner === 'red').length;
+  const blueWins = Object.values(holeResults).filter((r) => r.winner === 'blue').length;
+  const lead = Math.abs(redWins - blueWins);
+  const leader: 'red' | 'blue' | null = redWins > blueWins ? 'red' : blueWins > redWins ? 'blue' : null;
+  const holesRemaining = totalHoles - holesPlayed;
+
+  // Match is complete: all holes played or lead > remaining holes
+  if (holesPlayed === totalHoles) {
+    if (lead === 0) {
+      return { status: 'HALVED', leader: null, lead: 0, holesPlayed, finalResult: 'HALVED', winner: 'halved' };
+    }
+    return { status: 'FINAL', leader, lead, holesPlayed, finalResult: `${lead} UP`, winner: leader! };
+  }
+
+  // Lead exceeds remaining holes — match is clinched
+  if (lead > holesRemaining && holesPlayed > 0) {
+    const closedBy = `${lead} & ${holesRemaining}`;
+    return { status: 'FINAL', leader, lead, holesPlayed, finalResult: closedBy, winner: leader! };
+  }
+
+  // Dormie: lead equals remaining holes
+  if (lead === holesRemaining && lead > 0 && holesPlayed > 0) {
+    return { status: 'DORMIE', leader, lead, holesPlayed, finalResult: null, winner: undefined };
+  }
+
+  // In progress
+  if (lead === 0) {
+    return { status: 'AS', leader: null, lead: 0, holesPlayed, finalResult: null, winner: undefined };
+  }
+  const statusStr = `${lead} UP` as MatchStatus;
+  return { status: statusStr, leader, lead, holesPlayed, finalResult: null, winner: undefined };
+}
+
+/** Format match status for display. */
+function formatMatchStatusDisplay(
+  status: MatchStatus,
+  leader: 'red' | 'blue' | null,
+  holesPlayed: number,
+  totalHoles: number,
+  finalResult: string | null,
+): string {
+  if (finalResult) return finalResult;
+  if (status === 'AS') return holesPlayed > 0 ? `ALL SQUARE thru ${holesPlayed}` : 'ALL SQUARE';
+  if (status === 'DORMIE') return `DORMIE (${leader === 'red' ? 'Red' : 'Blue'} leads)`;
+  return `${status} thru ${holesPlayed}`;
+}
+
 // Mock matches per session
 const MOCK_MATCHES: Record<string, RCMatch[]> = {
   rs1: [
@@ -305,7 +363,7 @@ const MOCK_MATCHES: Record<string, RCMatch[]> = {
 };
 
 // ─── Sub-view type ──────────────────────────────────────────────────────
-type SubView = 'hub' | 'checklist' | 'chat' | 'settings' | 'draft' | 'reveal' | 'matchlist' | 'scoring' | 'completion';
+type SubView = 'hub' | 'checklist' | 'chat' | 'settings' | 'draft' | 'reveal' | 'matchlist' | 'scoring' | 'completion' | 'pairings';
 
 // ═══════════════════════════════════════════════════════════════════════
 // RC CHECKLIST VIEW
@@ -569,7 +627,7 @@ function RCSettings({ trip, onBack, rcPlayers, rcSessions }: { trip: Trip; onBac
     ['Course', trip.destination],
     ['Dates', `${trip.startDate} → ${trip.endDate}`],
     ['Team Size', `${trip.playerIds.length / 2}v${trip.playerIds.length / 2}`],
-    ['Sessions', `${sessions.length}`],
+    ['Sessions', `${rcSessions.length}`],
     ['Win Condition', 'Most Points'],
     ['Scoring', 'Win = 1 · Halve = ½ · Loss = 0'],
     ['Invite Code', formatInviteCode(trip)],
@@ -1117,11 +1175,16 @@ function RCMatchList({
             {/* Status badge */}
             <View style={[ml.matchStatusBadge, { backgroundColor: `${statusColor(match)}15` }]}>
               <Text style={[ml.matchStatusText, { color: statusColor(match), fontFamily: GEO }]}>
-                {match.winner ? (match.winner === 'halved' ? 'HALVED' : `${match.winner === 'red' ? 'RED' : 'BLUE'} WINS`) : match.status}
+                {match.winner
+                  ? (match.winner === 'halved' ? 'HALVED' : `${match.winner === 'red' ? 'RED' : 'BLUE'} WINS`)
+                  : match.status === 'DORMIE' ? 'DORMIE'
+                  : match.status === 'AS' ? 'ALL SQUARE'
+                  : match.status
+                }
               </Text>
               {match.holesPlayed > 0 && !match.winner && (
                 <Text style={[ml.matchHolesText, { color: c.textMuted }]}>
-                  Thru {match.holesPlayed}
+                  thru {match.holesPlayed}
                 </Text>
               )}
             </View>
@@ -1160,21 +1223,44 @@ function RCMatchScoring({
   session,
   match,
   matchIndex,
+  onMatchComplete,
   onBack,
 }: {
   session: RCSession;
   match: RCMatch;
   matchIndex: number;
+  onMatchComplete: (matchId: string, winner: 'red' | 'blue' | 'halved', result: string) => void;
   onBack: () => void;
 }) {
   const { theme } = useTheme();
   const c = darkColors;
 
   const totalHoles = session.holeCount;
+  const format = session.format;
   const [currentHole, setCurrentHole] = useState(1);
   const [holeResults, setHoleResults] = useState<Record<number, HoleResult>>({});
-  const [redScores, setRedScores] = useState<Record<number, number>>({});
-  const [blueScores, setBlueScores] = useState<Record<number, number>>({});
+  const [matchFinished, setMatchFinished] = useState(false);
+
+  // Foursomes/Scramble: one score per team per hole
+  const [redTeamScores, setRedTeamScores] = useState<Record<number, number>>({});
+  const [blueTeamScores, setBlueTeamScores] = useState<Record<number, number>>({});
+
+  // Four-Ball: individual player scores (best of two per team)
+  const [fourBallScores, setFourBallScores] = useState<Record<string, Record<number, number>>>({});
+
+  // Singles: individual player scores
+  // (same structure as fourBallScores but only 1 per side)
+
+  // Track which player tees off on each hole for foursomes alternate shot
+  const foursomesTeeSide = useCallback((hole: number): { redPlayer: string; bluePlayer: string } => {
+    // In foursomes, players alternate tee shots. Odd holes = player 1, even = player 2
+    const redIdx = (hole - 1) % 2;
+    const blueIdx = (hole - 1) % 2;
+    return {
+      redPlayer: match.redPlayers[redIdx] || match.redPlayers[0],
+      bluePlayer: match.bluePlayers[blueIdx] || match.bluePlayers[0],
+    };
+  }, [match.redPlayers, match.bluePlayers]);
 
   const getScoreName = (score: number, par: number) => {
     const diff = score - par;
@@ -1192,40 +1278,136 @@ function RCMatchScoring({
     if (diff <= -2) return c.gold;
     if (diff === -1) return c.teal;
     if (diff === 0) return c.text;
-    if (diff === 1) return c.urgent;
     return c.urgent;
   };
 
   const par = currentHole <= 4 ? 4 : currentHole % 3 === 0 ? 3 : currentHole % 5 === 0 ? 5 : 4;
-  const redScore = redScores[currentHole] ?? par;
-  const blueScore = blueScores[currentHole] ?? par;
 
+  // Get the effective red/blue scores for the current hole based on format
+  const getEffectiveScores = (hole: number, holePar: number): { red: number; blue: number } => {
+    if (format === 'fourball') {
+      // Best ball: take the lower of the two player scores
+      const r1 = fourBallScores[match.redPlayers[0]]?.[hole] ?? holePar;
+      const r2 = match.redPlayers[1] ? (fourBallScores[match.redPlayers[1]]?.[hole] ?? holePar) : holePar;
+      const b1 = fourBallScores[match.bluePlayers[0]]?.[hole] ?? holePar;
+      const b2 = match.bluePlayers[1] ? (fourBallScores[match.bluePlayers[1]]?.[hole] ?? holePar) : holePar;
+      return { red: Math.min(r1, r2), blue: Math.min(b1, b2) };
+    }
+    // Foursomes, singles, scramble: team/individual scores
+    return {
+      red: redTeamScores[hole] ?? holePar,
+      blue: blueTeamScores[hole] ?? holePar,
+    };
+  };
+
+  const { red: effectiveRed, blue: effectiveBlue } = getEffectiveScores(currentHole, par);
+
+  // Compute match status from all locked holes
+  const matchStatus = useMemo(() => computeMatchStatus(holeResults, totalHoles), [holeResults, totalHoles]);
   const holeResult = holeResults[currentHole];
-  const redWins = Object.values(holeResults).filter((r) => r.winner === 'red').length;
-  const blueWins = Object.values(holeResults).filter((r) => r.winner === 'blue').length;
-  const halves = Object.values(holeResults).filter((r) => r.winner === 'halved').length;
+
+  // Check if match is clinched after each hole lock
+  useEffect(() => {
+    if (matchFinished) return;
+    if (matchStatus.winner) {
+      setMatchFinished(true);
+      const resultStr = matchStatus.finalResult || (matchStatus.winner === 'halved' ? 'HALVED' : '1 UP');
+      haptics.heavy();
+      onMatchComplete(match.id, matchStatus.winner, resultStr);
+    }
+  }, [matchStatus.winner, matchFinished, match.id, onMatchComplete, matchStatus.finalResult]);
 
   const formatBanner = () => {
-    if (session.format === 'fourball') return 'Enter best ball score for each team';
-    if (session.format === 'foursomes') return 'Enter team\'s alternate shot score';
-    if (session.format === 'scramble') return 'Enter team scramble score';
+    if (format === 'fourball') return 'Four-Ball: Enter each player\'s score. Best ball counts for the team.';
+    if (format === 'foursomes') {
+      const tee = foursomesTeeSide(currentHole);
+      return `Alternate Shot: ${tee.redPlayer} tees off for Red, ${tee.bluePlayer} for Blue.`;
+    }
+    if (format === 'scramble') return 'Scramble: Enter the team score.';
     return null;
   };
 
-  const scoreLabel = () => {
-    if (session.format === 'fourball') return 'Best Ball';
-    if (session.format === 'foursomes' || session.format === 'scramble') return 'Team Score';
-    return 'Score';
-  };
-
   const lockHole = () => {
+    const scores = getEffectiveScores(currentHole, par);
     const winner: 'red' | 'blue' | 'halved' =
-      redScore < blueScore ? 'red' : blueScore < redScore ? 'blue' : 'halved';
+      scores.red < scores.blue ? 'red' : scores.blue < scores.red ? 'blue' : 'halved';
     setHoleResults((prev) => ({
       ...prev,
-      [currentHole]: { redScore, blueScore, winner },
+      [currentHole]: { redScore: scores.red, blueScore: scores.blue, winner },
     }));
+    haptics.light();
   };
+
+  const renderScoreControl = (
+    label: string,
+    teamColor: string,
+    score: number,
+    onChange: (delta: number) => void,
+  ) => (
+    <View style={[ms.teamScoreCard, { backgroundColor: `${teamColor}08`, borderColor: teamColor }]}>
+      <View style={[ms.teamScoreHeader, { borderColor: `${teamColor}30` }]}>
+        <View style={[ms.teamDotLg, { backgroundColor: teamColor }]} />
+        <Text style={[ms.teamScoreLabel, { color: teamColor }]}>{label}</Text>
+      </View>
+      <View style={ms.scoreControls}>
+        <Pressable
+          onPress={() => onChange(-1)}
+          style={[ms.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+        >
+          <Ionicons name="remove" size={22} color={c.text} />
+        </Pressable>
+        <View style={ms.scoreDisplay}>
+          <Text style={[ms.scoreNum, { color: getScoreColor(score, par), fontFamily: GEO }]}>
+            {score}
+          </Text>
+          <Text style={[ms.scoreName, { color: getScoreColor(score, par) }]}>
+            {getScoreName(score, par)}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => onChange(1)}
+          style={[ms.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
+        >
+          <Ionicons name="add" size={22} color={c.text} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const renderFourBallScoring = () => {
+    const players = [
+      { names: match.redPlayers, color: RC_RED, team: 'red' as const },
+      { names: match.bluePlayers, color: RC_BLUE, team: 'blue' as const },
+    ];
+    return players.map(({ names, color }) =>
+      names.map((name) => {
+        const score = fourBallScores[name]?.[currentHole] ?? par;
+        return renderScoreControl(
+          name,
+          color,
+          score,
+          (delta) => {
+            setFourBallScores((prev) => ({
+              ...prev,
+              [name]: {
+                ...(prev[name] || {}),
+                [currentHole]: Math.max(1, Math.min(12, (prev[name]?.[currentHole] ?? par) + delta)),
+              },
+            }));
+          },
+        );
+      })
+    );
+  };
+
+  // Match status display string
+  const statusDisplay = formatMatchStatusDisplay(
+    matchStatus.status,
+    matchStatus.leader,
+    matchStatus.holesPlayed,
+    totalHoles,
+    matchStatus.finalResult,
+  );
 
   return (
     <View style={[h.screen, { backgroundColor: c.bg }]}>
@@ -1242,9 +1424,13 @@ function RCMatchScoring({
           </View>
         </View>
         <View style={ms.headerScoreMini}>
-          <Text style={[ms.miniScore, { color: RC_RED }]}>{redWins}</Text>
+          <Text style={[ms.miniScore, { color: RC_RED }]}>
+            {matchStatus.leader === 'red' ? matchStatus.lead : 0}
+          </Text>
           <Text style={ms.miniDash}>-</Text>
-          <Text style={[ms.miniScore, { color: '#aac' }]}>{blueWins}</Text>
+          <Text style={[ms.miniScore, { color: '#aac' }]}>
+            {matchStatus.leader === 'blue' ? matchStatus.lead : 0}
+          </Text>
         </View>
       </LinearGradient>
 
@@ -1276,6 +1462,16 @@ function RCMatchScoring({
           }}
         />
 
+        {/* Match status banner */}
+        <View style={[ms.matchStatusBanner, { backgroundColor: `${matchStatus.leader === 'red' ? RC_RED : matchStatus.leader === 'blue' ? RC_BLUE : c.gold}10` }]}>
+          <Text style={[ms.matchStatusText, {
+            color: matchStatus.leader === 'red' ? RC_RED : matchStatus.leader === 'blue' ? RC_BLUE : c.gold,
+            fontFamily: GEO,
+          }]}>
+            {statusDisplay}
+          </Text>
+        </View>
+
         {/* Hole info */}
         <View style={ms.holeInfoRow}>
           <Text style={[ms.holeLabel, { color: c.text, fontFamily: GEO }]}>HOLE {currentHole}</Text>
@@ -1290,71 +1486,33 @@ function RCMatchScoring({
           </View>
         )}
 
-        {/* Red team scoring */}
-        <View style={[ms.teamScoreCard, { backgroundColor: `${RC_RED}08`, borderColor: RC_RED }]}>
-          <View style={[ms.teamScoreHeader, { borderColor: `${RC_RED}30` }]}>
-            <View style={[ms.teamDotLg, { backgroundColor: RC_RED }]} />
-            <Text style={[ms.teamScoreLabel, { color: RC_RED }]}>
-              {match.redPlayers.join(' & ')}
-            </Text>
-          </View>
-          <Text style={[ms.scoreTypeLabel, { color: c.textMuted }]}>{scoreLabel()}</Text>
-          <View style={ms.scoreControls}>
-            <Pressable
-              onPress={() => setRedScores((p) => ({ ...p, [currentHole]: Math.max(1, (p[currentHole] ?? par) - 1) }))}
-              style={[ms.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
-            >
-              <Ionicons name="remove" size={22} color={c.text} />
-            </Pressable>
-            <View style={ms.scoreDisplay}>
-              <Text style={[ms.scoreNum, { color: getScoreColor(redScore, par), fontFamily: GEO }]}>
-                {redScore}
-              </Text>
-              <Text style={[ms.scoreName, { color: getScoreColor(redScore, par) }]}>
-                {getScoreName(redScore, par)}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => setRedScores((p) => ({ ...p, [currentHole]: Math.min(12, (p[currentHole] ?? par) + 1) }))}
-              style={[ms.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
-            >
-              <Ionicons name="add" size={22} color={c.text} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Blue team scoring */}
-        <View style={[ms.teamScoreCard, { backgroundColor: `${RC_BLUE}08`, borderColor: RC_BLUE }]}>
-          <View style={[ms.teamScoreHeader, { borderColor: `${RC_BLUE}30` }]}>
-            <View style={[ms.teamDotLg, { backgroundColor: RC_BLUE }]} />
-            <Text style={[ms.teamScoreLabel, { color: RC_BLUE }]}>
-              {match.bluePlayers.join(' & ')}
-            </Text>
-          </View>
-          <Text style={[ms.scoreTypeLabel, { color: c.textMuted }]}>{scoreLabel()}</Text>
-          <View style={ms.scoreControls}>
-            <Pressable
-              onPress={() => setBlueScores((p) => ({ ...p, [currentHole]: Math.max(1, (p[currentHole] ?? par) - 1) }))}
-              style={[ms.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
-            >
-              <Ionicons name="remove" size={22} color={c.text} />
-            </Pressable>
-            <View style={ms.scoreDisplay}>
-              <Text style={[ms.scoreNum, { color: getScoreColor(blueScore, par), fontFamily: GEO }]}>
-                {blueScore}
-              </Text>
-              <Text style={[ms.scoreName, { color: getScoreColor(blueScore, par) }]}>
-                {getScoreName(blueScore, par)}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => setBlueScores((p) => ({ ...p, [currentHole]: Math.min(12, (p[currentHole] ?? par) + 1) }))}
-              style={[ms.scoreBtn, { backgroundColor: c.elevated, borderColor: c.border }]}
-            >
-              <Ionicons name="add" size={22} color={c.text} />
-            </Pressable>
-          </View>
-        </View>
+        {/* Scoring inputs based on format */}
+        {format === 'fourball' ? (
+          // Four-Ball: individual scores for each player
+          renderFourBallScoring()
+        ) : (
+          // Foursomes, Singles, Scramble: team/individual scores
+          <>
+            {renderScoreControl(
+              format === 'singles' ? match.redPlayers[0] : match.redPlayers.join(' & '),
+              RC_RED,
+              redTeamScores[currentHole] ?? par,
+              (delta) => setRedTeamScores((p) => ({
+                ...p,
+                [currentHole]: Math.max(1, Math.min(12, (p[currentHole] ?? par) + delta)),
+              })),
+            )}
+            {renderScoreControl(
+              format === 'singles' ? match.bluePlayers[0] : match.bluePlayers.join(' & '),
+              RC_BLUE,
+              blueTeamScores[currentHole] ?? par,
+              (delta) => setBlueTeamScores((p) => ({
+                ...p,
+                [currentHole]: Math.max(1, Math.min(12, (p[currentHole] ?? par) + delta)),
+              })),
+            )}
+          </>
+        )}
 
         {/* Hole result banner */}
         {holeResult && (
@@ -1396,7 +1554,7 @@ function RCMatchScoring({
             <Text style={[ms.navBtnText, { color: c.text }]}>Prev</Text>
           </Pressable>
 
-          {!holeResult && (
+          {!holeResult && !matchFinished && (
             <Pressable onPress={lockHole} style={[ms.lockBtn, { backgroundColor: c.teal }]}>
               <Text style={[ms.lockBtnText, { fontFamily: GEO }]}>Lock Hole</Text>
             </Pressable>
@@ -1404,37 +1562,46 @@ function RCMatchScoring({
 
           <Pressable
             onPress={() => {
-              if (currentHole < totalHoles) {
+              if (matchFinished) {
+                onBack();
+              } else if (currentHole < totalHoles) {
                 if (!holeResult) lockHole();
                 setCurrentHole(currentHole + 1);
               } else {
+                if (!holeResult) lockHole();
                 onBack();
               }
             }}
-            style={[ms.navBtn, { backgroundColor: currentHole === totalHoles ? '#1E4D2B' : c.elevated, borderColor: currentHole === totalHoles ? '#1E4D2B' : c.border }]}
+            style={[ms.navBtn, { backgroundColor: currentHole === totalHoles || matchFinished ? '#1E4D2B' : c.elevated, borderColor: currentHole === totalHoles || matchFinished ? '#1E4D2B' : c.border }]}
           >
-            <Text style={[ms.navBtnText, { color: currentHole === totalHoles ? '#C9A227' : c.text }]}>
-              {currentHole === totalHoles ? 'Finish' : 'Next'}
+            <Text style={[ms.navBtnText, { color: currentHole === totalHoles || matchFinished ? '#C9A227' : c.text }]}>
+              {matchFinished ? 'Done' : currentHole === totalHoles ? 'Finish' : 'Next'}
             </Text>
-            <Ionicons name="chevron-forward" size={18} color={currentHole === totalHoles ? '#C9A227' : c.text} />
+            <Ionicons name="chevron-forward" size={18} color={currentHole === totalHoles || matchFinished ? '#C9A227' : c.text} />
           </Pressable>
         </View>
 
-        {/* Running score */}
+        {/* Running match score */}
         <View style={[ms.runningScore, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-          <Text style={[ms.runningLabel, { color: c.textMuted }]}>MATCH SCORE</Text>
+          <Text style={[ms.runningLabel, { color: c.textMuted }]}>MATCH PLAY STATUS</Text>
           <View style={ms.runningScoreRow}>
             <View style={ms.runningSide}>
               <View style={[ms.teamDotSm, { backgroundColor: RC_RED }]} />
-              <Text style={[ms.runningVal, { color: RC_RED, fontFamily: GEO }]}>{redWins}</Text>
+              <Text style={[ms.runningVal, { color: RC_RED, fontFamily: GEO }]}>
+                {Object.values(holeResults).filter((r) => r.winner === 'red').length}
+              </Text>
             </View>
             <Text style={[ms.runningDash, { color: c.textMuted }]}>—</Text>
             <View style={ms.runningSide}>
-              <Text style={[ms.runningVal, { color: RC_BLUE, fontFamily: GEO }]}>{blueWins}</Text>
+              <Text style={[ms.runningVal, { color: RC_BLUE, fontFamily: GEO }]}>
+                {Object.values(holeResults).filter((r) => r.winner === 'blue').length}
+              </Text>
               <View style={[ms.teamDotSm, { backgroundColor: RC_BLUE }]} />
             </View>
           </View>
-          <Text style={[ms.halvedText, { color: c.textMuted }]}>{halves} halved</Text>
+          <Text style={[ms.halvedText, { color: c.textMuted }]}>
+            {Object.values(holeResults).filter((r) => r.winner === 'halved').length} halved · {matchStatus.holesPlayed} of {totalHoles} holes
+          </Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -1536,8 +1703,18 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   const [sessions, setSessions] = useState<RCSession[]>(MOCK_RC_SESSIONS);
   const [matches, setMatches] = useState<Record<string, RCMatch[]>>(MOCK_MATCHES);
 
+  // Pairings state for CaptainsPairings
+  const [pairings, setPairings] = useState<Pairing[]>([]);
+
+  // Dormie moment state
+  const [momentVisible, setMomentVisible] = useState(false);
+  const [momentType, setMomentType] = useState<MomentType>('CUP_CLINCHED');
+  const [momentPlayer, setMomentPlayer] = useState('');
+  const [momentDetail, setMomentDetail] = useState('');
+
   // Derived: teams drafted when all players have a team assigned
   const teamsDrafted = players.length > 0 && players.every((p) => p.team !== null);
+  const isCaptain = user?.id === trip.createdBy || trip.playerIds?.[0] === user?.id;
 
   // Fetch real data from Supabase
   const fetchData = useCallback(async () => {
@@ -1643,6 +1820,67 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
     fetchData();
   }, [fetchData]);
 
+  // ─── Match completion callback ────────────────────────────────────
+  const handleMatchComplete = useCallback((matchId: string, winner: 'red' | 'blue' | 'halved', result: string) => {
+    // Update the match in state
+    setMatches((prev) => {
+      const updated = { ...prev };
+      for (const sessionId of Object.keys(updated)) {
+        updated[sessionId] = updated[sessionId].map((m) => {
+          if (m.id !== matchId) return m;
+          return {
+            ...m,
+            winner,
+            status: (winner === 'halved' ? 'HALVED' : 'FINAL') as MatchStatus,
+            redScore: winner === 'red' ? 1 : winner === 'halved' ? 0.5 : 0,
+            blueScore: winner === 'blue' ? 1 : winner === 'halved' ? 0.5 : 0,
+            holesPlayed: m.holesPlayed,
+          };
+        });
+      }
+      return updated;
+    });
+
+    // Update session scores
+    setSessions((prev) => prev.map((s) => {
+      const sessionMatchList = matches[s.id];
+      if (!sessionMatchList) return s;
+      const hasMatch = sessionMatchList.some((m) => m.id === matchId);
+      if (!hasMatch) return s;
+
+      // Recompute session scores
+      const updatedMatches = sessionMatchList.map((m) => {
+        if (m.id !== matchId) return m;
+        return { ...m, winner, redScore: winner === 'red' ? 1 : winner === 'halved' ? 0.5 : 0, blueScore: winner === 'blue' ? 1 : winner === 'halved' ? 0.5 : 0 };
+      });
+      const redPts = updatedMatches.reduce((sum, m) => sum + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+      const bluePts = updatedMatches.reduce((sum, m) => sum + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+      const allDone = updatedMatches.every((m) => m.winner != null);
+
+      return {
+        ...s,
+        redScore: redPts,
+        blueScore: bluePts,
+        status: allDone ? 'complete' as SessionStatus : 'live' as SessionStatus,
+      };
+    }));
+  }, [matches]);
+
+  // ─── Generate pairings slots for the active session ──────────────
+  const buildPairingsForSession = useCallback((session: RCSession) => {
+    const slots: Pairing[] = [];
+    for (let i = 0; i < session.matchCount; i++) {
+      slots.push({
+        id: `${session.id}-p${i}`,
+        player1Id: null,
+        player2Id: null,
+        format: session.formatLabel,
+        sessionIndex: sessions.indexOf(session),
+      });
+    }
+    setPairings(slots);
+  }, [sessions]);
+
   const toggleCheck = (id: string) => {
     haptics.light();
     setChecklist((prev) =>
@@ -1654,7 +1892,27 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   const redTotal = sessions.reduce((s, ss) => s + (ss.redScore ?? 0), 0);
   const blueTotal = sessions.reduce((s, ss) => s + (ss.blueScore ?? 0), 0);
   const totalPoints = sessions.reduce((s, ss) => s + ss.matchCount, 0);
+  const winThreshold = totalPoints / 2 + 0.5; // e.g., 14.5 for 28-match format
   const allSessionsComplete = sessions.every((ss) => ss.status === 'complete');
+
+  // Cup winner detection
+  const cupWinner: 'red' | 'blue' | null = redTotal >= winThreshold ? 'red' : blueTotal >= winThreshold ? 'blue' : null;
+  const [cupCelebrated, setCupCelebrated] = useState(false);
+
+  useEffect(() => {
+    if (cupWinner && !cupCelebrated) {
+      setCupCelebrated(true);
+      setMomentType('CUP_CLINCHED');
+      setMomentPlayer(cupWinner === 'red' ? 'Team Red' : 'Team Blue');
+      setMomentDetail(`${cupWinner === 'red' ? redTotal : blueTotal} - ${cupWinner === 'red' ? blueTotal : redTotal}`);
+      setMomentVisible(true);
+      // Auto-navigate to completion after moment dismisses
+      setTimeout(() => {
+        setMomentVisible(false);
+        setSubView('completion');
+      }, 5000);
+    }
+  }, [cupWinner, cupCelebrated, redTotal, blueTotal]);
 
   // Sub-views
   if (subView === 'checklist') {
@@ -1701,6 +1959,17 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
           setSubView('scoring');
         }}
         onFinalize={() => {
+          // Mark session as complete with final scores
+          if (activeSession) {
+            const sessionMatchList = matches[activeSession.id] ?? [];
+            const redPts = sessionMatchList.reduce((s, m) => s + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+            const bluePts = sessionMatchList.reduce((s, m) => s + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+            setSessions((prev) => prev.map((s) =>
+              s.id === activeSession.id
+                ? { ...s, status: 'complete' as SessionStatus, redScore: redPts, blueScore: bluePts }
+                : s
+            ));
+          }
           setSubView('hub');
           setActiveSession(null);
         }}
@@ -1711,12 +1980,107 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
       />
     );
   }
+  if (subView === 'pairings' && activeSession) {
+    const redPlayers = players.filter((p) => p.team === 'red').map((p) => ({
+      id: p.id, name: p.name, handicap: p.handicap, avatarColor: '#B71C1C',
+    }));
+    const bluePlayers = players.filter((p) => p.team === 'blue').map((p) => ({
+      id: p.id, name: p.name, handicap: p.handicap, avatarColor: '#1565C0',
+    }));
+
+    return (
+      <View style={[h.screen, { backgroundColor: c.bg }]}>
+        <LinearGradient colors={[RC_BLUE, RC_RED]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={h.subHeader}>
+          <Pressable onPress={() => { setSubView('hub'); setActiveSession(null); }} hitSlop={12}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </Pressable>
+          <Text style={[h.subHeaderTitle, { fontFamily: GEO }]}>Set Pairings</Text>
+          <Pressable
+            onPress={() => {
+              // Convert pairings to matches and proceed to reveal
+              const newMatches: RCMatch[] = pairings.map((p, i) => {
+                const r1 = players.find((pl) => pl.id === p.player1Id);
+                const r2 = players.find((pl) => pl.id === p.player2Id);
+                // For singles, player1 is red and player2 is blue
+                if (activeSession.format === 'singles') {
+                  return {
+                    id: `${activeSession.id}-m${i}`,
+                    redPlayers: [r1?.name || 'TBD'],
+                    bluePlayers: [r2?.name || 'TBD'],
+                    status: 'AS' as MatchStatus,
+                    redScore: 0,
+                    blueScore: 0,
+                    holesPlayed: 0,
+                  };
+                }
+                // For team formats, both players go on same side
+                return {
+                  id: `${activeSession.id}-m${i}`,
+                  redPlayers: [r1?.name || 'TBD', r2?.name || 'TBD'],
+                  bluePlayers: [],
+                  status: 'AS' as MatchStatus,
+                  redScore: 0,
+                  blueScore: 0,
+                  holesPlayed: 0,
+                };
+              });
+              // Build proper red/blue matches from paired red/blue pairings
+              const redPairings = pairings.filter((p) => {
+                const p1 = redPlayers.find((rp) => rp.id === p.player1Id);
+                return !!p1;
+              });
+              const bluePairings = pairings.filter((p) => {
+                const p1 = bluePlayers.find((bp) => bp.id === p.player1Id);
+                return !!p1;
+              });
+              const pairedMatches: RCMatch[] = [];
+              const matchCount = Math.min(redPairings.length, bluePairings.length, activeSession.matchCount);
+              for (let i = 0; i < matchCount; i++) {
+                const rp = redPairings[i];
+                const bp = bluePairings[i];
+                const rName1 = players.find((pl) => pl.id === rp?.player1Id)?.name || 'TBD';
+                const rName2 = players.find((pl) => pl.id === rp?.player2Id)?.name;
+                const bName1 = players.find((pl) => pl.id === bp?.player1Id)?.name || 'TBD';
+                const bName2 = players.find((pl) => pl.id === bp?.player2Id)?.name;
+                pairedMatches.push({
+                  id: `${activeSession.id}-m${i}`,
+                  redPlayers: rName2 ? [rName1, rName2] : [rName1],
+                  bluePlayers: bName2 ? [bName1, bName2] : [bName1],
+                  status: 'AS',
+                  redScore: 0,
+                  blueScore: 0,
+                  holesPlayed: 0,
+                });
+              }
+              setMatches((prev) => ({ ...prev, [activeSession.id]: pairedMatches }));
+              setSubView('reveal');
+            }}
+            hitSlop={12}
+          >
+            <Text style={{ color: '#C9A227', fontSize: 14, fontWeight: '600' }}>Done</Text>
+          </Pressable>
+        </LinearGradient>
+        <View style={{ flex: 1, padding: 16 }}>
+          <CaptainsPairings
+            teamRed={redPlayers}
+            teamBlue={bluePlayers}
+            teamRedName="Team Red"
+            teamBlueName="Team Blue"
+            pairings={pairings}
+            onPairingsChange={setPairings}
+            isCaptain={isCaptain}
+          />
+        </View>
+      </View>
+    );
+  }
   if (subView === 'scoring' && activeSession && activeMatch) {
     return (
       <RCMatchScoring
         session={activeSession}
         match={activeMatch.match}
         matchIndex={activeMatch.idx}
+        onMatchComplete={handleMatchComplete}
         onBack={() => {
           setActiveMatch(null);
           setSubView('matchlist');
@@ -1751,7 +2115,13 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
     haptics.light();
     setActiveSession(session);
     if (session.status === 'not_started') {
-      setSubView('reveal');
+      // If teams are drafted and captain wants to set pairings, show pairings first
+      if (teamsDrafted && isCaptain) {
+        buildPairingsForSession(session);
+        setSubView('pairings');
+      } else {
+        setSubView('reveal');
+      }
     } else {
       setSubView('matchlist');
     }
@@ -1825,8 +2195,25 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
 
           {/* Win condition callout */}
           <View style={h.winCallout}>
-            <Text style={h.winCalloutText}>Most points after {sessions.length} sessions wins</Text>
+            <Text style={h.winCalloutText}>
+              {cupWinner
+                ? `${cupWinner === 'red' ? 'TEAM RED' : 'TEAM BLUE'} WINS THE CUP!`
+                : `First to ${winThreshold % 1 === 0 ? winThreshold : winThreshold.toFixed(1)} points wins`
+              }
+            </Text>
           </View>
+
+          {/* Points needed tracker */}
+          {!cupWinner && redTotal + blueTotal > 0 && (
+            <View style={h.pointsNeededRow}>
+              <Text style={[h.pointsNeededText, { color: RC_RED }]}>
+                Red needs {Math.max(0, winThreshold - redTotal) % 1 === 0 ? Math.max(0, winThreshold - redTotal) : Math.max(0, winThreshold - redTotal).toFixed(1)}
+              </Text>
+              <Text style={[h.pointsNeededText, { color: RC_BLUE }]}>
+                Blue needs {Math.max(0, winThreshold - blueTotal) % 1 === 0 ? Math.max(0, winThreshold - blueTotal) : Math.max(0, winThreshold - blueTotal).toFixed(1)}
+              </Text>
+            </View>
+          )}
         </LinearGradient>
 
         {/* ─── CONTENT BELOW HEADER ──────────────────────────────── */}
@@ -2009,6 +2396,15 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
           );
         }}
       />
+
+      {/* Cup clinched celebration moment */}
+      <DormieMoment
+        visible={momentVisible}
+        type={momentType}
+        playerName={momentPlayer}
+        detail={momentDetail}
+        onDismiss={() => setMomentVisible(false)}
+      />
     </View>
   );
 }
@@ -2126,6 +2522,17 @@ const h = StyleSheet.create({
   winCalloutText: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  pointsNeededRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  pointsNeededText: {
+    fontSize: 10,
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
 
@@ -2799,6 +3206,14 @@ const ms = StyleSheet.create({
   runningVal: { fontSize: 24, fontWeight: '700', letterSpacing: -1 },
   runningDash: { fontSize: 14 },
   halvedText: { fontSize: 10, marginTop: 4 },
+  matchStatusBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  matchStatusText: { fontSize: 13, fontWeight: '800', letterSpacing: 1 },
 });
 
 // ─── Completion styles ──────────────────────────────────────────────
