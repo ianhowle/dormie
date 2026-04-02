@@ -23,7 +23,7 @@ import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
-import { PLAYED_SORTED, MOCK_COMMUNITY_COURSES as COMMUNITY_COURSES } from '../../src/data/courses';
+import { PLAYED_SORTED, SEED_COMMUNITY_COURSES as COMMUNITY_COURSES } from '../../src/data/courses';
 import { coursesService, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
 import { usgaService, type USGATeeBox } from '../../src/services/usga.service';
 import { friendsService } from '../../src/services/friends.service';

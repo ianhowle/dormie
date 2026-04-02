@@ -245,6 +245,7 @@ export default function ProfileScreen() {
     const courseSet = new Set(realRounds.map(r => r.course_id));
     const coursesPlayed = courseSet.size;
     const scores = realRounds.map(r => r.gross_score);
+    if (scores.length === 0) return null;
     const bestScore = Math.min(...scores);
     const bestRound = realRounds.find(r => r.gross_score === bestScore);
     const scoringAvg = scores.reduce((a, b) => a + b, 0) / totalRounds;

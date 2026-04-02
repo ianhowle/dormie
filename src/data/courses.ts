@@ -158,7 +158,7 @@ export const PLAYED_SORTED = [...MOCK_PLAYED_COURSES].sort(
 );
 
 // ─── Tier 2: Community courses (not played by group) ────────────────
-export const MOCK_COMMUNITY_COURSES: CommunityCourse[] = [
+export const SEED_COMMUNITY_COURSES: CommunityCourse[] = [
   {
     id: 'cc1',
     name: 'Whistling Straits',

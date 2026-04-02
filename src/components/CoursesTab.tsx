@@ -8,7 +8,7 @@ import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { CourseImage } from './CourseImage';
 import {
   PLAYED_SORTED,
-  MOCK_COMMUNITY_COURSES,
+  SEED_COMMUNITY_COURSES,
   type PlayedCourse,
   type CommunityCourse,
 } from '../data/courses';
@@ -205,7 +205,7 @@ export function CoursesTab({
     () =>
       q.length === 0
         ? [] // only show community when searching
-        : MOCK_COMMUNITY_COURSES.filter(
+        : SEED_COMMUNITY_COURSES.filter(
             (c) =>
               c.name.toLowerCase().includes(q) ||
               c.city.toLowerCase().includes(q) ||
