@@ -69,7 +69,7 @@ type BonusChallenge = {
 
 // ─── Mock data ────────────────────────────────────────────────────────
 
-const POINTS_TABLE = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
+const POINTS_TABLE = [25, 20, 16, 12, 10, 8, 6, 4, 2, 1];
 
 
 const MOCK_CHALLENGES: BonusChallenge[] = [
@@ -780,7 +780,7 @@ export default function SeasonDetailScreen() {
   const standings = realStandings;
   const weeks = realWeeks;
   const currentWeek = weeks.find((w) => !w.completed)?.number ?? weeks.length;
-  const cutLineIndex = Math.ceil(standings.length * CUT_PERCENTAGE);
+  const cutLineIndex = Math.floor(standings.length * CUT_PERCENTAGE);
   const isSeasonComplete = weeks.every((w) => w.completed);
   const currentWeekData = weeks.find((w) => w.number === currentWeek);
   const canAdvance = currentWeekData?.allScoresSubmitted && !isSeasonComplete;

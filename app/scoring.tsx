@@ -1610,23 +1610,23 @@ function buildNassauResult(
 
   // Front 9 winner
   if (front.length > 0) {
-    let best = Infinity; let winner = '';
-    players.forEach((p) => { const t = nineTotal(p.id, front); if (t > 0 && t < best) { best = t; winner = p.id; } });
-    const wp = players.find((p) => p.id === winner);
-    if (wp) lines.push({ text: `Front 9: ${pName(wp)}`, value: String(best), highlight: winner === '1' });
+    let best = Infinity; const winners: string[] = [];
+    players.forEach((p) => { const t = nineTotal(p.id, front); if (t > 0 && t < best) { best = t; winners.length = 0; winners.push(p.id); } else if (t > 0 && t === best) { winners.push(p.id); } });
+    if (winners.length === 1) { const wp = players.find((p) => p.id === winners[0]); if (wp) lines.push({ text: `Front 9: ${pName(wp)}`, value: String(best), highlight: winners[0] === '1' }); }
+    else if (winners.length > 1) lines.push({ text: `Front 9: Tied`, value: String(best) });
   }
   if (back.length > 0) {
-    let best = Infinity; let winner = '';
-    players.forEach((p) => { const t = nineTotal(p.id, back); if (t > 0 && t < best) { best = t; winner = p.id; } });
-    const wp = players.find((p) => p.id === winner);
-    if (wp) lines.push({ text: `Back 9: ${pName(wp)}`, value: String(best), highlight: winner === '1' });
+    let best = Infinity; const winners: string[] = [];
+    players.forEach((p) => { const t = nineTotal(p.id, back); if (t > 0 && t < best) { best = t; winners.length = 0; winners.push(p.id); } else if (t > 0 && t === best) { winners.push(p.id); } });
+    if (winners.length === 1) { const wp = players.find((p) => p.id === winners[0]); if (wp) lines.push({ text: `Back 9: ${pName(wp)}`, value: String(best), highlight: winners[0] === '1' }); }
+    else if (winners.length > 1) lines.push({ text: `Back 9: Tied`, value: String(best) });
   }
   // Overall
   {
-    let best = Infinity; let winner = '';
-    players.forEach((p) => { const t = nineTotal(p.id, holes); if (t > 0 && t < best) { best = t; winner = p.id; } });
-    const wp = players.find((p) => p.id === winner);
-    if (wp) lines.push({ text: `Overall: ${pName(wp)}`, value: String(best), highlight: winner === '1' });
+    let best = Infinity; const winners: string[] = [];
+    players.forEach((p) => { const t = nineTotal(p.id, holes); if (t > 0 && t < best) { best = t; winners.length = 0; winners.push(p.id); } else if (t > 0 && t === best) { winners.push(p.id); } });
+    if (winners.length === 1) { const wp = players.find((p) => p.id === winners[0]); if (wp) lines.push({ text: `Overall: ${pName(wp)}`, value: String(best), highlight: winners[0] === '1' }); }
+    else if (winners.length > 1) lines.push({ text: `Overall: Tied`, value: String(best) });
   }
 
   return { title: label, lines };
@@ -1636,7 +1636,7 @@ function buildDotsResult(
   label: string, players: PlayerConfig[], holes: HoleData[],
   allScores: Map<number, Map<string, HoleScore>>,
 ): GameResult {
-  // Dots: +1 for birdie, +2 for eagle, -1 for double+
+  // Dots: +1 birdie, +2 eagle, +1 one-putt, -1 three-putt
   const dots = new Map<string, number>();
   players.forEach((p) => dots.set(p.id, 0));
 
@@ -1646,9 +1646,10 @@ function buildDotsResult(
     holeScores.forEach((s, pid) => {
       const diff = s.gross - h.par;
       let pts = 0;
-      if (diff <= -2) pts = 2;
-      else if (diff === -1) pts = 1;
-      else if (diff >= 2) pts = -1;
+      if (diff <= -2) pts += 2;
+      else if (diff === -1) pts += 1;
+      if (s.putts === 1) pts += 1;
+      if (s.putts >= 3) pts -= 1;
       dots.set(pid, (dots.get(pid) ?? 0) + pts);
     });
   });

@@ -17,7 +17,7 @@ export type PlayoffStatus = 'regular' | 'playoffs' | 'finals' | 'completed';
 // ---------------------------------------------------------------------------
 // Points table: positions 1-10 earn points; anything 11+ earns 0
 // ---------------------------------------------------------------------------
-const BASE_POINTS: number[] = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
+const BASE_POINTS: number[] = [25, 20, 16, 12, 10, 8, 6, 4, 2, 1];
 
 /**
  * Calculate FedEx-style points for a given finish position.
@@ -44,7 +44,7 @@ export function getPlayoffCutLine(
   totalPlayers: number,
   cutPercent: 25 | 33 | 50 | 67 | 75,
 ): number {
-  return Math.ceil(totalPlayers * cutPercent / 100);
+  return Math.floor(totalPlayers * cutPercent / 100);
 }
 
 /**
