@@ -21,6 +21,9 @@ export type TeeBox = {
   rating: number;
   slope: number;
   yards: number;
+  par?: number;
+  gender?: 'male' | 'female';
+  holes?: HoleInfo[];
 };
 
 export type HoleInfo = {
@@ -91,7 +94,7 @@ export const coursesService = {
     return data as Course;
   },
 
-  /** Search external golf course API. */
+  /** Search external golf course API using club_name parameter. */
   async searchAPI(query: string) {
     if (!GOLF_API_KEY) {
       console.log('[CourseSearch] No GOLF_API_KEY configured');
@@ -100,17 +103,61 @@ export const coursesService = {
     try {
       console.log(`[CourseSearch] query="${query}" key=${GOLF_API_KEY.slice(0, 4)}...`);
       const response = await fetch(
-        `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}`,
+        `https://api.golfcourseapi.com/v1/courses?club_name=${encodeURIComponent(query)}`,
         { headers: { Authorization: `Key ${GOLF_API_KEY}` } }
       );
       const data = await response.json();
-      console.log(`[CourseSearch] status=${response.status} results=${Array.isArray(data?.courses) ? data.courses.length : 0}`);
+      const courses = data?.courses ?? [];
+      console.log(`[CourseSearch] status=${response.status} results=${Array.isArray(courses) ? courses.length : 0}`);
       if (!response.ok) return [];
-      return data?.courses ?? [];
+      return courses;
     } catch (err) {
       console.log('[CourseSearch] error:', err);
       return [];
     }
+  },
+
+  /** Parse tee boxes from GolfCourseAPI response (male and female arrays). */
+  parseTeeBoxes(course: any): TeeBox[] {
+    const tees: TeeBox[] = [];
+    const teeData = course.tees ?? {};
+
+    for (const gender of ['male', 'female'] as const) {
+      const genderTees = teeData[gender] ?? [];
+      for (const t of genderTees) {
+        const holes: HoleInfo[] = (t.holes ?? []).map((h: any) => ({
+          number: h.number ?? h.hole_number ?? 0,
+          par: h.par ?? 4,
+          strokeIndex: h.handicap ?? h.stroke_index ?? 0,
+          yards: h.yardage ?? h.yards ?? 0,
+        }));
+
+        tees.push({
+          name: t.tee_name ?? t.name ?? 'Unknown',
+          color: this.teeNameToColor(t.tee_name ?? t.name ?? ''),
+          rating: t.course_rating ?? t.rating ?? 72.0,
+          slope: t.slope_rating ?? t.slope ?? 113,
+          yards: t.total_yards ?? t.yards ?? 0,
+          par: t.par_total ?? t.par ?? (holes.reduce((s, h) => s + h.par, 0) || 72),
+          gender,
+          holes,
+        });
+      }
+    }
+
+    return tees;
+  },
+
+  /** Map tee name to a display color. */
+  teeNameToColor(name: string): string {
+    const n = name.toLowerCase();
+    if (n.includes('black')) return '#1A1A1A';
+    if (n.includes('blue') || n.includes('championship')) return '#1B2A4A';
+    if (n.includes('white') || n.includes('middle')) return '#CCCCCC';
+    if (n.includes('gold') || n.includes('senior')) return '#C9A227';
+    if (n.includes('red') || n.includes('forward')) return '#C41E3A';
+    if (n.includes('green')) return '#006747';
+    return '#1B2A4A';
   },
 
   /** Search Google Places for golf courses. */
@@ -181,7 +228,7 @@ export const coursesService = {
     // 2. Hit GolfCourseAPI for courses not in the seed list (has golf-specific data)
     const apiResults = await this.searchAPI(query);
     for (const course of apiResults) {
-      const name = course.name ?? course.club_name ?? '';
+      const name = course.club_name ?? course.name ?? '';
       const cNorm = normalize(name);
       let isDup = false;
       for (const existing of seen) {
@@ -194,15 +241,23 @@ export const coursesService = {
         seen.add(cNorm);
         const city = course.city ?? course.location?.city ?? '';
         const state = course.state ?? course.location?.state ?? '';
+        const teeBoxes = this.parseTeeBoxes(course);
+        const maleTees = teeBoxes.filter((t) => t.gender === 'male');
+        const defaultTee = maleTees[0] ?? teeBoxes[0];
+        const par = defaultTee?.par ?? 72;
+
         deduped.push({
           id: `gca_${course.id ?? cNorm}`,
           name,
-          par: course.par ?? 72,
+          par,
           city,
           state,
           location: course.location_string ?? (city && state ? `${city}, ${state}` : ''),
           source: 'golfapi' as const,
         });
+
+        // Cache to Supabase in background so future searches are instant
+        this.cacheAPICoursToSupabase(course, teeBoxes, par, defaultTee).catch(() => {});
       }
     }
 
@@ -253,35 +308,31 @@ export const coursesService = {
       return cached as ScorecardData;
     }
 
-    // 2. Try GolfCourseAPI search
+    // 2. Try GolfCourseAPI search using club_name parameter
     if (GOLF_API_KEY) {
       try {
         console.log(`[Scorecard] Fetching from GolfCourseAPI: "${courseName}"`);
         const response = await fetch(
-          `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(courseName)}`,
+          `https://api.golfcourseapi.com/v1/courses?club_name=${encodeURIComponent(courseName)}`,
           { headers: { Authorization: `Key ${GOLF_API_KEY}` } }
         );
         if (response.ok) {
           const data = await response.json();
           const course = data?.courses?.[0];
           if (course) {
-            const teeBoxes: TeeBox[] = (course.tees ?? course.tee_boxes ?? []).map((t: any) => ({
-              name: t.name ?? t.tee_name ?? 'Unknown',
-              color: t.color ?? '#1B2A4A',
-              rating: t.course_rating ?? t.rating ?? 72.0,
-              slope: t.slope_rating ?? t.slope ?? 113,
-              yards: t.total_yards ?? t.yards ?? 6500,
-            }));
+            const teeBoxes = this.parseTeeBoxes(course);
 
-            const holes: HoleInfo[] = (course.holes ?? []).map((h: any) => ({
-              number: h.number ?? h.hole_number,
-              par: h.par ?? 4,
-              strokeIndex: h.stroke_index ?? h.handicap ?? h.number,
-              yards: h.yards ?? h.yardage ?? 400,
-            }));
+            // Use male tees for default scorecard display
+            const maleTees = teeBoxes.filter((t) => t.gender === 'male');
+            const defaultTee =
+              maleTees.find((t) => t.name.toLowerCase().includes('white')) ??
+              maleTees.find((t) => t.name.toLowerCase().includes('middle')) ??
+              maleTees[0] ??
+              teeBoxes[0];
 
-            const par = course.par ?? (holes.reduce((s: number, h: HoleInfo) => s + h.par, 0) || 72);
-            const defaultTee = teeBoxes.find((t) => t.name.toLowerCase().includes('white')) ?? teeBoxes[0];
+            // Get holes from the default tee (each tee has per-hole data)
+            const holes = defaultTee?.holes ?? [];
+            const par = defaultTee?.par ?? (holes.reduce((s, h) => s + h.par, 0) || 72);
 
             const result: ScorecardData = {
               par,
@@ -293,6 +344,10 @@ export const coursesService = {
             };
             console.log(`[Scorecard] API hit: par=${par} tees=${teeBoxes.length} holes=${holes.length}`);
             await this.cacheCourse(cacheKey, result);
+
+            // Cache to Supabase for future searches
+            await this.cacheAPICoursToSupabase(course, teeBoxes, par, defaultTee);
+
             return result;
           }
         }
@@ -372,6 +427,79 @@ export const coursesService = {
       console.log(`[CourseSearch] Saved ${searchResult.name} (source: ${dataSource})`);
     } catch (err) {
       console.log('[CourseSearch] Failed to save course:', err);
+    }
+  },
+
+  /** Cache an API-found course to Supabase with data_source: 'api' for future searches. */
+  async cacheAPICoursToSupabase(
+    course: any,
+    teeBoxes: TeeBox[],
+    par: number,
+    defaultTee?: TeeBox,
+  ): Promise<void> {
+    try {
+      const name = course.club_name ?? course.name ?? '';
+      const city = course.city ?? course.location?.city ?? '';
+      const state = course.state ?? course.location?.state ?? '';
+      const loc = city && state ? `${city}, ${state}` : city || state || '';
+
+      if (!name) return;
+
+      // Serialize tee boxes for storage (strip holes to keep hole_data manageable)
+      const storedTees = teeBoxes.map((t) => ({
+        name: t.name,
+        color: t.color,
+        rating: t.rating,
+        slope: t.slope,
+        yards: t.yards,
+        par: t.par,
+        gender: t.gender,
+        holes: t.holes,
+      }));
+
+      const insert: CourseInsert = {
+        name,
+        location: loc,
+        par,
+        slope: defaultTee?.slope ?? null,
+        rating: defaultTee?.rating ?? null,
+        yards: defaultTee?.yards ?? null,
+        hole_data: {
+          data_source: 'api',
+          tee_boxes: storedTees,
+          holes: defaultTee?.holes ?? [],
+        },
+      };
+
+      const { data: existing } = await supabase
+        .from('courses')
+        .select('id, hole_data')
+        .eq('name', name)
+        .ilike('location', `%${city || loc}%`)
+        .maybeSingle();
+
+      if (existing) {
+        const existingSource = (existing.hole_data as any)?.data_source;
+        // Only overwrite if existing data is not already from API or is stale
+        if (existingSource !== 'api') {
+          await supabase
+            .from('courses')
+            .update({
+              par,
+              slope: defaultTee?.slope ?? null,
+              rating: defaultTee?.rating ?? null,
+              yards: defaultTee?.yards ?? null,
+              hole_data: insert.hole_data,
+            })
+            .eq('id', existing.id);
+          console.log(`[CourseSearch] Updated ${name} in Supabase (data_source: api)`);
+        }
+      } else {
+        await supabase.from('courses').insert(insert);
+        console.log(`[CourseSearch] Saved ${name} to Supabase (data_source: api)`);
+      }
+    } catch (err) {
+      console.log('[CourseSearch] Failed to cache API course to Supabase:', err);
     }
   },
 
