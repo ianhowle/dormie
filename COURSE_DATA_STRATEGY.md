@@ -1,7 +1,7 @@
 # Course Data Strategy — API Research & Recommendations
 
 **Date:** 2026-04-03
-**Context:** GolfCourseAPI.com key (`2YEJEWRI4KQD57RRNDERURHZJA`) is dead; USGA scraper is blocked. Need reliable source for course rating, slope, par, tee boxes, and hole-by-hole data.
+**Context:** GolfCourseAPI.com key is active (`52XGWGOKGAM6HRTSILY7MVDHG4`). Uses Authorization header format: `Authorization: Key <key>`.
 
 ---
 
@@ -100,7 +100,7 @@ Typical RapidAPI structure (exact numbers need verification on their pricing pag
 - Claims to be "the completely free golf course API"
 - ~30,000 courses worldwide
 - Sign up with email only (magic link auth)
-- **Our old key (`2YEJEWRI4KQD57RRNDERURHZJA`) returns 403**
+- **New key (`52XGWGOKGAM6HRTSILY7MVDHG4`) is active — uses Authorization header auth**
 
 ### Action Needed
 1. Go to https://golfcourseapi.com/sign-in/
@@ -383,8 +383,8 @@ async searchRapidAPI(query: string) {
 
 ## GolfCourseAPI.com Account Status
 
-**Old key:** `2YEJEWRI4KQD57RRNDERURHZJA`
-**Status:** Returns 403 (forbidden). Key is either expired, revoked, or the service changed auth.
+**Active key:** `52XGWGOKGAM6HRTSILY7MVDHG4`
+**Status:** Active. Uses `Authorization: Key <key>` header (not query param).
 
 ### To recover/recreate:
 1. Visit https://golfcourseapi.com/sign-in/

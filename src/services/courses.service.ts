@@ -100,7 +100,8 @@ export const coursesService = {
     try {
       console.log(`[CourseSearch] query="${query}" key=${GOLF_API_KEY.slice(0, 4)}...`);
       const response = await fetch(
-        `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}&key=${GOLF_API_KEY}`
+        `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(query)}`,
+        { headers: { Authorization: `Key ${GOLF_API_KEY}` } }
       );
       const data = await response.json();
       console.log(`[CourseSearch] status=${response.status} results=${Array.isArray(data?.courses) ? data.courses.length : 0}`);
@@ -156,14 +157,11 @@ export const coursesService = {
     }
   },
 
-  /** Unified search: local + Google Places in parallel, GolfCourseAPI fallback. */
+  /** Unified search: Supabase first, then GolfCourseAPI for golf-specific data, Google Places for location/photos only. */
   async searchAll(query: string): Promise<SearchResult[]> {
-    const [localResults, googleResults] = await Promise.all([
-      this.search(query).catch(() => [] as Course[]),
-      this.searchGooglePlaces(query),
-    ]);
+    // 1. Check Supabase verified/seeded courses first (instant)
+    const localResults = await this.search(query).catch(() => [] as Course[]);
 
-    // Map local to SearchResult
     const local: SearchResult[] = localResults.map((c) => ({
       id: c.id,
       name: c.name,
@@ -174,30 +172,59 @@ export const coursesService = {
       source: 'local' as const,
     }));
 
-    // Normalize a course name for dedup comparison — strips common suffixes,
-    // lowercases, and removes punctuation so "Hermitage Golf Course - Presidents
-    // Reserve" matches "Hermitage Golf Course Presidents Reserve"
     const normalize = (n: string) =>
       n.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
 
-    // Dedup: local/Supabase results take priority over Google Places
     const seen = new Set(local.map((r) => normalize(r.name)));
     const deduped = [...local];
-    for (const g of googleResults) {
-      const gNorm = normalize(g.name);
-      // Skip if any existing result contains this name or vice versa
+
+    // 2. Hit GolfCourseAPI for courses not in the seed list (has golf-specific data)
+    const apiResults = await this.searchAPI(query);
+    for (const course of apiResults) {
+      const name = course.name ?? course.club_name ?? '';
+      const cNorm = normalize(name);
       let isDup = false;
       for (const existing of seen) {
-        if (existing.includes(gNorm) || gNorm.includes(existing)) {
+        if (existing.includes(cNorm) || cNorm.includes(existing)) {
           isDup = true;
           break;
         }
       }
-      if (!isDup) {
-        seen.add(gNorm);
-        deduped.push(g);
+      if (!isDup && name) {
+        seen.add(cNorm);
+        const city = course.city ?? course.location?.city ?? '';
+        const state = course.state ?? course.location?.state ?? '';
+        deduped.push({
+          id: `gca_${course.id ?? cNorm}`,
+          name,
+          par: course.par ?? 72,
+          city,
+          state,
+          location: course.location_string ?? (city && state ? `${city}, ${state}` : ''),
+          source: 'golfapi' as const,
+        });
       }
     }
+
+    // 3. Fall back to Google Places for location/photos only (no golf-specific data)
+    if (deduped.length < 5) {
+      const googleResults = await this.searchGooglePlaces(query);
+      for (const g of googleResults) {
+        const gNorm = normalize(g.name);
+        let isDup = false;
+        for (const existing of seen) {
+          if (existing.includes(gNorm) || gNorm.includes(existing)) {
+            isDup = true;
+            break;
+          }
+        }
+        if (!isDup) {
+          seen.add(gNorm);
+          deduped.push(g);
+        }
+      }
+    }
+
     return deduped.slice(0, 10);
   },
 
@@ -231,7 +258,8 @@ export const coursesService = {
       try {
         console.log(`[Scorecard] Fetching from GolfCourseAPI: "${courseName}"`);
         const response = await fetch(
-          `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(courseName)}&key=${GOLF_API_KEY}`
+          `https://api.golfcourseapi.com/v1/search?query=${encodeURIComponent(courseName)}`,
+          { headers: { Authorization: `Key ${GOLF_API_KEY}` } }
         );
         if (response.ok) {
           const data = await response.json();

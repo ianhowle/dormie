@@ -1053,7 +1053,7 @@ export default function ScoreScreen() {
   };
 
   // Fetch scorecard + tee data when a non-custom course is selected
-  // Flow: Supabase hole_data → GolfCourseAPI → USGA NCRDB → manual entry
+  // Flow: cache → GolfCourseAPI (rating/slope/tees) → Supabase community → USGA NCRDB → manual entry
   useEffect(() => {
     if (!course || isCustom) {
       setScorecard(null);
