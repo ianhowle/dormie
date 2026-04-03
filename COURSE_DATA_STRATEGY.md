@@ -200,6 +200,12 @@ The official USGA database of course ratings and slopes for every rated course i
 - Available at https://zylalabs.com/api-marketplace/sports+&+gaming/golf+courses+data+api/2029
 - Another marketplace API, unverified data quality
 
+### Golf Course Finder by golfambit (RapidAPI)
+- https://rapidapi.com/golfambit-golfambit-default/api/golf-course-finder
+- 30,000+ clubs, 39,000+ courses internationally
+- Location-based search with radius functionality
+- Another RapidAPI option worth testing alongside foshesco
+
 ### TeeRadar (teeradar.online)
 - Golf course data & database services
 - Details unclear; website was unreachable during research
