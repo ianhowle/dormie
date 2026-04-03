@@ -5,6 +5,7 @@ import 'react-native-url-polyfill/auto';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
 import { ToastProvider } from '../src/components/Toast';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
@@ -71,12 +72,14 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <ToastProvider>
-          <RootLayoutNav />
-        </ToastProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <RootLayoutNav />
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

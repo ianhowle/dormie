@@ -33,6 +33,7 @@ import { sounds } from '../src/lib/sounds';
 import { queueOfflineAction } from '../src/lib/offline';
 import { scoreCellLabel } from '../src/lib/accessibility';
 import { useToast } from '../src/components/Toast';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
 import { seasonsService } from '../src/services/seasons.service';
@@ -145,7 +146,7 @@ function HoleResultBanner({
   );
 }
 // ─── Main screen ──────────────────────────────────────────────────────
-export default function ScoringScreen() {
+function ScoringScreenInner() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -2093,6 +2094,14 @@ export default function ScoringScreen() {
         onDone={() => setShowPersonalBest(false)}
       />
     </View>
+  );
+}
+
+export default function ScoringScreen() {
+  return (
+    <ErrorBoundary>
+      <ScoringScreenInner />
+    </ErrorBoundary>
   );
 }
 

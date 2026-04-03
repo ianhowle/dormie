@@ -27,6 +27,7 @@ import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
 import { getPlayoffCutLine } from '../src/data/seasons-detail';
 import { supabase } from '../src/lib/supabase';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -715,7 +716,7 @@ function ChallengesTab({ challenges }: { challenges: BonusChallenge[] }) {
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────
-export default function SeasonDetailScreen() {
+function SeasonDetailScreenInner() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -1136,3 +1137,11 @@ const styles = StyleSheet.create({
   bracketChampion: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, paddingVertical: 8, borderWidth: 1 },
   bracketChampionName: { fontSize: 13, fontWeight: '700' },
 });
+
+export default function SeasonDetailScreen() {
+  return (
+    <ErrorBoundary>
+      <SeasonDetailScreenInner />
+    </ErrorBoundary>
+  );
+}

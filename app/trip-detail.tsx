@@ -38,6 +38,7 @@ import { haptics } from '../src/lib/haptics';
 import { sounds } from '../src/lib/sounds';
 import { useToast } from '../src/components/Toast';
 import { messagesService } from '../src/services/messages.service';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { tripsService } from '../src/services/trips.service';
 import { momentsService } from '../src/services/moments.service';
 import type { TripMessageWithUser, TripMomentWithUser } from '../src/lib/database.types';
@@ -2186,7 +2187,7 @@ function CompetitionView({
 // ═══════════════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════
-export default function TripDetailScreen() {
+function TripDetailScreenInner() {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -3792,3 +3793,11 @@ const cm = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
+
+export default function TripDetailScreen() {
+  return (
+    <ErrorBoundary>
+      <TripDetailScreenInner />
+    </ErrorBoundary>
+  );
+}

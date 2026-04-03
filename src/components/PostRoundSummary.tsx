@@ -23,6 +23,7 @@ import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../theme/c
 import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import { SCORE_COLORS, scoreColor, formatToPar as fmtToPar, scoreName } from '../lib/scoring-utils';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -465,7 +466,15 @@ function ShareCardContent({
 }
 
 // ─── Main Component ───────────────────────────────────────────────────
-export function PostRoundSummary({ players, sideGames, onSaveRound, onClose }: PostRoundSummaryProps) {
+export function PostRoundSummary(props: PostRoundSummaryProps) {
+  return (
+    <ErrorBoundary>
+      <PostRoundSummaryInner {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function PostRoundSummaryInner({ players, sideGames, onSaveRound, onClose }: PostRoundSummaryProps) {
   const { theme } = useTheme();
   const c = theme.colors;
 

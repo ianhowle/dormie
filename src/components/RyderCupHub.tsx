@@ -31,6 +31,7 @@ import type { Trip } from '../data/trips';
 import { tripsService } from '../services/trips.service';
 import { useAuth } from '../lib/auth';
 import type { RyderCupConfig, TripMemberWithUser } from '../lib/database.types';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -1599,6 +1600,14 @@ function RCCompletion({
 // MAIN RC HUB
 // ═══════════════════════════════════════════════════════════════════════
 export function RyderCupHub({ trip }: { trip: Trip }) {
+  return (
+    <ErrorBoundary>
+      <RyderCupHubInner trip={trip} />
+    </ErrorBoundary>
+  );
+}
+
+function RyderCupHubInner({ trip }: { trip: Trip }) {
   const { theme } = useTheme();
   const c = darkColors;
   const router = useRouter();
