@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "~2.1.0",
+    "@sentry/react-native": "~6.5.0",
     "@react-native-community/netinfo": "~11.4.1",
     "@supabase/supabase-js": "^2.49.1",
     "date-fns": "^3.6.0",

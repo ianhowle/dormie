@@ -6,6 +6,9 @@ import { AuthProvider, useAuth } from '../src/lib/auth';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
 import { ToastProvider } from '../src/components/Toast';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { initSentry, setSentryUser, clearSentryUser, Sentry } from '../src/lib/sentry';
+
+initSentry();
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
@@ -18,6 +21,15 @@ function RootLayoutNav() {
     console.log('[Dormie] EXPO_PUBLIC_GOLF_API_KEY:', process.env.EXPO_PUBLIC_GOLF_API_KEY ? 'set' : 'NOT SET');
     console.log('[Dormie] EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? 'set' : 'NOT SET');
   }, []);
+
+  // Tie Sentry crash reports to the authenticated user
+  useEffect(() => {
+    if (session?.user) {
+      setSentryUser({ id: session.user.id, email: session.user.email });
+    } else {
+      clearSentryUser();
+    }
+  }, [session]);
 
   useEffect(() => {
     if (loading) return;
@@ -70,7 +82,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -83,3 +95,5 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+
+export default Sentry.wrap(RootLayout);
