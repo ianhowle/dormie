@@ -133,67 +133,6 @@ function buildPlayersFromMembers(members: TripMemberWithUser[]): RCPlayer[] {
 }
 
 // ─── Mock data (fallback when no Supabase data) ─────────────────────
-const MOCK_RC_SESSIONS: RCSession[] = [
-  {
-    id: 'rs1',
-    day: 1,
-    format: 'foursomes',
-    formatLabel: 'Foursomes',
-    formatIcon: 'swap-horizontal',
-    status: 'complete',
-    matchCount: 4,
-    holeCount: 18,
-    courseName: 'Hermitage Golf Course',
-    redScore: 2.5,
-    blueScore: 1.5,
-  },
-  {
-    id: 'rs2',
-    day: 2,
-    format: 'fourball',
-    formatLabel: 'Four-Ball',
-    formatIcon: 'people',
-    status: 'live',
-    matchCount: 4,
-    holeCount: 18,
-    courseName: 'Hermitage Golf Course',
-    redScore: 1,
-    blueScore: 2,
-  },
-  {
-    id: 'rs3',
-    day: 3,
-    format: 'singles',
-    formatLabel: 'Singles',
-    formatIcon: 'person',
-    status: 'not_started',
-    matchCount: 4,
-    holeCount: 18,
-    courseName: 'Gaylord Springs',
-  },
-  {
-    id: 'rs4',
-    day: 3,
-    format: 'singles',
-    formatLabel: 'Singles',
-    formatIcon: 'person',
-    status: 'not_started',
-    matchCount: 4,
-    holeCount: 18,
-    courseName: 'Gaylord Springs',
-  },
-];
-
-const MOCK_RC_PLAYERS: RCPlayer[] = [
-  { id: '1', name: 'Ian McGowan', handicap: 8, team: 'red' },
-  { id: '3', name: 'Mike Chen', handicap: 10, team: 'red' },
-  { id: '5', name: 'Chris Burke', handicap: 14, team: 'red' },
-  { id: '7', name: 'Alex Rivera', handicap: 6, team: 'red' },
-  { id: '2', name: 'Drew Patterson', handicap: 12, team: 'blue' },
-  { id: '4', name: 'Jake Sullivan', handicap: 15, team: 'blue' },
-  { id: '6', name: 'Tommy Fleetwood', handicap: 3, team: 'blue' },
-  { id: '8', name: 'Ryan O\'Brien', handicap: 9, team: 'blue' },
-];
 
 const MOCK_RC_CHECKLIST: RCCheckItem[] = [
   { id: 'rc1', text: 'Confirm all player handicaps', done: true },
@@ -334,33 +273,6 @@ function formatMatchStatusDisplay(
   return `${status} thru ${holesPlayed}`;
 }
 
-// Mock matches per session
-const MOCK_MATCHES: Record<string, RCMatch[]> = {
-  rs1: [
-    { id: 'rm1', redPlayers: ['Ian McGowan', 'Mike Chen'], bluePlayers: ['Drew Patterson', 'Jake Sullivan'], status: 'FINAL', winner: 'red', redScore: 3, blueScore: 2, holesPlayed: 18 },
-    { id: 'rm2', redPlayers: ['Chris Burke', 'Alex Rivera'], bluePlayers: ['Tommy Fleetwood', 'Ryan O\'Brien'], status: 'FINAL', winner: 'blue', redScore: 1, blueScore: 2, holesPlayed: 18 },
-    { id: 'rm3', redPlayers: ['Ian McGowan', 'Alex Rivera'], bluePlayers: ['Tommy Fleetwood', 'Drew Patterson'], status: 'FINAL', winner: 'red', redScore: 1, blueScore: 0, holesPlayed: 18 },
-    { id: 'rm4', redPlayers: ['Mike Chen', 'Chris Burke'], bluePlayers: ['Jake Sullivan', 'Ryan O\'Brien'], status: 'HALVED', winner: 'halved', redScore: 0, blueScore: 0, holesPlayed: 18 },
-  ],
-  rs2: [
-    { id: 'rm5', redPlayers: ['Ian McGowan', 'Mike Chen'], bluePlayers: ['Tommy Fleetwood', 'Drew Patterson'], status: '2 UP', winner: undefined, redScore: 0, blueScore: 2, holesPlayed: 12 },
-    { id: 'rm6', redPlayers: ['Alex Rivera', 'Chris Burke'], bluePlayers: ['Jake Sullivan', 'Ryan O\'Brien'], status: '1 UP', winner: undefined, redScore: 1, blueScore: 0, holesPlayed: 14 },
-    { id: 'rm7', redPlayers: ['Ian McGowan', 'Chris Burke'], bluePlayers: ['Tommy Fleetwood', 'Jake Sullivan'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 10 },
-    { id: 'rm8', redPlayers: ['Mike Chen', 'Alex Rivera'], bluePlayers: ['Drew Patterson', 'Ryan O\'Brien'], status: 'DORMIE', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 16 },
-  ],
-  rs3: [
-    { id: 'rm9', redPlayers: ['Ian McGowan'], bluePlayers: ['Tommy Fleetwood'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-    { id: 'rm10', redPlayers: ['Alex Rivera'], bluePlayers: ['Drew Patterson'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-    { id: 'rm11', redPlayers: ['Mike Chen'], bluePlayers: ['Jake Sullivan'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-    { id: 'rm12', redPlayers: ['Chris Burke'], bluePlayers: ['Ryan O\'Brien'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-  ],
-  rs4: [
-    { id: 'rm13', redPlayers: ['Ian McGowan'], bluePlayers: ['Drew Patterson'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-    { id: 'rm14', redPlayers: ['Alex Rivera'], bluePlayers: ['Tommy Fleetwood'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-    { id: 'rm15', redPlayers: ['Mike Chen'], bluePlayers: ['Ryan O\'Brien'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-    { id: 'rm16', redPlayers: ['Chris Burke'], bluePlayers: ['Jake Sullivan'], status: 'AS', winner: undefined, redScore: 0, blueScore: 0, holesPlayed: 0 },
-  ],
-};
 
 // ─── Sub-view type ──────────────────────────────────────────────────────
 type SubView = 'hub' | 'checklist' | 'chat' | 'settings' | 'draft' | 'reveal' | 'matchlist' | 'scoring' | 'completion' | 'pairings';
@@ -1699,9 +1611,9 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
   const [loading, setLoading] = useState(true);
 
   // Real data from Supabase
-  const [players, setPlayers] = useState<RCPlayer[]>(MOCK_RC_PLAYERS);
-  const [sessions, setSessions] = useState<RCSession[]>(MOCK_RC_SESSIONS);
-  const [matches, setMatches] = useState<Record<string, RCMatch[]>>(MOCK_MATCHES);
+  const [players, setPlayers] = useState<RCPlayer[]>([]);
+  const [sessions, setSessions] = useState<RCSession[]>([]);
+  const [matches, setMatches] = useState<Record<string, RCMatch[]>>({});
 
   // Pairings state for CaptainsPairings
   const [pairings, setPairings] = useState<Pairing[]>([]);
@@ -1810,7 +1722,7 @@ export function RyderCupHub({ trip }: { trip: Trip }) {
         }
       }
     } catch {
-      // Silently fall back to mock data
+      // Silently keep empty state on error
     } finally {
       setLoading(false);
     }
