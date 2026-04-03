@@ -29,6 +29,15 @@ import { formatWeeklyDigest, computeWeeklyDigest } from '../../src/lib/streaks';
 import { leaderboardRowLabel, statLabel } from '../../src/lib/accessibility';
 import { shouldShowMonthlyDigest, getPreviousMonthName, GRADE_COPY, computeMonthGrade, type MonthGrade } from '../../src/data/monthly-stats';
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
+import {
+  getActiveRound,
+  clearActiveRound,
+  holesCompleted,
+  registerOfflineSync,
+  syncOfflineRounds,
+  getOfflineRounds,
+  type ActiveRoundState,
+} from '../../src/lib/roundStorage';
 
 /** Toggle to show mock/demo data for screenshots and demos */
 const DEV_DEMO_MODE = false;
@@ -966,6 +975,76 @@ export default function HomeScreen() {
   const [friendNudgeDismissed, setFriendNudgeDismissed] = useState(false);
   const [realFriends, setRealFriends] = useState<FriendshipWithUser[]>([]);
   const [realTrips, setRealTrips] = useState<any[]>([]);
+  const [interruptedRound, setInterruptedRound] = useState<ActiveRoundState | null>(null);
+
+  // Check for interrupted round on mount
+  useEffect(() => {
+    getActiveRound().then((round) => {
+      if (round && holesCompleted(round) > 0) {
+        setInterruptedRound(round);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Register offline round sync — auto-push queued rounds when back online
+  useEffect(() => {
+    const unsub = registerOfflineSync((result) => {
+      if (result.synced > 0) {
+        showToast({
+          message: result.synced === 1
+            ? 'Round synced successfully'
+            : `${result.synced} rounds synced successfully`,
+          type: 'success',
+          icon: 'cloud-done-outline',
+        });
+      }
+    });
+
+    // Also try syncing immediately on mount (in case we reconnected while app was closed)
+    syncOfflineRounds().then((result) => {
+      if (result.synced > 0) {
+        showToast({
+          message: result.synced === 1
+            ? 'Round synced successfully'
+            : `${result.synced} rounds synced successfully`,
+          type: 'success',
+          icon: 'cloud-done-outline',
+        });
+      }
+    }).catch(() => {});
+
+    return unsub;
+  }, [showToast]);
+
+  const handleResumeRound = useCallback(() => {
+    if (!interruptedRound) return;
+    setInterruptedRound(null);
+    router.push({
+      pathname: '/scoring',
+      params: {
+        courseName: interruptedRound.courseName,
+        coursePar: String(interruptedRound.coursePar),
+        courseSlope: String(interruptedRound.courseSlope),
+        courseRating: String(interruptedRound.courseRating),
+        courseTee: interruptedRound.courseTee,
+        courseId: interruptedRound.courseId,
+        players: JSON.stringify(interruptedRound.players),
+        format: interruptedRound.formatLabel,
+        holeRange: interruptedRound.holeRange,
+        scoreMode: interruptedRound.scoreMode,
+        sideGames: JSON.stringify(interruptedRound.sideGames ?? []),
+        roundType: interruptedRound.roundType ?? 'Casual',
+        ...(interruptedRound.holeData ? { holeData: JSON.stringify(interruptedRound.holeData) } : {}),
+        ...(interruptedRound.tripId ? { tripId: interruptedRound.tripId } : {}),
+        ...(interruptedRound.linkedSeasons ? { linkedSeasons: JSON.stringify(interruptedRound.linkedSeasons) } : {}),
+      },
+    });
+  }, [interruptedRound, router]);
+
+  const handleDiscardRound = useCallback(() => {
+    setInterruptedRound(null);
+    clearActiveRound();
+  }, []);
 
   const handleGroupSelect = useCallback((id: string) => {
     const group = MOCK_GROUPS.find((g) => g.id === id);
@@ -1170,6 +1249,35 @@ export default function HomeScreen() {
 
         {/* Gold divider below green header */}
         <GoldDivider />
+
+        {/* Resume interrupted round prompt */}
+        {interruptedRound && (
+          <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Ionicons name="golf-outline" size={20} color={c.gold} />
+              <Text style={{ fontFamily: GEO, fontSize: 15, fontWeight: '700', color: c.text }}>Unfinished Round</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: c.textMuted, marginBottom: 12 }}>
+              You have an unfinished round at {interruptedRound.courseName} (thru hole {holesCompleted(interruptedRound)}). Resume or discard?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Pressable
+                onPress={handleResumeRound}
+                style={{ flex: 1, backgroundColor: c.gold, paddingVertical: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+              >
+                <Ionicons name="play" size={16} color="#141210" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#141210' }}>Resume</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDiscardRound}
+                style={{ flex: 1, backgroundColor: c.elevated, paddingVertical: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+              >
+                <Ionicons name="trash-outline" size={16} color={c.urgent} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: c.text }}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Get Started Checklist — new user experience */}
         {!checklistDismissed && !loading && realRounds.length === 0 && realFriends.length === 0 && realTrips.length === 0 && (

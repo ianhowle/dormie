@@ -34,6 +34,14 @@ import { queueOfflineAction } from '../src/lib/offline';
 import { scoreCellLabel } from '../src/lib/accessibility';
 import { useToast } from '../src/components/Toast';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { useNetworkStatus } from '../src/lib/networkStatus';
+import {
+  saveActiveRound,
+  clearActiveRound,
+  serializeScores,
+  queueOfflineRound,
+  type ActiveRoundState,
+} from '../src/lib/roundStorage';
 import { roundsService } from '../src/services/rounds.service';
 import { coursesService } from '../src/services/courses.service';
 import { seasonsService } from '../src/services/seasons.service';
@@ -361,6 +369,38 @@ function ScoringScreenInner() {
   }>({ visible: false, holeNumber: 1, par: 4, results: [] });
 
   const currentHole = holes[currentHoleIdx];
+
+  // ─── Offline resilience ─────────────────────────────────────────────
+  const { isConnected, isInternetReachable } = useNetworkStatus();
+  const isOffline = !isConnected || !isInternetReachable;
+
+  // Auto-save round state to AsyncStorage after every hole change
+  useEffect(() => {
+    if (allScores.size === 0) return; // Don't save empty rounds
+    const state: ActiveRoundState = {
+      courseName,
+      courseId,
+      coursePar,
+      courseSlope,
+      courseRating,
+      courseTee,
+      players,
+      formatLabel,
+      scoreMode,
+      holeRange,
+      allScores: serializeScores(allScores),
+      currentHoleIdx,
+      totalHoles: holes.length,
+      startedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tripId: tripId ?? undefined,
+      linkedSeasons: linkedSeasons.length > 0 ? linkedSeasons : undefined,
+      sideGames: sideGameKeys.length > 0 ? sideGameKeys : undefined,
+      holeData: passedHoleData ?? undefined,
+      roundType,
+    };
+    saveActiveRound(state);
+  }, [allScores, currentHoleIdx]);
 
   // Get or create scores for current hole
   const currentHoleScores = useMemo(() => {
@@ -929,20 +969,32 @@ function ScoringScreenInner() {
               // Personal best check is non-critical
             }
 
+            // Clear active round from local storage on success
+            await clearActiveRound();
+
             Alert.alert('Score Posted', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) is on the board.`);
             router.dismissAll();
           } catch (err) {
-            const roundData = {
-              user_id: user.id,
-              course_id: courseId,
-              course_name: courseName,
-              gross_score: holeScores.reduce((sum, h) => sum + h.gross, 0),
-              hole_scores: holeScores,
+            // Offline: queue round locally for sync when back online
+            const offlineRound = {
+              id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              userId: user.id,
+              courseId,
+              courseName,
+              grossScore: holeScores.reduce((sum, h) => sum + h.gross, 0),
+              netScore: netTotal,
+              holeScores,
               source: 'app' as const,
-              played_at: new Date().toISOString(),
+              playedAt: new Date().toISOString(),
+              queuedAt: new Date().toISOString(),
+              tripId: tripId ?? undefined,
+              seasonWeekId: linkedSeasons.length > 0 ? linkedSeasons[0].seasonId : undefined,
+              linkedSeasons: linkedSeasons.length > 0 ? linkedSeasons : undefined,
             };
-            await queueOfflineAction({ type: 'save_round', payload: roundData });
-            showToast({ message: 'Saved offline — will sync when connected', type: 'info' });
+            await queueOfflineRound(offlineRound);
+            await clearActiveRound();
+            showToast({ message: 'Round saved locally. It will sync when you\u2019re back online.', type: 'info', icon: 'cloud-offline-outline' });
+            router.dismissAll();
           }
         }}
       />
@@ -958,6 +1010,17 @@ function ScoringScreenInner() {
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
+
+      {/* Offline banner */}
+      {isOffline && (
+        <View style={{ backgroundColor: '#C9A227', paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Ionicons name="cloud-offline-outline" size={14} color="#141210" />
+          <Text style={{ color: '#141210', fontSize: 13, fontWeight: '600' }}>
+            Offline — your round is saved locally
+          </Text>
+        </View>
+      )}
+
       <HoleHeader
         courseName={courseName}
         holeNumber={currentHole.number}
