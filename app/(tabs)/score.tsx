@@ -47,6 +47,9 @@ import {
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
+/** Strip " CB" suffix from tee names (e.g. "Gold CB" → "Gold") */
+const stripCB = (name: string) => name.replace(/\s+CB$/i, '');
+
 const FORMAT_DESCRIPTIONS: Record<string, string> = {
   'Stableford': 'Points awarded per hole based on net score relative to par',
   'Stroke Play': 'Lowest total strokes wins — most common competitive format',
@@ -177,11 +180,13 @@ function CourseSearch({
   onSelect,
   selectedTeeBox,
   scorecard,
+  genderTees,
 }: {
   selected: SelectedCourse;
   onSelect: (c: SelectedCourse) => void;
   selectedTeeBox: number;
   scorecard: ScorecardData | null;
+  genderTees: TeeBox[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -260,7 +265,7 @@ function CourseSearch({
 
   const isDark = theme.isDark;
   const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
-  const activeTee = hasApiTees ? scorecard.teeBoxes[selectedTeeBox] ?? scorecard.teeBoxes[0] : null;
+  const activeTee = hasApiTees && genderTees.length > 0 ? genderTees[selectedTeeBox] ?? genderTees[0] : null;
 
   if (selected) {
     const displayLocation = selected.location || `${selected.city}, ${selected.state}`;
@@ -951,6 +956,7 @@ export default function ScoreScreen() {
   const [trackingLevel, setTrackingLevel] = useState<TrackingLevel>('standard');
   const [scorekeeperMode, setScorekeeperMode] = useState<'scorekeeper' | 'everyone'>('everyone');
   const [selectedTeeBox, setSelectedTeeBox] = useState(0);
+  const [teeGender, setTeeGender] = useState<'male' | 'female'>('male');
   const [customLocation, setCustomLocation] = useState('');
   const [customRating, setCustomRating] = useState('72.0');
   const [customSlope, setCustomSlope] = useState('113');
@@ -1021,6 +1027,12 @@ export default function ScoreScreen() {
 
   const isCustom = course?.id.startsWith('custom-');
   const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
+  // Filter tees by selected gender (default: male)
+  const genderTees = useMemo(() => {
+    if (!scorecard) return [];
+    const filtered = scorecard.teeBoxes.filter((t) => t.gender === teeGender);
+    return filtered.length > 0 ? filtered : scorecard.teeBoxes;
+  }, [scorecard, teeGender]);
   const effectivePar = isCustom ? customPar : (hasApiTees ? (scorecard?.par ?? course?.par ?? 72) : customPar);
   const hasManualPlayers = players.some((p) => p.id.startsWith('p-'));
 
@@ -1058,6 +1070,7 @@ export default function ScoreScreen() {
     if (!course || isCustom) {
       setScorecard(null);
       setHoleData(null);
+      setTeeGender('male');
       return;
     }
 
@@ -1103,8 +1116,12 @@ export default function ScoreScreen() {
         setCustomRating(String(sc.rating));
         setCustomSlope(String(sc.slope));
         if (sc.teeBoxes.length > 0) {
-          const whiteIdx = sc.teeBoxes.findIndex((t) => t.name.toLowerCase().includes('white'));
+          // Default to male tees and find "white" within that set
+          const maleTees = sc.teeBoxes.filter((t) => t.gender === 'male');
+          const defaultSet = maleTees.length > 0 ? maleTees : sc.teeBoxes;
+          const whiteIdx = defaultSet.findIndex((t) => t.name.toLowerCase().includes('white'));
           setSelectedTeeBox(whiteIdx >= 0 ? whiteIdx : 0);
+          setTeeGender('male');
         }
       } else {
         // No data found — clear pre-fills so user sees empty fields
@@ -1127,8 +1144,8 @@ export default function ScoreScreen() {
 
   // Build enriched hole data with per-hole yardage from selected tee
   const enrichedHoleData = useMemo(() => {
-    const activeTee = hasApiTees && scorecard
-      ? scorecard.teeBoxes[selectedTeeBox] ?? scorecard.teeBoxes[0]
+    const activeTee = hasApiTees
+      ? genderTees[selectedTeeBox] ?? genderTees[0]
       : null;
     const totalYards = activeTee?.yards ?? 0;
 
@@ -1163,7 +1180,7 @@ export default function ScoreScreen() {
     }
 
     return holeData;
-  }, [holeData, hasApiTees, scorecard, selectedTeeBox]);
+  }, [holeData, hasApiTees, genderTees, selectedTeeBox]);
 
   // Build round context label for scoring header badge
   const roundContextLabel = useMemo(() => {
@@ -1188,8 +1205,8 @@ export default function ScoreScreen() {
     // Determine slope/rating from API tee boxes or manual entry
     let slope: number;
     let rating: number;
-    if (hasApiTees && scorecard) {
-      const tee = scorecard.teeBoxes[selectedTeeBox] ?? scorecard.teeBoxes[0];
+    if (hasApiTees && genderTees.length > 0) {
+      const tee = genderTees[selectedTeeBox] ?? genderTees[0];
       slope = tee.slope;
       rating = tee.rating;
     } else {
@@ -1208,8 +1225,8 @@ export default function ScoreScreen() {
     }
 
     // Determine selected tee name for display
-    const selectedTeeName = hasApiTees && scorecard
-      ? (scorecard.teeBoxes[selectedTeeBox]?.name ?? customTee)
+    const selectedTeeName = hasApiTees && genderTees.length > 0
+      ? stripCB(genderTees[selectedTeeBox]?.name ?? customTee)
       : customTee;
 
     router.push({
@@ -1279,7 +1296,7 @@ export default function ScoreScreen() {
           <View style={st.body}>
             {/* Course */}
             <SectionLabel title="COURSE" />
-            <CourseSearch selected={course} onSelect={setCourse} selectedTeeBox={selectedTeeBox} scorecard={scorecard} />
+            <CourseSearch selected={course} onSelect={setCourse} selectedTeeBox={selectedTeeBox} scorecard={scorecard} genderTees={genderTees} />
 
             {/* Loading shimmer while fetching tee data */}
             {loadingScorecard && course && !isCustom && (
@@ -1289,18 +1306,45 @@ export default function ScoreScreen() {
             {/* Tee box dropdown selector */}
             {course && !isCustom && hasApiTees && scorecard && (
               <View style={st.teeBoxSection}>
+                {/* Gender toggle */}
+                {scorecard.teeBoxes.some((t) => t.gender === 'female') && (
+                  <View style={st.teeGenderToggle}>
+                    {(['male', 'female'] as const).map((g) => {
+                      const isActive = teeGender === g;
+                      return (
+                        <Pressable
+                          key={g}
+                          onPress={() => {
+                            haptics.selection();
+                            setTeeGender(g);
+                            setSelectedTeeBox(0);
+                          }}
+                          style={[
+                            st.teeGenderBtn,
+                            { borderColor: isActive ? c.teal : c.border, backgroundColor: isActive ? 'rgba(0,103,71,0.08)' : 'transparent' },
+                          ]}
+                        >
+                          <Text style={[st.teeGenderBtnText, { color: isActive ? c.teal : c.textMuted, fontFamily: SANS }]}>
+                            {g === 'male' ? "Men\u2019s Tees" : "Women\u2019s Tees"}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
                 <Text style={[st.teeBoxLabel, { color: c.textMuted }]}>SELECT TEE</Text>
-                {scorecard.teeBoxes.map((tee, i) => {
+                {genderTees.map((tee, i) => {
                   const active = i === selectedTeeBox;
+                  const displayName = stripCB(tee.name);
                   return (
                     <Pressable
-                      key={tee.name}
+                      key={`${tee.name}-${tee.gender || 'male'}-${i}`}
                       onPress={() => {
                         haptics.selection();
                         setSelectedTeeBox(i);
                         setCustomRating(String(tee.rating));
                         setCustomSlope(String(tee.slope));
-                        setCustomTee(tee.name);
+                        setCustomTee(displayName);
                       }}
                       style={({ pressed }) => [
                         st.teeDropdownRow,
@@ -1314,7 +1358,7 @@ export default function ScoreScreen() {
                       <View style={[st.teeBoxDot, { backgroundColor: tee.color, borderColor: tee.color === '#FFFFFF' ? c.textMuted : tee.color }]} />
                       <View style={st.teeDropdownInfo}>
                         <Text style={[st.teeDropdownName, { color: active ? c.teal : c.text, fontFamily: SANS }]}>
-                          {tee.name}
+                          {displayName}
                         </Text>
                         <Text style={[st.teeDropdownStats, { color: c.textMuted, fontFamily: GEO, fontWeight: '700' }]}>
                           {tee.yards > 0 ? `${tee.yards.toLocaleString()} yds` : '---'} {'\u2014'} {tee.rating}/{tee.slope}
@@ -2033,6 +2077,20 @@ const st = StyleSheet.create({
   /* Tee box selector */
   teeBoxSection: {
     marginTop: 10,
+  },
+  teeGenderToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  teeGenderBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  teeGenderBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   teeBoxLabel: {
     fontSize: 11,
