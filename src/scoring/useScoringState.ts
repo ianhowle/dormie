@@ -586,6 +586,79 @@ export function useScoringState() {
     setShowConfirmation(true);
   }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, currentHole.number]);
 
+  // Post-round handler (saves to Supabase or queues offline)
+  const handlePostRound = useCallback(async () => {
+    if (!user) { router.dismissAll(); return; }
+    try {
+      const holeScores: { hole: number; gross: number; putts?: number; fir?: boolean }[] = [];
+      holes.forEach((h) => {
+        const sc = allScores.get(h.number)?.get(user.id);
+        if (sc) holeScores.push({ hole: h.number, gross: sc.gross, putts: sc.putts, ...(sc.fir !== null ? { fir: sc.fir } : {}) });
+      });
+      const grossTotal = holeScores.reduce((sum, h) => sum + h.gross, 0);
+      const totalPar = holes.reduce((sum, h) => sum + h.par, 0);
+      let netTotal: number | null = null;
+      if (scoreMode === 'net') {
+        const playerStrokes = handicapStrokes.get(user.id);
+        if (playerStrokes) netTotal = grossTotal - Array.from(playerStrokes.values()).reduce((a, b) => a + b, 0);
+      }
+      let finalCourseId = courseId;
+      if (!finalCourseId) {
+        const course = await coursesService.ensureCourse({ name: courseName, location: courseName });
+        finalCourseId = course.id;
+      }
+      const savedRound = await roundsService.create({
+        user_id: user.id, course_id: finalCourseId, gross_score: grossTotal, net_score: netTotal,
+        hole_scores: holeScores, source: 'app', played_at: new Date().toISOString(),
+        ...(tripId ? { trip_id: tripId } : {}),
+        ...(linkedSeasons.length > 0 ? { season_week_id: linkedSeasons[0].seasonId } : {}),
+      });
+      if (linkedSeasons.length > 0) {
+        for (const ls of linkedSeasons) {
+          try {
+            let points = grossTotal;
+            if (ls.format?.toLowerCase().includes('stableford') && holeScores.length > 0) {
+              const { calculateStablefordPoints } = await import('../data/scoring');
+              points = holeScores.reduce((sum, h) => {
+                const holePar = holes.find(hole => hole.number === h.hole)?.par ?? 4;
+                return sum + calculateStablefordPoints(h.gross, holePar, 0);
+              }, 0);
+            }
+            await seasonsService.submitScore({ season_week_id: ls.seasonId, user_id: user.id, points, round_id: savedRound.id });
+          } catch {}
+        }
+      }
+      haptics.success();
+      sounds.chime();
+      showToast({ message: 'Round saved', type: 'success', icon: 'checkmark-circle' });
+      setShowConfetti(true);
+      try {
+        const previousRounds = await roundsService.fetchByCourse(finalCourseId, user.id);
+        const sorted = [...previousRounds].sort((a, b) => new Date(b.played_at).getTime() - new Date(a.played_at).getTime());
+        const previousBest = sorted.slice(1).reduce((best, r) => Math.min(best, r.gross_score), Infinity);
+        if (previousBest !== Infinity && grossTotal < previousBest) { setPrevBest(previousBest); setShowPersonalBest(true); }
+      } catch {}
+      await clearActiveRound();
+      const { Alert } = await import('react-native');
+      Alert.alert('Score Posted', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) is on the board.`);
+      router.dismissAll();
+    } catch (err) {
+      const offlineRound = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        userId: user.id, courseId, courseName,
+        grossScore: holes.reduce((sum, h) => sum + (allScores.get(h.number)?.get(user.id)?.gross ?? 0), 0),
+        netScore: null, holeScores: [] as any[], source: 'app' as const,
+        playedAt: new Date().toISOString(), queuedAt: new Date().toISOString(),
+        tripId: tripId ?? undefined,
+        seasonWeekId: linkedSeasons.length > 0 ? linkedSeasons[0].seasonId : undefined,
+      };
+      await queueOfflineRound(offlineRound);
+      await clearActiveRound();
+      showToast({ message: 'Round saved locally. It will sync when you\u2019re back online.', type: 'info', icon: 'cloud-offline-outline' });
+      router.dismissAll();
+    }
+  }, [user, holes, allScores, scoreMode, handicapStrokes, courseId, courseName, tripId, linkedSeasons, router, showToast]);
+
   // Feature 4: Best Ball team scores
   const bestBallTeamScores = useMemo(() => {
     if (!isBestBall) return { team1: 0, team2: 0, team1Par: 0, team2Par: 0 };
@@ -795,6 +868,7 @@ export function useScoringState() {
     handlePuttDistSelect,
     handlePrev,
     handleFinish,
+    handlePostRound,
 
     // Mock data references (used by UI for season/trip views)
     MOCK_GROUP_PLAYERS,
