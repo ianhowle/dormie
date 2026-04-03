@@ -73,7 +73,7 @@ export const scoringStyles = StyleSheet.create({
     fontFamily: GEO,
   },
   headerFormat: {
-    color: 'rgba(201,162,39,0.7)',
+    color: '#D4AF37',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1,
@@ -1232,7 +1232,7 @@ export const scoringStyles = StyleSheet.create({
 
   /* Item 11: Header hole detail */
   headerHoleDetail: {
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
@@ -1405,7 +1405,7 @@ export const postRoundStyles = StyleSheet.create({
     marginTop: 4,
   },
   headerFormat: {
-    color: 'rgba(201,162,39,0.7)',
+    color: '#D4AF37',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,

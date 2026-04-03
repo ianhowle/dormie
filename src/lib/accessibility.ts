@@ -56,6 +56,41 @@ export function scoreCellLabel(
   return `Hole ${hole}, par ${par}, scored ${score}, ${desc}`;
 }
 
+/** Generate accessibility label for a score button in the grid */
+export function scoreButtonLabel(score: number, par: number): string {
+  const diff = score - par;
+  let desc = '';
+  if (diff <= -3) desc = 'albatross';
+  else if (diff === -2) desc = 'eagle';
+  else if (diff === -1) desc = 'birdie';
+  else if (diff === 0) desc = 'par';
+  else if (diff === 1) desc = 'bogey';
+  else if (diff === 2) desc = 'double bogey';
+  else if (diff > 2) desc = `${diff} over par`;
+  else desc = `${Math.abs(diff)} under par`;
+  return `Score ${score}, ${desc}`;
+}
+
+/** Generate accessibility label for a putts button */
+export function puttsButtonLabel(putts: number): string {
+  return `${putts} putt${putts !== 1 ? 's' : ''}`;
+}
+
+/** Generate accessibility label for a player tab in scoring */
+export function playerTabLabel(
+  name: string,
+  toPar: number,
+  holesPlayed: number,
+): string {
+  const toParStr =
+    toPar === 0
+      ? 'even par'
+      : toPar > 0
+        ? `${toPar} over par`
+        : `${Math.abs(toPar)} under par`;
+  return `Switch to ${name}, ${toParStr} through ${holesPlayed}`;
+}
+
 /** Generate accessibility label for a tab */
 export function tabLabel(name: string, isActive: boolean, badge?: number): string {
   let label = `${name} tab`;

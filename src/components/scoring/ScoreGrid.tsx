@@ -6,7 +6,7 @@ import { GEO } from '../../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../../theme/colors';
 import { Avatar } from '../Avatar';
 import { haptics } from '../../lib/haptics';
-import { scoreCellLabel } from '../../lib/accessibility';
+import { scoreCellLabel, scoreButtonLabel, puttsButtonLabel } from '../../lib/accessibility';
 import { scoreColor, formatToPar as fmtToPar, scoreName as scoreNameUtil } from '../../lib/scoring-utils';
 import { isGIR } from '../../scoring/calculations';
 import type { PlayerConfig, HoleScore } from '../../scoring/types';
@@ -143,7 +143,8 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
             <Pressable
               key={n}
               onPress={() => setGross(n)}
-              accessibilityLabel={scoreCellLabel(n, holePar, n)}
+              accessibilityLabel={scoreButtonLabel(n, holePar)}
+                accessibilityRole="button"
               style={({ pressed }) => [
                 st.compactGridCell,
                 {
@@ -161,6 +162,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
                     fontFamily: GEO,
                   },
                 ]}
+                allowFontScaling={false}
               >
                 {n}
               </Text>
@@ -169,6 +171,8 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
           <Pressable
             onPress={() => { if (score.gross < 8) setGross(8); else adjustGross(1); }}
             onLongPress={() => adjustGross(-1)}
+            accessibilityLabel={score.gross >= 8 ? scoreButtonLabel(score.gross, holePar) : 'Score 8 or higher'}
+            accessibilityRole="button"
             style={({ pressed }) => [
               st.compactGridCell,
               {
@@ -186,6 +190,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
                   fontFamily: GEO,
                 },
               ]}
+              allowFontScaling={false}
             >
               {score.gross >= 8 ? score.gross : '8+'}
             </Text>
@@ -193,11 +198,11 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
         </View>
         <View style={st.compactPuttsRow}>
           <Text style={[st.compactPuttsLabel, { color: c.textMuted }]}>P:</Text>
-          <Pressable onPress={() => adjustPutts(-1)} hitSlop={6}>
+          <Pressable onPress={() => adjustPutts(-1)} hitSlop={6} accessibilityLabel="Decrease putts" accessibilityRole="button">
             <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
           </Pressable>
-          <Text style={[st.compactPuttsValue, { color: c.text, fontFamily: GEO }]}>{score.putts}</Text>
-          <Pressable onPress={() => adjustPutts(1)} hitSlop={6}>
+          <Text style={[st.compactPuttsValue, { color: c.text, fontFamily: GEO }]} accessibilityLabel={puttsButtonLabel(score.putts)} allowFontScaling={false}>{score.putts}</Text>
+          <Pressable onPress={() => adjustPutts(1)} hitSlop={6} accessibilityLabel="Increase putts" accessibilityRole="button">
             <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
           </Pressable>
         </View>
@@ -228,6 +233,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
               isMe && { fontWeight: '700' },
             ]}
             numberOfLines={1}
+            maxFontSizeMultiplier={1.3}
           >
             {isMe ? 'You' : player.name}
           </Text>
@@ -263,7 +269,8 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
               <Pressable
                 key={n}
                 onPress={() => setGross(n)}
-                accessibilityLabel={scoreCellLabel(n, holePar, n)}
+                accessibilityLabel={scoreButtonLabel(n, holePar)}
+                accessibilityRole="button"
                 style={({ pressed }) => [
                   st.scoreGridCell2,
                   {
@@ -276,10 +283,10 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
                   pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                 ]}
               >
-                <Text style={[st.scoreGridText2, { color: selected ? '#fff' : c.text, fontFamily: GEO, fontWeight: selected ? '700' : '500' }]}>
+                <Text style={[st.scoreGridText2, { color: selected ? '#fff' : c.text, fontFamily: GEO, fontWeight: selected ? '700' : '500' }]} allowFontScaling={false}>
                   {n}
                 </Text>
-                {selected && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]}>{scoreName(n, holePar)}</Text>}
+                {selected && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]} allowFontScaling={false}>{scoreName(n, holePar)}</Text>}
               </Pressable>
             );
           })}
@@ -293,7 +300,8 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
               <Pressable
                 key={n}
                 onPress={() => setGross(n)}
-                accessibilityLabel={scoreCellLabel(n, holePar, n)}
+                accessibilityLabel={scoreButtonLabel(n, holePar)}
+                accessibilityRole="button"
                 style={({ pressed }) => [
                   st.scoreGridCell2,
                   {
@@ -306,16 +314,18 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
                   pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                 ]}
               >
-                <Text style={[st.scoreGridText2, { color: selected ? '#fff' : c.text, fontFamily: GEO, fontWeight: selected ? '700' : '500' }]}>
+                <Text style={[st.scoreGridText2, { color: selected ? '#fff' : c.text, fontFamily: GEO, fontWeight: selected ? '700' : '500' }]} allowFontScaling={false}>
                   {n}
                 </Text>
-                {selected && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]}>{scoreName(n, holePar)}</Text>}
+                {selected && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]} allowFontScaling={false}>{scoreName(n, holePar)}</Text>}
               </Pressable>
             );
           })}
           <Pressable
             onPress={() => { if (score.gross < 8) setGross(8); else adjustGross(1); }}
             onLongPress={() => { const n = Math.max(1, score.gross - 1); setGross(n); }}
+            accessibilityLabel={score.gross >= 8 ? scoreButtonLabel(score.gross, holePar) : 'Score 8 or higher'}
+            accessibilityRole="button"
             style={({ pressed }) => [
               st.scoreGridCell2,
               {
@@ -329,7 +339,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
             <Text style={[st.scoreGridText2, { color: score.gross >= 8 ? '#fff' : c.text, fontFamily: GEO, fontWeight: score.gross >= 8 ? '700' : '500' }]}>
               {score.gross >= 8 ? score.gross : '8+'}
             </Text>
-            {score.gross >= 8 && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]}>{scoreName(score.gross, holePar)}</Text>}
+            {score.gross >= 8 && <Text style={[st.scoreGridParLabel, { color: 'rgba(255,255,255,0.7)' }]} allowFontScaling={false}>{scoreName(score.gross, holePar)}</Text>}
           </Pressable>
         </View>
       </View>
@@ -354,7 +364,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
       {/* Secondary inputs: Putts, FIR, GIR */}
       <View style={st.secondaryRow}>
         <View style={st.secondaryGroup}>
-          <Text style={[st.secondaryLabel, { color: c.textMuted }]}>PUTTS</Text>
+          <Text style={[st.secondaryLabel, { color: c.textMuted }]} maxFontSizeMultiplier={1.3}>PUTTS</Text>
           <View style={st.puttsButtonRow}>
             {[0, 1, 2, 3].map((n) => {
               const selected = score.putts === n;
@@ -362,6 +372,8 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
                 <Pressable
                   key={n}
                   onPress={() => { haptics.light(); onChange({ ...score, putts: n }); }}
+                  accessibilityLabel={puttsButtonLabel(n)}
+                  accessibilityRole="button"
                   style={({ pressed }) => [
                     st.puttsButton,
                     {
@@ -371,7 +383,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
                     pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
                   ]}
                 >
-                  <Text style={[st.puttsButtonText, { color: selected ? '#fff' : c.text, fontFamily: GEO }]}>
+                  <Text style={[st.puttsButtonText, { color: selected ? '#fff' : c.text, fontFamily: GEO }]} allowFontScaling={false}>
                     {n}
                   </Text>
                 </Pressable>
@@ -382,9 +394,12 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
 
         {showFIR && (
           <View style={st.secondaryGroup}>
-            <Text style={[st.secondaryLabel, { color: c.textMuted }]}>FIR</Text>
+            <Text style={[st.secondaryLabel, { color: c.textMuted }]} maxFontSizeMultiplier={1.3}>FIR</Text>
             <Pressable
               onPress={toggleFIR}
+              accessibilityLabel={score.fir === true ? 'Fairway hit, yes' : 'Fairway hit, no'}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: score.fir === true }}
               style={[
                 st.toggleChip,
                 {
@@ -402,8 +417,13 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
           </View>
         )}
 
-        <View style={st.secondaryGroup}>
-          <Text style={[st.secondaryLabel, { color: c.textMuted }]}>GIR</Text>
+        <View
+          style={st.secondaryGroup}
+          accessible={true}
+          accessibilityLabel={gir ? 'Green in regulation, yes' : 'Green in regulation, no'}
+          accessibilityRole="text"
+        >
+          <Text style={[st.secondaryLabel, { color: c.textMuted }]} maxFontSizeMultiplier={1.3}>GIR</Text>
           <View
             style={[
               st.toggleChip,
@@ -425,6 +445,9 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
       {/* Penalty tracking */}
       <Pressable
         onPress={() => setPenaltiesExpanded(!penaltiesExpanded)}
+        accessibilityLabel={`Penalties${hasPenalties ? `, ${penalties.water + penalties.ob + penalties.lost} total` : ''}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: penaltiesExpanded }}
         style={[st.penaltyToggleRow, { borderTopColor: 'rgba(128,128,128,0.15)' }]}
       >
         <Ionicons name="flag-outline" size={14} color={hasPenalties ? c.urgent : c.textMuted} />
@@ -437,15 +460,15 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
       <View style={st.penaltyRow}>
         <View style={st.penaltyGroup}>
           <Ionicons name="water-outline" size={14} color={penalties.water > 0 ? c.urgent : c.textMuted} />
-          <Text style={[st.penaltyLabel, { color: c.textMuted }]}>Water</Text>
+          <Text style={[st.penaltyLabel, { color: c.textMuted }]} maxFontSizeMultiplier={1.3}>Water</Text>
           <View style={st.penaltyControls}>
-            <Pressable onPress={() => adjustPenalty('water', -1)} hitSlop={6}>
+            <Pressable onPress={() => adjustPenalty('water', -1)} hitSlop={6} accessibilityLabel="Remove water penalty" accessibilityRole="button">
               <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
             </Pressable>
-            <Text style={[st.penaltyValue, { color: penalties.water > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]}>
+            <Text style={[st.penaltyValue, { color: penalties.water > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]} accessibilityLabel={`${penalties.water} water penalties`} allowFontScaling={false}>
               {penalties.water}
             </Text>
-            <Pressable onPress={() => adjustPenalty('water', 1)} hitSlop={6}>
+            <Pressable onPress={() => adjustPenalty('water', 1)} hitSlop={6} accessibilityLabel="Add water penalty" accessibilityRole="button">
               <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
             </Pressable>
           </View>
@@ -453,15 +476,15 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
 
         <View style={st.penaltyGroup}>
           <Ionicons name="alert-circle-outline" size={14} color={penalties.ob > 0 ? c.urgent : c.textMuted} />
-          <Text style={[st.penaltyLabel, { color: c.textMuted }]}>OB</Text>
+          <Text style={[st.penaltyLabel, { color: c.textMuted }]} maxFontSizeMultiplier={1.3}>OB</Text>
           <View style={st.penaltyControls}>
-            <Pressable onPress={() => adjustPenalty('ob', -1)} hitSlop={6}>
+            <Pressable onPress={() => adjustPenalty('ob', -1)} hitSlop={6} accessibilityLabel="Remove out of bounds penalty" accessibilityRole="button">
               <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
             </Pressable>
-            <Text style={[st.penaltyValue, { color: penalties.ob > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]}>
+            <Text style={[st.penaltyValue, { color: penalties.ob > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]} accessibilityLabel={`${penalties.ob} out of bounds penalties`} allowFontScaling={false}>
               {penalties.ob}
             </Text>
-            <Pressable onPress={() => adjustPenalty('ob', 1)} hitSlop={6}>
+            <Pressable onPress={() => adjustPenalty('ob', 1)} hitSlop={6} accessibilityLabel="Add out of bounds penalty" accessibilityRole="button">
               <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
             </Pressable>
           </View>
@@ -469,15 +492,15 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
 
         <View style={st.penaltyGroup}>
           <Ionicons name="help-circle-outline" size={14} color={penalties.lost > 0 ? c.urgent : c.textMuted} />
-          <Text style={[st.penaltyLabel, { color: c.textMuted }]}>Lost</Text>
+          <Text style={[st.penaltyLabel, { color: c.textMuted }]} maxFontSizeMultiplier={1.3}>Lost</Text>
           <View style={st.penaltyControls}>
-            <Pressable onPress={() => adjustPenalty('lost', -1)} hitSlop={6}>
+            <Pressable onPress={() => adjustPenalty('lost', -1)} hitSlop={6} accessibilityLabel="Remove lost ball penalty" accessibilityRole="button">
               <Ionicons name="remove-circle-outline" size={16} color={c.textMuted} />
             </Pressable>
-            <Text style={[st.penaltyValue, { color: penalties.lost > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]}>
+            <Text style={[st.penaltyValue, { color: penalties.lost > 0 ? c.urgent : c.textMuted, fontFamily: GEO }]} accessibilityLabel={`${penalties.lost} lost ball penalties`} allowFontScaling={false}>
               {penalties.lost}
             </Text>
-            <Pressable onPress={() => adjustPenalty('lost', 1)} hitSlop={6}>
+            <Pressable onPress={() => adjustPenalty('lost', 1)} hitSlop={6} accessibilityLabel="Add lost ball penalty" accessibilityRole="button">
               <Ionicons name="add-circle-outline" size={16} color={c.textMuted} />
             </Pressable>
           </View>

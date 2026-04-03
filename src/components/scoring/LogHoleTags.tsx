@@ -20,7 +20,7 @@ export const LogHoleTags = memo(function LogHoleTags({
 
   return (
     <View style={st.tagSection}>
-      <Text style={[st.tagSectionTitle, { fontFamily: GEO }]}>LOG THIS HOLE</Text>
+      <Text style={[st.tagSectionTitle, { fontFamily: GEO }]} maxFontSizeMultiplier={1.3}>LOG THIS HOLE</Text>
       <View style={st.tagRow}>
         {(['Sand', 'Trees', 'Water', 'Penalty', 'Up & Down'] as const).map((tag) => {
           const isSelected = tags.includes(tag);
@@ -32,6 +32,9 @@ export const LogHoleTags = memo(function LogHoleTags({
             <Pressable
               key={tag}
               onPress={() => onToggleTag(tag)}
+              accessibilityLabel={`${tag}${isSelected ? ', selected' : ''}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
               style={({ pressed }) => [
                 st.tagPill,
                 {
@@ -41,7 +44,7 @@ export const LogHoleTags = memo(function LogHoleTags({
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}
             >
-              <Text style={[st.tagPillText, { color: isSelected ? c.teal : c.textMuted }]}>
+              <Text style={[st.tagPillText, { color: isSelected ? c.teal : c.textMuted }]} maxFontSizeMultiplier={1.3}>
                 {tag}
               </Text>
               {indicator.length > 0 && (

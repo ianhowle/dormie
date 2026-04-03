@@ -90,16 +90,18 @@ export const HoleHeader = memo(function HoleHeader({
               ],
             );
           }}
+          accessibilityLabel="Leave round"
+          accessibilityRole="button"
           hitSlop={12}
         >
           <Ionicons name="close" size={24} color="#fff" />
         </Pressable>
-        <Text style={[st.headerCourseName, { fontFamily: GEO }]} numberOfLines={1}>
+        <Text style={[st.headerCourseName, { fontFamily: GEO }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
           {abbreviateCourseName(courseName)}
         </Text>
         <View style={st.headerActions}>
           {onToggleViewMode && (
-            <Pressable onPress={onToggleViewMode} hitSlop={8}>
+            <Pressable onPress={onToggleViewMode} hitSlop={8} accessibilityLabel={viewMode === 'solo' ? 'Switch to all players view' : 'Switch to solo player view'} accessibilityRole="button">
               <Ionicons
                 name={viewMode === 'solo' ? 'person-outline' : 'people-outline'}
                 size={18}
@@ -108,7 +110,7 @@ export const HoleHeader = memo(function HoleHeader({
             </Pressable>
           )}
           {onFeed && (
-            <Pressable onPress={onFeed} hitSlop={8} style={st.headerActionBtn}>
+            <Pressable onPress={onFeed} hitSlop={8} style={st.headerActionBtn} accessibilityLabel={`Live feed${(unreadFeedCount ?? 0) > 0 ? `, ${unreadFeedCount} new` : ''}`} accessibilityRole="button">
               <Ionicons name="newspaper-outline" size={18} color="#fff" />
               {(unreadFeedCount ?? 0) > 0 && (
                 <View style={st.feedBadge}>
@@ -118,8 +120,8 @@ export const HoleHeader = memo(function HoleHeader({
             </Pressable>
           )}
           {onLeaderboard && (
-            <Pressable onPress={onLeaderboard} hitSlop={8} style={{ position: 'relative' }}>
-              <Ionicons name="trophy-outline" size={18} color="#C9A227" />
+            <Pressable onPress={onLeaderboard} hitSlop={8} style={{ position: 'relative' }} accessibilityLabel={`Leaderboard${competitionCount > 1 ? `, ${competitionCount} competitions` : ''}`} accessibilityRole="button">
+              <Ionicons name="trophy-outline" size={18} color="#D4AF37" />
               {competitionCount != null && competitionCount > 1 && (
                 <View style={st.compBadge}>
                   <Text style={st.compBadgeText}>{competitionCount}</Text>
@@ -138,14 +140,16 @@ export const HoleHeader = memo(function HoleHeader({
         <Pressable
           onPress={onPrevHole}
           disabled={!canPrevHole}
+          accessibilityLabel="Previous hole"
+          accessibilityRole="button"
           hitSlop={12}
           style={{ opacity: canPrevHole ? 1 : 0.3 }}
         >
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </Pressable>
-        <View style={{ alignItems: 'center' }}>
+        <View style={{ alignItems: 'center' }} accessible={true} accessibilityLabel={`Hole ${holeNumber}, par ${holePar}${holeYardage ? `, ${holeYardage} yards` : ''}`}>
           <Text style={[st.headerHoleLabel]}>HOLE</Text>
-          <Text style={[st.headerHoleNum, { fontFamily: GEO }]}>{holeNumber}</Text>
+          <Text style={[st.headerHoleNum, { fontFamily: GEO }]} allowFontScaling={false}>{holeNumber}</Text>
           <Text style={st.headerHoleDetail}>
             Par {holePar}{holeYardage ? ` \u2022 ${holeYardage} yds` : ''} {'\u2022'} HCP {holeHcp ?? '-'}
           </Text>
@@ -153,6 +157,8 @@ export const HoleHeader = memo(function HoleHeader({
         <Pressable
           onPress={onNextHole}
           disabled={!canNextHole}
+          accessibilityLabel="Next hole"
+          accessibilityRole="button"
           hitSlop={12}
           style={{ opacity: canNextHole ? 1 : 0.3 }}
         >
@@ -179,7 +185,7 @@ export const HoleHeader = memo(function HoleHeader({
             </Text>
           </View>
         )}
-        <Text style={st.headerFormat}>{format}</Text>
+        <Text style={st.headerFormat} maxFontSizeMultiplier={1.3}>{format}</Text>
       </View>
     </LinearGradient>
   );

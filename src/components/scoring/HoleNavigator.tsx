@@ -41,6 +41,8 @@ export const HoleNavigator = memo(function HoleNavigator({
       return (
         <Pressable
           onPress={() => onSelect(index)}
+          accessibilityLabel={`Hole ${item.number}, par ${item.par}${hasScores ? ', scored' : ''}${isCurrent ? ', current' : ''}`}
+          accessibilityRole="button"
           style={({ pressed }) => [
             st.holeChip,
             {
@@ -125,6 +127,7 @@ export const NavButtons = memo(function NavButtons({
         onPress={onPrev}
         disabled={!canPrev}
         accessibilityLabel="Previous hole"
+        accessibilityRole="button"
         style={({ pressed }) => [
           st.navBtn,
           { backgroundColor: c.elevated, borderColor: c.border, opacity: canPrev ? 1 : 0.3 },
@@ -138,20 +141,23 @@ export const NavButtons = memo(function NavButtons({
       {isLast ? (
         <Pressable
           onPress={onFinish}
+          accessibilityLabel="Finish round"
+          accessibilityRole="button"
           style={({ pressed }) => [
             st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B' },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
-          <Text style={[st.navBtnText, { color: '#C9A227', fontFamily: GEO }]}>
+          <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>
             Finish Round
           </Text>
-          <Ionicons name="checkmark-circle" size={18} color="#C9A227" />
+          <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
         </Pressable>
       ) : (
         <Pressable
           onPress={onNext}
           accessibilityLabel="Next hole"
+          accessibilityRole="button"
           style={({ pressed }) => [
             st.navBtn,
             { backgroundColor: c.teal },

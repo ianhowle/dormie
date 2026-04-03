@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 const accents = {
   teal: '#006747',
   gold: '#C9A227',
+  /** Brighter gold for small text on green headers — passes WCAG AA 4.5:1 on #1E4D2B */
+  goldAccessible: '#D4AF37',
   urgent: '#C41E3A',
   green: '#2D6A3F',
   greenDark: '#1E4D2B',
@@ -16,7 +18,7 @@ export const dark = {
   cardBg: '#1A1816',
   elevated: '#262320',
   text: '#E8E4DE',
-  textMuted: '#6B6560',
+  textMuted: '#8A857F', // Bumped from #6B6560 for WCAG AA (4.84:1 on cardBg, 5.11:1 on bg)
   border: '#2A2724',
   borderLight: '#222222',
   ...accents,
@@ -28,7 +30,7 @@ export const light = {
   cardBg: '#FFFFFF',
   elevated: '#F5F1EB',
   text: '#1A1A1A',
-  textMuted: '#8A857F',
+  textMuted: '#6B6560', // Darkened from #8A857F for WCAG AA (5.42:1 on bg, 5.74:1 on white)
   border: '#E5E2DE',
   borderLight: '#EDEAE6',
   ...accents,

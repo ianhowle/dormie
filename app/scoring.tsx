@@ -1233,27 +1233,13 @@ function ScoringScreenInner() {
 
           {/* Feature 14: Solo mode player navigation */}
           {viewMode === 'solo' && players.length > 1 && (
-            <View style={st.soloNavRow}>
-              <Pressable
-                onPress={() => setSoloPlayerIdx(Math.max(0, soloPlayerIdx - 1))}
-                disabled={soloPlayerIdx === 0}
-                style={{ opacity: soloPlayerIdx === 0 ? 0.3 : 1 }}
-                hitSlop={12}
-              >
-                <Ionicons name="chevron-back" size={20} color={c.text} />
-              </Pressable>
-              <Text style={[st.soloNavText, { color: c.text }]}>
-                {players[soloPlayerIdx].id === '1' ? 'You' : players[soloPlayerIdx].name} ({soloPlayerIdx + 1}/{players.length})
-              </Text>
-              <Pressable
-                onPress={() => setSoloPlayerIdx(Math.min(players.length - 1, soloPlayerIdx + 1))}
-                disabled={soloPlayerIdx === players.length - 1}
-                style={{ opacity: soloPlayerIdx === players.length - 1 ? 0.3 : 1 }}
-                hitSlop={12}
-              >
-                <Ionicons name="chevron-forward" size={20} color={c.text} />
-              </Pressable>
-            </View>
+            <PlayerTabs
+              players={players}
+              soloPlayerIdx={soloPlayerIdx}
+              onSoloPlayerChange={setSoloPlayerIdx}
+              runningToPar={(() => { const r = getRunningTotal(players[soloPlayerIdx].id); return r.total - r.par; })()}
+              holesPlayed={(() => { const r = getRunningTotal(players[soloPlayerIdx].id); return r.count; })()}
+            />
           )}
 
           {/* Player score inputs */}

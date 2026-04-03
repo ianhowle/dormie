@@ -321,6 +321,9 @@ export const SideGameTicker = memo(function SideGameTicker({
   return (
     <Pressable
       onPress={onToggle}
+      accessibilityLabel={expanded ? 'Collapse side games' : 'Expand side games'}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
       style={[st.sideGameTicker, theme.isDark ? tickerShadowDark : tickerShadowLight]}
     >
       {!expanded ? (
