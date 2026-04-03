@@ -6,6 +6,10 @@ import { GEO } from '../../theme/fonts';
 import type { HoleData, HoleScore } from '../../scoring/types';
 import { scoringStyles as st } from './styles';
 
+/** Accessible gold for text on dark green — passes WCAG AA 4.5:1 */
+const GOLD_ON_GREEN = '#D4AF37';
+const DARK_GREEN = DARK_GREEN;
+
 export const HoleNavigator = memo(function HoleNavigator({
   holes,
   currentIdx,
@@ -47,13 +51,13 @@ export const HoleNavigator = memo(function HoleNavigator({
             st.holeChip,
             {
               backgroundColor: isCurrent
-                ? '#C9A227'
+                ? GOLD_ON_GREEN
                 : hasScores
                   ? `${c.teal}25`
                   : c.elevated,
-              borderColor: isCurrent ? '#C9A227' : hasScores ? c.teal : c.border,
+              borderColor: isCurrent ? GOLD_ON_GREEN : hasScores ? c.teal : c.border,
             },
-            isCurrent && { borderLeftWidth: 3, borderLeftColor: '#1E4D2B' },
+            isCurrent && { borderLeftWidth: 3, borderLeftColor: DARK_GREEN },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
@@ -61,7 +65,7 @@ export const HoleNavigator = memo(function HoleNavigator({
             style={[
               st.holeChipNum,
               {
-                color: isCurrent ? '#1E4D2B' : hasScores ? c.teal : c.textMuted,
+                color: isCurrent ? DARK_GREEN : hasScores ? c.teal : c.textMuted,
                 fontFamily: GEO,
               },
               isCurrent && { fontWeight: '800' },
@@ -72,7 +76,7 @@ export const HoleNavigator = memo(function HoleNavigator({
           <Text
             style={[
               st.holeChipPar,
-              { color: isCurrent ? '#1E4D2B' : c.textMuted },
+              { color: isCurrent ? DARK_GREEN : c.textMuted },
             ]}
           >
             {item.par}
@@ -135,7 +139,7 @@ export const NavButtons = memo(function NavButtons({
         ]}
       >
         <Ionicons name="chevron-back" size={18} color={c.text} />
-        <Text style={[st.navBtnText, { color: c.text }]}>Prev Hole</Text>
+        <Text style={[st.navBtnText, { color: c.text }]} maxFontSizeMultiplier={1.3}>Prev Hole</Text>
       </Pressable>
 
       {isLast ? (
@@ -144,11 +148,11 @@ export const NavButtons = memo(function NavButtons({
           accessibilityLabel="Finish round"
           accessibilityRole="button"
           style={({ pressed }) => [
-            st.navBtn, st.navFinish, { backgroundColor: '#1E4D2B' },
+            st.navBtn, st.navFinish, { backgroundColor: DARK_GREEN },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
-          <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]}>
+          <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]} maxFontSizeMultiplier={1.3}>
             Finish Round
           </Text>
           <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
@@ -164,7 +168,7 @@ export const NavButtons = memo(function NavButtons({
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
-          <Text style={[st.navBtnText, { color: '#fff' }]}>Next Hole</Text>
+          <Text style={[st.navBtnText, { color: '#fff' }]} maxFontSizeMultiplier={1.3}>Next Hole</Text>
           <Ionicons name="chevron-forward" size={18} color="#fff" />
         </Pressable>
       )}

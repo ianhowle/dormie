@@ -1354,6 +1354,13 @@ function RCMatchScoring({
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => `h${item}`}
+          getItemLayout={(_data, index) => ({
+            length: 40,
+            offset: 40 * index,
+            index,
+          })}
+          windowSize={5}
+          removeClippedSubviews={true}
           contentContainerStyle={ms.holeStrip}
           renderItem={({ item: hole }) => {
             const result = holeResults[hole];
@@ -2297,6 +2304,13 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
+        getItemLayout={(_data, index) => ({
+          length: 80,
+          offset: 80 * index,
+          index,
+        })}
+        windowSize={5}
+        removeClippedSubviews={true}
         contentContainerStyle={h.playerScroll}
         style={[h.playerStrip, { backgroundColor: c.bg, borderColor: c.border }]}
         renderItem={({ item }) => {

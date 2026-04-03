@@ -483,6 +483,11 @@ function StandingsTab({
         data={standings}
         renderItem={renderStandingRow}
         keyExtractor={keyExtractor}
+        getItemLayout={(_data, index) => ({
+          length: STANDINGS_ROW_HEIGHT,
+          offset: STANDINGS_ROW_HEIGHT * index,
+          index,
+        })}
         windowSize={5}
         removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}

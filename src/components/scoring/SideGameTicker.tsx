@@ -41,19 +41,19 @@ export const RunningSkinsPanel = memo(function RunningSkinsPanel({
 
   return (
     <View style={st.runningGameSection}>
-      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>SKINS</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>SKINS</Text>
       {players.map((p) => (
         <View key={p.id} style={st.runningGameRow}>
-          <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
             {p.id === '1' ? 'You' : p.name.split(' ')[0]}
           </Text>
-          <Text style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
             {skinWins.get(p.id) ?? 0} skins
           </Text>
         </View>
       ))}
       {carryover > 0 && (
-        <Text style={[st.runningGameNote, { color: c.textMuted }]}>
+        <Text maxFontSizeMultiplier={1.3} style={[st.runningGameNote, { color: c.textMuted }]}>
           {carryover} carried over
         </Text>
       )}
@@ -88,15 +88,15 @@ export const RunningDotsPanel = memo(function RunningDotsPanel({
 
   return (
     <View style={st.runningGameSection}>
-      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>DOTS</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>DOTS</Text>
       {players.map((p) => {
         const val = dots.get(p.id) ?? 0;
         return (
           <View key={p.id} style={st.runningGameRow}>
-            <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+            <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
               {p.id === '1' ? 'You' : p.name.split(' ')[0]}
             </Text>
-            <Text style={[st.runningGameValue, { color: val >= 0 ? c.teal : c.urgent, fontFamily: GEO }]}>
+            <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: val >= 0 ? c.teal : c.urgent, fontFamily: GEO }]}>
               {val >= 0 ? '+' : ''}{val}
             </Text>
           </View>
@@ -136,22 +136,22 @@ export const RunningNassauPanel = memo(function RunningNassauPanel({
 
   return (
     <View style={st.runningGameSection}>
-      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>NASSAU</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>NASSAU</Text>
       {front.length > 0 && (
         <View style={st.runningGameRow}>
-          <Text style={[st.runningGameName, { color: c.textMuted }]}>Front 9</Text>
-          <Text style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(front)}</Text>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: c.textMuted }]}>Front 9</Text>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(front)}</Text>
         </View>
       )}
       {back.length > 0 && (
         <View style={st.runningGameRow}>
-          <Text style={[st.runningGameName, { color: c.textMuted }]}>Back 9</Text>
-          <Text style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(back)}</Text>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: c.textMuted }]}>Back 9</Text>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(back)}</Text>
         </View>
       )}
       <View style={st.runningGameRow}>
-        <Text style={[st.runningGameName, { color: c.textMuted }]}>Overall</Text>
-        <Text style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(holes)}</Text>
+        <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: c.textMuted }]}>Overall</Text>
+        <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.text }]}>{segmentLeader(holes)}</Text>
       </View>
     </View>
   );
@@ -178,10 +178,10 @@ export const RunningSnakePanel = memo(function RunningSnakePanel({
 
   return (
     <View style={st.runningGameSection}>
-      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>SNAKE</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>SNAKE</Text>
       <View style={st.runningGameRow}>
-        <Text style={[st.runningGameName, { color: c.textMuted }]}>Current holder</Text>
-        <Text style={[st.runningGameValue, { color: holder ? c.urgent : c.teal }]}>
+        <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: c.textMuted }]}>Current holder</Text>
+        <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: holder ? c.urgent : c.teal }]}>
           {holderPlayer ? pName(holderPlayer) : 'Nobody'}
         </Text>
       </View>
@@ -236,21 +236,21 @@ export const RunningWolfPanel = memo(function RunningWolfPanel({
 
   return (
     <View style={st.runningGameSection}>
-      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>WOLF</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>WOLF</Text>
       {wolfPlayer && (
         <View style={st.runningGameRow}>
-          <Text style={[st.runningGameName, { color: c.textMuted }]}>Current Wolf</Text>
-          <Text style={[st.runningGameValue, { color: c.teal }]}>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: c.textMuted }]}>Current Wolf</Text>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.teal }]}>
             {pName(wolfPlayer)}{wolfDecision?.decision === 'lone' ? ' (Lone)' : wolfDecision?.decision === 'blind' ? ' (Blind)' : ''}
           </Text>
         </View>
       )}
       {players.map((p) => (
         <View key={p.id} style={st.runningGameRow}>
-          <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
             {p.id === '1' ? 'You' : p.name.split(' ')[0]}
           </Text>
-          <Text style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
+          <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
             {points.get(p.id) ?? 0} pts
           </Text>
         </View>
@@ -278,22 +278,22 @@ export const RunningBBBPanel = memo(function RunningBBBPanel({
 
   return (
     <View style={st.runningGameSection}>
-      <Text style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>BINGO BANGO BONGO</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameTitle, { color: c.gold, fontFamily: GEO }]}>BINGO BANGO BONGO</Text>
       {players.map((p) => {
         const t = totals.get(p.id) ?? { bingo: 0, bango: 0, bongo: 0 };
         const total = t.bingo + t.bango + t.bongo;
         return (
           <View key={p.id} style={st.runningGameRow}>
-            <Text style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
+            <Text maxFontSizeMultiplier={1.3} style={[st.runningGameName, { color: p.id === '1' ? c.teal : c.text }]}>
               {p.id === '1' ? 'You' : p.name.split(' ')[0]}
             </Text>
-            <Text style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
+            <Text maxFontSizeMultiplier={1.3} style={[st.runningGameValue, { color: c.text, fontFamily: GEO }]}>
               {total} ({t.bingo}/{t.bango}/{t.bongo})
             </Text>
           </View>
         );
       })}
-      <Text style={[st.runningGameNote, { color: c.textMuted }]}>
+      <Text maxFontSizeMultiplier={1.3} style={[st.runningGameNote, { color: c.textMuted }]}>
         Bi/Ba/Bo
       </Text>
     </View>
@@ -328,7 +328,7 @@ export const SideGameTicker = memo(function SideGameTicker({
     >
       {!expanded ? (
         <View style={st.sideGameTickerCollapsed}>
-          <Text style={st.sideGameTickerText}>
+          <Text style={st.sideGameTickerText} maxFontSizeMultiplier={1.3}>
             {sideGameKeys.includes('dots') ? `Dots: ${(() => {
               let d = 0;
               holes.forEach((h) => {
@@ -379,11 +379,11 @@ export const SideGameTicker = memo(function SideGameTicker({
       ) : (
         <View style={st.sideGameTickerExpanded}>
           <View style={st.sideGameTickerExpandedHeader}>
-            <Text style={[st.sideGameTickerTitle, { fontFamily: GEO }]}>SIDE GAMES</Text>
+            <Text style={[st.sideGameTickerTitle, { fontFamily: GEO }]} maxFontSizeMultiplier={1.3}>SIDE GAMES</Text>
             <Ionicons name="chevron-up" size={14} color="rgba(255,255,255,0.6)" />
           </View>
           {sideGameKeys.map((key) => (
-            <Text key={key} style={st.sideGameTickerLine}>
+            <Text key={key} style={st.sideGameTickerLine} maxFontSizeMultiplier={1.3}>
               {SIDE_GAME_DISPLAY[key] ?? key}: Active
             </Text>
           ))}

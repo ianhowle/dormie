@@ -2502,6 +2502,13 @@ function TripDetailScreenInner() {
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.id}
+          getItemLayout={(_data, index) => ({
+            length: 80,
+            offset: 80 * index,
+            index,
+          })}
+          windowSize={5}
+          removeClippedSubviews={true}
           contentContainerStyle={s.playerRowScroll}
           style={[s.playerRowContainer, { backgroundColor: c.bg }]}
           renderItem={({ item }) => {
