@@ -42,13 +42,24 @@ export type ScorecardData = {
   source: 'api' | 'community' | 'none';
 };
 
+/** Strip common golf prefixes/suffixes for fuzzy name comparison. */
+const stripGolfWords = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/^the\s+/i, '')
+    .replace(/\s*(golf\s*(course|club)|country\s*club|links|resort|club)\s*/gi, ' ')
+    .replace(/[-–—]/g, ' ')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 export const coursesService = {
-  /** Fuzzy search courses by name in Supabase. */
+  /** Fuzzy search courses by name and location in Supabase. */
   async search(query: string, limit = 20): Promise<Course[]> {
     const { data, error } = await supabase
       .from('courses')
       .select('*')
-      .ilike('name', `%${query}%`)
+      .or(`name.ilike.%${query}%,location.ilike.%${query}%`)
       .limit(limit);
     if (error) throw error;
     return data as Course[];
@@ -219,64 +230,64 @@ export const coursesService = {
       source: 'local' as const,
     }));
 
-    const normalize = (n: string) =>
-      n.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-
-    const seen = new Set(local.map((r) => normalize(r.name)));
+    // Track both full-normalized and stripped (no golf words) forms for dedup
+    const seenFull = new Set<string>();
+    const seenStripped = new Set<string>();
     const deduped = [...local];
+
+    const addToSeen = (name: string) => {
+      seenFull.add(name.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim());
+      seenStripped.add(stripGolfWords(name));
+    };
+    const isDuplicate = (name: string) => {
+      const full = name.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+      const stripped = stripGolfWords(name);
+      for (const existing of seenFull) {
+        if (existing.includes(full) || full.includes(existing)) return true;
+      }
+      for (const existing of seenStripped) {
+        if (existing.includes(stripped) || stripped.includes(existing)) return true;
+      }
+      return false;
+    };
+
+    for (const r of local) addToSeen(r.name);
 
     // 2. Hit GolfCourseAPI for courses not in the seed list (has golf-specific data)
     const apiResults = await this.searchAPI(query);
     for (const course of apiResults) {
       const name = course.club_name ?? course.name ?? '';
-      const cNorm = normalize(name);
-      let isDup = false;
-      for (const existing of seen) {
-        if (existing.includes(cNorm) || cNorm.includes(existing)) {
-          isDup = true;
-          break;
-        }
-      }
-      if (!isDup && name) {
-        seen.add(cNorm);
-        const city = course.city ?? course.location?.city ?? '';
-        const state = course.state ?? course.location?.state ?? '';
-        const teeBoxes = this.parseTeeBoxes(course);
-        const maleTees = teeBoxes.filter((t) => t.gender === 'male');
-        const defaultTee = maleTees[0] ?? teeBoxes[0];
-        const par = defaultTee?.par ?? 72;
+      if (!name || isDuplicate(name)) continue;
+      addToSeen(name);
 
-        deduped.push({
-          id: `gca_${course.id ?? cNorm}`,
-          name,
-          par,
-          city,
-          state,
-          location: course.location_string ?? (city && state ? `${city}, ${state}` : ''),
-          source: 'golfapi' as const,
-        });
+      const city = course.city ?? course.location?.city ?? '';
+      const state = course.state ?? course.location?.state ?? '';
+      const teeBoxes = this.parseTeeBoxes(course);
+      const maleTees = teeBoxes.filter((t) => t.gender === 'male');
+      const defaultTee = maleTees[0] ?? teeBoxes[0];
+      const par = defaultTee?.par ?? 72;
 
-        // Cache to Supabase in background so future searches are instant
-        this.cacheAPICoursToSupabase(course, teeBoxes, par, defaultTee).catch(() => {});
-      }
+      deduped.push({
+        id: `gca_${course.id ?? stripGolfWords(name)}`,
+        name,
+        par,
+        city,
+        state,
+        location: course.location_string ?? (city && state ? `${city}, ${state}` : ''),
+        source: 'golfapi' as const,
+      });
+
+      // Cache to Supabase in background so future searches are instant
+      this.cacheAPICoursToSupabase(course, teeBoxes, par, defaultTee).catch(() => {});
     }
 
     // 3. Fall back to Google Places for location/photos only (no golf-specific data)
     if (deduped.length < 5) {
       const googleResults = await this.searchGooglePlaces(query);
       for (const g of googleResults) {
-        const gNorm = normalize(g.name);
-        let isDup = false;
-        for (const existing of seen) {
-          if (existing.includes(gNorm) || gNorm.includes(existing)) {
-            isDup = true;
-            break;
-          }
-        }
-        if (!isDup) {
-          seen.add(gNorm);
-          deduped.push(g);
-        }
+        if (isDuplicate(g.name)) continue;
+        addToSeen(g.name);
+        deduped.push(g);
       }
     }
 

@@ -196,15 +196,23 @@ function CourseSearch({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Instant local results from mock data — match partial names so both
-  // "Hermitage Golf Course - Presidents Reserve" and "Generals Retreat" appear
+  // "Hermitage Golf Course - Presidents Reserve" and "Generals Retreat" appear.
+  // Also matches with common golf words stripped (e.g. "Indian Wells" matches
+  // "Indian Wells Golf Resort - Celebrity Course").
   const localResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length === 0) return [];
-    // Split query into words to match each word independently
     const words = q.split(/\s+/).filter(Boolean);
     return ALL_COURSES.filter((cr) => {
       const haystack = `${cr.name} ${cr.city} ${cr.state}`.toLowerCase();
-      return words.every((w) => haystack.includes(w));
+      if (words.every((w) => haystack.includes(w))) return true;
+      // Also try with golf words stripped from course name
+      const stripped = cr.name.toLowerCase()
+        .replace(/^the\s+/i, '')
+        .replace(/\s*(golf\s*(course|club)|country\s*club|links|resort|club)\s*/gi, ' ')
+        .replace(/\s+/g, ' ').trim();
+      const strippedHaystack = `${stripped} ${cr.city} ${cr.state}`.toLowerCase();
+      return words.every((w) => strippedHaystack.includes(w));
     }).slice(0, 8);
   }, [query]);
 
@@ -234,29 +242,46 @@ function CourseSearch({
   const results = useMemo(() => {
     const normalize = (n: string) =>
       n.toLowerCase().replace(/[-–—]/g, ' ').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-    const seenNames = new Set<string>();
+    // Also strip common golf words so "Classic Club" matches "The Classic Club"
+    const stripGolf = (n: string) =>
+      n.toLowerCase()
+        .replace(/^the\s+/i, '')
+        .replace(/\s*(golf\s*(course|club)|country\s*club|links|resort|club)\s*/gi, ' ')
+        .replace(/[-–—]/g, ' ')
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const seenFull = new Set<string>();
+    const seenStripped = new Set<string>();
     const merged: typeof localResults = [];
 
-    // Helper: check if name is duplicate of any already-seen name
     const isDup = (name: string) => {
-      const norm = normalize(name);
-      for (const existing of seenNames) {
-        if (existing.includes(norm) || norm.includes(existing)) return true;
+      const full = normalize(name);
+      const stripped = stripGolf(name);
+      for (const existing of seenFull) {
+        if (existing.includes(full) || full.includes(existing)) return true;
+      }
+      for (const existing of seenStripped) {
+        if (existing.includes(stripped) || stripped.includes(existing)) return true;
       }
       return false;
+    };
+    const addSeen = (name: string) => {
+      seenFull.add(normalize(name));
+      seenStripped.add(stripGolf(name));
     };
 
     // Local results first (verified data, higher quality)
     for (const r of localResults) {
       if (!isDup(r.name)) {
-        seenNames.add(normalize(r.name));
+        addSeen(r.name);
         merged.push(r);
       }
     }
     // Then remote results (Supabase + Google Places)
     for (const r of remoteResults) {
       if (!isDup(r.name)) {
-        seenNames.add(normalize(r.name));
+        addSeen(r.name);
         merged.push(r);
       }
     }
