@@ -6,9 +6,9 @@ import { GEO } from '../../theme/fonts';
 import type { HoleData, HoleScore } from '../../scoring/types';
 import { scoringStyles as st } from './styles';
 
+const DARK_GREEN = '#1E4D2B';
 /** Accessible gold for text on dark green — passes WCAG AA 4.5:1 */
-const GOLD_ON_GREEN = '#D4AF37';
-const DARK_GREEN = DARK_GREEN;
+const GOLD_A11Y = '#D4AF37';
 
 export const HoleNavigator = memo(function HoleNavigator({
   holes,
@@ -51,11 +51,11 @@ export const HoleNavigator = memo(function HoleNavigator({
             st.holeChip,
             {
               backgroundColor: isCurrent
-                ? GOLD_ON_GREEN
+                ? '#C9A227'
                 : hasScores
                   ? `${c.teal}25`
                   : c.elevated,
-              borderColor: isCurrent ? GOLD_ON_GREEN : hasScores ? c.teal : c.border,
+              borderColor: isCurrent ? '#C9A227' : hasScores ? c.teal : c.border,
             },
             isCurrent && { borderLeftWidth: 3, borderLeftColor: DARK_GREEN },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -152,10 +152,10 @@ export const NavButtons = memo(function NavButtons({
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
-          <Text style={[st.navBtnText, { color: '#D4AF37', fontFamily: GEO }]} maxFontSizeMultiplier={1.3}>
+          <Text style={[st.navBtnText, { color: GOLD_A11Y, fontFamily: GEO }]} maxFontSizeMultiplier={1.3}>
             Finish Round
           </Text>
-          <Ionicons name="checkmark-circle" size={18} color="#D4AF37" />
+          <Ionicons name="checkmark-circle" size={18} color={GOLD_A11Y} />
         </Pressable>
       ) : (
         <Pressable
