@@ -53,16 +53,55 @@ const stripGolfWords = (name: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/** Strip common suffixes from tee display names (e.g. "Gold CB" → "Gold"). */
+export const stripTeeSuffix = (name: string) =>
+  name.replace(/\s+(CB|Combo|Course)$/i, '').trim();
+
 export const coursesService = {
-  /** Fuzzy search courses by name and location in Supabase. */
+  /** Fuzzy search courses by name and location in Supabase.
+   *  Strips "The " prefix and common golf suffixes so "Classic Club" matches "The Classic Club".
+   */
   async search(query: string, limit = 20): Promise<Course[]> {
+    // Try original query first
     const { data, error } = await supabase
       .from('courses')
       .select('*')
       .or(`name.ilike.%${query}%,location.ilike.%${query}%`)
       .limit(limit);
     if (error) throw error;
-    return data as Course[];
+
+    const results = (data ?? []) as Course[];
+
+    // If we got results, return them
+    if (results.length > 0) return results;
+
+    // Strip "The " prefix and try again
+    const noThe = query.replace(/^the\s+/i, '').trim();
+    if (noThe !== query) {
+      const { data: d2 } = await supabase
+        .from('courses')
+        .select('*')
+        .or(`name.ilike.%${noThe}%,location.ilike.%${noThe}%`)
+        .limit(limit);
+      if (d2 && d2.length > 0) return d2 as Course[];
+    }
+
+    // Strip common golf words and try again
+    const stripped = query
+      .replace(/^the\s+/i, '')
+      .replace(/\s*(golf\s*(course|club)|country\s*club|golf\s*links|resort)\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (stripped && stripped !== query && stripped !== noThe) {
+      const { data: d3 } = await supabase
+        .from('courses')
+        .select('*')
+        .or(`name.ilike.%${stripped}%,location.ilike.%${stripped}%`)
+        .limit(limit);
+      if (d3 && d3.length > 0) return d3 as Course[];
+    }
+
+    return results;
   },
 
   /** Get a single course by ID. */
@@ -143,9 +182,10 @@ export const coursesService = {
           yards: h.yardage ?? h.yards ?? 0,
         }));
 
+        const rawName = t.tee_name ?? t.name ?? 'Unknown';
         tees.push({
-          name: t.tee_name ?? t.name ?? 'Unknown',
-          color: this.teeNameToColor(t.tee_name ?? t.name ?? ''),
+          name: stripTeeSuffix(rawName),
+          color: this.teeNameToColor(rawName),
           rating: t.course_rating ?? t.rating ?? 72.0,
           slope: t.slope_rating ?? t.slope ?? 113,
           yards: t.total_yards ?? t.yards ?? 0,
@@ -257,11 +297,43 @@ export const coursesService = {
     const apiResults = await this.searchAPI(query);
     for (const course of apiResults) {
       const name = course.club_name ?? course.name ?? '';
-      if (!name || isDuplicate(name)) continue;
-      addToSeen(name);
+      if (!name) continue;
 
       const city = course.city ?? course.location?.city ?? '';
       const state = course.state ?? course.location?.state ?? '';
+
+      // Multi-course resort check: if the API returns a generic club name
+      // (e.g. "Indian Wells Golf Resort") but Supabase has individual courses
+      // (e.g. "Indian Wells Golf Resort - Celebrity Course"), show those instead.
+      const strippedApiName = stripGolfWords(name);
+      const seededIndividual = localResults.filter((lr) => {
+        const strippedLocal = stripGolfWords(lr.name);
+        return strippedLocal !== strippedApiName &&
+               (lr.name.toLowerCase().includes(name.toLowerCase()) ||
+                strippedLocal.includes(strippedApiName));
+      });
+      if (seededIndividual.length > 1) {
+        // We found multiple seeded sub-courses for this resort — add them instead
+        for (const sub of seededIndividual) {
+          if (!isDuplicate(sub.name)) {
+            addToSeen(sub.name);
+            deduped.push({
+              id: sub.id,
+              name: sub.name,
+              par: (sub as any).par ?? 72,
+              city: (sub as any).city ?? city,
+              state: (sub as any).state ?? state,
+              location: (sub as any).location ?? '',
+              source: 'local' as const,
+            });
+          }
+        }
+        continue;
+      }
+
+      if (isDuplicate(name)) continue;
+      addToSeen(name);
+
       const teeBoxes = this.parseTeeBoxes(course);
       const maleTees = teeBoxes.filter((t) => t.gender === 'male');
       const defaultTee = maleTees[0] ?? teeBoxes[0];

@@ -24,7 +24,7 @@ import { cardShadowDark, cardShadowLight } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { PLAYED_SORTED, SEED_COMMUNITY_COURSES as COMMUNITY_COURSES } from '../../src/data/courses';
-import { coursesService, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
+import { coursesService, stripTeeSuffix, type ScorecardData, type TeeBox } from '../../src/services/courses.service';
 import { usgaService, type USGATeeBox } from '../../src/services/usga.service';
 import { friendsService } from '../../src/services/friends.service';
 import { seasonsService } from '../../src/services/seasons.service';
@@ -47,8 +47,8 @@ import {
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
-/** Strip " CB" suffix from tee names (e.g. "Gold CB" → "Gold") */
-const stripCB = (name: string) => name.replace(/\s+CB$/i, '');
+/** Strip common tee name suffixes — delegates to shared stripTeeSuffix */
+const stripCB = stripTeeSuffix;
 
 const FORMAT_DESCRIPTIONS: Record<string, string> = {
   'Stableford': 'Points awarded per hole based on net score relative to par',
