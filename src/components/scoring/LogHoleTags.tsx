@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { GEO } from '../../theme/fonts';
 import type { HoleScore } from '../../scoring/types';
 import { scoringStyles as st } from './styles';
 
-export function LogHoleTags({
+export const LogHoleTags = memo(function LogHoleTags({
   myScore,
   sideGameKeys,
   onToggleTag,
@@ -55,4 +55,4 @@ export function LogHoleTags({
       </View>
     </View>
   );
-}
+});

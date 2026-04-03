@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
 import { scoringStyles as st } from './styles';
 
-export function PlayerTabs({
+export const PlayerTabs = memo(function PlayerTabs({
   players,
   soloPlayerIdx,
   onSoloPlayerChange,
@@ -39,4 +39,4 @@ export function PlayerTabs({
       </Pressable>
     </View>
   );
-}
+});

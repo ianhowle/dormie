@@ -421,10 +421,29 @@ function PlayerRow({
   );
 }
 
+const PLAYER_ROW_HEIGHT = 56;
+
 function LeaderboardTable({ players, myId, scope }: { players: LeaderboardPlayer[]; myId?: string; scope: LeaderboardScope }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
+
+  const renderPlayer = useCallback(({ item, index }: { item: LeaderboardPlayer; index: number }) => (
+    <PlayerRow
+      key={item.id}
+      player={item}
+      position={index + 1}
+      isMe={item.id === myId}
+    />
+  ), [myId]);
+
+  const keyExtractor = useCallback((item: LeaderboardPlayer) => item.id, []);
+
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: PLAYER_ROW_HEIGHT,
+    offset: PLAYER_ROW_HEIGHT * index,
+    index,
+  }), []);
 
   return (
     <View style={styles.tableWrap}>
@@ -437,14 +456,15 @@ function LeaderboardTable({ players, myId, scope }: { players: LeaderboardPlayer
       <View style={[styles.table, { borderColor: c.border, borderWidth: 1, backgroundColor: c.cardBg }, isDark ? cardShadowDark : cardShadowLight]}>
         <TableHeader />
         <GoldDivider />
-        {players.map((p, i) => (
-          <PlayerRow
-            key={p.id}
-            player={p}
-            position={i + 1}
-            isMe={p.id === myId}
-          />
-        ))}
+        <FlatList
+          data={players}
+          renderItem={renderPlayer}
+          keyExtractor={keyExtractor}
+          getItemLayout={getItemLayout}
+          windowSize={5}
+          removeClippedSubviews={true}
+          scrollEnabled={false}
+        />
       </View>
     </View>
   );

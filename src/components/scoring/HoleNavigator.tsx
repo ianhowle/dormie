@@ -101,7 +101,7 @@ export const HoleNavigator = memo(function HoleNavigator({
   );
 });
 
-export function NavButtons({
+export const NavButtons = memo(function NavButtons({
   canPrev,
   canNext,
   isLast,
@@ -164,4 +164,4 @@ export function NavButtons({
       )}
     </View>
   );
-}
+});

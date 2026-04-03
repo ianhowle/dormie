@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
@@ -8,7 +8,7 @@ import { sounds } from '../../lib/sounds';
 import type { PlayerConfig, BBBHolePoints, MomentType } from '../../scoring/types';
 import { scoringStyles as st } from './styles';
 
-export function BBBPrompt({
+export const BBBPrompt = memo(function BBBPrompt({
   bangoHoleNumber,
   players,
   bbbHolePoints,
@@ -67,4 +67,4 @@ export function BBBPrompt({
       </View>
     </View>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
-import { DormieMoment } from '../src/components/DormieMoment';
+const DormieMoment = lazy(() => import('../src/components/DormieMoment').then(m => ({ default: m.DormieMoment })));
 import { SideGameToast } from '../src/components/SideGameToast';
 import { HoleTransitionBanner } from '../src/components/HoleTransitionBanner';
 import { Confetti } from '../src/components/Confetti';
@@ -75,7 +75,7 @@ import { WolfModal } from '../src/components/scoring/WolfModal';
 import { BBBPrompt } from '../src/components/scoring/BBBPrompt';
 import { LogHoleTags } from '../src/components/scoring/LogHoleTags';
 import { RoundContextBanner } from '../src/components/scoring/RoundContextBanner';
-import { PostRoundSummary } from '../src/components/scoring/PostRoundSummary';
+const PostRoundSummary = lazy(() => import('../src/components/scoring/PostRoundSummary'));
 import { scoringStyles as st, postRoundStyles as ps } from '../src/components/scoring/styles';
 
 // ─── Helpers (kept inline as they're small) ──────────────────────────
@@ -553,7 +553,7 @@ function ScoringScreenInner() {
     });
   }, [allScores, holes, players]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     // Auto-save current hole scores if not yet saved
     players.forEach((p) => {
       if (!currentHoleScores.has(p.id)) {
@@ -663,9 +663,9 @@ function ScoringScreenInner() {
     } else if (currentHoleIdx < holes.length - 1) {
       setCurrentHoleIdx(currentHoleIdx + 1);
     }
-  };
+  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length]);
 
-  const handlePuttDistSelect = (bucket: string) => {
+  const handlePuttDistSelect = useCallback((bucket: string) => {
     const playersWithPutts = players.filter((p) => {
       const s = getPlayerScore(p.id);
       return s.putts > 0;
@@ -689,15 +689,15 @@ function ScoringScreenInner() {
         setCurrentHoleIdx(currentHoleIdx + 1);
       }
     }
-  };
+  }, [players, getPlayerScore, puttDistPrompt.playerIdx, puttDistPrompt.holeNumber, currentHoleIdx, holes.length]);
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     if (currentHoleIdx > 0) {
       setCurrentHoleIdx(currentHoleIdx - 1);
     }
-  };
+  }, [currentHoleIdx]);
 
-  const handleFinish = () => {
+  const handleFinish = useCallback(() => {
     // Save current hole
     players.forEach((p) => {
       if (!currentHoleScores.has(p.id)) {
@@ -707,7 +707,7 @@ function ScoringScreenInner() {
     generateEvents(currentHole.number);
     // Feature 10: Show confirmation first
     setShowConfirmation(true);
-  };
+  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, currentHole.number]);
 
   // Feature 4: Best Ball team scores
   const bestBallTeamScores = useMemo(() => {
@@ -874,6 +874,7 @@ function ScoringScreenInner() {
 
   if (showSummary) {
     return (
+      <Suspense fallback={<View style={{ flex: 1, backgroundColor: c.bg }} />}>
       <PostRoundSummary
         players={players}
         holes={holes}
@@ -998,6 +999,7 @@ function ScoringScreenInner() {
           }
         }}
       />
+      </Suspense>
     );
   }
 
@@ -2116,13 +2118,17 @@ function ScoringScreenInner() {
       </Modal>
 
       {/* Item 31: Dormie Moment overlay */}
-      <DormieMoment
-        visible={dormieMoment.visible}
-        type={dormieMoment.type}
-        playerName={dormieMoment.playerName}
-        detail={dormieMoment.detail}
-        onDismiss={() => setDormieMoment((prev) => ({ ...prev, visible: false }))}
-      />
+      {dormieMoment.visible && (
+        <Suspense fallback={null}>
+          <DormieMoment
+            visible={dormieMoment.visible}
+            type={dormieMoment.type}
+            playerName={dormieMoment.playerName}
+            detail={dormieMoment.detail}
+            onDismiss={() => setDormieMoment((prev) => ({ ...prev, visible: false }))}
+          />
+        </Suspense>
+      )}
 
       {/* Item 32: Side Game Toast */}
       {sideGameToastEvents.length > 0 && (

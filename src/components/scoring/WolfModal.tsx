@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
@@ -8,7 +8,7 @@ import type { PlayerConfig, HoleData, WolfHoleState } from '../../scoring/types'
 import { pName } from '../../scoring/calculations';
 import { scoringStyles as st } from './styles';
 
-export function WolfModal({
+export const WolfModal = memo(function WolfModal({
   currentWolfId,
   players,
   currentHole,
@@ -105,4 +105,4 @@ export function WolfModal({
       </View>
     </View>
   );
-}
+});

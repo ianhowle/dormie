@@ -377,6 +377,8 @@ function PlayerStatsModal({
 }
 
 // ─── Standings Table ──────────────────────────────────────────────────
+const STANDINGS_ROW_HEIGHT = 52;
+
 function StandingsTab({
   standings,
   weeks,
@@ -392,8 +394,75 @@ function StandingsTab({
   const c = theme.colors;
   const completedWeeks = weeks.filter((w) => w.completed);
 
+  const renderStandingRow = useCallback(({ item: p, index: i }: { item: Standing; index: number }) => {
+    const isCut = i >= cutLineIndex;
+    const isAboveCut = i === cutLineIndex;
+
+    return (
+      <View>
+        {isAboveCut && (
+          <View style={styles.cutLine}>
+            <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
+            <Text style={[styles.cutLineText, { color: c.urgent }]}>PROJECTED CUT</Text>
+            <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
+          </View>
+        )}
+
+        <Pressable
+          onPress={() => { haptics.light(); onPlayerTap(p); }}
+          style={[
+            styles.standingsRow,
+            { borderBottomColor: c.border, opacity: isCut ? 0.45 : 1 },
+          ]}
+        >
+          <Text
+            style={[
+              styles.srRank,
+              { color: i === 0 ? c.gold : i < 3 ? c.teal : c.textMuted, fontFamily: GEO },
+            ]}
+          >
+            {i + 1}
+          </Text>
+
+          <View style={styles.srPlayer}>
+            <Avatar id={p.playerId} name={p.name} size={28} />
+            <View>
+              <Text style={[styles.srName, { color: isCut ? c.textMuted : c.text }]} numberOfLines={1}>
+                {p.name}
+              </Text>
+              <Text style={[styles.srHcp, { color: c.textMuted }]}>{p.handicap} hcp</Text>
+            </View>
+          </View>
+
+          {completedWeeks.map((w, wi) => {
+            const pts = p.weekResults[wi];
+            const isMajorWeek = w.isMajor || w.isChampionship;
+            return (
+              <View key={w.number} style={[styles.srWeekCell, isMajorWeek && { backgroundColor: c.gold + '0D' }]}>
+                <Text
+                  style={[
+                    styles.srWeekVal,
+                    { color: pts === null ? c.textMuted : pts === 15 ? c.gold : c.text, fontFamily: GEO },
+                  ]}
+                >
+                  {pts ?? '—'}
+                </Text>
+              </View>
+            );
+          })}
+
+          <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>{p.points}</Text>
+        </Pressable>
+      </View>
+    );
+  }, [c, cutLineIndex, completedWeeks, onPlayerTap]);
+
+  const keyExtractor = useCallback((item: Standing) => item.playerId, []);
+
+  const hasPlayoffs = weeks.some((w) => w.isPlayoff);
+
   return (
-    <ScrollView style={styles.standingsContainer} showsVerticalScrollIndicator={false}>
+    <View style={styles.standingsContainer}>
       <View style={[styles.standingsHeader, { borderBottomColor: c.border }]}>
         <Text style={[styles.shRank, { color: c.textMuted }]}>#</Text>
         <Text style={[styles.shPlayer, { color: c.textMuted }]}>Player</Text>
@@ -410,74 +479,18 @@ function StandingsTab({
         <Text style={[styles.shTotal, { color: c.gold, fontFamily: GEO }]}>PTS</Text>
       </View>
 
-      {standings.map((p, i) => {
-        const isCut = i >= cutLineIndex;
-        const isAboveCut = i === cutLineIndex;
-
-        return (
-          <View key={p.playerId}>
-            {isAboveCut && (
-              <View style={styles.cutLine}>
-                <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
-                <Text style={[styles.cutLineText, { color: c.urgent }]}>PROJECTED CUT</Text>
-                <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
-              </View>
-            )}
-
-            <Pressable
-              onPress={() => { haptics.light(); onPlayerTap(p); }}
-              style={[
-                styles.standingsRow,
-                { borderBottomColor: c.border, opacity: isCut ? 0.45 : 1 },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.srRank,
-                  { color: i === 0 ? c.gold : i < 3 ? c.teal : c.textMuted, fontFamily: GEO },
-                ]}
-              >
-                {i + 1}
-              </Text>
-
-              <View style={styles.srPlayer}>
-                <Avatar id={p.playerId} name={p.name} size={28} />
-                <View>
-                  <Text style={[styles.srName, { color: isCut ? c.textMuted : c.text }]} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                  <Text style={[styles.srHcp, { color: c.textMuted }]}>{p.handicap} hcp</Text>
-                </View>
-              </View>
-
-              {completedWeeks.map((w, wi) => {
-                const pts = p.weekResults[wi];
-                const isMajorWeek = w.isMajor || w.isChampionship;
-                return (
-                  <View key={w.number} style={[styles.srWeekCell, isMajorWeek && { backgroundColor: c.gold + '0D' }]}>
-                    <Text
-                      style={[
-                        styles.srWeekVal,
-                        { color: pts === null ? c.textMuted : pts === 15 ? c.gold : c.text, fontFamily: GEO },
-                      ]}
-                    >
-                      {pts ?? '—'}
-                    </Text>
-                  </View>
-                );
-              })}
-
-              <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>{p.points}</Text>
-            </Pressable>
-          </View>
-        );
-      })}
-
-      {/* Playoff bracket */}
-      {weeks.some((w) => w.isPlayoff) && (
-        <PlayoffBracket standings={standings} cutLineIndex={cutLineIndex} />
-      )}
-    </ScrollView>
+      <FlatList
+        data={standings}
+        renderItem={renderStandingRow}
+        keyExtractor={keyExtractor}
+        windowSize={5}
+        removeClippedSubviews={true}
+        showsVerticalScrollIndicator={false}
+        ListFooterComponent={hasPlayoffs ? (
+          <PlayoffBracket standings={standings} cutLineIndex={cutLineIndex} />
+        ) : null}
+      />
+    </View>
   );
 }
 

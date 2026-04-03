@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +25,7 @@ function abbreviateCourseName(name: string): string {
     .trim();
 }
 
-export function HoleHeader({
+export const HoleHeader = memo(function HoleHeader({
   courseName,
   holeNumber,
   holePar,
@@ -183,4 +183,4 @@ export function HoleHeader({
       </View>
     </LinearGradient>
   );
-}
+});

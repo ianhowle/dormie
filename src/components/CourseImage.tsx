@@ -130,6 +130,7 @@ export function CourseImage({
           style={StyleSheet.absoluteFillObject}
           contentFit="cover"
           transition={300}
+          cachePolicy="memory-disk"
           onError={() => setImageError(true)}
         />
       ) : (
@@ -211,6 +212,7 @@ export function DestinationImage({
           style={StyleSheet.absoluteFillObject}
           contentFit="cover"
           transition={300}
+          cachePolicy="memory-disk"
           onError={() => setError(true)}
         />
       ) : (

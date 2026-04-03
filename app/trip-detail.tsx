@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, Suspense, lazy } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ import { CourseImage } from '../src/components/CourseImage';
 import GoldDivider from '../src/components/GoldDivider';
 import { TripCountdownRing } from '../src/components/TripCountdownRing';
 import { PulsingDot } from '../src/components/PulsingDot';
-import { RyderCupHub } from '../src/components/RyderCupHub';
+const RyderCupHub = lazy(() => import('../src/components/RyderCupHub').then(m => ({ default: m.RyderCupHub })));
 import { getDaysUntilTrip, MOCK_UPCOMING_TRIPS, type Trip, type TripStatus } from '../src/data/trips';
 import { useAuth } from '../src/lib/auth';
 import { haptics } from '../src/lib/haptics';
@@ -2239,7 +2239,7 @@ function TripDetailScreenInner() {
 
   // Ryder Cup trips get their own dedicated view
   if (trip.isRyderCup) {
-    return <RyderCupHub trip={trip} />;
+    return <Suspense fallback={<View style={{ flex: 1 }} />}><RyderCupHub trip={trip} /></Suspense>;
   }
 
   const daysUntil = getDaysUntilTrip(trip.startDate);

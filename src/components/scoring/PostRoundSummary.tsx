@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -727,7 +727,7 @@ function ShareCard({
   );
 }
 
-function PostRoundSummary({
+const PostRoundSummary = memo(function PostRoundSummary({
   players,
   holes,
   allScores,
@@ -872,7 +872,7 @@ function PostRoundSummary({
       </ScrollView>
     </View>
   );
-}
+});
 
 export default PostRoundSummary;
 export { PostRoundSummary };

@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  FlatList,
   Pressable,
   StyleSheet,
   StatusBar,
@@ -303,6 +304,8 @@ function ScoresList({ course }: { course: CourseDetailData }) {
 }
 
 // ─── Leaderboard table ────────────────────────────────────────────────
+const LB_ROW_HEIGHT = 52;
+
 function LeaderboardTable({
   rows,
   par,
@@ -313,6 +316,74 @@ function LeaderboardTable({
   const { theme } = useTheme();
   const c = theme.colors;
 
+  const renderRow = useCallback(({ item: row, index: i }: { item: LeaderboardRow; index: number }) => {
+    const pos = i + 1;
+    const medal = pos === 1 ? '\u{1F947}' : pos === 2 ? '\u{1F948}' : pos === 3 ? '\u{1F949}' : '';
+    const bgColor = row.isMe
+      ? `${c.teal}12`
+      : i % 2 === 0
+        ? c.cardBg
+        : c.elevated;
+
+    return (
+      <View
+        style={[
+          st.lbRow,
+          { backgroundColor: bgColor },
+          row.isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
+        ]}
+      >
+        <Text style={[st.lbColPos, st.lbPosText, { color: c.textMuted }]}>
+          {medal || pos}
+        </Text>
+        <View style={[st.lbColPlayer, st.lbPlayerCell]}>
+          <Avatar id={row.playerId} size={22} name={row.playerName} />
+          <View>
+            <Text
+              style={[
+                st.lbPlayerName,
+                { color: row.isMe ? c.teal : c.text },
+                row.isMe && { fontWeight: '700' },
+              ]}
+              numberOfLines={1}
+            >
+              {row.isMe ? 'You' : row.playerName}
+            </Text>
+            <Text style={[st.lbPlayerHcp, { color: c.textMuted }]}>
+              HCP {row.handicap}
+            </Text>
+          </View>
+        </View>
+        <Text
+          style={[
+            st.lbColToPar,
+            st.lbToParText,
+            { color: toParColor(row.toPar, c), fontFamily: GEO },
+          ]}
+        >
+          {formatToPar(row.toPar)}
+        </Text>
+        <Text
+          style={[
+            st.lbColScore,
+            st.lbScoreText,
+            { color: c.text, fontFamily: GEO },
+          ]}
+        >
+          {row.bestScore}
+        </Text>
+      </View>
+    );
+  }, [c]);
+
+  const keyExtractor = useCallback((item: LeaderboardRow) => item.playerId, []);
+
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: LB_ROW_HEIGHT,
+    offset: LB_ROW_HEIGHT * index,
+    index,
+  }), []);
+
   if (rows.length === 0) return null;
 
   return (
@@ -321,82 +392,21 @@ function LeaderboardTable({
         LEADERBOARD
       </Text>
       <View style={[st.lbTable, { borderColor: c.border }]}>
-        {/* Header */}
         <View style={[st.lbRow, { backgroundColor: '#1E4D2B' }]}>
           <Text style={[st.lbColPos, st.lbHeaderText]}>POS</Text>
           <Text style={[st.lbColPlayer, st.lbHeaderText]}>PLAYER</Text>
           <Text style={[st.lbColToPar, st.lbHeaderText]}>TO PAR</Text>
           <Text style={[st.lbColScore, st.lbHeaderText]}>SCORE</Text>
         </View>
-
-        {/* Rows */}
-        {rows.map((row, i) => {
-          const pos = i + 1;
-          const medal = pos === 1 ? '\u{1F947}' : pos === 2 ? '\u{1F948}' : pos === 3 ? '\u{1F949}' : '';
-          const bgColor = row.isMe
-            ? `${c.teal}12`
-            : i % 2 === 0
-              ? c.cardBg
-              : c.elevated;
-
-          return (
-            <View
-              key={row.playerId}
-              style={[
-                st.lbRow,
-                { backgroundColor: bgColor },
-                row.isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
-              ]}
-            >
-              {/* Position */}
-              <Text style={[st.lbColPos, st.lbPosText, { color: c.textMuted }]}>
-                {medal || pos}
-              </Text>
-
-              {/* Player */}
-              <View style={[st.lbColPlayer, st.lbPlayerCell]}>
-                <Avatar id={row.playerId} size={22} name={row.playerName} />
-                <View>
-                  <Text
-                    style={[
-                      st.lbPlayerName,
-                      { color: row.isMe ? c.teal : c.text },
-                      row.isMe && { fontWeight: '700' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {row.isMe ? 'You' : row.playerName}
-                  </Text>
-                  <Text style={[st.lbPlayerHcp, { color: c.textMuted }]}>
-                    HCP {row.handicap}
-                  </Text>
-                </View>
-              </View>
-
-              {/* To Par */}
-              <Text
-                style={[
-                  st.lbColToPar,
-                  st.lbToParText,
-                  { color: toParColor(row.toPar, c), fontFamily: GEO },
-                ]}
-              >
-                {formatToPar(row.toPar)}
-              </Text>
-
-              {/* Score */}
-              <Text
-                style={[
-                  st.lbColScore,
-                  st.lbScoreText,
-                  { color: c.text, fontFamily: GEO },
-                ]}
-              >
-                {row.bestScore}
-              </Text>
-            </View>
-          );
-        })}
+        <FlatList
+          data={rows}
+          renderItem={renderRow}
+          keyExtractor={keyExtractor}
+          getItemLayout={getItemLayout}
+          windowSize={5}
+          removeClippedSubviews={true}
+          scrollEnabled={false}
+        />
       </View>
     </View>
   );

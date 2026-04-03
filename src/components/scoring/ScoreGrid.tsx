@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
@@ -38,7 +38,7 @@ function toParColor(
 
 const formatToPar = fmtToPar;
 
-export function PlayerScoreInput({
+export const PlayerScoreInput = memo(function PlayerScoreInput({
   player,
   holePar,
   score,
@@ -486,4 +486,4 @@ export function PlayerScoreInput({
       )}
     </View>
   );
-}
+});

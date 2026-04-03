@@ -9,7 +9,7 @@ import { pName, SIDE_GAME_DISPLAY } from '../../scoring/calculations';
 import { scoringStyles as st } from './styles';
 
 // ─── Running panels ─────────────────────────────────────────────────
-export function RunningSkinsPanel({
+export const RunningSkinsPanel = memo(function RunningSkinsPanel({
   players, holes, allScores, currentHoleNumber,
 }: {
   players: PlayerConfig[];
@@ -59,9 +59,9 @@ export function RunningSkinsPanel({
       )}
     </View>
   );
-}
+});
 
-export function RunningDotsPanel({
+export const RunningDotsPanel = memo(function RunningDotsPanel({
   players, holes, allScores,
 }: {
   players: PlayerConfig[];
@@ -104,9 +104,9 @@ export function RunningDotsPanel({
       })}
     </View>
   );
-}
+});
 
-export function RunningNassauPanel({
+export const RunningNassauPanel = memo(function RunningNassauPanel({
   players, holes, allScores,
 }: {
   players: PlayerConfig[];
@@ -155,9 +155,9 @@ export function RunningNassauPanel({
       </View>
     </View>
   );
-}
+});
 
-export function RunningSnakePanel({
+export const RunningSnakePanel = memo(function RunningSnakePanel({
   players, holes, allScores,
 }: {
   players: PlayerConfig[];
@@ -187,9 +187,9 @@ export function RunningSnakePanel({
       </View>
     </View>
   );
-}
+});
 
-export function RunningWolfPanel({
+export const RunningWolfPanel = memo(function RunningWolfPanel({
   players, holes, allScores, wolfHoleDecisions, currentHoleNumber,
 }: {
   players: PlayerConfig[];
@@ -257,9 +257,9 @@ export function RunningWolfPanel({
       ))}
     </View>
   );
-}
+});
 
-export function RunningBBBPanel({
+export const RunningBBBPanel = memo(function RunningBBBPanel({
   players, bbbHolePoints,
 }: {
   players: PlayerConfig[];
@@ -298,7 +298,7 @@ export function RunningBBBPanel({
       </Text>
     </View>
   );
-}
+});
 
 // ─── Collapsible Side Game Ticker (used in header area) ─────────────
 export const SideGameTicker = memo(function SideGameTicker({
