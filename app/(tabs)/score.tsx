@@ -436,9 +436,14 @@ function CourseDetailsForm({
 
   return (
     <View style={st.courseDetailsWrap}>
-      <Text style={[st.courseDetailsHint, { color: c.textMuted, fontFamily: SANS }]}>
-        These defaults work for most courses. Edit if you know your course details.
-      </Text>
+      <View style={{ backgroundColor: 'rgba(201,162,39,0.10)', padding: 12, marginBottom: 12 }}>
+        <Text style={[{ color: c.gold, fontSize: 13, fontWeight: '700', fontFamily: SANS, marginBottom: 4 }]}>
+          Rating & slope not found for this course
+        </Text>
+        <Text style={[{ color: c.textMuted, fontSize: 12, lineHeight: 17, fontFamily: SANS }]}>
+          Enter the course rating and slope from the scorecard or tee markers. These numbers affect your handicap calculation.
+        </Text>
+      </View>
 
       {/* Par */}
       <ParEntry par={par} onChange={onParChange} />
@@ -1101,6 +1106,10 @@ export default function ScoreScreen() {
           const whiteIdx = sc.teeBoxes.findIndex((t) => t.name.toLowerCase().includes('white'));
           setSelectedTeeBox(whiteIdx >= 0 ? whiteIdx : 0);
         }
+      } else {
+        // No data found — clear pre-fills so user sees empty fields
+        setCustomRating('');
+        setCustomSlope('');
       }
 
       // Use API hole data if available, otherwise generate
