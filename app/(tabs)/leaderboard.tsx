@@ -646,12 +646,21 @@ export default function LeaderboardScreen() {
           <View style={styles.yourCard}>
             <Avatar id={me.id} size={40} name={me.name} />
             <View style={styles.yourInfo}>
-              <Text style={styles.yourPos}>
-                <Text style={{ fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }}>#{myPos}</Text> in Group
-              </Text>
-              <Text style={styles.yourMeta}>
-                {me.courses} courses · {me.rounds} rounds · {me.bestRound} best
-              </Text>
+              {me.rounds === 0 && leaderboardPlayers.length <= 1 ? (
+                <>
+                  <Text style={styles.yourPos}>Welcome to Dormie</Text>
+                  <Text style={styles.yourMeta}>Play rounds and add friends to see standings</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.yourPos}>
+                    <Text style={{ fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }}>#{myPos}</Text> in Group
+                  </Text>
+                  <Text style={styles.yourMeta}>
+                    {me.courses} courses · {me.rounds} rounds · {me.bestRound} best
+                  </Text>
+                </>
+              )}
             </View>
             <Text style={[styles.yourAvg, { fontFamily: GEO, fontWeight: '700', letterSpacing: -1 }]}>
               {me.rounds === 0 ? '--' : formatToPar(me.toPar)}

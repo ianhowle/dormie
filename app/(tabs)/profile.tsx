@@ -9,7 +9,6 @@ import {
   StatusBar,
   Animated,
   Alert,
-  Modal,
   RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -193,10 +192,10 @@ export default function ProfileScreen() {
   const [showIntegrity, setShowIntegrity] = useState(false);
   const [showDemoData, setShowDemoData] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
-  const [favoriteCourse, setFavoriteCourse] = useState<string | null>(null);
-  const [showCoursePicker, setShowCoursePicker] = useState(false);
+  const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
+    user?.user_metadata?.home_course ?? null
+  );
 
-  const COURSE_OPTIONS = ['Hermitage Golf Course', 'Gaylord Springs', 'TPC Scottsdale', 'We-Ko-Pa Saguaro', 'Grayhawk Raptor'];
   const FAVORITE_COURSE_STATS = { bestScore: 71, avgScore: 75.2, roundsPlayed: 12 };
 
   const cardShadow = isDark ? cardShadowDark : cardShadowLight;
@@ -385,14 +384,10 @@ export default function ProfileScreen() {
                 <Avatar id={profileUser.id} size={80} name={profileUser.name} accessibilityLabel={`${profileUser.name} profile photo`} />
                 <Pressable
                   style={s.avatarEditBtn}
-                  onPress={() =>
-                    Alert.alert('Change Avatar', 'Choose an avatar style', [
-                      { text: 'Initials' },
-                      { text: 'Course Theme' },
-                      { text: 'Upload Photo' },
-                      { text: 'Cancel', style: 'cancel' },
-                    ])
-                  }
+                  onPress={() => {
+                    haptics.light();
+                    router.push('/avatar-picker');
+                  }}
                 >
                   <Ionicons name="create-outline" size={12} color="#fff" />
                 </Pressable>
@@ -425,7 +420,7 @@ export default function ProfileScreen() {
             </Animated.View>
 
             <Pressable
-              onPress={() => Alert.alert('Edit Profile', 'Profile editing would open here.')}
+              onPress={() => { haptics.light(); router.push('/edit-profile'); }}
               style={({ pressed }) => [s.editBtn, { borderColor: 'rgba(201,162,39,0.4)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Ionicons name="pencil-outline" size={14} color={c.gold} />
@@ -764,7 +759,7 @@ export default function ProfileScreen() {
 
           {/* Favorite Course */}
           <Pressable
-            onPress={() => { haptics.light(); setShowCoursePicker(true); }}
+            onPress={() => { haptics.light(); router.push('/course-search'); }}
             style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             accessibilityLabel={`Favorite Course${favoriteCourse ? `: ${favoriteCourse}` : ''}`}
           >
@@ -811,42 +806,7 @@ export default function ProfileScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* ─── COURSE PICKER MODAL ──────────────────────────────── */}
-      <Modal visible={showCoursePicker} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={[s.modalContent, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-            <View style={s.modalHeader}>
-              <Text style={[s.modalTitle, { color: c.text, fontFamily: GEO }]}>Select Favorite Course</Text>
-              <Pressable
-                onPress={() => setShowCoursePicker(false)}
-                hitSlop={12}
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
-              >
-                <Ionicons name="close" size={24} color={c.textMuted} />
-              </Pressable>
-            </View>
-            {COURSE_OPTIONS.map((course) => (
-              <Pressable
-                key={course}
-                onPress={() => { setFavoriteCourse(course); setShowCoursePicker(false); showToast({ message: 'Favorite course saved', type: 'gold', icon: 'golf' }); }}
-                style={({ pressed }) => [s.modalRow, { borderColor: c.border, backgroundColor: favoriteCourse === course ? `${c.teal}26` : 'transparent', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-              >
-                <Ionicons name="golf" size={18} color={favoriteCourse === course ? c.teal : c.textMuted} />
-                <Text style={[s.modalRowText, { color: favoriteCourse === course ? c.teal : c.text }]}>{course}</Text>
-                {favoriteCourse === course && <Ionicons name="checkmark" size={18} color={c.teal} />}
-              </Pressable>
-            ))}
-            {favoriteCourse && (
-              <Pressable
-                onPress={() => { setFavoriteCourse(null); setShowCoursePicker(false); }}
-                style={({ pressed }) => [s.modalClearBtn, { borderColor: c.urgent, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-              >
-                <Text style={[s.modalClearText, { color: c.urgent }]}>Clear Favorite</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* Course picker now uses the /course-search screen */}
     </View>
   );
 }

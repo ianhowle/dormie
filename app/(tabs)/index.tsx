@@ -72,14 +72,7 @@ type SeasonStandingEntry = {
 };
 
 
-const MOCK_FAVORITE_COURSE = {
-  name: 'Hermitage Golf Course',
-  location: 'Old Hickory, TN',
-  timesPlayed: 34,
-  bestGross: 74,
-  bestNet: 68,
-  avgScore: 78.3,
-};
+// Favorite course is loaded from user profile — no hardcoded default
 
 const MOCK_ROUND_RESULT = {
   round: 4,
@@ -367,6 +360,7 @@ function UserProfileSection({ stats }: { stats: QuickStats }) {
   const c = theme.colors;
   const isDark = theme.isDark;
   const { user } = useAuth();
+  const router = useRouter();
   const name = user?.user_metadata?.name ?? 'Golfer';
 
   return (
@@ -375,7 +369,7 @@ function UserProfileSection({ stats }: { stats: QuickStats }) {
         <View style={{ position: 'relative' }}>
           <Avatar id={user?.id ?? '1'} size={56} name={name} />
           <Pressable
-            onPress={() => { haptics.light(); }}
+            onPress={() => { haptics.light(); router.push('/avatar-picker'); }}
             style={st.profileEditBtn}
           >
             <Ionicons name="camera" size={10} color="#fff" />
@@ -383,7 +377,9 @@ function UserProfileSection({ stats }: { stats: QuickStats }) {
         </View>
         <View style={st.profileInfo}>
           <Text style={[st.profileName, { color: c.text, fontFamily: GEO }]}>{name}</Text>
-          <Text style={[st.profileLocation, { color: c.textMuted, fontFamily: SANS }]}>Mount Juliet, TN</Text>
+          <Text style={[st.profileLocation, { color: c.textMuted, fontFamily: SANS }]}>
+            {[user?.user_metadata?.city, user?.user_metadata?.state].filter(Boolean).join(', ') || 'Set your location'}
+          </Text>
           <View style={st.profileStatsRow}>
             <View style={st.profileStatItem}>
               <Text style={[st.profileStatValue, { color: c.gold, fontFamily: GEO }]}>
@@ -804,50 +800,33 @@ function QuickActions() {
   );
 }
 
-// ─── Favorite Course Section ─────────────────────────────────────────
-function FavoriteCourseSection() {
+// ─── Favorite Course Section — only shown if user has a home course ──
+function FavoriteCourseSection({ courseName }: { courseName: string | null }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
-  const fav = MOCK_FAVORITE_COURSE;
+  const router = useRouter();
+
+  if (!courseName) return null;
 
   return (
     <View style={{ marginTop: 24 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>FAVORITE COURSE</Text>
-        <Pressable onPress={() => { haptics.light(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+        <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>HOME COURSE</Text>
+        <Pressable onPress={() => { haptics.light(); router.push('/course-search'); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           <Text style={{ color: c.teal, fontSize: 11, fontWeight: '600', fontFamily: SANS }}>Change</Text>
         </Pressable>
       </View>
       <GoldDivider style={{ marginBottom: 12 }} />
       <View style={[{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }, isDark ? cardShadowDark : cardShadowLight]}>
-        {/* Dark gradient overlay simulating a course photo background */}
         <LinearGradient
           colors={['#1E4D2B', '#0D2818']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{ padding: 16 }}
         >
-          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', fontFamily: GEO }}>{fav.name}</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontFamily: SANS, marginTop: 2 }}>{fav.location}</Text>
-          <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
-            <View>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>PLAYED</Text>
-              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.timesPlayed}</Text>
-            </View>
-            <View>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>BEST</Text>
-              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestGross}</Text>
-            </View>
-            <View>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>NET</Text>
-              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.bestNet}</Text>
-            </View>
-            <View>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 }}>AVG</Text>
-              <Text style={{ color: '#C9A227', fontSize: 18, fontWeight: '700', fontFamily: GEO }}>{fav.avgScore.toFixed(1)}</Text>
-            </View>
-          </View>
+          <Ionicons name="golf" size={20} color="#C9A227" />
+          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', fontFamily: GEO, marginTop: 4 }}>{courseName}</Text>
         </LinearGradient>
       </View>
     </View>
@@ -1414,8 +1393,8 @@ export default function HomeScreen() {
             </>
           )}
 
-          {/* Favorite Course — always visible */}
-          <FavoriteCourseSection />
+          {/* Favorite Course — only if user has a home course */}
+          <FavoriteCourseSection courseName={user?.user_metadata?.home_course ?? null} />
 
           {/* My Groups */}
           <MyGroupsSection

@@ -87,7 +87,7 @@ export function LeaderboardGhostEmpty() {
           Add friends and log rounds to see who's on top.
         </Text>
         <Pressable
-          onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
+          onPress={() => { haptics.light(); router.push('/add-friends'); }}
           style={({ pressed }) => [es.btn, { backgroundColor: '#006747' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
         >
           <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />

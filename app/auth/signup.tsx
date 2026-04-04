@@ -10,6 +10,8 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +26,13 @@ import { haptics } from '../../src/lib/haptics';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 const TOP_ZONE = SCREEN_H * 0.3;
+
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN',
+  'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH',
+  'NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
+  'VT','VA','WA','WV','WI','WY',
+];
 
 // ─── Pinstripe overlay ───────────────────────────────────────────────
 function Pinstripes() {
@@ -67,16 +76,12 @@ function GoldFlash({
     textOpacity.setValue(0);
 
     Animated.sequence([
-      // Gold flash fades in
       Animated.timing(flashOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-      // Flash fades out, text fades in
       Animated.parallel([
         Animated.timing(flashOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
         Animated.timing(textOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
       ]),
-      // Hold
       Animated.delay(1200),
-      // Fade out
       Animated.timing(textOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
     ]).start(() => onComplete());
   }, [flashOpacity, textOpacity, onComplete]);
@@ -101,10 +106,12 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [city, setCity] = useState('');
+  const [stateVal, setStateVal] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showFlash, setShowFlash] = useState(false);
+  const [showStatePicker, setShowStatePicker] = useState(false);
   const [nameFocused, setNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -137,13 +144,6 @@ export default function SignUpScreen() {
     setLoading(true);
     try {
       await authService.signUp(email, password, fullName.trim());
-
-      // Parse city/state if provided
-      const parts = city.split(',').map((s) => s.trim());
-      const cityVal = parts[0] || null;
-      const stateVal = parts[1] || null;
-
-      // Note: profile will be created by Supabase trigger or in onboarding
       setShowFlash(true);
     } catch (err: unknown) {
       showErrorMsg(err instanceof Error ? err.message : 'Sign up failed.');
@@ -261,18 +261,38 @@ export default function SignUpScreen() {
             </View>
           </View>
 
-          {/* City/State */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: c.gold }]}>CITY, STATE</Text>
-            <TextInput
-              value={city}
-              onChangeText={setCity}
-              placeholder="Nashville, TN"
-              placeholderTextColor={c.textMuted}
-              style={[styles.input, { backgroundColor: c.elevated, borderColor: cityFocused ? c.teal : c.border, color: c.text }]}
-              onFocus={() => setCityFocused(true)}
-              onBlur={() => setCityFocused(false)}
-            />
+          {/* City and State — side by side */}
+          <View style={styles.cityStateRow}>
+            <View style={{ flex: 7 }}>
+              <Text style={[styles.inputLabel, { color: c.gold }]}>CITY</Text>
+              <TextInput
+                value={city}
+                onChangeText={setCity}
+                placeholder="Nashville"
+                placeholderTextColor={c.textMuted}
+                style={[styles.input, { backgroundColor: c.elevated, borderColor: cityFocused ? c.teal : c.border, color: c.text }]}
+                onFocus={() => setCityFocused(true)}
+                onBlur={() => setCityFocused(false)}
+              />
+            </View>
+            <View style={{ flex: 3 }}>
+              <Text style={[styles.inputLabel, { color: c.gold }]}>STATE</Text>
+              <Pressable
+                onPress={() => setShowStatePicker(true)}
+                style={[styles.input, {
+                  backgroundColor: c.elevated,
+                  borderColor: c.border,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }]}
+              >
+                <Text style={{ color: stateVal ? c.text : c.textMuted, fontSize: 16 }}>
+                  {stateVal || 'TN'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={c.textMuted} />
+              </Pressable>
+            </View>
           </View>
 
           {/* Create button */}
@@ -295,6 +315,38 @@ export default function SignUpScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* State Picker Modal */}
+      <Modal visible={showStatePicker} transparent animationType="slide">
+        <View style={styles.stateModalOverlay}>
+          <View style={[styles.stateModalContent, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={styles.stateModalHeader}>
+              <Text style={[styles.stateModalTitle, { color: c.text, fontFamily: GEO }]}>Select State</Text>
+              <Pressable onPress={() => setShowStatePicker(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color={c.textMuted} />
+              </Pressable>
+            </View>
+            <FlatList
+              data={US_STATES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => { setStateVal(item); setShowStatePicker(false); }}
+                  style={({ pressed }) => [
+                    styles.stateRow,
+                    { borderBottomColor: c.border },
+                    stateVal === item && { backgroundColor: `${c.teal}26` },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.stateRowText, { color: stateVal === item ? c.teal : c.text }]}>{item}</Text>
+                  {stateVal === item && <Ionicons name="checkmark" size={18} color={c.teal} />}
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Gold flash overlay */}
       <GoldFlash
@@ -389,6 +441,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // City/State row
+  cityStateRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+
   // Create button
   createBtn: {
     backgroundColor: '#1E4D2B',
@@ -415,6 +474,42 @@ const styles = StyleSheet.create({
   },
   loginLabel: { fontSize: 13 },
   loginLink: { fontSize: 13, fontWeight: '600' },
+
+  // State picker modal
+  stateModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  stateModalContent: {
+    maxHeight: '60%',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+  },
+  stateModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  stateModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  stateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  stateRowText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
 
   // Gold flash overlay
   flashOverlay: {

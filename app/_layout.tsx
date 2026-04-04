@@ -77,6 +77,10 @@ function RootLayoutNav() {
         <Stack.Screen name="seasons" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="round-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="avatar-picker" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="add-friends" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="course-search" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </>
   );
