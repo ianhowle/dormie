@@ -192,7 +192,7 @@ export default function AddFriendsScreen() {
     haptics.light();
     try {
       await Share.share({
-        message: 'Join me on Dormie \u2014 the golf competition app for friend groups. Download here: https://dormie.app/invite',
+        message: 'Dormie — golf competition app for our crew. Tracks rounds, runs seasons, settles bets. Join up: https://expo.dev/projects/dormie (Download Expo Go first)',
       });
     } catch {}
   };
@@ -269,7 +269,7 @@ export default function AddFriendsScreen() {
     haptics.light();
     try {
       await Share.share({
-        message: `Hey ${contactName}, join me on Dormie \u2014 the golf competition app. Download here: https://dormie.app/invite`,
+        message: `Dormie — golf competition app for our crew. Tracks rounds, runs seasons, settles bets. Join up: https://expo.dev/projects/dormie (Download Expo Go first)`,
       });
     } catch {}
   };

@@ -156,7 +156,7 @@ export default function AvatarPickerScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
@@ -166,6 +166,8 @@ export default function AvatarPickerScreen() {
     ? user.user_metadata.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
     : '??';
 
+  const currentAvatarColor = user?.user_metadata?.avatar_color ?? null;
+
   const handleSelectColor = async (colorName: string) => {
     if (!user || saving) return;
     haptics.light();
@@ -174,6 +176,7 @@ export default function AvatarPickerScreen() {
       await authService.updateProfile(user.id, {
         avatar_color: colorName,
       });
+      await refreshUser();
       showToast({ message: 'Avatar updated', type: 'success', icon: 'checkmark-circle' });
       router.back();
     } catch {
@@ -230,6 +233,7 @@ export default function AvatarPickerScreen() {
       await authService.updateProfile(user.id, {
         avatar_color: `photo:${urlData.publicUrl}`,
       });
+      await refreshUser();
 
       showToast({ message: 'Photo uploaded', type: 'success', icon: 'checkmark-circle' });
       router.back();
@@ -269,28 +273,38 @@ export default function AvatarPickerScreen() {
           Solid color with your initials.
         </Text>
         <View style={styles.initialsGrid}>
-          {INITIALS_COLORS.map((item) => (
-            <Pressable
-              key={item.name}
-              onPress={() => handleSelectColor(item.name)}
-              disabled={saving}
-              style={({ pressed }) => [
-                styles.initialsOption,
-                { borderColor: c.border, ...cardShadow },
-                pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-              ]}
-            >
-              <LinearGradient
-                colors={item.colors as [string, string]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.initialsCircle}
+          {INITIALS_COLORS.map((item) => {
+            const isSelected = currentAvatarColor === item.name;
+            return (
+              <Pressable
+                key={item.name}
+                onPress={() => handleSelectColor(item.name)}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.initialsOption,
+                  { borderColor: isSelected ? '#C9A227' : c.border, borderWidth: isSelected ? 2 : 1, ...cardShadow },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
+                ]}
               >
-                <Text style={styles.initialsText}>{initials}</Text>
-              </LinearGradient>
-              <Text style={[styles.initialsName, { color: c.textMuted }]}>{item.name}</Text>
-            </Pressable>
-          ))}
+                <View style={{ position: 'relative' }}>
+                  <LinearGradient
+                    colors={item.colors as [string, string]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.initialsCircle}
+                  >
+                    <Text style={styles.initialsText}>{initials}</Text>
+                  </LinearGradient>
+                  {isSelected && (
+                    <View style={styles.selectedBadge}>
+                      <Ionicons name="checkmark" size={10} color="#141210" />
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.initialsName, { color: isSelected ? '#C9A227' : c.textMuted }]}>{item.name}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* ─── COURSE THEME ─── Distinct course-inspired designs */}
@@ -300,36 +314,46 @@ export default function AvatarPickerScreen() {
           Inspired by the world's most iconic courses.
         </Text>
         <View style={styles.courseGrid}>
-          {COURSE_THEMES.map((item) => (
-            <Pressable
-              key={item.name}
-              onPress={() => handleSelectColor(`theme:${item.name}`)}
-              disabled={saving}
-              style={({ pressed }) => [
-                styles.courseOption,
-                { borderColor: c.border, ...cardShadow },
-                pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-              ]}
-            >
-              {item.bgColors ? (
-                <LinearGradient
-                  colors={item.bgColors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.courseCircle}
-                >
-                  <CoursePatternOverlay type={item.patternType} color={item.patternColor} />
-                  <Text style={[styles.courseInitials, { color: item.initialsColor }]}>{initials}</Text>
-                </LinearGradient>
-              ) : (
-                <View style={[styles.courseCircle, { backgroundColor: item.bgColor }]}>
-                  <CoursePatternOverlay type={item.patternType} color={item.patternColor} />
-                  <Text style={[styles.courseInitials, { color: item.initialsColor }]}>{initials}</Text>
+          {COURSE_THEMES.map((item) => {
+            const isSelected = currentAvatarColor === `theme:${item.name}`;
+            return (
+              <Pressable
+                key={item.name}
+                onPress={() => handleSelectColor(`theme:${item.name}`)}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.courseOption,
+                  { borderColor: isSelected ? '#C9A227' : c.border, borderWidth: isSelected ? 2 : 1, ...cardShadow },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
+                ]}
+              >
+                <View style={{ position: 'relative' }}>
+                  {item.bgColors ? (
+                    <LinearGradient
+                      colors={item.bgColors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.courseCircle}
+                    >
+                      <CoursePatternOverlay type={item.patternType} color={item.patternColor} />
+                      <Text style={[styles.courseInitials, { color: item.initialsColor }]}>{initials}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={[styles.courseCircle, { backgroundColor: item.bgColor }]}>
+                      <CoursePatternOverlay type={item.patternType} color={item.patternColor} />
+                      <Text style={[styles.courseInitials, { color: item.initialsColor }]}>{initials}</Text>
+                    </View>
+                  )}
+                  {isSelected && (
+                    <View style={styles.selectedBadge}>
+                      <Ionicons name="checkmark" size={10} color="#141210" />
+                    </View>
+                  )}
                 </View>
-              )}
-              <Text style={[styles.courseName, { color: c.text }]}>{item.label}</Text>
-            </Pressable>
-          ))}
+                <Text style={[styles.courseName, { color: isSelected ? '#C9A227' : c.text }]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* ─── UPLOAD PHOTO ─── */}
@@ -340,7 +364,7 @@ export default function AvatarPickerScreen() {
           disabled={saving}
           style={({ pressed }) => [
             styles.uploadBtn,
-            { backgroundColor: c.cardBg, borderColor: c.border, ...cardShadow },
+            { backgroundColor: c.cardBg, borderColor: currentAvatarColor?.startsWith('photo:') ? '#C9A227' : c.border, borderWidth: currentAvatarColor?.startsWith('photo:') ? 2 : 1, ...cardShadow },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
@@ -450,6 +474,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     fontFamily: SANS,
+  },
+  selectedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#C9A227',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   uploadBtn: {
     flexDirection: 'row',

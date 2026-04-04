@@ -79,6 +79,17 @@ export const friendsService = {
     if (error) throw error;
   },
 
+  /** Get pending friend requests sent by this user. */
+  async getSentRequests(userId: string): Promise<FriendshipWithUser[]> {
+    const { data, error } = await supabase
+      .from('friendships')
+      .select('*, friend:users!friendships_friend_id_fkey(id, name, handicap_index, avatar_color, city, state)')
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+    if (error) throw error;
+    return data as FriendshipWithUser[];
+  },
+
   /** Search users by name for adding friends. */
   async searchUsers(query: string, limit = 20): Promise<User[]> {
     const { data, error } = await supabase

@@ -20,6 +20,7 @@ import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
 import { GetStartedChecklist } from '../../src/components/GetStartedChecklist';
 import { HomeFeedEmpty } from '../../src/components/EmptyStates';
+import { CourseImage } from '../../src/components/CourseImage';
 import { NudgeCard } from '../../src/components/ContextualNudges';
 import { NUDGE_TOASTS } from '../../src/components/ContextualNudges';
 import { getGreeting, getGreetingSubtitle, isMastersTheme, getEventAccentColor, isPlayoffsTheme } from '../../src/lib/greeting';
@@ -819,15 +820,15 @@ function FavoriteCourseSection({ courseName }: { courseName: string | null }) {
       </View>
       <GoldDivider style={{ marginBottom: 12 }} />
       <View style={[{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }, isDark ? cardShadowDark : cardShadowLight]}>
-        <LinearGradient
-          colors={['#1E4D2B', '#0D2818']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ padding: 16 }}
-        >
-          <Ionicons name="golf" size={20} color="#C9A227" />
-          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', fontFamily: GEO, marginTop: 4 }}>{courseName}</Text>
-        </LinearGradient>
+        <CourseImage courseName={courseName} height={100}>
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingTop: 24 }}
+          >
+            <Ionicons name="golf" size={20} color="#C9A227" />
+            <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', fontFamily: GEO, marginTop: 4 }}>{courseName}</Text>
+          </LinearGradient>
+        </CourseImage>
       </View>
     </View>
   );
@@ -1043,8 +1044,13 @@ export default function HomeScreen() {
       setPendingRequests(requests);
       setLastUpdated(new Date());
       setRealTrips(trips as any[]);
-      // Load active friends for checklist
-      friendsService.getActiveFriends(user.id).then(setRealFriends).catch(() => {});
+      // Load active friends + sent requests for checklist
+      Promise.all([
+        friendsService.getActiveFriends(user.id).catch(() => [] as FriendshipWithUser[]),
+        friendsService.getSentRequests(user.id).catch(() => [] as FriendshipWithUser[]),
+      ]).then(([active, sent]) => {
+        setRealFriends([...active, ...sent]);
+      });
 
       // Build upcoming items from real trips and seasons
       const now = new Date();
@@ -1259,7 +1265,7 @@ export default function HomeScreen() {
         )}
 
         {/* Get Started Checklist — new user experience */}
-        {!checklistDismissed && !loading && realRounds.length === 0 && realFriends.length === 0 && realTrips.length === 0 && (
+        {!checklistDismissed && !loading && !(!!user?.user_metadata?.handicap_index && !!user?.user_metadata?.home_course && realFriends.length > 0 && realRounds.length > 0) && (
           <GetStartedChecklist
             hasHandicap={!!user?.user_metadata?.handicap_index}
             hasHomeCourse={!!user?.user_metadata?.home_course}

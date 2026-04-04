@@ -31,6 +31,7 @@ import { isSoundEnabled, setSoundEnabled } from '../../src/lib/sounds';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { ProfileStatsEmpty, HandicapGraphEmpty } from '../../src/components/EmptyStates';
+import { CourseImage } from '../../src/components/CourseImage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -430,6 +431,23 @@ export default function ProfileScreen() {
             <GoldDivider style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} />
           </LinearGradient>
         </Animated.View>
+
+        {/* Home course photo banner */}
+        {favoriteCourse && (
+          <CourseImage
+            courseName={favoriteCourse}
+            height={120}
+            style={{ width: '100%' }}
+          >
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.6)']}
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingBottom: 10, paddingTop: 24 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700', fontFamily: GEO }}>{favoriteCourse}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, marginTop: 2 }}>Home Course</Text>
+            </LinearGradient>
+          </CourseImage>
+        )}
 
         <View style={s.body}>
           {/* ─── STATS GRID ──────────────────────────────────────── */}
