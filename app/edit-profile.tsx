@@ -92,16 +92,20 @@ export default function EditProfileScreen() {
     setSaving(true);
     try {
       const hcpNum = handicap ? parseFloat(handicap) : 0;
+      console.log('[EditProfile] Saving profile...', { name: name.trim(), city: city.trim(), state: stateVal, handicap: hcpNum });
       await authService.updateProfile(user.id, {
         name: name.trim(),
         city: city.trim() || null,
         state: stateVal || null,
         handicap_index: isNaN(hcpNum) ? 0 : hcpNum,
       });
+      console.log('[EditProfile] Profile saved successfully');
       showToast({ message: 'Profile updated', type: 'success', icon: 'checkmark-circle' });
       router.back();
-    } catch (err) {
-      showToast({ message: 'Failed to save profile', type: 'error' });
+    } catch (err: any) {
+      console.log('[EditProfile] Save failed:', err);
+      const errorMsg = err?.message || 'Failed to save profile';
+      showToast({ message: errorMsg, type: 'error', icon: 'alert-circle' });
     } finally {
       setSaving(false);
     }
@@ -170,6 +174,8 @@ export default function EditProfileScreen() {
             onChangeText={setCity}
             placeholder="Nashville"
             placeholderTextColor={c.textMuted}
+            keyboardType="default"
+            autoCorrect={false}
             style={[styles.input, { backgroundColor: c.elevated, borderColor: c.border, color: c.text }]}
           />
         </View>

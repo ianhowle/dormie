@@ -93,18 +93,13 @@ export default function CourseSearchScreen() {
     haptics.light();
     setSaving(true);
     try {
-      // Save as favorite course
-      const courseId = course.id ?? course.name;
-      await authService.updateProfile(user.id, {
-        // Store course name since we may not have an ID
-      } as any);
-      // We update the user metadata with home_course info
+      // Update auth metadata with home course info (triggers useAuth refresh)
       const { error } = await (await import('../src/lib/supabase')).supabase.auth.updateUser({
         data: { home_course: course.name, favorite_course_id: course.id ?? null },
       });
       if (error) throw error;
 
-      showToast({ message: `${course.name} set as home course`, type: 'gold', icon: 'golf' });
+      showToast({ message: `Home course set to ${course.name}`, type: 'gold', icon: 'golf' });
       router.back();
     } catch {
       showToast({ message: 'Failed to save home course', type: 'error' });

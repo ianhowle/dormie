@@ -45,23 +45,112 @@ function Pinstripes() {
   );
 }
 
+// 8 solid color options in a 2x4 grid
 const INITIALS_COLORS = [
   { name: 'Augusta Green', colors: ['#046A38', '#034D28'] },
-  { name: 'Pebble Blue', colors: ['#1E3A5F', '#0F2440'] },
-  { name: 'Championship Gold', colors: ['#B8860B', '#8B6508'] },
-  { name: 'Midnight Navy', colors: ['#002366', '#001744'] },
-  { name: 'Links Brown', colors: ['#8B4513', '#5C2E0D'] },
-  { name: 'Dormie Teal', colors: ['#006747', '#1E4D2B'] },
+  { name: 'Navy', colors: ['#002366', '#001744'] },
+  { name: 'Burgundy', colors: ['#6B1C2A', '#4A1420'] },
+  { name: 'Forest', colors: ['#2D6A3F', '#1E4D2B'] },
+  { name: 'Charcoal', colors: ['#3C3C3C', '#1A1A1A'] },
+  { name: 'Royal Blue', colors: ['#2A5CAD', '#1A3D7A'] },
+  { name: 'Deep Purple', colors: ['#4A2D73', '#2E1A4A'] },
+  { name: 'Copper', colors: ['#A0522D', '#6B3720'] },
 ];
 
+// Course-inspired designs with distinct visual patterns
 const COURSE_THEMES = [
-  { name: 'Augusta', colors: ['#046A38', '#034D28'], label: 'Augusta' },
-  { name: 'Pebble Beach', colors: ['#1E3A5F', '#0F2440'], label: 'Pebble' },
-  { name: 'St Andrews', colors: ['#8B4513', '#5C2E0D'], label: 'St Andrews' },
-  { name: 'Sawgrass', colors: ['#2D6A3F', '#1E4D2B'], label: 'Sawgrass' },
-  { name: 'Pinehurst', colors: ['#C4A35A', '#8B7D3C'], label: 'Pinehurst' },
-  { name: 'Masters', colors: ['#1E4D2B', '#0D2818'], label: 'Masters' },
+  {
+    name: 'Augusta',
+    label: 'Augusta',
+    bgColor: '#034D28',
+    initialsColor: '#C9A227',
+    patternType: 'pinstripes' as const,
+    patternColor: 'rgba(255,255,255,0.08)',
+  },
+  {
+    name: 'Pebble Beach',
+    label: 'Pebble Beach',
+    bgColors: ['#1E6494', '#0D3B5C'] as [string, string],
+    initialsColor: '#FFFFFF',
+    patternType: 'gradient' as const,
+  },
+  {
+    name: 'St Andrews',
+    label: 'St Andrews',
+    bgColors: ['#8B6F47', '#6B5335'] as [string, string],
+    initialsColor: '#F5F0E8',
+    patternType: 'solid' as const,
+  },
+  {
+    name: 'Sawgrass',
+    label: 'Sawgrass',
+    bgColors: ['#1A7A6A', '#0D5C4F'] as [string, string],
+    initialsColor: '#FFFFFF',
+    patternType: 'waves' as const,
+    patternColor: 'rgba(255,255,255,0.06)',
+  },
+  {
+    name: 'Pinehurst',
+    label: 'Pinehurst',
+    bgColors: ['#C9A227', '#A0820F'] as [string, string],
+    initialsColor: '#1E4D2B',
+    patternType: 'solid' as const,
+  },
+  {
+    name: 'Bandon',
+    label: 'Bandon Dunes',
+    bgColors: ['#6B7B8D', '#4A5A6B'] as [string, string],
+    initialsColor: '#FFFFFF',
+    patternType: 'solid' as const,
+  },
 ];
+
+// Diagonal pinstripe pattern overlay for course themes
+function CoursePatternOverlay({ type, color }: { type: string; color?: string }) {
+  if (type === 'pinstripes') {
+    const stripes = Array.from({ length: 12 });
+    return (
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+        {stripes.map((_, i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              top: -40,
+              left: i * 8 - 20,
+              width: 1.5,
+              height: 140,
+              backgroundColor: color ?? 'rgba(255,255,255,0.08)',
+              transform: [{ rotate: '45deg' }],
+            }}
+          />
+        ))}
+      </View>
+    );
+  }
+  if (type === 'waves') {
+    const waves = Array.from({ length: 6 });
+    return (
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+        {waves.map((_, i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              bottom: 6 + i * 8,
+              left: -10,
+              right: -10,
+              height: 1,
+              backgroundColor: color ?? 'rgba(255,255,255,0.06)',
+              borderRadius: 10,
+            }}
+          />
+        ))}
+      </View>
+    );
+  }
+  return null;
+}
 
 export default function AvatarPickerScreen() {
   const { theme } = useTheme();
@@ -72,7 +161,6 @@ export default function AvatarPickerScreen() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [selectedSection, setSelectedSection] = useState<'initials' | 'theme' | null>(null);
 
   const initials = user?.user_metadata?.name
     ? user.user_metadata.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -138,7 +226,7 @@ export default function AvatarPickerScreen() {
         .from('avatars')
         .getPublicUrl(fileName);
 
-      // Save URL to user profile
+      // Save URL to user profile and auth metadata
       await authService.updateProfile(user.id, {
         avatar_color: `photo:${urlData.publicUrl}`,
       });
@@ -174,20 +262,20 @@ export default function AvatarPickerScreen() {
       </LinearGradient>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 + insets.bottom }}>
-        {/* Initials Section */}
+        {/* ─── INITIALS ─── Solid color circle with initials, 2x4 grid */}
         <Text style={[styles.sectionLabel, { color: c.gold }]}>INITIALS</Text>
         <GoldDivider style={{ marginBottom: 12 }} />
         <Text style={[styles.sectionDesc, { color: c.textMuted }]}>
-          Pick a background color for your initials.
+          Solid color with your initials.
         </Text>
-        <View style={styles.colorGrid}>
+        <View style={styles.initialsGrid}>
           {INITIALS_COLORS.map((item) => (
             <Pressable
               key={item.name}
               onPress={() => handleSelectColor(item.name)}
               disabled={saving}
               style={({ pressed }) => [
-                styles.colorOption,
+                styles.initialsOption,
                 { borderColor: c.border, ...cardShadow },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
               ]}
@@ -196,48 +284,56 @@ export default function AvatarPickerScreen() {
                 colors={item.colors as [string, string]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.colorCircle}
+                style={styles.initialsCircle}
               >
-                <Text style={styles.colorInitials}>{initials}</Text>
+                <Text style={styles.initialsText}>{initials}</Text>
               </LinearGradient>
-              <Text style={[styles.colorName, { color: c.textMuted }]}>{item.name}</Text>
+              <Text style={[styles.initialsName, { color: c.textMuted }]}>{item.name}</Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Course Theme Section */}
-        <Text style={[styles.sectionLabel, { color: c.gold, marginTop: 24 }]}>COURSE THEME</Text>
+        {/* ─── COURSE THEME ─── Distinct course-inspired designs */}
+        <Text style={[styles.sectionLabel, { color: c.gold, marginTop: 28 }]}>COURSE THEME</Text>
         <GoldDivider style={{ marginBottom: 12 }} />
         <Text style={[styles.sectionDesc, { color: c.textMuted }]}>
-          Themed avatars inspired by legendary courses.
+          Inspired by the world's most iconic courses.
         </Text>
-        <View style={styles.colorGrid}>
+        <View style={styles.courseGrid}>
           {COURSE_THEMES.map((item) => (
             <Pressable
               key={item.name}
-              onPress={() => handleSelectColor(item.name)}
+              onPress={() => handleSelectColor(`theme:${item.name}`)}
               disabled={saving}
               style={({ pressed }) => [
-                styles.colorOption,
+                styles.courseOption,
                 { borderColor: c.border, ...cardShadow },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
               ]}
             >
-              <LinearGradient
-                colors={item.colors as [string, string]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.colorCircle}
-              >
-                <Text style={styles.colorInitials}>{initials}</Text>
-              </LinearGradient>
-              <Text style={[styles.colorName, { color: c.textMuted }]}>{item.label}</Text>
+              {item.bgColors ? (
+                <LinearGradient
+                  colors={item.bgColors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.courseCircle}
+                >
+                  <CoursePatternOverlay type={item.patternType} color={item.patternColor} />
+                  <Text style={[styles.courseInitials, { color: item.initialsColor }]}>{initials}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={[styles.courseCircle, { backgroundColor: item.bgColor }]}>
+                  <CoursePatternOverlay type={item.patternType} color={item.patternColor} />
+                  <Text style={[styles.courseInitials, { color: item.initialsColor }]}>{initials}</Text>
+                </View>
+              )}
+              <Text style={[styles.courseName, { color: c.text }]}>{item.label}</Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Upload Photo Section */}
-        <Text style={[styles.sectionLabel, { color: c.gold, marginTop: 24 }]}>UPLOAD PHOTO</Text>
+        {/* ─── UPLOAD PHOTO ─── */}
+        <Text style={[styles.sectionLabel, { color: c.gold, marginTop: 28 }]}>UPLOAD PHOTO</Text>
         <GoldDivider style={{ marginBottom: 12 }} />
         <Pressable
           onPress={handleUploadPhoto}
@@ -291,35 +387,69 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: SANS,
   },
-  colorGrid: {
+  // Initials: 2x4 grid of solid color circles
+  initialsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
-  colorOption: {
+  initialsOption: {
     alignItems: 'center',
-    width: '30%',
+    width: '22%',
     borderWidth: 1,
-    padding: 12,
+    padding: 8,
   },
-  colorCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  initialsCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  colorInitials: {
-    fontSize: 20,
+  initialsText: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#E8E4DE',
     fontFamily: GEO,
   },
-  colorName: {
-    fontSize: 10,
+  initialsName: {
+    fontSize: 9,
     fontWeight: '600',
     marginTop: 6,
     textAlign: 'center',
+  },
+  // Course themes: wider cards with pattern overlays and course name labels
+  courseGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  courseOption: {
+    alignItems: 'center',
+    width: '46%',
+    borderWidth: 1,
+    padding: 14,
+  },
+  courseCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  courseInitials: {
+    fontSize: 22,
+    fontWeight: '700',
+    fontFamily: GEO,
+    zIndex: 1,
+  },
+  courseName: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: SANS,
   },
   uploadBtn: {
     flexDirection: 'row',

@@ -270,6 +270,8 @@ export default function SignUpScreen() {
                 onChangeText={setCity}
                 placeholder="Nashville"
                 placeholderTextColor={c.textMuted}
+                keyboardType="default"
+                autoCorrect={false}
                 style={[styles.input, { backgroundColor: c.elevated, borderColor: cityFocused ? c.teal : c.border, color: c.text }]}
                 onFocus={() => setCityFocused(true)}
                 onBlur={() => setCityFocused(false)}
