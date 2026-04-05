@@ -20,9 +20,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        // Try to refresh the session to validate it
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error || !data.session) {
+            // Stale/invalid session — clear it silently and start fresh
+            await supabase.auth.signOut().catch(() => {});
+            setSession(null);
+            setUser(null);
+          } else {
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        } catch {
+          // Network error or corrupt token — clear silently
+          await supabase.auth.signOut().catch(() => {});
+          setSession(null);
+          setUser(null);
+        }
+      } else {
+        setSession(null);
+        setUser(null);
+      }
       setLoading(false);
     });
 
