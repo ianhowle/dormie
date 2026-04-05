@@ -71,6 +71,63 @@ const COURSE_THEMES = [
 
 type GolferType = 'competitive' | 'social' | 'improving';
 
+// ─── Pulsing Ghost Row ──────────────────────────────────────────────
+function PulsingGhostRow({ children }: { children: React.ReactNode }) {
+  const pulse = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.5, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.3, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={{ opacity: pulse }}>{children}</Animated.View>;
+}
+
+// ─── Styled TextInput with focus glow ────────────────────────────────
+function StyledInput(props: React.ComponentProps<typeof TextInput>) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <TextInput
+      {...props}
+      onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+      style={[
+        props.style,
+        {
+          backgroundColor: '#1A1816',
+          borderWidth: 1,
+          borderColor: focused ? '#C9A227' : '#333',
+          borderRadius: 12,
+        },
+      ]}
+    />
+  );
+}
+
+// ─── Gradient Background with Pinstripe ──────────────────────────────
+function GradientBg() {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <LinearGradient colors={['#0D2818', '#0D0A06']} locations={[0, 0.3]} style={StyleSheet.absoluteFill} />
+      {/* Subtle pinstripe overlay */}
+      <View style={StyleSheet.absoluteFill}>
+        {Array.from({ length: Math.ceil(SCREEN_H / 4) }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              height: 1,
+              backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+              marginTop: 3,
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ─── Gold Corner Brackets ────────────────────────────────────────────
 function GoldCorners({ size = 20, inset = 16 }: { size?: number; inset?: number }) {
   const s = { position: 'absolute' as const, width: size, height: size, borderColor: C.gold };
@@ -93,7 +150,9 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
           key={i}
           style={[
             styles.dot,
-            { backgroundColor: i === current ? C.gold : C.elevated },
+            i === current
+              ? { backgroundColor: C.gold }
+              : { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.gold },
           ]}
         />
       ))}
@@ -252,6 +311,7 @@ function Screen1Hook({ userName, onNext, reducedMotion }: { userName: string; on
 
   return (
     <View style={[styles.screenFull, { backgroundColor: C.bg }]}>
+      <GradientBg />
       <ExpoStatusBar style="light" />
 
       {/* Cinematic moment */}
@@ -289,7 +349,7 @@ function Screen1Hook({ userName, onNext, reducedMotion }: { userName: string; on
         <Text style={styles.welcomeTagline}>Your crew, always in play.</Text>
         <Text style={styles.welcomeSubTagline}>Score it. Track it. Compete for it.</Text>
 
-        <Pressable onPress={() => { haptics.medium(); onNext(); }} style={({ pressed }) => [styles.greenButton, pressed && { opacity: 0.8 }]}>
+        <Pressable onPress={() => { haptics.medium(); onNext(); }} style={({ pressed }) => [styles.greenButton, styles.getStartedBtn, pressed && { opacity: 0.8 }]}>
           <Text style={styles.greenButtonText}>Get Started →</Text>
         </Pressable>
       </Animated.View>
@@ -402,6 +462,7 @@ function Screen2Identity({
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={[styles.screenFull, { backgroundColor: C.bg }]} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+        <GradientBg />
         <ExpoStatusBar style="light" />
 
         {/* Back button */}
@@ -543,7 +604,7 @@ function Screen2Identity({
 
           {/* ── Handicap ── */}
           <Text style={[styles.sectionLabel, { marginTop: 28 }]}>HANDICAP INDEX</Text>
-          <TextInput
+          <StyledInput
             value={handicap}
             onChangeText={handleHandicapChange}
             placeholder="e.g. 8.2"
@@ -563,7 +624,7 @@ function Screen2Identity({
           {/* ── GHIN ── */}
           <Text style={[styles.sectionLabel, { marginTop: 28 }]}>GHIN NUMBER (optional)</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TextInput
+            <StyledInput
               value={ghinNumber}
               onChangeText={setGhinNumber}
               placeholder="1234567"
@@ -597,7 +658,7 @@ function Screen2Identity({
             </View>
           ) : (
             <>
-              <TextInput
+              <StyledInput
                 value={courseQuery}
                 onChangeText={setCourseQuery}
                 placeholder="Search courses..."
@@ -619,9 +680,11 @@ function Screen2Identity({
 
           {/* ── Mini Leaderboard Preview ── */}
           <View style={[styles.miniLeaderboard, { marginTop: 28 }]}>
-            <Text style={styles.miniLbHeader}>YOUR LEADERBOARD</Text>
+            <View style={styles.miniLbHeaderBar}>
+              <Text style={styles.miniLbHeader}>YOUR LEADERBOARD</Text>
+            </View>
             <View style={styles.miniLbRow}>
-              <Text style={styles.miniLbPos}>1</Text>
+              <Text style={[styles.miniLbPos, { color: C.gold }]}>1</Text>
               <MiniAvatar name={userName} color={INITIALS_COLORS.find(c => c.key === avatarColor)?.color ?? C.augusta} size={28} />
               <View style={{ flex: 1, marginLeft: 8 }}>
                 <Text style={styles.miniLbName}>{userName}</Text>
@@ -629,11 +692,13 @@ function Screen2Identity({
               </View>
             </View>
             {[1, 2, 3, 4].map(i => (
-              <View key={i} style={[styles.miniLbRow, { opacity: 0.3 }]}>
-                <Text style={styles.miniLbPos}>{i + 1}</Text>
-                <View style={[styles.ghostAvatar, { width: 28, height: 28, borderRadius: 14 }]} />
-                <Text style={[styles.miniLbName, { marginLeft: 8, color: C.textMuted }]}>Waiting for your crew...</Text>
-              </View>
+              <PulsingGhostRow key={i}>
+                <View style={styles.miniLbRow}>
+                  <Text style={styles.miniLbPos}>{i + 1}</Text>
+                  <View style={[styles.ghostAvatar, { width: 28, height: 28, borderRadius: 14 }]} />
+                  <Text style={[styles.miniLbName, { marginLeft: 8, color: C.textMuted }]}>Waiting for your crew...</Text>
+                </View>
+              </PulsingGhostRow>
             ))}
           </View>
         </View>
@@ -727,6 +792,7 @@ function Screen3Crew({
 
   return (
     <View style={[styles.screenFull, { backgroundColor: C.bg }]}>
+      <GradientBg />
       <ExpoStatusBar style="light" />
 
       <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
@@ -760,7 +826,7 @@ function Screen3Crew({
           ))}
         </View>
 
-        <Text style={styles.crewHeaderText}>DORMIE IS BUILT FOR YOUR GOLF CREW, ANYWHERE.</Text>
+        <Text style={styles.crewHeaderText}>Dormie is built for your golf crew, anywhere.</Text>
 
         {/* ── Add Crew Methods ── */}
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
@@ -779,7 +845,7 @@ function Screen3Crew({
             <Ionicons name="search" size={22} color={C.gold} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.crewCardTitle}>Search by Name</Text>
-              <TextInput
+              <StyledInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Find friends on Dormie..."
@@ -890,6 +956,7 @@ function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userN
 
   return (
     <Pressable style={[styles.screenFull, { backgroundColor: C.bg }]} onPress={handleTap}>
+      <GradientBg />
       <ExpoStatusBar style="light" />
 
       <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
@@ -1207,6 +1274,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 32,
   },
+  getStartedBtn: {
+    width: '100%',
+    height: 56,
+    justifyContent: 'center',
+    borderTopWidth: 2,
+    borderTopColor: C.gold,
+  },
   greenButtonText: {
     color: '#FFFFFF',
     fontFamily: GEO,
@@ -1255,9 +1329,10 @@ const styles = StyleSheet.create({
 
   sectionLabel: {
     color: C.gold,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginTop: 24,
     marginBottom: 10,
   },
@@ -1357,9 +1432,6 @@ const styles = StyleSheet.create({
 
   // Text input
   textInput: {
-    backgroundColor: C.elevated,
-    borderWidth: 1,
-    borderColor: C.border,
     color: C.text,
     fontSize: 16,
     paddingHorizontal: 16,
@@ -1437,20 +1509,25 @@ const styles = StyleSheet.create({
   // Mini leaderboard
   miniLeaderboard: {
     backgroundColor: C.card,
-    padding: 16,
+    overflow: 'hidden',
+  },
+  miniLbHeaderBar: {
+    backgroundColor: C.masters,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
   miniLbHeader: {
-    color: C.gold,
+    color: '#FFFFFF',
     fontFamily: GEO,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2,
-    marginBottom: 12,
   },
   miniLbRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   miniLbPos: {
     color: C.gold,
@@ -1521,9 +1598,8 @@ const styles = StyleSheet.create({
   crewHeaderText: {
     color: C.gold,
     fontFamily: GEO,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontStyle: 'italic',
+    fontSize: 18,
     textAlign: 'center',
     marginVertical: 24,
     paddingHorizontal: 30,
@@ -1703,18 +1779,20 @@ const styles = StyleSheet.create({
   enterBtnWrap: {
     position: 'absolute',
     bottom: 80,
-    left: 40,
-    right: 40,
+    left: 20,
+    right: 20,
   },
   enterBtn: {
     backgroundColor: C.augusta,
     paddingVertical: 18,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: C.gold,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderTopColor: C.gold,
+    borderBottomColor: C.gold,
   },
   enterBtnText: {
-    color: '#FFFFFF',
+    color: C.gold,
     fontFamily: GEO,
     fontSize: 18,
     fontWeight: '700',
