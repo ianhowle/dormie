@@ -36,12 +36,16 @@ function RootLayoutNav() {
 
     const inAuthGroup = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'auth' && segments[1] === 'onboarding';
+    const onboardingComplete = session?.user?.user_metadata?.onboarding_complete === true;
 
     if (!session && !inAuthGroup) {
       // Not signed in and not on auth screen → go to splash
       router.replace('/auth/splash');
-    } else if (session && inAuthGroup && !inOnboarding) {
-      // Signed in but on auth screen (not onboarding) → go to tabs
+    } else if (session && !onboardingComplete && !inOnboarding) {
+      // Signed in but onboarding not complete → go to onboarding
+      router.replace('/auth/onboarding');
+    } else if (session && onboardingComplete && inAuthGroup && !inOnboarding) {
+      // Signed in, onboarding done, but on auth screen → go to tabs
       router.replace('/(tabs)');
     }
     // If in onboarding, let the user complete it before redirecting

@@ -15,6 +15,7 @@ import {
   Image,
   KeyboardAvoidingView,
   ActivityIndicator,
+  AccessibilityInfo,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
@@ -23,1414 +24,1699 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/lib/auth';
 import { haptics } from '../../src/lib/haptics';
-import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO } from '../../src/theme/fonts';
-import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
-import { Avatar } from '../../src/components/Avatar';
-import { authService } from '../../src/services/auth.service';
-import { coursesService } from '../../src/services/courses.service';
 import { supabase } from '../../src/lib/supabase';
+import { coursesService, type SearchResult } from '../../src/services/courses.service';
+import { friendsService } from '../../src/services/friends.service';
+import type { User } from '../../src/lib/database.types';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
-// ─── Types ────────────────────────────────────────────────────────────
-type AvatarMode = 'initials' | 'theme' | 'photo';
-type AvatarTheme = 'green' | 'ocean' | 'gold' | 'navy' | 'brown';
+// ─── Colors (hardcoded dark mode) ──────────────────────────────────
+const C = {
+  bg: '#0D0A06',
+  card: '#1A1816',
+  elevated: '#262320',
+  text: '#E8E4DE',
+  textMuted: '#8A857F',
+  gold: '#C9A227',
+  augusta: '#006747',
+  masters: '#1E4D2B',
+  parchment: '#FFFDF5',
+  urgent: '#C41E3A',
+  border: '#2A2724',
+};
+
+// ─── Avatar color options ──────────────────────────────────────────
+const INITIALS_COLORS = [
+  { key: 'Augusta Green', color: '#046A38' },
+  { key: 'Navy', color: '#002366' },
+  { key: 'Burgundy', color: '#6B1C2A' },
+  { key: 'Forest', color: '#2D6A3F' },
+  { key: 'Charcoal', color: '#3C3C3C' },
+  { key: 'Royal Blue', color: '#2A5CAD' },
+  { key: 'Deep Purple', color: '#4A2D73' },
+  { key: 'Copper', color: '#A0522D' },
+];
+
+const COURSE_THEMES = [
+  { key: 'Augusta', label: 'Augusta', colors: ['#034D28', '#034D28'], textColor: '#C9A227', pattern: 'pinstripes' },
+  { key: 'Pebble Beach', label: 'Pebble Beach', colors: ['#1E6494', '#0D3B5C'], textColor: '#FFF', pattern: 'gradient' },
+  { key: 'St Andrews', label: 'St Andrews', colors: ['#8B6F47', '#6B5335'], textColor: '#F5F0E8', pattern: 'solid' },
+  { key: 'Sawgrass', label: 'Sawgrass', colors: ['#1A7A6A', '#0D5C4F'], textColor: '#FFF', pattern: 'waves' },
+  { key: 'Pinehurst', label: 'Pinehurst', colors: ['#C9A227', '#A0820F'], textColor: '#1E4D2B', pattern: 'solid' },
+  { key: 'Bandon', label: 'Bandon', colors: ['#6B7B8D', '#4A5A6B'], textColor: '#FFF', pattern: 'solid' },
+];
+
 type GolferType = 'competitive' | 'social' | 'improving';
-type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
-const AVATAR_THEMES: { key: AvatarTheme; label: string; color: string }[] = [
-  { key: 'green', label: 'Augusta Green', color: '#046A38' },
-  { key: 'ocean', label: 'Pebble Blue', color: '#1E3A5F' },
-  { key: 'gold', label: 'Championship Gold', color: '#B8860B' },
-  { key: 'navy', label: 'Midnight Navy', color: '#002366' },
-  { key: 'brown', label: 'Links Brown', color: '#8B4513' },
-];
+// ─── Gold Corner Brackets ────────────────────────────────────────────
+function GoldCorners({ size = 20, inset = 16 }: { size?: number; inset?: number }) {
+  const s = { position: 'absolute' as const, width: size, height: size, borderColor: C.gold };
+  return (
+    <>
+      <View style={[s, { top: inset, left: inset, borderTopWidth: 1, borderLeftWidth: 1 }]} />
+      <View style={[s, { top: inset, right: inset, borderTopWidth: 1, borderRightWidth: 1 }]} />
+      <View style={[s, { bottom: inset, left: inset, borderBottomWidth: 1, borderLeftWidth: 1 }]} />
+      <View style={[s, { bottom: inset, right: inset, borderBottomWidth: 1, borderRightWidth: 1 }]} />
+    </>
+  );
+}
 
-const GOLFER_TYPES: { key: GolferType; icon: string; label: string; desc: string }[] = [
-  { key: 'competitive', icon: '🏆', label: 'Competitive', desc: 'I play to win' },
-  { key: 'social', icon: '🍻', label: 'Social', desc: 'I play for the crew' },
-  { key: 'improving', icon: '📈', label: 'Improving', desc: 'I play to get better' },
-];
+// ─── Progress Dots ────────────────────────────────────────────────────
+function ProgressDots({ current, total }: { current: number; total: number }) {
+  return (
+    <View style={styles.dotsRow}>
+      {Array.from({ length: total }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.dot,
+            { backgroundColor: i === current ? C.gold : C.elevated },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
 
-// ─── Pinstripes ───────────────────────────────────────────────────────
-function Pinstripes({ count = 40, opacity = 0.03 }: { count?: number; opacity?: number }) {
+// ─── Gold Confetti ────────────────────────────────────────────────────
+function GoldConfetti({ count = 50 }: { count?: number }) {
+  const particles = useMemo(() => {
+    return Array.from({ length: count }).map((_, i) => ({
+      left: Math.random() * SCREEN_W,
+      delay: Math.random() * 2000,
+      duration: 2000 + Math.random() * 2000,
+      size: 3 + Math.random() * 5,
+      isCircle: Math.random() > 0.5,
+      rotation: Math.random() * 360,
+    }));
+  }, [count]);
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {Array.from({ length: count }).map((_, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute', top: -200, left: i * 18 - 100,
-            width: 1, height: 1000,
-            backgroundColor: '#fff', opacity,
-            transform: [{ rotate: '35deg' }],
-          }}
-        />
+      {particles.map((p, i) => (
+        <ConfettiPiece key={i} {...p} />
       ))}
     </View>
   );
 }
 
-// ─── SCREEN 0: WELCOME ───────────────────────────────────────────────
-function WelcomeScreen({ onNext, onToggleTheme }: { onNext: () => void; onToggleTheme: () => void }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
+function ConfettiPiece({ left, delay, duration, size, isCircle, rotation }: {
+  left: number; delay: number; duration: number; size: number; isCircle: boolean; rotation: number;
+}) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = () => {
+      anim.setValue(0);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration,
+        delay,
+        useNativeDriver: true,
+      }).start(() => loop());
+    };
+    loop();
+  }, []);
+
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [-20, SCREEN_H + 20] });
+  const opacity = anim.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 1, 1, 0] });
+  const rotate = anim.interpolate({ inputRange: [0, 1], outputRange: [`${rotation}deg`, `${rotation + 360}deg`] });
 
   return (
-    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
-      <LinearGradient colors={[...greenHeaderGradient]} style={styles.welcomeTop}>
-        <Pinstripes />
+    <Animated.View
+      style={{
+        position: 'absolute',
+        left,
+        top: 0,
+        width: size,
+        height: isCircle ? size : size * 2,
+        backgroundColor: Math.random() > 0.3 ? C.gold : '#FFFFFF',
+        borderRadius: isCircle ? size / 2 : 1,
+        opacity,
+        transform: [{ translateY }, { rotate }],
+      }}
+    />
+  );
+}
 
-        {/* Dark/light toggle */}
-        <Pressable onPress={onToggleTheme} style={styles.themeToggle} hitSlop={12}>
-          <Ionicons name={theme.isDark ? 'sunny' : 'moon'} size={20} color="#FFFFFFAA" />
-        </Pressable>
-
-        {/* Gold corner brackets */}
-        <View style={[styles.cornerTL, { borderColor: '#C9A227' }]} />
-        <View style={[styles.cornerTR, { borderColor: '#C9A227' }]} />
-        <View style={[styles.cornerBL, { borderColor: '#C9A227' }]} />
-        <View style={[styles.cornerBR, { borderColor: '#C9A227' }]} />
-
-        <View style={styles.welcomeCenter}>
-          <Text style={styles.welcomeLogo}>DORMIE</Text>
-          <View style={styles.welcomeDivider} />
-          <Text style={styles.welcomeTagline}>Your crew, always in play.</Text>
-          <Text style={styles.welcomeSub}>Score it. Track it. Compete for it.</Text>
-        </View>
-      </LinearGradient>
-
-      <View style={[styles.welcomeBottom, { backgroundColor: c.bg }]}>
-        <Pressable onPress={onNext} style={({ pressed }) => [styles.getStartedBtn, pressed && styles.pressedState]}>
-          <Text style={styles.getStartedText}>Get Started</Text>
-          <Ionicons name="arrow-forward" size={18} color="#000000" />
-        </Pressable>
-      </View>
+// ─── Mini Avatar (inline, no auth context) ────────────────────────────
+function MiniAvatar({ name, color, size = 36 }: { name: string; color: string; size?: number }) {
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: '#E8E4DE', fontFamily: GEO, fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
     </View>
   );
 }
 
-// ─── Avatar initials helper (shared with Avatar component logic) ─────
-function getAvatarInitials(name: string): string {
-  if (!name || name === 'Golfer') return '?';
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
+// ═══════════════════════════════════════════════════════════════════════
+// SCREEN 1: THE HOOK
+// ═══════════════════════════════════════════════════════════════════════
+function Screen1Hook({ userName, onNext, reducedMotion }: { userName: string; onNext: () => void; reducedMotion: boolean }) {
+  const [phase, setPhase] = useState<'cinematic' | 'welcome'>(reducedMotion ? 'welcome' : 'cinematic');
 
-// ─── SCREEN 1: YOUR GAME ─────────────────────────────────────────────
-function YourGameScreen({
-  avatarMode, setAvatarMode,
-  avatarTheme, setAvatarTheme,
-  golferType, setGolferType,
-  handicap, setHandicap,
-  ghinNumber, setGhinNumber,
-  homeCourse, setHomeCourse,
-  homeCourseId, setHomeCourseId,
-  userName,
-  userId,
-  photoUri, setPhotoUri,
-}: {
-  avatarMode: AvatarMode; setAvatarMode: (v: AvatarMode) => void;
-  avatarTheme: AvatarTheme; setAvatarTheme: (v: AvatarTheme) => void;
-  golferType: GolferType | null; setGolferType: (v: GolferType) => void;
-  handicap: string; setHandicap: (v: string) => void;
-  ghinNumber: string; setGhinNumber: (v: string) => void;
-  homeCourse: string; setHomeCourse: (v: string) => void;
-  homeCourseId: string; setHomeCourseId: (v: string) => void;
-  userName: string;
-  userId: string;
-  photoUri: string | null; setPhotoUri: (v: string | null) => void;
-}) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
+  // Cinematic animation values
+  const lineWidth = useRef(new Animated.Value(0)).current;
+  const nameOpacity = useRef(new Animated.Value(0)).current;
+  const dormieScale = useRef(new Animated.Value(0.3)).current;
+  const dormieOpacity = useRef(new Animated.Value(0)).current;
+  const subTextOpacity = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Course search state
-  const [courseResults, setCourseResults] = useState<any[]>([]);
-  const [courseSearching, setCourseSearching] = useState(false);
-  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleCourseSearch = useCallback((text: string) => {
-    setHomeCourse(text);
-    setHomeCourseId(''); // Clear ID when user edits text (manual entry)
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (text.trim().length < 2) {
-      setCourseResults([]);
-      setShowCourseDropdown(false);
-      return;
-    }
-    setCourseSearching(true);
-    setShowCourseDropdown(true);
-    searchTimerRef.current = setTimeout(async () => {
-      try {
-        // Try GolfCourseAPI first, then Supabase fallback
-        const apiResponse = await coursesService.searchAPI(text.trim());
-        // API may return { courses: [...] } or [...] directly
-        let list: any[] = [];
-        if (apiResponse && typeof apiResponse === 'object') {
-          if (Array.isArray(apiResponse)) {
-            list = apiResponse;
-          } else if (Array.isArray(apiResponse.courses)) {
-            list = apiResponse.courses;
-          }
-        }
-        // Supabase fallback if API returned nothing
-        if (list.length === 0) {
-          const dbResults = await coursesService.search(text.trim(), 5);
-          list = Array.isArray(dbResults) ? dbResults : [];
-        }
-        setCourseResults(list.slice(0, 5));
-      } catch {
-        setCourseResults([]);
-      } finally {
-        setCourseSearching(false);
-      }
-    }, 300);
-  }, [setHomeCourse, setHomeCourseId]);
-
-  const selectCourse = useCallback((courseId: string, name: string) => {
-    setHomeCourse(name);
-    setHomeCourseId(courseId);
-    setShowCourseDropdown(false);
-    setCourseResults([]);
-  }, [setHomeCourse, setHomeCourseId]);
-
-  const handlePickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
-
-  const initials = getAvatarInitials(userName);
-
-  // Render avatar preview based on mode
-  const renderAvatarPreview = () => {
-    if (avatarMode === 'photo' && photoUri) {
-      return <Image source={{ uri: photoUri }} style={{ width: 64, height: 64 }} />;
-    }
-    if (avatarMode === 'theme') {
-      return (
-        <View style={{ width: 64, height: 64, backgroundColor: themeColor, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 24, fontFamily: GEO, fontWeight: '700', color: '#E8E4DE' }}>
-            {initials}
-          </Text>
-        </View>
-      );
-    }
-    // 'initials' mode — use gradient Avatar
-    return <Avatar id={userId || 'user'} name={userName} size={64} />;
-  };
-
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={100}
-    >
-      <ScrollView
-        style={[styles.screenScroll, { backgroundColor: c.bg }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={[styles.stepTitle, { color: c.text }]}>Your Game</Text>
-        <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 1 of 3 — Customize</Text>
-
-        {/* Avatar picker */}
-        <Text style={[styles.fieldLabel, { color: c.gold }]}>Avatar</Text>
-        <View style={styles.avatarPreview}>
-          {renderAvatarPreview()}
-        </View>
-
-        {/* Avatar mode */}
-        <View style={styles.avatarModes}>
-          {(['initials', 'theme', 'photo'] as AvatarMode[]).map((m) => (
-            <Pressable
-              key={m}
-              onPress={() => setAvatarMode(m)}
-              style={[
-                styles.modeBtn,
-                { backgroundColor: avatarMode === m ? c.teal + '22' : c.elevated, borderColor: avatarMode === m ? c.teal : c.border, borderWidth: 1 },
-              ]}
-            >
-              <Text style={[styles.modeBtnText, { color: avatarMode === m ? c.teal : c.textMuted }]}>
-                {m === 'initials' ? 'Initials' : m === 'theme' ? 'Course Theme' : 'Upload Photo'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Theme color picker */}
-        {avatarMode === 'theme' && (
-          <View style={styles.themeColors}>
-            {AVATAR_THEMES.map((t) => (
-              <Pressable
-                key={t.key}
-                onPress={() => setAvatarTheme(t.key)}
-                style={[
-                  styles.colorCircle,
-                  { backgroundColor: t.color, borderColor: avatarTheme === t.key ? '#FFFFFF' : 'transparent', borderWidth: 2 },
-                ]}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* Photo picker */}
-        {avatarMode === 'photo' && (
-          <View style={styles.photoPickerWrap}>
-            <Pressable onPress={handlePickPhoto} style={({ pressed }) => [styles.photoPickerBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
-              <Ionicons name="image-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.photoPickerBtnText}>Choose from Camera Roll</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Golfer type */}
-        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>What kind of golfer?</Text>
-        <View style={styles.golferCards}>
-          {GOLFER_TYPES.map((g) => (
-            <Pressable
-              key={g.key}
-              onPress={() => setGolferType(g.key)}
-              style={[
-                styles.golferCard,
-                {
-                  backgroundColor: golferType === g.key ? c.teal + '12' : c.elevated,
-                  borderColor: golferType === g.key ? c.teal : c.border,
-                  borderWidth: 1,
-                },
-              ]}
-            >
-              <Text style={styles.golferEmoji}>{g.icon}</Text>
-              <Text style={[styles.golferLabel, { color: golferType === g.key ? c.teal : c.text }]}>{g.label}</Text>
-              <Text style={[styles.golferDesc, { color: c.textMuted }]}>{g.desc}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Handicap */}
-        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Handicap Index</Text>
-        <TextInput
-          value={handicap}
-          onChangeText={setHandicap}
-          placeholder="e.g., 12.4"
-          placeholderTextColor={c.textMuted}
-          style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-          keyboardType="numeric"
-        />
-        <Pressable onPress={() => setHandicap('')}>
-          <Text style={[styles.helperLink, { color: c.teal }]}>I don't know my handicap</Text>
-        </Pressable>
-
-        {/* GHIN */}
-        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>GHIN Number</Text>
-        <View style={styles.ghinRow}>
-          <TextInput
-            value={ghinNumber}
-            onChangeText={setGhinNumber}
-            placeholder="Optional"
-            placeholderTextColor={c.textMuted}
-            style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border, flex: 1 }]}
-            keyboardType="numeric"
-          />
-          {ghinNumber.length > 0 && (
-            <Pressable style={[styles.verifyBtn, { backgroundColor: c.teal }]}>
-              <Text style={styles.verifyBtnText}>Verify</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Home course with search */}
-        <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Home Course</Text>
-        <TextInput
-          value={homeCourse}
-          onChangeText={handleCourseSearch}
-          placeholder="Search courses..."
-          placeholderTextColor={c.textMuted}
-          style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-          onFocus={() => { if (courseResults.length > 0) setShowCourseDropdown(true); }}
-        />
-        {showCourseDropdown && (
-          <View style={[styles.courseDropdown, { backgroundColor: c.elevated, borderColor: c.border }]}>
-            {courseSearching && (
-              <View style={styles.courseSearchingRow}>
-                <ActivityIndicator size="small" color={c.teal} />
-                <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>Searching courses...</Text>
-              </View>
-            )}
-            {!courseSearching && courseResults.length === 0 && homeCourse.trim().length >= 2 && (
-              <View style={styles.courseSearchingRow}>
-                <Ionicons name="golf-outline" size={16} color={c.textMuted} />
-                <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>
-                  No results — you can type your course name manually
-                </Text>
-              </View>
-            )}
-            {courseResults.map((course, i) => {
-              const courseName = course.name ?? course.club_name ?? '';
-              const courseId = course.id ?? '';
-              const courseLocation = course.location ?? (course.city && course.state ? `${course.city}, ${course.state}` : '');
-              return (
-                <Pressable
-                  key={courseId || i}
-                  onPress={() => selectCourse(courseId, courseName)}
-                  style={[styles.courseResultRow, i < courseResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
-                >
-                  <Ionicons name="golf" size={16} color={c.teal} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.courseResultName, { color: c.text }]} numberOfLines={1}>{courseName}</Text>
-                    {courseLocation ? (
-                      <Text style={[styles.courseResultLocation, { color: c.textMuted }]} numberOfLines={1}>{courseLocation}</Text>
-                    ) : null}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-        <View style={{ height: 60 }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
-
-// ─── SCREEN 2: BUILD YOUR GROUP ───────────────────────────────────────
-function BuildGroupScreen() {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  // Mini animated previews
-  const leaderboardAnims = useRef(
-    Array.from({ length: 5 }, () => new Animated.Value(0))
-  ).current;
+  // Welcome fade values
+  const welcomeOpacity = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+  const cinematicOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (expanded === 'leaderboard') {
-      leaderboardAnims.forEach((a) => a.setValue(0));
-      Animated.stagger(
-        120,
-        leaderboardAnims.map((a) =>
-          Animated.spring(a, { toValue: 1, friction: 6, useNativeDriver: true })
-        )
+    if (reducedMotion) return;
+
+    // Start the pulse loop for DORMIE text
+    const startPulse = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        ])
       ).start();
-    }
-  }, [expanded, leaderboardAnims]);
+    };
 
-  const h2hAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (expanded === 'h2h') {
-      h2hAnim.setValue(0);
-      Animated.timing(h2hAnim, { toValue: 1, duration: 800, useNativeDriver: false }).start();
-    }
-  }, [expanded, h2hAnim]);
+    // Cinematic sequence
+    const t1 = setTimeout(() => {
+      // 500ms: gold line draws
+      Animated.timing(lineWidth, { toValue: 200, duration: 800, useNativeDriver: false }).start();
+    }, 500);
 
-  const seasonAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (expanded === 'seasons') {
-      seasonAnim.setValue(0);
-      Animated.timing(seasonAnim, { toValue: 1, duration: 1000, useNativeDriver: false }).start();
-    }
-  }, [expanded, seasonAnim]);
+    const t2 = setTimeout(() => {
+      // 1.5s: name fades in
+      Animated.timing(nameOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    }, 1500);
 
-  const MOCK_LEADERBOARD = [
-    { id: '2', name: 'Drew P.', score: 75 },
-    { id: '3', name: 'Jake S.', score: 77 },
-    { id: '4', name: 'Tommy F.', score: 79 },
-    { id: '5', name: 'Mike C.', score: 81 },
-    { id: '6', name: 'Sam R.', score: 83 },
-  ];
-
-  const cards = [
-    {
-      key: 'leaderboard',
-      icon: 'trophy' as const,
-      title: 'Group Leaderboard',
-      desc: "See who's on top across all your rounds",
-      preview: () => (
-        <View style={styles.miniPreview}>
-          {MOCK_LEADERBOARD.map((p, i) => (
-            <Animated.View
-              key={p.id}
-              style={[
-                styles.miniRow,
-                { backgroundColor: c.elevated, opacity: leaderboardAnims[i], transform: [{ translateY: leaderboardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
-              ]}
-            >
-              <Text style={[styles.miniRank, { color: i === 0 ? c.gold : c.textMuted, fontFamily: GEO }]}>{i + 1}</Text>
-              <Avatar id={p.id} name={p.name} size={22} />
-              <Text style={[styles.miniName, { color: c.text }]}>{p.name}</Text>
-              <Text style={[styles.miniVal, { color: i === 0 ? c.gold : c.teal, fontFamily: GEO }]}>{p.score}</Text>
-            </Animated.View>
-          ))}
-        </View>
-      ),
-    },
-    {
-      key: 'h2h',
-      icon: 'git-compare' as const,
-      title: 'Head-to-Head',
-      desc: 'Track your record against every friend',
-      preview: () => {
-        const barWidth = h2hAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '62.5%'] });
-        return (
-          <View style={styles.miniPreview}>
-            <View style={[styles.h2hBar, { backgroundColor: c.elevated }]}>
-              <Animated.View style={[styles.h2hFill, { width: barWidth, backgroundColor: c.teal }]} />
-            </View>
-            <View style={styles.h2hLabels}>
-              <Text style={[styles.h2hScore, { color: c.teal, fontFamily: GEO }]}>5</Text>
-              <Text style={[styles.h2hVs, { color: c.textMuted }]}>YOU vs DREW</Text>
-              <Text style={[styles.h2hScore, { color: c.urgent, fontFamily: GEO }]}>3</Text>
-            </View>
-          </View>
-        );
-      },
-    },
-    {
-      key: 'seasons',
-      icon: 'ribbon' as const,
-      title: 'Season Competitions',
-      desc: 'FedEx Cup-style season-long races',
-      preview: () => {
-        const progressWidth = seasonAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '72%'] });
-        return (
-          <View style={styles.miniPreview}>
-            <Text style={[styles.miniSeasonLabel, { color: c.gold, fontFamily: GEO }]}>FedEx Cup</Text>
-            <View style={[styles.seasonBar, { backgroundColor: c.elevated }]}>
-              <Animated.View style={[styles.seasonFill, { width: progressWidth, backgroundColor: c.gold }]} />
-            </View>
-            <Text style={[styles.miniSeasonSub, { color: c.textMuted }]}>Week 7 of 10</Text>
-          </View>
-        );
-      },
-    },
-  ];
-
-  const handleShareInvite = async () => {
-    try {
-      await Share.share({ message: 'Join me on Dormie! Download the app and track your golf game with your crew. https://dormie.golf/invite' });
-    } catch { }
-  };
-
-  return (
-    <ScrollView style={[styles.screenScroll, { backgroundColor: c.bg }]} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.stepTitle, { color: c.text }]}>Build Your Group</Text>
-      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 2 of 3 — Connect</Text>
-      <Text style={[styles.stepDesc, { color: c.textMuted }]}>
-        Dormie is built for your golf crew, anywhere.
-      </Text>
-
-      {/* Feature cards */}
-      {cards.map((card) => {
-        const isOpen = expanded === card.key;
-        return (
-          <View key={card.key}>
-            <Pressable
-              onPress={() => setExpanded(isOpen ? null : card.key)}
-              style={[styles.groupCard, { backgroundColor: c.cardBg, borderColor: isOpen ? c.teal : c.border, borderWidth: 1 }]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <Ionicons name={card.icon} size={22} color={c.teal} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.groupCardTitle, { color: c.text }]}>{card.title}</Text>
-                  <Text style={[styles.groupCardDesc, { color: c.textMuted }]}>{card.desc}</Text>
-                </View>
-              </View>
-              <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
-            </Pressable>
-            {isOpen && card.preview()}
-          </View>
-        );
-      })}
-
-      {/* Invite section */}
-      <View style={[styles.inviteSection, { backgroundColor: c.elevated, borderColor: c.border }]}>
-        <Ionicons name="people" size={24} color={c.teal} />
-        <Text style={[styles.inviteCta, { color: c.text }]}>
-          Invite your first crew member to unlock the leaderboard
-        </Text>
-        <Pressable onPress={handleShareInvite} style={({ pressed }) => [styles.inviteBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
-          <Ionicons name="share-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.inviteBtnText}>Share Invite Link</Text>
-        </Pressable>
-      </View>
-      <View style={{ height: 40 }} />
-    </ScrollView>
-  );
-}
-
-// ─── SCREEN 3: WHAT DORMIE DOES ──────────────────────────────────────
-function FeatureScreen() {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const [activeTab, setActiveTab] = useState<'score' | 'compete' | 'plan'>('score');
-
-  const tabs: { key: typeof activeTab; label: string; color: string; icon: keyof typeof Ionicons.glyphMap; headline: string; bullets: string[] }[] = [
-    {
-      key: 'score', label: 'Score', color: c.teal, icon: 'golf',
-      headline: 'Track Every Round',
-      bullets: ['13 scoring formats', 'Live scorecard with stats', '16 side games auto-detected', 'Share cards with your crew'],
-    },
-    {
-      key: 'compete', label: 'Compete', color: c.gold, icon: 'trophy',
-      headline: 'Season-Long Competitions',
-      bullets: ['FedEx Cup-style standings', 'Head-to-head records', 'Course leaderboards', 'Ryder Cup mode'],
-    },
-    {
-      key: 'plan', label: 'Plan', color: c.urgent, icon: 'airplane',
-      headline: 'Trip Planning',
-      bullets: ['Group trip coordination', 'Real-time chat', 'Invite codes', 'Countdown rings'],
-    },
-  ];
-
-  const active = tabs.find((t) => t.key === activeTab)!;
-
-  return (
-    <ScrollView style={[styles.screenScroll, { backgroundColor: c.bg }]} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.stepTitle, { color: c.text }]}>What Dormie Does</Text>
-      <Text style={[styles.stepSubtitle, { color: c.textMuted }]}>Step 3 of 3 — Explore</Text>
-
-      {/* Tabs */}
-      <View style={styles.featureTabs}>
-        {tabs.map((t) => (
-          <Pressable
-            key={t.key}
-            onPress={() => setActiveTab(t.key)}
-            style={[styles.featureTab, { backgroundColor: activeTab === t.key ? t.color + '22' : c.elevated, borderColor: activeTab === t.key ? t.color : 'transparent', borderWidth: 1 }]}
-          >
-            <Text style={[styles.featureTabText, { color: activeTab === t.key ? t.color : c.textMuted }]}>{t.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Feature card */}
-      <View style={[styles.featureCard, { backgroundColor: c.cardBg, borderColor: active.color + '44', borderWidth: 1 }]}>
-        <Ionicons name={active.icon} size={32} color={active.color} />
-        <Text style={[styles.featureHeadline, { color: c.text }]}>{active.headline}</Text>
-        {active.bullets.map((b, i) => (
-          <View key={i} style={styles.bulletRow}>
-            <Ionicons name="checkmark" size={16} color={active.color} />
-            <Text style={[styles.bulletText, { color: c.textMuted }]}>{b}</Text>
-          </View>
-        ))}
-      </View>
-      <View style={{ height: 40 }} />
-    </ScrollView>
-  );
-}
-
-// ─── SCREEN 4: NOTIFICATIONS ─────────────────────────────────────────
-function NotificationsScreen({
-  notifPref,
-  setNotifPref,
-}: {
-  notifPref: boolean;
-  setNotifPref: (v: boolean) => void;
-}) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-
-  const pillAnims = useRef(
-    Array.from({ length: 5 }, () => new Animated.Value(0))
-  ).current;
-
-  useEffect(() => {
-    Animated.stagger(
-      200,
-      pillAnims.map((a) =>
-        Animated.spring(a, { toValue: 1, friction: 6, useNativeDriver: true })
-      )
-    ).start();
-  }, [pillAnims]);
-
-  const pills = [
-    '🏆 Drew just posted a 74!',
-    '⛳ Your tee time is tomorrow',
-    '🔥 You\'re leading the season',
-    '💬 New message in Scottsdale Trip',
-    '📊 Weekly stats are in',
-  ];
-
-  return (
-    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
-      <View style={styles.notifCenter}>
-        <Ionicons name="notifications" size={48} color={c.gold} />
-        <Text style={[styles.notifTitle, { color: c.text }]}>Stay in the game</Text>
-
-        <View style={styles.pillsContainer}>
-          {pills.map((pill, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.notifPill,
-                { backgroundColor: c.elevated, borderColor: c.border, opacity: pillAnims[i], transform: [{ translateY: pillAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
-              ]}
-            >
-              <Text style={[styles.notifPillText, { color: c.text }]}>{pill}</Text>
-            </Animated.View>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.notifButtons}>
-        <Pressable
-          onPress={() => setNotifPref(true)}
-          style={({ pressed }) => [styles.notifPrimary, { backgroundColor: c.gold }, pressed && styles.pressedState]}
-        >
-          <Ionicons name="notifications" size={18} color="#000000" />
-          <Text style={styles.notifPrimaryText}>Turn On Notifications</Text>
-        </Pressable>
-        <Pressable onPress={() => setNotifPref(false)}>
-          <Text style={[styles.notifSkip, { color: c.textMuted }]}>Maybe later</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-// ─── SCREEN 5: LAUNCH MONTAGE ─────────────────────────────────────────
-function LaunchMontage({ userName, onComplete }: { userName: string; onComplete: () => void }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const [cardIdx, setCardIdx] = useState(0);
-  const [showFinal, setShowFinal] = useState(false);
-  const cardOpacity = useRef(new Animated.Value(1)).current;
-  const finalOpacity = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(0.6)).current;
-
-  const montageCards = [
-    { emoji: '⛳', line1: 'CHAMPIONSHIP', line2: 'GOLF' },
-    { emoji: '🏆', line1: 'GROUP', line2: 'LEADERBOARD' },
-    { emoji: '🏆', line1: 'MATCH CLOSED', line2: 'TYLER 3&2' },
-    { emoji: '⚔️', line1: '5-3', line2: 'YOU LEAD ALL-TIME' },
-    { emoji: '💰', line1: 'SKINS', line2: 'JACKPOT' },
-    { emoji: '🏆', line1: 'TEAM RED vs TEAM BLUE', line2: '12-9' },
-    { emoji: '🏆', line1: 'SEASON', line2: 'CHAMPION' },
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCardIdx((prev) => {
-        if (prev >= montageCards.length - 1) {
-          clearInterval(interval);
-          // Transition to final
-          Animated.sequence([
-            Animated.timing(cardOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-            Animated.delay(200),
-          ]).start(() => {
-            setShowFinal(true);
-            Animated.timing(finalOpacity, { toValue: 1, duration: 800, useNativeDriver: true }).start();
-            Animated.loop(
-              Animated.sequence([
-                Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
-                Animated.timing(pulseAnim, { toValue: 0.6, duration: 1500, useNativeDriver: true }),
-              ])
-            ).start();
-          });
-          return prev;
-        }
-
-        // Fade out, change, fade in
-        Animated.timing(cardOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-          Animated.timing(cardOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-        });
-
-        return prev + 1;
-      });
+    const t3 = setTimeout(() => {
+      // 2.5s: DORMIE scales in
+      Animated.parallel([
+        Animated.timing(dormieOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(dormieScale, { toValue: 1, damping: 12, stiffness: 100, useNativeDriver: true }),
+      ]).start();
+      startPulse();
     }, 2500);
 
-    return () => clearInterval(interval);
-  }, [cardOpacity, finalOpacity, pulseAnim, montageCards.length]);
+    const t4 = setTimeout(() => {
+      // 3.5s: subtext fades in
+      Animated.timing(subTextOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    }, 3500);
 
-  // Confetti particles
-  const confetti = useMemo(() =>
-    Array.from({ length: 60 }, (_, i) => ({
-      left: Math.random() * SCREEN_W,
-      top: Math.random() * SCREEN_H,
-      size: 4 + Math.random() * 6,
-      color: i % 2 === 0 ? '#C9A227' : '#1E4D2B',
-      rotation: Math.random() * 360,
-    })),
-  []);
+    const t5 = setTimeout(() => {
+      // 4.5s: gold flash
+      Animated.sequence([
+        Animated.timing(flashOpacity, { toValue: 0.15, duration: 300, useNativeDriver: true }),
+        Animated.timing(flashOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }, 4500);
 
-  const card = montageCards[cardIdx];
+    const t6 = setTimeout(() => {
+      // 5.5s: crossfade to welcome
+      Animated.parallel([
+        Animated.timing(cinematicOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(welcomeOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ]).start(() => setPhase('welcome'));
+    }, 5500);
 
-  if (showFinal) {
-    return (
-      <Animated.View style={[styles.screenFull, { backgroundColor: '#141210', opacity: finalOpacity }]}>
-        <ExpoStatusBar style="light" />
-        <View style={styles.finalCenter}>
-          <Animated.Text style={[styles.finalLogo, { opacity: pulseAnim }]}>
+    return () => { [t1, t2, t3, t4, t5, t6].forEach(clearTimeout); };
+  }, [reducedMotion]);
+
+  const lineWidthInterp = lineWidth.interpolate({ inputRange: [0, 200], outputRange: [0, 200] });
+
+  return (
+    <View style={[styles.screenFull, { backgroundColor: C.bg }]}>
+      <ExpoStatusBar style="light" />
+
+      {/* Cinematic moment */}
+      {phase === 'cinematic' && (
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: cinematicOpacity, justifyContent: 'center', alignItems: 'center' }]}>
+          {/* Gold line */}
+          <Animated.View style={{ width: lineWidthInterp, height: 1, backgroundColor: C.gold }} />
+
+          {/* Name text above line */}
+          <Animated.Text style={[styles.hookNameText, { opacity: nameOpacity, position: 'absolute', top: SCREEN_H / 2 - 40 }]}>
+            {userName} just went
+          </Animated.Text>
+
+          {/* DORMIE below line */}
+          <Animated.Text style={[styles.hookDormieText, { opacity: dormieOpacity, transform: [{ scale: Animated.multiply(dormieScale, pulseAnim) }], position: 'absolute', top: SCREEN_H / 2 + 10 }]}>
             DORMIE
           </Animated.Text>
-          <Text style={[styles.finalWelcome, { color: c.text }]}>Welcome, {userName.split(' ')[0]}.</Text>
-          <Pressable onPress={onComplete} style={({ pressed }) => [styles.enterBtn, pressed && styles.pressedState]}>
-            <Text style={styles.enterBtnText}>Enter Dormie</Text>
-            <Ionicons name="arrow-forward" size={18} color="#000000" />
-          </Pressable>
-        </View>
-      </Animated.View>
-    );
-  }
 
-  return (
-    <View style={[styles.screenFull, { backgroundColor: '#F5F1E8' }]}>
-      <ExpoStatusBar style="light" />
-      {/* Confetti */}
-      {confetti.map((p, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            left: p.left,
-            top: p.top,
-            width: p.size,
-            height: p.size,
-            backgroundColor: p.color,
-            transform: [{ rotate: `${p.rotation}deg` }],
-            opacity: 0.5,
-          }}
-        />
-      ))}
+          {/* Subtext */}
+          <Animated.Text style={[styles.hookSubText, { opacity: subTextOpacity, position: 'absolute', top: SCREEN_H / 2 + 70 }]}>
+            3 UP through 15
+          </Animated.Text>
 
-      <Animated.View style={[styles.montageCard, { opacity: cardOpacity }]}>
-        <Text style={styles.montageEmoji}>{card.emoji}</Text>
-        <Text style={styles.montageLine1}>{card.line1}</Text>
-        <Text style={styles.montageLine2}>{card.line2}</Text>
-      </Animated.View>
-    </View>
-  );
-}
+          {/* Gold flash overlay */}
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: C.gold, opacity: flashOpacity }]} pointerEvents="none" />
+        </Animated.View>
+      )}
 
-// ─── INTRO SCREEN 1: WHAT DORMIE DOES ────────────────────────────────
-function IntroScreen1({ onNext }: { onNext: () => void }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+      {/* Welcome content */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: welcomeOpacity, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }]}>
+        <GoldCorners size={24} inset={20} />
 
-  // Mini leaderboard animation
-  const rowAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
+        <Text style={styles.welcomeLogo}>DORMIE</Text>
+        <View style={styles.goldDivider} />
+        <Text style={styles.welcomeTagline}>Your crew, always in play.</Text>
+        <Text style={styles.welcomeSubTagline}>Score it. Track it. Compete for it.</Text>
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-    Animated.stagger(150, rowAnims.map(a =>
-      Animated.spring(a, { toValue: 1, damping: 15, stiffness: 200, useNativeDriver: true })
-    )).start();
-  }, []);
-
-  const demoRows = [
-    { rank: 1, name: 'McGowan', score: '-2.1', color: '#C9A227' },
-    { rank: 2, name: 'Fletcher', score: '+0.4', color: c.teal },
-    { rank: 3, name: 'Patterson', score: '+1.2', color: c.textMuted },
-    { rank: 4, name: 'You', score: '---', color: c.textMuted },
-  ];
-
-  return (
-    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
-      <Animated.View style={[styles.introCenter, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <Ionicons name="stats-chart" size={48} color={c.teal} />
-        <Text style={[styles.introTitle, { color: c.text }]}>
-          Dormie tracks your rounds, runs your competitions, and settles your bets.
-        </Text>
-
-        {/* Mini leaderboard animation */}
-        <View style={[styles.introPreview, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-          <View style={[styles.introPreviewHeader, { backgroundColor: '#1E4D2B' }]}>
-            <Text style={styles.introPreviewLabel}>LEADERBOARD</Text>
-          </View>
-          {demoRows.map((row, i) => (
-            <Animated.View
-              key={row.rank}
-              style={[
-                styles.introPreviewRow,
-                i < demoRows.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
-                { opacity: rowAnims[i], transform: [{ translateX: rowAnims[i].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] },
-              ]}
-            >
-              <Text style={[styles.introPreviewRank, { color: c.textMuted, fontFamily: GEO }]}>{row.rank}</Text>
-              <Text style={[styles.introPreviewName, { color: row.rank === 4 ? c.teal : c.text }]}>{row.name}</Text>
-              <Text style={[styles.introPreviewScore, { color: row.color, fontFamily: GEO }]}>{row.score}</Text>
-            </Animated.View>
-          ))}
-        </View>
-      </Animated.View>
-
-      <View style={styles.introBottom}>
-        <Pressable onPress={onNext} style={({ pressed }) => [styles.introBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
-          <Text style={[styles.introBtnText, { fontFamily: GEO }]}>Next</Text>
-          <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+        <Pressable onPress={() => { haptics.medium(); onNext(); }} style={({ pressed }) => [styles.greenButton, pressed && { opacity: 0.8 }]}>
+          <Text style={styles.greenButtonText}>Get Started →</Text>
         </Pressable>
-      </View>
-    </View>
-  );
-}
-
-// ─── INTRO SCREEN 2: SMARTER WITH TIME ──────────────────────────────
-function IntroScreen2({ onNext }: { onNext: () => void }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-    Animated.timing(progressAnim, { toValue: 1, duration: 1500, delay: 500, useNativeDriver: false }).start();
-  }, []);
-
-  const hcpWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['100%', '60%'] });
-
-  return (
-    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
-      <Animated.View style={[styles.introCenter, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <Ionicons name="trending-down" size={48} color={c.gold} />
-        <Text style={[styles.introTitle, { color: c.text }]}>
-          The more you play, the smarter Dormie gets.
-        </Text>
-        <Text style={[styles.introSubtitle, { color: c.textMuted }]}>
-          Your handicap, your rivals, your course records — all automatic.
-        </Text>
-
-        {/* Animated handicap preview */}
-        <View style={[styles.introPreview, { backgroundColor: c.cardBg, borderColor: c.border, padding: 16 }]}>
-          <Text style={[styles.introStatLabel, { color: c.gold, fontFamily: GEO }]}>HANDICAP INDEX</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-            <Animated.Text style={[styles.introStatBig, { color: c.teal, fontFamily: GEO }]}>
-              12.4
-            </Animated.Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-              <Ionicons name="trending-down" size={14} color={c.teal} />
-              <Text style={{ color: c.teal, fontSize: 12, fontWeight: '700', fontFamily: GEO }}>-1.2</Text>
-            </View>
-          </View>
-          <View style={[styles.introHcpTrack, { backgroundColor: c.elevated, marginTop: 12 }]}>
-            <Animated.View style={[styles.introHcpFill, { width: hcpWidth, backgroundColor: c.teal }]} />
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-            <Text style={{ color: c.textMuted, fontSize: 10 }}>20 rounds ago</Text>
-            <Text style={{ color: c.textMuted, fontSize: 10 }}>Now</Text>
-          </View>
-        </View>
       </Animated.View>
 
-      <View style={styles.introBottom}>
-        <Pressable onPress={onNext} style={({ pressed }) => [styles.introBtn, { backgroundColor: c.gold }, pressed && styles.pressedState]}>
-          <Text style={[styles.introBtnText, { color: '#141210', fontFamily: GEO }]}>Next</Text>
-          <Ionicons name="arrow-forward" size={18} color="#141210" />
-        </Pressable>
-      </View>
+      <ProgressDots current={0} total={4} />
     </View>
   );
 }
 
-// ─── INTRO SCREEN 3: PROFILE SETUP ─────────────────────────────────
-function IntroScreen3({
+// ═══════════════════════════════════════════════════════════════════════
+// SCREEN 2: BUILD YOUR IDENTITY
+// ═══════════════════════════════════════════════════════════════════════
+function Screen2Identity({
+  userName,
+  onNext,
+  onBack,
+  avatarColor,
+  setAvatarColor,
+  golferType,
+  setGolferType,
   handicap,
   setHandicap,
+  ghinNumber,
+  setGhinNumber,
+  ghinVerified,
+  setGhinVerified,
   homeCourse,
   setHomeCourse,
-  homeCourseId,
-  setHomeCourseId,
-  onNext,
+  homeCourseName,
+  setHomeCourseName,
 }: {
-  handicap: string;
-  setHandicap: (v: string) => void;
-  homeCourse: string;
-  setHomeCourse: (v: string) => void;
-  homeCourseId: string;
-  setHomeCourseId: (v: string) => void;
+  userName: string;
   onNext: () => void;
+  onBack: () => void;
+  avatarColor: string;
+  setAvatarColor: (c: string) => void;
+  golferType: GolferType | null;
+  setGolferType: (t: GolferType) => void;
+  handicap: string;
+  setHandicap: (h: string) => void;
+  ghinNumber: string;
+  setGhinNumber: (g: string) => void;
+  ghinVerified: boolean;
+  setGhinVerified: (v: boolean) => void;
+  homeCourse: SearchResult | null;
+  setHomeCourse: (c: SearchResult | null) => void;
+  homeCourseName: string;
+  setHomeCourseName: (n: string) => void;
 }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const [courseResults, setCourseResults] = useState<any[]>([]);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [avatarTab, setAvatarTab] = useState<'initials' | 'themes' | 'photo'>('initials');
+  const [showHandicapHelp, setShowHandicapHelp] = useState(false);
+  const [courseQuery, setCourseQuery] = useState('');
+  const [courseResults, setCourseResults] = useState<SearchResult[]>([]);
   const [courseSearching, setCourseSearching] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handicapAnim = useRef(new Animated.Value(handicap ? 1 : 0)).current;
+  const courseGlowAnim = useRef(new Animated.Value(0)).current;
 
+  // Debounced course search
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  const handleCourseSearch = useCallback((text: string) => {
-    setHomeCourse(text);
-    setHomeCourseId('');
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (text.trim().length < 2) {
-      setCourseResults([]);
-      setShowDropdown(false);
-      return;
-    }
-    setCourseSearching(true);
-    setShowDropdown(true);
-    searchTimer.current = setTimeout(async () => {
+    if (courseQuery.length < 2) { setCourseResults([]); return; }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      setCourseSearching(true);
       try {
-        const apiRes = await coursesService.searchAPI(text.trim());
-        let list: any[] = [];
-        if (apiRes && typeof apiRes === 'object') {
-          list = Array.isArray(apiRes) ? apiRes : Array.isArray(apiRes.courses) ? apiRes.courses : [];
-        }
-        if (list.length === 0) {
-          const db = await coursesService.search(text.trim(), 5);
-          list = Array.isArray(db) ? db : [];
-        }
-        setCourseResults(list.slice(0, 5));
-      } catch {
-        setCourseResults([]);
-      } finally {
-        setCourseSearching(false);
-      }
-    }, 300);
-  }, [setHomeCourse, setHomeCourseId]);
+        const results = await coursesService.searchAll(courseQuery);
+        setCourseResults(results);
+      } catch { setCourseResults([]); }
+      setCourseSearching(false);
+    }, 400);
+  }, [courseQuery]);
+
+  const handleHandicapChange = (val: string) => {
+    setHandicap(val);
+    if (val && !handicap) {
+      Animated.spring(handicapAnim, { toValue: 1, damping: 15, stiffness: 120, useNativeDriver: true }).start();
+    } else if (!val) {
+      handicapAnim.setValue(0);
+    }
+  };
+
+  const handleSelectCourse = (course: SearchResult) => {
+    setHomeCourse(course);
+    setHomeCourseName(course.name);
+    setCourseQuery('');
+    setCourseResults([]);
+    haptics.success();
+    // Gold glow celebration
+    Animated.sequence([
+      Animated.timing(courseGlowAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(courseGlowAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setAvatarColor(`photo:${result.assets[0].uri}`);
+    }
+  };
+
+  const initials = userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+      <ScrollView style={[styles.screenFull, { backgroundColor: C.bg }]} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
         <ExpoStatusBar style="light" />
-        <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} keyboardShouldPersistTaps="handled">
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], marginTop: STATUS_BAR_H + 40 }}>
-            <Ionicons name="person-circle-outline" size={48} color={c.teal} style={{ alignSelf: 'center' }} />
-            <Text style={[styles.introTitle, { color: c.text, textAlign: 'center', marginTop: 16 }]}>
-              Let's set up your profile.
-            </Text>
-            <Text style={[styles.introSubtitle, { color: c.textMuted, textAlign: 'center' }]}>
-              You can always change these later.
-            </Text>
 
-            {/* Handicap input */}
-            <Text style={[styles.fieldLabel, { color: c.gold, marginTop: 32 }]}>HANDICAP INDEX</Text>
-            <TextInput
-              value={handicap}
-              onChangeText={setHandicap}
-              placeholder="e.g., 12.4"
-              placeholderTextColor={c.textMuted}
-              style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-              keyboardType="numeric"
-            />
-            <Pressable onPress={() => setHandicap('')}>
-              <Text style={[styles.helperLink, { color: c.teal }]}>I don't know my handicap</Text>
-            </Pressable>
+        {/* Back button */}
+        <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={C.text} />
+        </Pressable>
 
-            {/* Home course search */}
-            <Text style={[styles.fieldLabel, { color: c.gold, marginTop: 24 }]}>HOME COURSE</Text>
-            <TextInput
-              value={homeCourse}
-              onChangeText={handleCourseSearch}
-              placeholder="Search courses..."
-              placeholderTextColor={c.textMuted}
-              style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-              onFocus={() => { if (courseResults.length > 0) setShowDropdown(true); }}
-            />
-            {showDropdown && (
-              <View style={[styles.courseDropdown, { backgroundColor: c.elevated, borderColor: c.border }]}>
-                {courseSearching && (
-                  <View style={styles.courseSearchingRow}>
-                    <ActivityIndicator size="small" color={c.teal} />
-                    <Text style={[styles.courseSearchingText, { color: c.textMuted }]}>Searching...</Text>
-                  </View>
-                )}
-                {courseResults.map((course, i) => {
-                  const name = course.name ?? course.club_name ?? '';
-                  const id = course.id ?? '';
-                  const loc = course.location ?? (course.city && course.state ? `${course.city}, ${course.state}` : '');
-                  return (
-                    <Pressable
-                      key={id || i}
-                      onPress={() => { setHomeCourse(name); setHomeCourseId(id); setShowDropdown(false); setCourseResults([]); }}
-                      style={[styles.courseResultRow, i < courseResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border }]}
-                    >
-                      <Ionicons name="golf" size={16} color={c.teal} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.courseResultName, { color: c.text }]} numberOfLines={1}>{name}</Text>
-                        {loc ? <Text style={[styles.courseResultLocation, { color: c.textMuted }]} numberOfLines={1}>{loc}</Text> : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+        {/* ── Live Profile Preview Card ── */}
+        <Animated.View style={[styles.profileCard, { opacity: courseGlowAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1, 1] }) }]}>
+          {homeCourse && (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: C.masters, opacity: 0.3 }]} />
+          )}
+          <LinearGradient colors={['transparent', C.bg]} style={[StyleSheet.absoluteFill, { top: '50%' }]} />
+
+          <View style={styles.profileCardContent}>
+            {/* Avatar */}
+            {avatarColor.startsWith('photo:') ? (
+              <Image source={{ uri: avatarColor.slice(6) }} style={styles.profileAvatar} />
+            ) : avatarColor.startsWith('theme:') ? (
+              <View style={[styles.profileAvatar, { backgroundColor: COURSE_THEMES.find(t => t.key === avatarColor.slice(6))?.colors[0] ?? C.augusta }]}>
+                <Text style={{ color: COURSE_THEMES.find(t => t.key === avatarColor.slice(6))?.textColor ?? '#FFF', fontFamily: GEO, fontWeight: '700', fontSize: 20 }}>{initials}</Text>
+              </View>
+            ) : (
+              <View style={[styles.profileAvatar, { backgroundColor: INITIALS_COLORS.find(c => c.key === avatarColor)?.color ?? C.augusta }]}>
+                <Text style={{ color: '#E8E4DE', fontFamily: GEO, fontWeight: '700', fontSize: 20 }}>{initials}</Text>
               </View>
             )}
-          </Animated.View>
-          <View style={{ height: 120 }} />
-        </ScrollView>
 
-        <View style={styles.introBottom}>
-          <Pressable onPress={onNext} style={({ pressed }) => [styles.introBtn, { backgroundColor: c.teal }, pressed && styles.pressedState]}>
-            <Text style={[styles.introBtnText, { fontFamily: GEO }]}>
-              {handicap || homeCourse ? 'Continue' : 'Skip for Now'}
+            <View style={{ marginLeft: 14, flex: 1 }}>
+              <Text style={styles.profileName}>{userName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                <Animated.Text style={[styles.profileHandicap, { opacity: handicapAnim, transform: [{ translateY: handicapAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>
+                  {handicap ? `${handicap} HCP` : '—'}
+                </Animated.Text>
+                {homeCourseName ? (
+                  <Text style={styles.profileCourse} numberOfLines={1}>{homeCourseName}</Text>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
+          {/* Gold glow overlay */}
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: C.gold, opacity: courseGlowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.15] }) }]} pointerEvents="none" />
+        </Animated.View>
+
+        <View style={{ paddingHorizontal: 20 }}>
+
+          {/* ── Avatar Section ── */}
+          <Text style={styles.sectionLabel}>YOUR LOOK</Text>
+          <Pressable onPress={() => setShowAvatarPicker(!showAvatarPicker)} style={styles.avatarPickerToggle}>
+            {avatarColor.startsWith('photo:') ? (
+              <Image source={{ uri: avatarColor.slice(6) }} style={{ width: 56, height: 56, borderRadius: 28 }} />
+            ) : (
+              <MiniAvatar name={userName} color={INITIALS_COLORS.find(c => c.key === avatarColor)?.color ?? C.augusta} size={56} />
+            )}
+            <Text style={styles.avatarPickerLabel}>Tap to change</Text>
+            <Ionicons name={showAvatarPicker ? 'chevron-up' : 'chevron-down'} size={16} color={C.textMuted} />
+          </Pressable>
+
+          {showAvatarPicker && (
+            <View style={styles.avatarPickerContent}>
+              {/* Tabs */}
+              <View style={styles.avatarTabs}>
+                {(['initials', 'themes', 'photo'] as const).map(tab => (
+                  <Pressable
+                    key={tab}
+                    onPress={() => setAvatarTab(tab)}
+                    style={[styles.avatarTab, avatarTab === tab && { borderBottomColor: C.gold, borderBottomWidth: 2 }]}
+                  >
+                    <Text style={[styles.avatarTabText, avatarTab === tab && { color: C.gold }]}>
+                      {tab === 'initials' ? 'Colors' : tab === 'themes' ? 'Themes' : 'Photo'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {avatarTab === 'initials' && (
+                <View style={styles.colorGrid}>
+                  {INITIALS_COLORS.map(c => (
+                    <Pressable
+                      key={c.key}
+                      onPress={() => { setAvatarColor(c.key); haptics.light(); }}
+                      style={[styles.colorSwatch, { backgroundColor: c.color }, avatarColor === c.key && { borderWidth: 2, borderColor: C.gold }]}
+                    >
+                      <Text style={{ color: '#E8E4DE', fontFamily: GEO, fontWeight: '700', fontSize: 12 }}>{initials}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {avatarTab === 'themes' && (
+                <View style={styles.themeGrid}>
+                  {COURSE_THEMES.map(t => (
+                    <Pressable
+                      key={t.key}
+                      onPress={() => { setAvatarColor(`theme:${t.key}`); haptics.light(); }}
+                      style={[styles.themeSwatch, avatarColor === `theme:${t.key}` && { borderWidth: 2, borderColor: C.gold }]}
+                    >
+                      <LinearGradient colors={t.colors as [string, string]} style={styles.themeSwatchInner}>
+                        <Text style={{ color: t.textColor, fontFamily: GEO, fontWeight: '700', fontSize: 11 }}>{initials}</Text>
+                        <Text style={{ color: t.textColor, fontSize: 8, marginTop: 2, opacity: 0.7 }}>{t.label}</Text>
+                      </LinearGradient>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {avatarTab === 'photo' && (
+                <Pressable onPress={pickPhoto} style={styles.photoPickBtn}>
+                  <Ionicons name="camera" size={24} color={C.gold} />
+                  <Text style={{ color: C.text, marginTop: 8, fontSize: 13 }}>Upload Photo</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {/* ── Golfer Type ── */}
+          <Text style={[styles.sectionLabel, { marginTop: 28 }]}>WHAT KIND OF GOLFER ARE YOU?</Text>
+          <View style={styles.golferTypeRow}>
+            {([
+              { key: 'competitive' as GolferType, icon: 'trophy', label: 'Competitive', desc: 'I keep score every round and want to beat my friends' },
+              { key: 'social' as GolferType, icon: 'beer', label: 'Social', desc: 'I play for fun but love a good side bet' },
+              { key: 'improving' as GolferType, icon: 'trending-up', label: 'Improving', desc: "I'm working on my game and tracking progress" },
+            ]).map(g => (
+              <Pressable
+                key={g.key}
+                onPress={() => { setGolferType(g.key); haptics.light(); }}
+                style={[styles.golferCard, golferType === g.key && { borderColor: C.gold, borderWidth: 1 }]}
+              >
+                <Ionicons name={g.icon as any} size={22} color={golferType === g.key ? C.gold : C.textMuted} />
+                <Text style={[styles.golferCardTitle, golferType === g.key && { color: C.gold }]}>{g.label}</Text>
+                <Text style={styles.golferCardDesc}>{g.desc}</Text>
+                {golferType === g.key && (
+                  <Ionicons name="checkmark-circle" size={16} color={C.gold} style={{ position: 'absolute', top: 8, right: 8 }} />
+                )}
+              </Pressable>
+            ))}
+          </View>
+
+          {/* ── Handicap ── */}
+          <Text style={[styles.sectionLabel, { marginTop: 28 }]}>HANDICAP INDEX</Text>
+          <TextInput
+            value={handicap}
+            onChangeText={handleHandicapChange}
+            placeholder="e.g. 8.2"
+            placeholderTextColor={C.textMuted}
+            keyboardType="decimal-pad"
+            style={styles.textInput}
+          />
+          <Pressable onPress={() => setShowHandicapHelp(!showHandicapHelp)}>
+            <Text style={styles.helpLink}>I don't know my handicap →</Text>
+          </Pressable>
+          {showHandicapHelp && (
+            <Text style={styles.helpText}>
+              No worries — Dormie will calculate your exact index after your first 3 rounds. If you typically shoot around 90 on a par 72, your handicap is roughly 18.
             </Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          )}
+
+          {/* ── GHIN ── */}
+          <Text style={[styles.sectionLabel, { marginTop: 28 }]}>GHIN NUMBER (optional)</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TextInput
+              value={ghinNumber}
+              onChangeText={setGhinNumber}
+              placeholder="1234567"
+              placeholderTextColor={C.textMuted}
+              keyboardType="number-pad"
+              style={[styles.textInput, { flex: 1 }]}
+            />
+            <Pressable
+              onPress={() => { if (ghinNumber.length >= 7) { setGhinVerified(true); haptics.success(); } }}
+              style={[styles.verifyBtn, ghinNumber.length < 7 && { opacity: 0.5 }]}
+            >
+              <Text style={styles.verifyBtnText}>Verify</Text>
+            </Pressable>
+          </View>
+          {ghinVerified && (
+            <View style={styles.verifiedRow}>
+              <Ionicons name="checkmark-circle" size={16} color={C.augusta} />
+              <Text style={styles.verifiedText}>GHIN Verified{handicap ? ` — Handicap Index: ${handicap}` : ''}</Text>
+            </View>
+          )}
+
+          {/* ── Home Course ── */}
+          <Text style={[styles.sectionLabel, { marginTop: 28 }]}>HOME COURSE</Text>
+          {homeCourse ? (
+            <View style={styles.selectedCourse}>
+              <Ionicons name="golf" size={18} color={C.augusta} />
+              <Text style={styles.selectedCourseName} numberOfLines={1}>{homeCourse.name}</Text>
+              <Pressable onPress={() => { setHomeCourse(null); setHomeCourseName(''); }}>
+                <Ionicons name="close-circle" size={18} color={C.textMuted} />
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                value={courseQuery}
+                onChangeText={setCourseQuery}
+                placeholder="Search courses..."
+                placeholderTextColor={C.textMuted}
+                style={styles.textInput}
+              />
+              {courseSearching && <ActivityIndicator size="small" color={C.gold} style={{ marginTop: 8 }} />}
+              {courseResults.map(course => (
+                <Pressable key={course.id} onPress={() => handleSelectCourse(course)} style={styles.courseResultRow}>
+                  <Ionicons name="golf" size={16} color={C.augusta} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.courseResultName}>{course.name}</Text>
+                    <Text style={styles.courseResultLoc}>{course.city}{course.state ? `, ${course.state}` : ''}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </>
+          )}
+
+          {/* ── Mini Leaderboard Preview ── */}
+          <View style={[styles.miniLeaderboard, { marginTop: 28 }]}>
+            <Text style={styles.miniLbHeader}>YOUR LEADERBOARD</Text>
+            <View style={styles.miniLbRow}>
+              <Text style={styles.miniLbPos}>1</Text>
+              <MiniAvatar name={userName} color={INITIALS_COLORS.find(c => c.key === avatarColor)?.color ?? C.augusta} size={28} />
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={styles.miniLbName}>{userName}</Text>
+                <Text style={styles.miniLbDetail}>{handicap ? `${handicap} HCP` : '—'}{homeCourseName ? ` • ${homeCourseName}` : ''}</Text>
+              </View>
+            </View>
+            {[1, 2, 3, 4].map(i => (
+              <View key={i} style={[styles.miniLbRow, { opacity: 0.3 }]}>
+                <Text style={styles.miniLbPos}>{i + 1}</Text>
+                <View style={[styles.ghostAvatar, { width: 28, height: 28, borderRadius: 14 }]} />
+                <Text style={[styles.miniLbName, { marginLeft: 8, color: C.textMuted }]}>Waiting for your crew...</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Next button */}
+        <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
+          <Pressable onPress={() => { haptics.medium(); onNext(); }} style={({ pressed }) => [styles.greenButton, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.greenButtonText}>Next — Find Your Crew →</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
+      <ProgressDots current={1} total={4} />
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Main Onboarding ──────────────────────────────────────────────────
-export default function OnboardingScreen() {
-  const { theme, toggleTheme } = useTheme();
-  const c = theme.colors;
+// ═══════════════════════════════════════════════════════════════════════
+// SCREEN 3: FIND YOUR CREW
+// ═══════════════════════════════════════════════════════════════════════
+function Screen3Crew({
+  userName,
+  avatarColor,
+  handicap,
+  homeCourseName,
+  onNext,
+  onBack,
+  addedFriends,
+  setAddedFriends,
+  invitedNames,
+  setInvitedNames,
+}: {
+  userName: string;
+  avatarColor: string;
+  handicap: string;
+  homeCourseName: string;
+  onNext: () => void;
+  onBack: () => void;
+  addedFriends: User[];
+  setAddedFriends: (f: User[]) => void;
+  invitedNames: string[];
+  setInvitedNames: (n: string[]) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
   const { user } = useAuth();
-  const router = useRouter();
 
-  const [step, setStep] = useState<OnboardingStep>(0);
-
-  // Profile state
-  const [avatarMode, setAvatarMode] = useState<AvatarMode>('initials');
-  const [avatarTheme, setAvatarTheme] = useState<AvatarTheme>('green');
-  const [golferType, setGolferType] = useState<GolferType | null>(null);
-  const [handicap, setHandicap] = useState('');
-  const [ghinNumber, setGhinNumber] = useState('');
-  const [homeCourse, setHomeCourse] = useState('');
-  const [homeCourseId, setHomeCourseId] = useState('');
-  const [notifPref, setNotifPref] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-
-  const userName = user?.user_metadata?.name || user?.user_metadata?.full_name || '';
-  const displayName = userName || 'Golfer';
-  const themeColor = AVATAR_THEMES.find((t) => t.key === avatarTheme)?.color ?? '#1E4D2B';
-
-  const handleNext = useCallback(() => {
-    if (step < 9) {
-      haptics.medium();
-      setStep((step + 1) as OnboardingStep);
-    }
-  }, [step]);
-
-  const handleBack = useCallback(() => {
-    if (step > 0) {
-      setStep((step - 1) as OnboardingStep);
-    }
-  }, [step]);
-
-  const handleNotifChoice = useCallback((pref: boolean) => {
-    setNotifPref(pref);
-    handleNext();
-  }, [handleNext]);
-
-  const handleComplete = useCallback(async () => {
-    haptics.success();
-    // Save onboarding data to profile
-    try {
-      if (user?.id) {
-        await authService.updateProfile(user.id, {
-          avatar_color: themeColor,
-          handicap_index: handicap ? parseFloat(handicap) : 0,
-          city: null,
-          state: null,
-        });
-        // Persist home course in auth user metadata
-        await supabase.auth.updateUser({
-          data: {
-            home_course_name: homeCourse || null,
-            home_course_id: homeCourseId || null,
-          },
-        });
-      }
-    } catch (err) {
-      // Non-blocking — profile can be updated later
-      console.warn('Failed to save onboarding data:', err);
-    }
-
-    setTimeout(() => router.replace('/(tabs)'), 0);
-  }, [user, themeColor, handicap, homeCourse, homeCourseId, router]);
-
-  // Step 9: trigger navigation via useEffect to avoid "Cannot update component while rendering"
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (step === 9) {
-      handleComplete();
+    if (searchQuery.length < 2) { setSearchResults([]); return; }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await friendsService.searchUsers(searchQuery);
+        setSearchResults(results.filter(r => r.id !== user?.id && !addedFriends.some(f => f.id === r.id)));
+      } catch { setSearchResults([]); }
+      setSearching(false);
+    }, 400);
+  }, [searchQuery]);
+
+  const handleShareInvite = async () => {
+    haptics.light();
+    try {
+      await Share.share({
+        message: 'Dormie — golf competition app for our crew. Tracks rounds, runs seasons, settles bets. Join up: https://expo.dev (Download Expo Go first)',
+      });
+    } catch {}
+  };
+
+  const handleAddFriend = async (friend: User) => {
+    haptics.success();
+    setAddedFriends([...addedFriends, friend]);
+    setSearchResults(searchResults.filter(r => r.id !== friend.id));
+    // Send friend request
+    if (user?.id) {
+      try { await friendsService.sendRequest(user.id, friend.id); } catch {}
     }
-  }, [step, handleComplete]);
+  };
 
-  // Screens that manage their own navigation
-  if (step === 0) {
-    return <WelcomeScreen onNext={handleNext} onToggleTheme={toggleTheme} />;
-  }
+  const allLeaderboardEntries = [
+    { name: userName, color: INITIALS_COLORS.find(c => c.key === avatarColor)?.color ?? C.augusta, handicap, isUser: true },
+    ...addedFriends.map(f => ({
+      name: f.name,
+      color: f.avatar_color || C.augusta,
+      handicap: f.handicap_index?.toString() ?? '',
+      isUser: false,
+    })),
+    ...invitedNames.map(n => ({ name: n, color: C.elevated, handicap: '', isUser: false, invited: true })),
+  ];
 
-  // New intro screens (steps 1-3)
-  if (step === 1) {
-    return <IntroScreen1 onNext={handleNext} />;
-  }
-  if (step === 2) {
-    return <IntroScreen2 onNext={handleNext} />;
-  }
-  if (step === 3) {
-    return (
-      <IntroScreen3
-        handicap={handicap}
-        setHandicap={setHandicap}
-        homeCourse={homeCourse}
-        setHomeCourse={setHomeCourse}
-        homeCourseId={homeCourseId}
-        setHomeCourseId={setHomeCourseId}
-        onNext={handleNext}
-      />
-    );
-  }
-
-  if (step === 7) {
-    return (
-      <NotificationsScreen
-        notifPref={notifPref}
-        setNotifPref={(v) => { setNotifPref(v); handleNext(); }}
-      />
-    );
-  }
-
-  if (step === 8) {
-    return <LaunchMontage userName={displayName} onComplete={handleNext} />;
-  }
-
-  if (step === 9) {
-    return null;
-  }
-
-  // Steps 4-6 share layout with nav bar (Your Game, Build Group, Features)
-  const navStep = step - 3; // Maps 4->1, 5->2, 6->3
   return (
-    <View style={[styles.screenFull, { backgroundColor: c.bg }]}>
+    <View style={[styles.screenFull, { backgroundColor: C.bg }]}>
       <ExpoStatusBar style="light" />
-      {/* Header */}
-      <View style={[styles.navBar, { borderBottomColor: c.border }]}>
-        <Pressable onPress={handleBack} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={c.text} />
-        </Pressable>
-        <View style={styles.progressDots}>
-          {[1, 2, 3].map((s) => (
-            <View
-              key={s}
-              style={[
-                styles.progressDot,
-                {
-                  backgroundColor: s < navStep ? c.gold : s === navStep ? c.teal : c.elevated,
-                  width: s === navStep ? 20 : 6,
-                },
-              ]}
-            />
+
+      <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
+        <Ionicons name="arrow-back" size={24} color={C.text} />
+      </Pressable>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+        {/* ── Live Leaderboard ── */}
+        <View style={[styles.liveLeaderboard, { marginTop: STATUS_BAR_H + 50 }]}>
+          <Text style={styles.lbHeader}>LEADERBOARD</Text>
+          {allLeaderboardEntries.map((entry, i) => (
+            <Animated.View key={entry.name + i} style={styles.lbRow}>
+              <Text style={styles.lbPos}>{i + 1}</Text>
+              <MiniAvatar name={entry.name} color={entry.color} size={32} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={[styles.lbName, entry.isUser && { color: C.gold }]}>{entry.name}</Text>
+                {(entry as any).invited ? (
+                  <Text style={styles.lbInvited}>Invited — pending</Text>
+                ) : entry.handicap ? (
+                  <Text style={styles.lbHcp}>{entry.handicap} HCP</Text>
+                ) : null}
+              </View>
+            </Animated.View>
+          ))}
+          {allLeaderboardEntries.length < 5 && Array.from({ length: 5 - allLeaderboardEntries.length }).map((_, i) => (
+            <View key={`ghost-${i}`} style={[styles.lbRow, { opacity: 0.2 }]}>
+              <Text style={styles.lbPos}>{allLeaderboardEntries.length + i + 1}</Text>
+              <View style={[styles.ghostAvatar, { width: 32, height: 32, borderRadius: 16 }]} />
+              <Text style={[styles.lbName, { marginLeft: 10, color: C.textMuted }]}>—</Text>
+            </View>
           ))}
         </View>
-        <Pressable onPress={handleNext}>
-          <Text style={[styles.skipText, { color: c.textMuted }]}>Skip</Text>
-        </Pressable>
-      </View>
 
-      {/* Content */}
-      {step === 4 && (
-        <YourGameScreen
-          avatarMode={avatarMode} setAvatarMode={setAvatarMode}
-          avatarTheme={avatarTheme} setAvatarTheme={setAvatarTheme}
-          golferType={golferType} setGolferType={setGolferType}
-          handicap={handicap} setHandicap={setHandicap}
-          ghinNumber={ghinNumber} setGhinNumber={setGhinNumber}
-          homeCourse={homeCourse} setHomeCourse={setHomeCourse}
-          homeCourseId={homeCourseId} setHomeCourseId={setHomeCourseId}
-          userName={displayName}
-          userId={user?.id ?? ''}
-          photoUri={photoUri} setPhotoUri={setPhotoUri}
-        />
-      )}
-      {step === 5 && <BuildGroupScreen />}
-      {step === 6 && <FeatureScreen />}
+        <Text style={styles.crewHeaderText}>DORMIE IS BUILT FOR YOUR GOLF CREW, ANYWHERE.</Text>
 
-      {/* Bottom button */}
-      <View style={[styles.bottomBar, { borderTopColor: c.border }]}>
-        <Pressable onPress={handleNext} style={({ pressed }) => [styles.continueBtn, { backgroundColor: step === 6 ? c.gold : c.teal }, pressed && styles.pressedState]}>
-          <Text style={[styles.continueBtnText, { color: step === 6 ? '#000000' : '#FFFFFF', fontFamily: GEO }]}>
-            {step === 6 ? "Let's Play" : 'Continue'}
-          </Text>
-          <Ionicons name="arrow-forward" size={18} color={step === 6 ? '#000000' : '#FFFFFF'} />
+        {/* ── Add Crew Methods ── */}
+        <View style={{ paddingHorizontal: 20, gap: 12 }}>
+          {/* Share invite */}
+          <Pressable onPress={handleShareInvite} style={styles.crewCard}>
+            <Ionicons name="share-outline" size={22} color={C.gold} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.crewCardTitle}>Share Invite Link</Text>
+              <Text style={styles.crewCardDesc}>Send a link to your golf crew</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+          </Pressable>
+
+          {/* Search by name */}
+          <View style={styles.crewCard}>
+            <Ionicons name="search" size={22} color={C.gold} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.crewCardTitle}>Search by Name</Text>
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Find friends on Dormie..."
+                placeholderTextColor={C.textMuted}
+                style={styles.inlineSearchInput}
+              />
+            </View>
+          </View>
+
+          {searching && <ActivityIndicator size="small" color={C.gold} />}
+
+          {searchResults.map(result => (
+            <View key={result.id} style={styles.searchResultRow}>
+              <MiniAvatar name={result.name} color={result.avatar_color || C.augusta} size={36} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ color: C.text, fontFamily: GEO, fontSize: 14 }}>{result.name}</Text>
+                {result.handicap_index > 0 && <Text style={{ color: C.textMuted, fontSize: 12 }}>{result.handicap_index} HCP</Text>}
+              </View>
+              <Pressable onPress={() => handleAddFriend(result)} style={styles.addFriendBtn}>
+                <Ionicons name="person-add" size={14} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 12, marginLeft: 4, fontWeight: '600' }}>Add</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        {/* Reassurance */}
+        <Text style={styles.reassuranceText}>
+          Your crew can join anytime. Dormie works solo too — when your crew joins, the competition comes alive.
+        </Text>
+
+        {/* Skip link */}
+        <Pressable onPress={() => { haptics.light(); onNext(); }}>
+          <Text style={styles.skipLink}>Skip — add friends later</Text>
         </Pressable>
-      </View>
+
+        {/* Next button */}
+        <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
+          <Pressable onPress={() => { haptics.medium(); onNext(); }} style={({ pressed }) => [styles.greenButton, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.greenButtonText}>Next — See What Awaits →</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+      <ProgressDots current={2} total={4} />
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// SCREEN 4: THE MONTAGE
+// ═══════════════════════════════════════════════════════════════════════
+function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userName: string; onComplete: () => void; onBack: () => void; reducedMotion: boolean }) {
+  const [currentMoment, setCurrentMoment] = useState(0);
+  const [showEnterButton, setShowEnterButton] = useState(false);
+  const fadeAnims = useRef(Array.from({ length: 7 }, () => new Animated.Value(0))).current;
+  const enterBtnAnim = useRef(new Animated.Value(0)).current;
+  const enterPulse = useRef(new Animated.Value(1)).current;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const MOMENT_DURATION = 2500;
+  const CROSSFADE = 300;
+
+  const advanceToMoment = useCallback((idx: number) => {
+    if (idx >= 7) {
+      // Show enter button on the last moment
+      setShowEnterButton(true);
+      Animated.timing(enterBtnAnim, { toValue: 1, duration: 500, delay: 2000, useNativeDriver: true }).start();
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(enterPulse, { toValue: 1.05, duration: 1200, useNativeDriver: true }),
+          Animated.timing(enterPulse, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        ])
+      ).start();
+      return;
+    }
+    setCurrentMoment(idx);
+
+    // Fade in current
+    Animated.timing(fadeAnims[idx], { toValue: 1, duration: CROSSFADE, useNativeDriver: true }).start();
+
+    // Schedule fade out and advance
+    timerRef.current = setTimeout(() => {
+      Animated.timing(fadeAnims[idx], { toValue: 0, duration: CROSSFADE, useNativeDriver: true }).start();
+      setTimeout(() => advanceToMoment(idx + 1), CROSSFADE);
+    }, MOMENT_DURATION);
+  }, [fadeAnims]);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      // Skip to the last moment immediately
+      setCurrentMoment(6);
+      fadeAnims[6].setValue(1);
+      setShowEnterButton(true);
+      enterBtnAnim.setValue(1);
+      return;
+    }
+    advanceToMoment(0);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const handleTap = () => {
+    if (showEnterButton) return;
+    // Advance to next moment on tap
+    if (timerRef.current) clearTimeout(timerRef.current);
+    Animated.timing(fadeAnims[currentMoment], { toValue: 0, duration: 150, useNativeDriver: true }).start();
+    setTimeout(() => advanceToMoment(currentMoment + 1), 150);
+  };
+
+  return (
+    <Pressable style={[styles.screenFull, { backgroundColor: C.bg }]} onPress={handleTap}>
+      <ExpoStatusBar style="light" />
+
+      <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
+        <Ionicons name="arrow-back" size={24} color={C.text} />
+      </Pressable>
+
+      {/* Skip button */}
+      <Pressable onPress={onComplete} style={styles.skipBtn} hitSlop={12}>
+        <Text style={styles.skipBtnText}>Skip</Text>
+      </Pressable>
+
+      {/* MOMENT 1: Leaderboard Drop */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[0] }]} pointerEvents="none">
+        <View style={styles.momentLeaderboard}>
+          {['Jack N.', 'Tiger W.', 'Ben H.', 'Arnold P.', 'Bobby J.'].map((name, i) => (
+            <View key={name} style={styles.momentLbRow}>
+              <Text style={[styles.momentLbPos, i === 0 && { color: C.gold }]}>{i + 1}</Text>
+              <MiniAvatar name={name} color={i === 0 ? C.gold : C.masters} size={28} />
+              <Text style={[styles.momentLbName, i === 0 && { color: C.gold }]}>{name}</Text>
+              <Text style={[styles.momentLbScore, i === 0 && { color: C.gold }]}>{[-4, -3, -2, -1, 'E'][i]}</Text>
+            </View>
+          ))}
+        </View>
+      </Animated.View>
+
+      {/* MOMENT 2: The Dormie Moment */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[1] }]} pointerEvents="none">
+        <GoldCorners size={30} inset={30} />
+        <Text style={styles.momentDormieText}>DORMIE</Text>
+        <Text style={styles.momentDormieSub}>3 UP • 3 TO PLAY</Text>
+      </Animated.View>
+
+      {/* MOMENT 3: Skins Jackpot */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[2] }]} pointerEvents="none">
+        <Ionicons name="cash" size={48} color={C.gold} />
+        <Text style={styles.momentBigText}>SKINS JACKPOT</Text>
+        <Text style={styles.momentSubText}>4 SKINS ON HOLE 14</Text>
+      </Animated.View>
+
+      {/* MOMENT 4: Head to Head */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[3] }]} pointerEvents="none">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+          <MiniAvatar name="You" color={C.augusta} size={56} />
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.momentH2HRecord}>5 — 3</Text>
+            <Text style={styles.momentH2HLabel}>ALL-TIME RECORD</Text>
+          </View>
+          <MiniAvatar name="Rival" color={C.urgent} size={56} />
+        </View>
+      </Animated.View>
+
+      {/* MOMENT 5: Ryder Cup */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[4] }]} pointerEvents="none">
+        <View style={{ flexDirection: 'row', width: '100%', height: '100%' }}>
+          <View style={[styles.ryderHalf, { backgroundColor: '#C41E3A22' }]}>
+            <Text style={[styles.ryderTeam, { color: C.urgent }]}>TEAM RED</Text>
+          </View>
+          <View style={[styles.ryderHalf, { backgroundColor: '#00674722' }]}>
+            <Text style={[styles.ryderTeam, { color: C.augusta }]}>TEAM BLUE</Text>
+          </View>
+        </View>
+        <View style={styles.ryderScoreOverlay}>
+          <Text style={styles.ryderScore}>14 — 10</Text>
+        </View>
+      </Animated.View>
+
+      {/* MOMENT 6: Season Champion */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[5] }]} pointerEvents="none">
+        <GoldConfetti count={40} />
+        <Ionicons name="trophy" size={64} color={C.gold} />
+        <Text style={styles.momentBigText}>FEDEX CUP CHAMPION</Text>
+        <Text style={styles.momentSubText}>SEASON 1 COMPLETE</Text>
+      </Animated.View>
+
+      {/* MOMENT 7: The Welcome */}
+      <Animated.View style={[styles.momentFull, { opacity: fadeAnims[6] }]} pointerEvents="none">
+        <GoldConfetti count={60} />
+        <Text style={styles.welcomeUserText}>Welcome, {userName}.</Text>
+        <Text style={styles.welcomeUserSub}>Your crew, always in play.</Text>
+      </Animated.View>
+
+      {/* Enter Dormie Button */}
+      {showEnterButton && (
+        <Animated.View style={[styles.enterBtnWrap, { opacity: enterBtnAnim, transform: [{ scale: enterPulse }] }]}>
+          <Pressable onPress={() => { haptics.heavy(); onComplete(); }} style={({ pressed }) => [styles.enterBtn, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.enterBtnText}>Enter Dormie →</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+
+      <ProgressDots current={3} total={4} />
+    </Pressable>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MAIN ONBOARDING COMPONENT
+// ═══════════════════════════════════════════════════════════════════════
+export default function OnboardingScreen() {
+  const [screen, setScreen] = useState(0);
+  const router = useRouter();
+  const { user, refreshUser } = useAuth();
+
+  // State persisted across screens
+  const [avatarColor, setAvatarColor] = useState('Augusta Green');
+  const [golferType, setGolferType] = useState<GolferType | null>(null);
+  const [handicap, setHandicap] = useState('');
+  const [ghinNumber, setGhinNumber] = useState('');
+  const [ghinVerified, setGhinVerified] = useState(false);
+  const [homeCourse, setHomeCourse] = useState<SearchResult | null>(null);
+  const [homeCourseName, setHomeCourseName] = useState('');
+  const [addedFriends, setAddedFriends] = useState<User[]>([]);
+  const [invitedNames, setInvitedNames] = useState<string[]>([]);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Screen transition animation
+  const screenOpacity = useRef(new Animated.Value(1)).current;
+
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Golfer';
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
+  }, []);
+
+  const transitionTo = useCallback((nextScreen: number) => {
+    if (reducedMotion) {
+      setScreen(nextScreen);
+      return;
+    }
+    Animated.timing(screenOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+      setScreen(nextScreen);
+      Animated.timing(screenOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    });
+  }, [reducedMotion, screenOpacity]);
+
+  const handleComplete = async () => {
+    try {
+      // Save all onboarding data to user metadata
+      const metadata: Record<string, unknown> = {
+        onboarding_complete: true,
+        avatar_color: avatarColor,
+      };
+      if (golferType) metadata.golfer_type = golferType;
+      if (handicap) metadata.handicap_index = parseFloat(handicap);
+      if (homeCourse) {
+        metadata.home_course_id = homeCourse.id;
+        metadata.home_course_name = homeCourse.name;
+      }
+
+      await supabase.auth.updateUser({ data: metadata });
+
+      // Also update the users table if we have a user id
+      if (user?.id) {
+        const updates: Record<string, unknown> = {};
+        if (handicap) updates.handicap_index = parseFloat(handicap);
+        if (avatarColor) updates.avatar_color = avatarColor;
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('users').update(updates).eq('id', user.id);
+        }
+      }
+
+      await refreshUser();
+    } catch (err) {
+      console.log('[Onboarding] Failed to save metadata:', err);
+    }
+
+    router.replace('/(tabs)');
+  };
+
+  return (
+    <Animated.View style={[{ flex: 1 }, { opacity: screenOpacity }]}>
+      {screen === 0 && (
+        <Screen1Hook
+          userName={userName}
+          onNext={() => transitionTo(1)}
+          reducedMotion={reducedMotion}
+        />
+      )}
+      {screen === 1 && (
+        <Screen2Identity
+          userName={userName}
+          onNext={() => transitionTo(2)}
+          onBack={() => transitionTo(0)}
+          avatarColor={avatarColor}
+          setAvatarColor={setAvatarColor}
+          golferType={golferType}
+          setGolferType={setGolferType}
+          handicap={handicap}
+          setHandicap={setHandicap}
+          ghinNumber={ghinNumber}
+          setGhinNumber={setGhinNumber}
+          ghinVerified={ghinVerified}
+          setGhinVerified={setGhinVerified}
+          homeCourse={homeCourse}
+          setHomeCourse={setHomeCourse}
+          homeCourseName={homeCourseName}
+          setHomeCourseName={setHomeCourseName}
+        />
+      )}
+      {screen === 2 && (
+        <Screen3Crew
+          userName={userName}
+          avatarColor={avatarColor}
+          handicap={handicap}
+          homeCourseName={homeCourseName}
+          onNext={() => transitionTo(3)}
+          onBack={() => transitionTo(1)}
+          addedFriends={addedFriends}
+          setAddedFriends={setAddedFriends}
+          invitedNames={invitedNames}
+          setInvitedNames={setInvitedNames}
+        />
+      )}
+      {screen === 3 && (
+        <Screen4Montage
+          userName={userName}
+          onComplete={handleComplete}
+          onBack={() => transitionTo(2)}
+          reducedMotion={reducedMotion}
+        />
+      )}
+    </Animated.View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-  screenFull: { flex: 1 },
-  screenScroll: { flex: 1, paddingHorizontal: 20 },
+  screenFull: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  backBtn: {
+    position: 'absolute',
+    top: STATUS_BAR_H + 6,
+    left: 16,
+    zIndex: 10,
+  },
+  skipBtn: {
+    position: 'absolute',
+    top: STATUS_BAR_H + 10,
+    right: 16,
+    zIndex: 10,
+  },
+  skipBtnText: {
+    color: C.textMuted,
+    fontSize: 14,
+  },
 
-  // Welcome
-  welcomeTop: { height: SCREEN_H * 0.45, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  welcomeBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 60, paddingHorizontal: 20 },
-  welcomeCenter: { alignItems: 'center' },
-  welcomeLogo: { fontSize: 32, fontFamily: GEO, fontStyle: 'italic', color: '#C9A227', letterSpacing: 5, fontWeight: '700' },
-  welcomeDivider: { width: 60, height: 1, backgroundColor: '#C9A227', marginVertical: 14 },
-  welcomeTagline: { fontSize: 15, fontFamily: GEO, fontStyle: 'italic', color: '#FFFFFF' },
-  welcomeSub: { fontSize: 13, color: '#FFFFFF88', marginTop: 6 },
-  themeToggle: { position: 'absolute', top: STATUS_BAR_H + 8, right: 16 },
-  getStartedBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#C9A227', paddingVertical: 16, gap: 8 },
-  getStartedText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
+  // Progress dots
+  dotsRow: {
+    position: 'absolute',
+    bottom: 34,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
 
-  // Corner brackets
-  cornerTL: { position: 'absolute', top: STATUS_BAR_H + 40, left: 20, width: 24, height: 24, borderTopWidth: 2, borderLeftWidth: 2 },
-  cornerTR: { position: 'absolute', top: STATUS_BAR_H + 40, right: 20, width: 24, height: 24, borderTopWidth: 2, borderRightWidth: 2 },
-  cornerBL: { position: 'absolute', bottom: 20, left: 20, width: 24, height: 24, borderBottomWidth: 2, borderLeftWidth: 2 },
-  cornerBR: { position: 'absolute', bottom: 20, right: 20, width: 24, height: 24, borderBottomWidth: 2, borderRightWidth: 2 },
+  // ── Screen 1 ──
+  hookNameText: {
+    fontFamily: GEO,
+    fontStyle: 'italic',
+    color: C.gold,
+    fontSize: 16,
+  },
+  hookDormieText: {
+    fontFamily: GEO,
+    color: C.gold,
+    fontSize: 48,
+    letterSpacing: 8,
+    fontWeight: '700',
+  },
+  hookSubText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  welcomeLogo: {
+    fontFamily: GEO,
+    fontStyle: 'italic',
+    color: C.gold,
+    fontSize: 20,
+    letterSpacing: 4,
+    fontWeight: '700',
+  },
+  goldDivider: {
+    width: 80,
+    height: 1,
+    backgroundColor: C.gold,
+    marginVertical: 16,
+  },
+  welcomeTagline: {
+    fontFamily: GEO,
+    fontStyle: 'italic',
+    color: '#FFFFFF',
+    fontSize: 17,
+    textAlign: 'center',
+  },
+  welcomeSubTagline: {
+    color: C.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  greenButton: {
+    backgroundColor: C.augusta,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  greenButtonText: {
+    color: '#FFFFFF',
+    fontFamily: GEO,
+    fontSize: 16,
+    fontWeight: '700',
+  },
 
-  // Nav bar
-  navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: STATUS_BAR_H + 8, paddingBottom: 12, borderBottomWidth: 1 },
-  progressDots: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  progressDot: { height: 6, borderRadius: 0 },
-  skipText: { fontSize: 14, fontWeight: '500' },
+  // ── Screen 2 ──
+  profileCard: {
+    marginHorizontal: 20,
+    marginTop: STATUS_BAR_H + 50,
+    padding: 16,
+    backgroundColor: C.card,
+    overflow: 'hidden',
+  },
+  profileCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  profileAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileName: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  profileHandicap: {
+    color: C.gold,
+    fontFamily: GEO,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  profileCourse: {
+    color: C.textMuted,
+    fontSize: 12,
+    flex: 1,
+  },
 
-  // Step titles
-  stepTitle: { fontSize: 22, fontFamily: GEO, fontWeight: '700', marginTop: 20 },
-  stepSubtitle: { fontSize: 10, marginTop: 4, marginBottom: 16 },
-  stepDesc: { fontSize: 13, lineHeight: 20, marginBottom: 16 },
+  sectionLabel: {
+    color: C.gold,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    marginTop: 24,
+    marginBottom: 10,
+  },
 
-  // Fields
-  fieldLabel: { fontSize: 10, fontWeight: '600', marginBottom: 8, letterSpacing: 2, textTransform: 'uppercase' as const },
-  input: { borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16 },
-  helperLink: { fontSize: 13, marginTop: 6 },
-
-  // Avatar
-  avatarPreview: { alignItems: 'center', marginBottom: 16 },
-  avatarModes: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  modeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  modeBtnText: { fontSize: 13, fontWeight: '600' },
-  themeColors: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 8 },
-  colorCircle: { width: 36, height: 36, borderRadius: 0 },
-  photoPickerWrap: { alignItems: 'center', marginBottom: 12 },
-  photoPickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
-  photoPickerBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  // Avatar picker
+  avatarPickerToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    backgroundColor: C.card,
+  },
+  avatarPickerLabel: {
+    color: C.textMuted,
+    fontSize: 13,
+    flex: 1,
+  },
+  avatarPickerContent: {
+    backgroundColor: C.card,
+    padding: 16,
+    marginTop: 1,
+  },
+  avatarTabs: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  avatarTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  avatarTabText: {
+    color: C.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  colorSwatch: {
+    width: (SCREEN_W - 40 - 32 - 30) / 4,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  themeSwatch: {
+    width: (SCREEN_W - 40 - 32 - 20) / 3,
+    height: 60,
+    overflow: 'hidden',
+  },
+  themeSwatchInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPickBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderStyle: 'dashed',
+  },
 
   // Golfer type
-  golferCards: { flexDirection: 'row', gap: 8 },
-  golferCard: { flex: 1, padding: 12, alignItems: 'center', gap: 4 },
-  golferEmoji: { fontSize: 24 },
-  golferLabel: { fontSize: 13, fontWeight: '600' },
-  golferDesc: { fontSize: 10, textAlign: 'center' },
+  golferTypeRow: {
+    gap: 10,
+  },
+  golferCard: {
+    backgroundColor: C.card,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  golferCardTitle: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  golferCardDesc: {
+    color: C.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+  },
 
-  // GHIN
-  ghinRow: { flexDirection: 'row', gap: 8 },
-  verifyBtn: { paddingHorizontal: 16, justifyContent: 'center' },
-  verifyBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  // Text input
+  textInput: {
+    backgroundColor: C.elevated,
+    borderWidth: 1,
+    borderColor: C.border,
+    color: C.text,
+    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  helpLink: {
+    color: C.gold,
+    fontSize: 12,
+    marginTop: 8,
+  },
+  helpText: {
+    color: C.textMuted,
+    fontSize: 12,
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  verifyBtn: {
+    backgroundColor: C.masters,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+  },
+  verifyBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  verifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  verifiedText: {
+    color: C.augusta,
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
-  // Group
-  groupCard: { padding: 16, marginBottom: 8 },
-  groupCardTitle: { fontSize: 15, fontWeight: '600' },
-  groupCardDesc: { fontSize: 12, marginTop: 2 },
-  miniPreview: { paddingHorizontal: 14, paddingBottom: 12, gap: 4 },
-  miniRow: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 8 },
-  miniRank: { width: 20, fontSize: 14, fontWeight: '700' },
-  miniName: { flex: 1, fontSize: 13 },
-  miniVal: { fontSize: 14, fontWeight: '700' },
+  // Course search
+  selectedCourse: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: C.card,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.augusta,
+  },
+  selectedCourseName: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  courseResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: C.card,
+    marginTop: 1,
+  },
+  courseResultName: {
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  courseResultLoc: {
+    color: C.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
 
-  // H2H preview
-  h2hBar: { height: 8, overflow: 'hidden' },
-  h2hFill: { height: '100%' },
-  h2hLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  h2hScore: { fontSize: 20, fontWeight: '700' },
-  h2hVs: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+  // Mini leaderboard
+  miniLeaderboard: {
+    backgroundColor: C.card,
+    padding: 16,
+  },
+  miniLbHeader: {
+    color: C.gold,
+    fontFamily: GEO,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  miniLbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  miniLbPos: {
+    color: C.gold,
+    fontFamily: GEO,
+    fontSize: 16,
+    fontWeight: '700',
+    width: 24,
+  },
+  miniLbName: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  miniLbDetail: {
+    color: C.textMuted,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  ghostAvatar: {
+    backgroundColor: C.elevated,
+  },
 
-  // Season preview
-  miniSeasonLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1 },
-  seasonBar: { height: 6, marginTop: 6, overflow: 'hidden' },
-  seasonFill: { height: '100%' },
-  miniSeasonSub: { fontSize: 11, marginTop: 4 },
+  // ── Screen 3 ──
+  liveLeaderboard: {
+    marginHorizontal: 20,
+    backgroundColor: C.card,
+    padding: 16,
+  },
+  lbHeader: {
+    color: C.masters,
+    fontFamily: GEO,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  lbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  lbPos: {
+    color: C.gold,
+    fontFamily: GEO,
+    fontSize: 18,
+    fontWeight: '700',
+    width: 28,
+  },
+  lbName: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  lbHcp: {
+    color: C.textMuted,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  lbInvited: {
+    color: C.gold,
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 1,
+  },
+  crewHeaderText: {
+    color: C.gold,
+    fontFamily: GEO,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginVertical: 24,
+    paddingHorizontal: 30,
+  },
+  crewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.card,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  crewCardTitle: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  crewCardDesc: {
+    color: C.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  inlineSearchInput: {
+    color: C.text,
+    fontSize: 14,
+    marginTop: 6,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.card,
+    padding: 12,
+  },
+  addFriendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.augusta,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  reassuranceText: {
+    color: C.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 30,
+    marginTop: 24,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  skipLink: {
+    color: C.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 16,
+    textDecorationLine: 'underline',
+  },
 
-  // Course search dropdown
-  courseDropdown: { borderWidth: 1, marginTop: -1 },
-  courseSearchingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12 },
-  courseSearchingText: { fontSize: 13 },
-  courseResultRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
-  courseResultName: { fontSize: 14, fontWeight: '500' },
-  courseResultLocation: { fontSize: 12, marginTop: 1 },
+  // ── Screen 4 ──
+  momentFull: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  momentLeaderboard: {
+    width: SCREEN_W * 0.75,
+    backgroundColor: C.card,
+    padding: 16,
+  },
+  momentLbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    gap: 10,
+  },
+  momentLbPos: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 16,
+    fontWeight: '700',
+    width: 20,
+  },
+  momentLbName: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 13,
+    flex: 1,
+  },
+  momentLbScore: {
+    color: C.text,
+    fontFamily: GEO,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  momentDormieText: {
+    fontFamily: GEO,
+    color: C.gold,
+    fontSize: 44,
+    letterSpacing: 8,
+    fontWeight: '700',
+  },
+  momentDormieSub: {
+    color: '#FFFFFF',
+    fontFamily: GEO,
+    fontSize: 14,
+    letterSpacing: 2,
+    marginTop: 12,
+  },
+  momentBigText: {
+    fontFamily: GEO,
+    color: C.gold,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  momentSubText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    letterSpacing: 1,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  momentH2HRecord: {
+    fontFamily: GEO,
+    color: C.gold,
+    fontSize: 36,
+    fontWeight: '700',
+  },
+  momentH2HLabel: {
+    color: C.textMuted,
+    fontSize: 10,
+    letterSpacing: 2,
+    marginTop: 4,
+  },
+  ryderHalf: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ryderTeam: {
+    fontFamily: GEO,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  ryderScoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ryderScore: {
+    fontFamily: GEO,
+    color: '#FFFFFF',
+    fontSize: 44,
+    fontWeight: '700',
+  },
 
-  // Invite
-  inviteSection: { padding: 16, marginTop: 16, alignItems: 'center', gap: 10, borderWidth: 1 },
-  inviteCta: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
-  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10 },
-  inviteBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  // Welcome moment
+  welcomeUserText: {
+    fontFamily: GEO,
+    color: '#FFFFFF',
+    fontSize: 24,
+  },
+  welcomeUserSub: {
+    color: C.textMuted,
+    fontStyle: 'italic',
+    fontSize: 14,
+    marginTop: 8,
+  },
 
-  // Features
-  featureTabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  featureTab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  featureTabText: { fontSize: 14, fontWeight: '600' },
-  featureCard: { padding: 16, gap: 12 },
-  featureHeadline: { fontSize: 18, fontWeight: '700', fontFamily: GEO },
-  bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bulletText: { fontSize: 13 },
-
-  // Notifications
-  notifCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  notifTitle: { fontSize: 22, fontFamily: GEO, fontWeight: '700', marginTop: 16, marginBottom: 20 },
-  pillsContainer: { width: '100%', gap: 8, marginTop: 8 },
-  notifPill: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1 },
-  notifPillText: { fontSize: 13 },
-  notifButtons: { paddingHorizontal: 20, paddingBottom: 60, gap: 12 },
-  notifPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  notifPrimaryText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
-  notifSkip: { fontSize: 14, textAlign: 'center', paddingVertical: 8 },
-
-  // Intro screens
-  introCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  introTitle: { fontSize: 20, fontFamily: GEO, fontWeight: '700', textAlign: 'center', marginTop: 16, lineHeight: 28 },
-  introSubtitle: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
-  introPreview: { width: '100%', borderWidth: 1, overflow: 'hidden', marginTop: 24 },
-  introPreviewHeader: { paddingHorizontal: 14, paddingVertical: 8 },
-  introPreviewLabel: { color: '#C9A227', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, fontFamily: GEO },
-  introPreviewRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
-  introPreviewRank: { width: 24, fontSize: 14, fontWeight: '700' },
-  introPreviewName: { flex: 1, fontSize: 13, fontWeight: '600' },
-  introPreviewScore: { fontSize: 14, fontWeight: '700' },
-  introBottom: { padding: 20, paddingBottom: 60 },
-  introBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  introBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  introStatLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2 },
-  introStatBig: { fontSize: 36, fontWeight: '700' },
-  introHcpTrack: { height: 6, overflow: 'hidden' },
-  introHcpFill: { height: '100%' },
-
-  // Montage
-  montageCard: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  montageEmoji: { fontSize: 48 },
-  montageLine1: { fontSize: 14, fontWeight: '800', letterSpacing: 3, color: '#1E4D2B', fontFamily: GEO, marginTop: 16 },
-  montageLine2: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', fontFamily: GEO, marginTop: 4, textAlign: 'center' },
-
-  // Final
-  finalCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  finalLogo: { fontSize: 36, fontFamily: GEO, fontStyle: 'italic', color: '#C9A227', letterSpacing: 5 },
-  finalWelcome: { fontSize: 18, fontFamily: GEO, marginTop: 16 },
-  enterBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#C9A227', paddingVertical: 16, paddingHorizontal: 32, gap: 8, marginTop: 40 },
-  enterBtnText: { fontSize: 16, fontWeight: '700', color: '#000000', fontFamily: GEO },
-
-  // Micro-interaction
-  pressedState: { opacity: 0.7, transform: [{ scale: 0.98 }] },
-
-  // Bottom bar
-  bottomBar: { padding: 16, borderTopWidth: 1 },
-  continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-  continueBtnText: { fontSize: 16, fontWeight: '700' },
+  // Enter button
+  enterBtnWrap: {
+    position: 'absolute',
+    bottom: 80,
+    left: 40,
+    right: 40,
+  },
+  enterBtn: {
+    backgroundColor: C.augusta,
+    paddingVertical: 18,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.gold,
+  },
+  enterBtnText: {
+    color: '#FFFFFF',
+    fontFamily: GEO,
+    fontSize: 18,
+    fontWeight: '700',
+  },
 });
