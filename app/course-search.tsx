@@ -95,7 +95,7 @@ export default function CourseSearchScreen() {
     try {
       // Update auth metadata with home course info (triggers useAuth refresh)
       const { error } = await (await import('../src/lib/supabase')).supabase.auth.updateUser({
-        data: { home_course: course.name, favorite_course_id: course.id ?? null },
+        data: { home_course_id: course.id ?? null, home_course_name: course.name },
       });
       if (error) throw error;
 

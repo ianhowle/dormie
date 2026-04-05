@@ -7,6 +7,7 @@ import { GEO, SANS } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { haptics } from '../lib/haptics';
 import GoldDivider from './GoldDivider';
+import { supabase } from '../lib/supabase';
 
 type ChecklistItem = {
   key: string;
@@ -32,6 +33,9 @@ export function GetStartedChecklist({ hasHandicap, hasHomeCourse, hasFriend, has
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const celebrationAnim = useRef(new Animated.Value(0)).current;
+  const [showCelebration, setShowCelebration] = useState(false);
+  const savedOnboardingRef = useRef(false);
 
   const items: ChecklistItem[] = [
     {
@@ -77,8 +81,24 @@ export function GetStartedChecklist({ hasHandicap, hasHomeCourse, hasFriend, has
     }).start();
   }, [progress]);
 
+  // When all 4 complete: show celebration, save flag, then animate out
   useEffect(() => {
-    if (allComplete) {
+    if (allComplete && !savedOnboardingRef.current) {
+      savedOnboardingRef.current = true;
+      setShowCelebration(true);
+      haptics.success();
+
+      // Animate celebration in
+      Animated.timing(celebrationAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+
+      // Save onboarding_complete flag to user metadata
+      supabase.auth.updateUser({ data: { onboarding_complete: true } }).catch(() => {});
+
+      // After 2 seconds, animate card out
       const timer = setTimeout(() => {
         Animated.parallel([
           Animated.timing(fadeAnim, {
@@ -92,7 +112,7 @@ export function GetStartedChecklist({ hasHandicap, hasHomeCourse, hasFriend, has
             useNativeDriver: true,
           }),
         ]).start(() => onDismiss?.());
-      }, 1500);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [allComplete]);
@@ -130,68 +150,85 @@ export function GetStartedChecklist({ hasHandicap, hasHomeCourse, hasFriend, has
         isDark ? cardShadowDark : cardShadowLight,
       ]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: c.gold, fontFamily: GEO }]}>GET STARTED</Text>
-          <Text style={[styles.progress, { color: c.textMuted, fontFamily: SANS }]}>
-            {completedCount} of 4 complete
-          </Text>
-        </View>
-        <Ionicons name="flag" size={20} color={c.gold} />
-      </View>
-
-      {/* Progress bar */}
-      <View style={[styles.progressTrack, { backgroundColor: c.elevated }]}>
-        <Animated.View style={[styles.progressFill, { width: progressWidth, backgroundColor: '#006747' }]} />
-      </View>
-
-      <GoldDivider style={{ marginVertical: 12 }} />
-
-      {/* Checklist items */}
-      {items.map((item, i) => (
-        <Pressable
-          key={item.key}
-          onPress={() => {
-            if (!item.completed) {
-              haptics.light();
-              item.onPress();
-            }
-          }}
-          style={({ pressed }) => [
-            styles.item,
-            i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
-            !item.completed && pressed && { opacity: 0.7 },
-          ]}
-        >
-          <View style={[styles.checkbox, item.completed ? { backgroundColor: '#006747' } : { borderWidth: 1.5, borderColor: c.textMuted }]}>
-            {item.completed && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+      {showCelebration ? (
+        /* Celebration state */
+        <Animated.View style={[styles.celebrationWrap, { opacity: celebrationAnim }]}>
+          <View style={styles.celebrationIcon}>
+            <Ionicons name="checkmark-circle" size={40} color="#C9A227" />
           </View>
-          <Ionicons
-            name={item.icon}
-            size={16}
-            color={item.completed ? c.textMuted : c.text}
-            style={{ marginRight: 8 }}
-          />
-          <Text
-            style={[
-              styles.itemLabel,
-              { color: item.completed ? c.textMuted : c.text, fontFamily: SANS },
-              item.completed && { textDecorationLine: 'line-through' },
-            ]}
-          >
-            {item.label}
+          <Text style={[styles.celebrationTitle, { color: c.gold, fontFamily: GEO }]}>
+            You're all set!
           </Text>
-          {!item.completed && (
-            <Ionicons name="chevron-forward" size={14} color={c.textMuted} />
-          )}
-        </Pressable>
-      ))}
+          <Text style={[styles.celebrationSubtitle, { color: c.text, fontFamily: SANS }]}>
+            Welcome to Dormie.
+          </Text>
+        </Animated.View>
+      ) : (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: c.gold, fontFamily: GEO }]}>GET STARTED</Text>
+              <Text style={[styles.progress, { color: c.textMuted, fontFamily: SANS }]}>
+                {completedCount} of 4 complete
+              </Text>
+            </View>
+            <Ionicons name="flag" size={20} color={c.gold} />
+          </View>
 
-      {/* Footer message */}
-      <Text style={[styles.footer, { color: c.textMuted, fontFamily: SANS }]}>
-        Complete these to unlock your Dormie experience.
-      </Text>
+          {/* Progress bar */}
+          <View style={[styles.progressTrack, { backgroundColor: c.elevated }]}>
+            <Animated.View style={[styles.progressFill, { width: progressWidth, backgroundColor: '#006747' }]} />
+          </View>
+
+          <GoldDivider style={{ marginVertical: 12 }} />
+
+          {/* Checklist items */}
+          {items.map((item, i) => (
+            <Pressable
+              key={item.key}
+              onPress={() => {
+                if (!item.completed) {
+                  haptics.light();
+                  item.onPress();
+                }
+              }}
+              style={({ pressed }) => [
+                styles.item,
+                i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+                !item.completed && pressed && { opacity: 0.7 },
+              ]}
+            >
+              <View style={[styles.checkbox, item.completed ? { backgroundColor: '#006747' } : { borderWidth: 1.5, borderColor: c.textMuted }]}>
+                {item.completed && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+              </View>
+              <Ionicons
+                name={item.icon}
+                size={16}
+                color={item.completed ? c.textMuted : c.text}
+                style={{ marginRight: 8 }}
+              />
+              <Text
+                style={[
+                  styles.itemLabel,
+                  { color: item.completed ? c.textMuted : c.text, fontFamily: SANS },
+                  item.completed && { textDecorationLine: 'line-through' },
+                ]}
+              >
+                {item.label}
+              </Text>
+              {!item.completed && (
+                <Ionicons name="chevron-forward" size={14} color={c.textMuted} />
+              )}
+            </Pressable>
+          ))}
+
+          {/* Footer message */}
+          <Text style={[styles.footer, { color: c.textMuted, fontFamily: SANS }]}>
+            Complete these to unlock your Dormie experience.
+          </Text>
+        </>
+      )}
     </Animated.View>
   );
 }
@@ -247,5 +284,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  celebrationWrap: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  celebrationIcon: {
+    marginBottom: 12,
+  },
+  celebrationTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  celebrationSubtitle: {
+    fontSize: 14,
+    marginTop: 4,
   },
 });

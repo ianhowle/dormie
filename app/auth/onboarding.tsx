@@ -1152,7 +1152,7 @@ export default function OnboardingScreen() {
         // Persist home course in auth user metadata
         await supabase.auth.updateUser({
           data: {
-            home_course: homeCourse || null,
+            home_course_name: homeCourse || null,
             home_course_id: homeCourseId || null,
           },
         });

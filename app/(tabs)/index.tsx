@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useAuth } from '../../src/lib/auth';
@@ -935,7 +935,7 @@ export default function HomeScreen() {
   const isDark = theme.isDark;
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { showToast } = useToast();
   const firstName = user?.user_metadata?.name?.split(' ')[0];
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -1033,6 +1033,8 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
+    // Refresh auth metadata so checklist picks up handicap/home_course changes
+    refreshUser().catch(() => {});
     try {
       const [rounds, requests, trips, seasons] = await Promise.all([
         roundsService.getByUser(user.id, 10).catch(() => [] as RoundWithCourse[]),
@@ -1092,9 +1094,15 @@ export default function HomeScreen() {
     showToast({ message: 'Feed updated', type: 'success' });
   }, [fetchData, showToast]);
 
+  // Re-fetch data on mount AND every time the tab gains focus
+  const navigation = useNavigation();
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchData();
+    });
+    return unsubscribe;
+  }, [fetchData, navigation]);
 
   useEffect(() => {
     fetchWeather().then(setWeather).catch(() => {});
@@ -1265,10 +1273,10 @@ export default function HomeScreen() {
         )}
 
         {/* Get Started Checklist — new user experience */}
-        {!checklistDismissed && !loading && !(!!user?.user_metadata?.handicap_index && !!user?.user_metadata?.home_course && realFriends.length > 0 && realRounds.length > 0) && (
+        {!checklistDismissed && !loading && !user?.user_metadata?.onboarding_complete && (
           <GetStartedChecklist
-            hasHandicap={!!user?.user_metadata?.handicap_index}
-            hasHomeCourse={!!user?.user_metadata?.home_course}
+            hasHandicap={!!user?.user_metadata?.handicap_index && user?.user_metadata?.handicap_index !== 0}
+            hasHomeCourse={!!user?.user_metadata?.home_course_id}
             hasFriend={realFriends.length > 0}
             hasRound={realRounds.length > 0}
             onDismiss={() => setChecklistDismissed(true)}
@@ -1400,7 +1408,7 @@ export default function HomeScreen() {
           )}
 
           {/* Favorite Course — only if user has a home course */}
-          <FavoriteCourseSection courseName={user?.user_metadata?.home_course ?? null} />
+          <FavoriteCourseSection courseName={user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null} />
 
           {/* My Groups */}
           <MyGroupsSection

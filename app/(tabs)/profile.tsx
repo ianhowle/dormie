@@ -194,7 +194,7 @@ export default function ProfileScreen() {
   const [showDemoData, setShowDemoData] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
-    user?.user_metadata?.home_course ?? null
+    user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
   );
 
   const FAVORITE_COURSE_STATS = { bestScore: 71, avgScore: 75.2, roundsPlayed: 12 };
