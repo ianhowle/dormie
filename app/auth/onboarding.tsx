@@ -461,7 +461,7 @@ function Screen2Identity({
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={[styles.screenFull, { backgroundColor: C.bg }]} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={[styles.screenFull, { backgroundColor: C.bg }]} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <GradientBg />
         <ExpoStatusBar style="light" />
 
@@ -813,6 +813,8 @@ function Screen3Crew({
                   <Text style={styles.lbInvited}>Invited — pending</Text>
                 ) : entry.handicap ? (
                   <Text style={styles.lbHcp}>{entry.handicap} HCP</Text>
+                ) : entry.isUser ? (
+                  <Text style={styles.lbHcp}>— HCP</Text>
                 ) : null}
               </View>
             </Animated.View>
@@ -905,14 +907,23 @@ function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userN
   const enterPulse = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Welcome screen staggered fade anims
+  const welcomeDormieAnim = useRef(new Animated.Value(0)).current;
+  const welcomeNameAnim = useRef(new Animated.Value(0)).current;
+  const welcomeTaglineAnim = useRef(new Animated.Value(0)).current;
+
   const MOMENT_DURATION = 2500;
   const CROSSFADE = 300;
 
   const advanceToMoment = useCallback((idx: number) => {
     if (idx >= 7) {
-      // Show enter button on the last moment
+      // Show enter button and welcome content
       setShowEnterButton(true);
-      Animated.timing(enterBtnAnim, { toValue: 1, duration: 500, delay: 2000, useNativeDriver: true }).start();
+      // Staggered fade-in for welcome content
+      Animated.timing(welcomeDormieAnim, { toValue: 1, duration: 600, delay: 500, useNativeDriver: true }).start();
+      Animated.timing(welcomeNameAnim, { toValue: 1, duration: 600, delay: 1500, useNativeDriver: true }).start();
+      Animated.timing(welcomeTaglineAnim, { toValue: 1, duration: 600, delay: 2000, useNativeDriver: true }).start();
+      Animated.timing(enterBtnAnim, { toValue: 1, duration: 500, delay: 2500, useNativeDriver: true }).start();
       Animated.loop(
         Animated.sequence([
           Animated.timing(enterPulse, { toValue: 1.05, duration: 1200, useNativeDriver: true }),
@@ -940,6 +951,9 @@ function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userN
       fadeAnims[6].setValue(1);
       setShowEnterButton(true);
       enterBtnAnim.setValue(1);
+      welcomeDormieAnim.setValue(1);
+      welcomeNameAnim.setValue(1);
+      welcomeTaglineAnim.setValue(1);
       return;
     }
     advanceToMoment(0);
@@ -971,14 +985,22 @@ function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userN
       {/* MOMENT 1: Leaderboard Drop */}
       <Animated.View style={[styles.momentFull, { opacity: fadeAnims[0] }]} pointerEvents="none">
         <View style={styles.momentLeaderboard}>
-          {['Jack N.', 'Tiger W.', 'Ben H.', 'Arnold P.', 'Bobby J.'].map((name, i) => (
-            <View key={name} style={styles.momentLbRow}>
-              <Text style={[styles.momentLbPos, i === 0 && { color: C.gold }]}>{i + 1}</Text>
-              <MiniAvatar name={name} color={i === 0 ? C.gold : C.masters} size={28} />
-              <Text style={[styles.momentLbName, i === 0 && { color: C.gold }]}>{name}</Text>
-              <Text style={[styles.momentLbScore, i === 0 && { color: C.gold }]}>{[-4, -3, -2, -1, 'E'][i]}</Text>
-            </View>
-          ))}
+          <View style={styles.momentLbHeaderBar}>
+            <Text style={styles.momentLbHeaderText}>LEADERBOARD</Text>
+          </View>
+          {['Jack N.', 'Tiger W.', 'Ben H.', 'Arnold P.', 'Bobby J.'].map((name, i) => {
+            const scores = [-4, -3, -2, -1, 'E'] as const;
+            const score = scores[i];
+            const isUnderPar = typeof score === 'number' && score < 0;
+            return (
+              <View key={name} style={styles.momentLbRow}>
+                <Text style={[styles.momentLbPos, i === 0 && { color: C.gold }]}>{i + 1}</Text>
+                <MiniAvatar name={name} color={i === 0 ? C.gold : C.masters} size={32} />
+                <Text style={[styles.momentLbName, i === 0 && { color: C.gold }]}>{name}</Text>
+                <Text style={[styles.momentLbScore, i === 0 ? { color: C.gold } : isUnderPar ? { color: '#1D9E75' } : null]}>{score}</Text>
+              </View>
+            );
+          })}
         </View>
       </Animated.View>
 
@@ -1011,13 +1033,17 @@ function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userN
       {/* MOMENT 5: Ryder Cup */}
       <Animated.View style={[styles.momentFull, { opacity: fadeAnims[4] }]} pointerEvents="none">
         <View style={{ flexDirection: 'row', width: '100%', height: '100%' }}>
-          <View style={[styles.ryderHalf, { backgroundColor: '#C41E3A22' }]}>
-            <Text style={[styles.ryderTeam, { color: C.urgent }]}>TEAM RED</Text>
-          </View>
-          <View style={[styles.ryderHalf, { backgroundColor: '#00674722' }]}>
-            <Text style={[styles.ryderTeam, { color: C.augusta }]}>TEAM BLUE</Text>
-          </View>
+          <View style={[styles.ryderHalf, { backgroundColor: '#C41E3A22' }]} />
+          <View style={[styles.ryderHalf, { backgroundColor: '#00674722' }]} />
         </View>
+        {/* Team names at 40% height */}
+        <View style={styles.ryderTeamRow}>
+          <Text style={[styles.ryderTeam, { color: C.urgent }]}>TEAM RED</Text>
+          <Text style={[styles.ryderTeam, { color: C.augusta }]}>TEAM BLUE</Text>
+        </View>
+        {/* Thin divider between team names and score */}
+        <View style={styles.ryderDivider} />
+        {/* Score at 55% height */}
         <View style={styles.ryderScoreOverlay}>
           <Text style={styles.ryderScore}>14 — 10</Text>
         </View>
@@ -1037,6 +1063,22 @@ function Screen4Montage({ userName, onComplete, onBack, reducedMotion }: { userN
         <Text style={styles.welcomeUserText}>Welcome, {userName}.</Text>
         <Text style={styles.welcomeUserSub}>Your crew, always in play.</Text>
       </Animated.View>
+
+      {/* Welcome centered content */}
+      {showEnterButton && (
+        <View style={styles.welcomeCenterWrap}>
+          <Animated.Text style={[styles.welcomeCenterDormie, { opacity: welcomeDormieAnim }]}>
+            DORMIE
+          </Animated.Text>
+          <Animated.View style={[styles.welcomeCenterDivider, { opacity: welcomeDormieAnim }]} />
+          <Animated.Text style={[styles.welcomeCenterName, { opacity: welcomeNameAnim }]}>
+            Welcome, {userName}.
+          </Animated.Text>
+          <Animated.Text style={[styles.welcomeCenterTagline, { opacity: welcomeTaglineAnim }]}>
+            Your crew is waiting.
+          </Animated.Text>
+        </View>
+      )}
 
       {/* Enter Dormie Button */}
       {showEnterButton && (
@@ -1210,12 +1252,16 @@ const styles = StyleSheet.create({
   // Progress dots
   dotsRow: {
     position: 'absolute',
-    bottom: 34,
+    bottom: 20,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
+    paddingBottom: 20,
+    zIndex: 20,
+    backgroundColor: C.bg,
+    paddingTop: 10,
   },
   dot: {
     width: 8,
@@ -1668,33 +1714,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   momentLeaderboard: {
-    width: SCREEN_W * 0.75,
+    width: SCREEN_W * 0.8,
     backgroundColor: C.card,
-    padding: 16,
+  },
+  momentLbHeaderBar: {
+    backgroundColor: C.gold,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  momentLbHeaderText: {
+    color: C.bg,
+    fontFamily: GEO,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 3,
+    textTransform: 'uppercase',
   },
   momentLbRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    height: 48,
+    paddingHorizontal: 16,
     gap: 10,
   },
   momentLbPos: {
     color: C.text,
     fontFamily: GEO,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    width: 20,
+    width: 24,
   },
   momentLbName: {
     color: C.text,
     fontFamily: GEO,
-    fontSize: 13,
+    fontSize: 16,
     flex: 1,
   },
   momentLbScore: {
     color: C.text,
     fontFamily: GEO,
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
   },
   momentDormieText: {
@@ -1741,8 +1801,15 @@ const styles = StyleSheet.create({
   },
   ryderHalf: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  ryderTeamRow: {
+    position: 'absolute',
+    top: '40%',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 40,
   },
   ryderTeam: {
     fontFamily: GEO,
@@ -1750,9 +1817,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
   },
+  ryderDivider: {
+    position: 'absolute',
+    top: '48%',
+    left: '20%',
+    right: '20%',
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
   ryderScoreOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
+    position: 'absolute',
+    top: '55%',
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   ryderScore: {
@@ -1796,5 +1873,39 @@ const styles = StyleSheet.create({
     fontFamily: GEO,
     fontSize: 18,
     fontWeight: '700',
+  },
+
+  // Welcome center content (final screen)
+  welcomeCenterWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  welcomeCenterDormie: {
+    fontFamily: GEO,
+    fontStyle: 'italic',
+    color: C.gold,
+    fontSize: 28,
+    letterSpacing: 6,
+    fontWeight: '700',
+  },
+  welcomeCenterDivider: {
+    width: 80,
+    height: 1,
+    backgroundColor: C.gold,
+    marginVertical: 16,
+  },
+  welcomeCenterName: {
+    fontFamily: GEO,
+    color: '#FFFFFF',
+    fontSize: 24,
+  },
+  welcomeCenterTagline: {
+    fontFamily: GEO,
+    fontStyle: 'italic',
+    color: C.textMuted,
+    fontSize: 14,
+    marginTop: 10,
   },
 });
