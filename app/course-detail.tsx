@@ -157,6 +157,7 @@ function Header({ course }: { course: CourseDetailData }) {
       location={`${course.city} ${course.state}`}
       gradient={course.gradient}
       style={st.header}
+      isHero
     >
       {/* Dark overlay for text readability */}
       <View style={st.headerOverlay} />

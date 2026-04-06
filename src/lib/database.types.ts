@@ -33,6 +33,7 @@ export interface Course {
   yards: number | null;
   image_gradient: Record<string, unknown> | null;
   hole_data: Record<string, unknown> | null;
+  photo_reference: string | null;
   created_at: string;
 }
 

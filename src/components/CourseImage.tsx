@@ -72,6 +72,7 @@ type CourseImageProps = {
   children?: React.ReactNode;
   showAttribution?: boolean;
   height?: number;
+  isHero?: boolean;
 };
 
 export function CourseImage({
@@ -83,13 +84,16 @@ export function CourseImage({
   children,
   showAttribution = true,
   height,
+  isHero = false,
 }: CourseImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(providedUrl ?? null);
   const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   // Always fall back to Augusta green gradient when photo fails
   const AUGUSTA_GREEN_FALLBACK: [string, string] = ['#1E4D2B', '#0D2818'];
   const fallbackGradient = gradient ?? AUGUSTA_GREEN_FALLBACK;
+  const maxWidth = isHero ? 1200 : 800;
 
   useEffect(() => {
     if (providedUrl) {
@@ -98,19 +102,19 @@ export function CourseImage({
       return;
     }
 
-    if (!isGooglePlacesConfigured()) return;
-
     let cancelled = false;
     setLoading(true);
-    fetchCourseImage(courseName, location).then((url) => {
+
+    fetchCourseImage(courseName, location, maxWidth).then((url) => {
       if (cancelled) return;
       if (url) {
         setImageUrl(url);
         setLoading(false);
       } else {
+        // Retry once after 2s
         setTimeout(() => {
           if (cancelled) return;
-          fetchCourseImage(courseName, location).then((retryUrl) => {
+          fetchCourseImage(courseName, location, maxWidth).then((retryUrl) => {
             if (!cancelled) {
               if (retryUrl) setImageUrl(retryUrl);
               setLoading(false);
@@ -120,48 +124,68 @@ export function CourseImage({
       }
     });
     return () => { cancelled = true; };
-  }, [courseName, location, providedUrl]);
+  }, [courseName, location, providedUrl, maxWidth]);
+
+  // Crossfade when image loads
+  useEffect(() => {
+    if (imageUrl && !imageError) {
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [imageUrl, imageError, fadeAnim]);
 
   const showImage = imageUrl && !imageError;
 
   return (
     <View style={[styles.container, height != null && { height }, style]}>
-      {showImage ? (
-        <Image
-          source={{ uri: imageUrl }}
+      {/* Always render the gradient fallback underneath */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <LinearGradient
+          colors={fallbackGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-          transition={300}
-          cachePolicy="memory-disk"
-          onError={() => setImageError(true)}
         />
-      ) : (
-        <View style={StyleSheet.absoluteFillObject}>
-          <LinearGradient
-            colors={fallbackGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+        {/* Subtle pinstripe texture */}
+        {Array.from({ length: 20 }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              top: -100,
+              left: i * 24 - 50,
+              width: 1,
+              height: 600,
+              backgroundColor: '#fff',
+              opacity: 0.04,
+              transform: [{ rotate: '35deg' }],
+            }}
           />
-          {/* Subtle pinstripe texture */}
-          {Array.from({ length: 20 }).map((_, i) => (
-            <View
-              key={i}
-              style={{
-                position: 'absolute',
-                top: -100,
-                left: i * 24 - 50,
-                width: 1,
-                height: 600,
-                backgroundColor: '#fff',
-                opacity: 0.04,
-                transform: [{ rotate: '35deg' }],
-              }}
-            />
-          ))}
-        </View>
-      )}
+        ))}
+      </View>
+
+      {/* Shimmer over gradient while fetching */}
       {loading && !showImage && <ShimmerPlaceholder />}
+
+      {/* Photo crossfades in over the gradient */}
+      {showImage && (
+        <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: fadeAnim }]}>
+          <Image
+            source={{ uri: imageUrl }}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            transition={0}
+            cachePolicy="memory-disk"
+            onError={() => setImageError(true)}
+          />
+        </Animated.View>
+      )}
+
       {children}
       {showImage && showAttribution && <GoogleAttribution />}
     </View>
@@ -189,6 +213,7 @@ export function DestinationImage({
   const [imageUrl, setImageUrl] = useState<string | null>(providedUrl ?? null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (providedUrl) {
@@ -222,28 +247,43 @@ export function DestinationImage({
     return () => { cancelled = true; };
   }, [name, providedUrl]);
 
+  // Crossfade
+  useEffect(() => {
+    if (imageUrl && !error) {
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [imageUrl, error, fadeAnim]);
+
   const showImage = imageUrl && !error;
 
   return (
     <View style={[styles.container, style]}>
-      {showImage ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-          transition={300}
-          cachePolicy="memory-disk"
-          onError={() => setError(true)}
-        />
-      ) : (
-        <LinearGradient
-          colors={gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
-      )}
+      {/* Gradient fallback always rendered */}
+      <LinearGradient
+        colors={gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
       {loading && !showImage && <ShimmerPlaceholder />}
+      {showImage && (
+        <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: fadeAnim }]}>
+          <Image
+            source={{ uri: imageUrl }}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            transition={0}
+            cachePolicy="memory-disk"
+            onError={() => setError(true)}
+          />
+        </Animated.View>
+      )}
       {children}
       {showImage && showAttribution && <GoogleAttribution />}
     </View>
