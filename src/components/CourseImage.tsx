@@ -105,6 +105,7 @@ export function CourseImage({
     let cancelled = false;
     setLoading(true);
 
+    console.warn('[COURSE_IMAGE] Rendering for:', courseName, 'photoRef:', providedUrl);
     fetchCourseImage(courseName, location, maxWidth).then((url) => {
       if (cancelled) return;
       if (url) {
@@ -181,7 +182,11 @@ export function CourseImage({
             contentFit="cover"
             transition={0}
             cachePolicy="memory-disk"
-            onError={() => setImageError(true)}
+            onLoad={() => console.warn('[COURSE_IMAGE] Image loaded successfully')}
+            onError={(e: any) => {
+              console.warn('[COURSE_IMAGE] Image load FAILED:', e?.nativeEvent?.error || e);
+              setImageError(true);
+            }}
           />
         </Animated.View>
       )}
