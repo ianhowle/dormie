@@ -1437,7 +1437,7 @@ export default function HomeScreen() {
           )}
 
           {/* Competitive nudge — editorial callout with gold left accent */}
-          <View style={{ backgroundColor: c.elevated, borderLeftWidth: 3, borderLeftColor: c.gold, padding: 12, marginTop: 12, borderRadius: 12 }}>
+          <View style={{ backgroundColor: c.elevated, borderLeftWidth: 3, borderLeftColor: c.gold, padding: 12, marginTop: 12 }}>
             <Text style={{ color: c.gold, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
               You're 2.8 strokes behind Drew's average.
             </Text>
@@ -1510,7 +1510,7 @@ export default function HomeScreen() {
               <GoldDivider style={{ marginBottom: 12 }} />
               <Pressable
                 onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
-                style={({ pressed }) => [st.feedCard, { backgroundColor: c.elevated, borderColor: c.gold, borderLeftWidth: 3, borderRadius: 12 }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [st.feedCard, { backgroundColor: c.elevated, borderColor: 'transparent', borderLeftWidth: 3, borderLeftColor: '#C9A227' }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Ionicons name="people" size={20} color={c.gold} style={{ marginRight: 10 }} />
                 <Text style={[st.feedName, { color: c.text, fontFamily: SANS }]}>
@@ -2142,7 +2142,6 @@ const st = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 8,
-    borderRadius: 12,
   },
   feedLeft: {
     marginRight: 10,

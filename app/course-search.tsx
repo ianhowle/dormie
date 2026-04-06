@@ -16,6 +16,7 @@ import { useTheme } from '../src/theme/ThemeContext';
 import { useAuth } from '../src/lib/auth';
 import { GEO, SANS } from '../src/theme/fonts';
 import { greenHeaderGradient, cardShadowDark, cardShadowLight } from '../src/theme/colors';
+import { supabase } from '../src/lib/supabase';
 import { coursesService } from '../src/services/courses.service';
 import { authService } from '../src/services/auth.service';
 import { useToast } from '../src/components/Toast';
@@ -56,7 +57,7 @@ export default function CourseSearchScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
@@ -93,15 +94,18 @@ export default function CourseSearchScreen() {
     haptics.light();
     setSaving(true);
     try {
-      // Update auth metadata with home course info (triggers useAuth refresh)
-      const { error } = await (await import('../src/lib/supabase')).supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         data: { home_course_id: course.id ?? null, home_course_name: course.name },
       });
       if (error) throw error;
 
+      // Refresh local auth state so profile picks up the change
+      await refreshUser();
+
       showToast({ message: `Home course set to ${course.name}`, type: 'gold', icon: 'golf' });
       router.back();
-    } catch {
+    } catch (err: any) {
+      console.log('[CourseSearch] Save failed:', JSON.stringify(err));
       showToast({ message: 'Failed to save home course', type: 'error' });
     } finally {
       setSaving(false);

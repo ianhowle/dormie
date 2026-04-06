@@ -87,7 +87,9 @@ export function CourseImage({
   const [imageUrl, setImageUrl] = useState<string | null>(providedUrl ?? null);
   const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const fallbackGradient = gradient ?? getGradientForCourse(courseName);
+  // Always fall back to Augusta green gradient when photo fails
+  const AUGUSTA_GREEN_FALLBACK: [string, string] = ['#1E4D2B', '#0D2818'];
+  const fallbackGradient = gradient ?? AUGUSTA_GREEN_FALLBACK;
 
   useEffect(() => {
     if (providedUrl) {
@@ -134,12 +136,30 @@ export function CourseImage({
           onError={() => setImageError(true)}
         />
       ) : (
-        <LinearGradient
-          colors={fallbackGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
+        <View style={StyleSheet.absoluteFillObject}>
+          <LinearGradient
+            colors={fallbackGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {/* Subtle pinstripe texture */}
+          {Array.from({ length: 20 }).map((_, i) => (
+            <View
+              key={i}
+              style={{
+                position: 'absolute',
+                top: -100,
+                left: i * 24 - 50,
+                width: 1,
+                height: 600,
+                backgroundColor: '#fff',
+                opacity: 0.04,
+                transform: [{ rotate: '35deg' }],
+              }}
+            />
+          ))}
+        </View>
       )}
       {loading && !showImage && <ShimmerPlaceholder />}
       {children}

@@ -12,18 +12,18 @@ type CachedPlace = {
 
 // ─── Deterministic gradient from course name ─────────────────────────
 const GRADIENT_PALETTE: [string, string][] = [
-  ['#1E4D2B', '#2D6A3F'],
-  ['#2A4A6B', '#5B7FA5'],
-  ['#5A3D7A', '#8B6DAF'],
-  ['#8B6B3A', '#C4994A'],
-  ['#3A5A3A', '#6B8F6B'],
+  ['#1E4D2B', '#0D2818'],
   ['#2D3A2D', '#4A5C4A'],
+  ['#3A5A3A', '#6B8F6B'],
   ['#4A6B5A', '#7A9B8A'],
-  ['#1A3A5C', '#2E6B8A'],
-  ['#6B3A1A', '#A06A3A'],
-  ['#3A6B6B', '#5A9B9B'],
-  ['#5A4A3A', '#8B7A6A'],
   ['#2A5A4A', '#4A8B7A'],
+  ['#8B6B3A', '#C4994A'],
+  ['#6B3A1A', '#A06A3A'],
+  ['#5A4A3A', '#8B7A6A'],
+  ['#3A6B6B', '#5A9B9B'],
+  ['#1E4D2B', '#2D6A3F'],
+  ['#2D3A2D', '#1E4D2B'],
+  ['#4A6B5A', '#2A5A4A'],
 ];
 
 function hashString(str: string): number {
@@ -65,7 +65,7 @@ async function setCache(key: string, data: Omit<CachedPlace, 'fetchedAt'>): Prom
 
 // ─── Google Places photo URL builder ─────────────────────────────────
 function getPhotoUrl(photoReference: string, maxWidth: number = 800): string {
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${GOOGLE_KEY}`;
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${GOOGLE_KEY}`;
 }
 
 // ─── Google Places Text Search ───────────────────────────────────────
