@@ -764,6 +764,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.30)',
+    borderRadius: 12,
   },
   yourInfo: {
     flex: 1,
@@ -792,6 +793,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 12,
     padding: 3,
+    borderRadius: 12,
   },
   scopeBtn: {
     flex: 1,
@@ -811,6 +813,7 @@ const styles = StyleSheet.create({
   },
   seasonCard: {
     overflow: 'hidden',
+    borderRadius: 12,
   },
   seasonGoldBar: {
     height: 3,
@@ -898,6 +901,7 @@ const styles = StyleSheet.create({
   },
   table: {
     overflow: 'hidden',
+    borderRadius: 12,
   },
   tableRow: {
     flexDirection: 'row',
@@ -966,6 +970,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 20,
     gap: 10,
+    borderRadius: 12,
   },
   emptyEmoji: {
     fontSize: 32,

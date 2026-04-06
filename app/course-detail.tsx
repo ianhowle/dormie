@@ -445,7 +445,7 @@ function NotPlayedState({ course }: { course: CourseDetailData }) {
       )}
 
       {/* Prompt */}
-      <View style={[st.promptCard, { backgroundColor: c.elevated, borderColor: c.border, borderStyle: 'dashed' }]}>
+      <View style={[st.promptCard, { backgroundColor: c.elevated, borderColor: c.border, borderRadius: 12 }]}>
         <Text style={{ fontSize: 32 }}>{'\u{26F3}'}</Text>
         <Text style={[st.promptTitle, { color: c.text, fontFamily: GEO }]}>
           Haven't played here yet

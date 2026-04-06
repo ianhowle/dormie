@@ -13,14 +13,18 @@ const accents = {
 };
 
 export const dark = {
-  bg: '#141210',
-  surface: '#1E1B18',
-  cardBg: '#1A1816',
-  elevated: '#262320',
+  bg: '#0D0A06',           // True dark page background
+  surface: '#151312',      // Subtle surface (barely lighter)
+  cardBg: '#151312',       // Card surface — subtle depth via bg difference
+  elevated: '#1A1816',     // Interactive/featured cards
   text: '#E8E4DE',
   textMuted: '#8A857F', // Bumped from #6B6560 for WCAG AA (4.84:1 on cardBg, 5.11:1 on bg)
-  border: '#2A2724',
-  borderLight: '#222222',
+  border: 'rgba(255,255,255,0.06)', // Barely visible edge definition
+  borderLight: 'rgba(255,255,255,0.04)',
+  /** Score color coding — PGA Tour broadcast convention */
+  scoreUnder: '#1D9E75',   // Under par green
+  scoreEven: '#E8E4DE',    // Even par neutral
+  scoreOver: '#E24B4A',    // Over par red
   ...accents,
 };
 
@@ -33,6 +37,10 @@ export const light = {
   textMuted: '#6B6560', // Darkened from #8A857F for WCAG AA (5.42:1 on bg, 5.74:1 on white)
   border: '#E5E2DE',
   borderLight: '#EDEAE6',
+  /** Score color coding — PGA Tour broadcast convention */
+  scoreUnder: '#1D9E75',
+  scoreEven: '#1A1A1A',
+  scoreOver: '#E24B4A',
   ...accents,
 };
 

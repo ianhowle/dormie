@@ -29,8 +29,8 @@ export function Skeleton({ width, height, style }: SkeletonProps) {
     outputRange: [-200, 200],
   });
 
-  const baseColor = theme.isDark ? '#262320' : '#E5E2DE';
-  const shimmerColor = theme.isDark ? '#333028' : '#F0EDE8';
+  const baseColor = theme.isDark ? '#1A1816' : '#E5E2DE';
+  const shimmerColor = theme.isDark ? '#262320' : '#F0EDE8';
 
   return (
     <View style={[{ width: width as any, height, backgroundColor: baseColor, overflow: 'hidden' }, style]}>
@@ -131,6 +131,7 @@ const skel = StyleSheet.create({
   card: {
     overflow: 'hidden',
     marginBottom: 10,
+    borderRadius: 12,
   },
   cardBody: {
     padding: 14,

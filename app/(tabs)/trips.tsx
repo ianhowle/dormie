@@ -355,7 +355,6 @@ function BucketList({ courses, realItems }: { courses: BucketCourse[]; realItems
               backgroundColor: c.cardBg,
               borderColor: c.gold,
               borderWidth: 1,
-              borderStyle: 'dashed',
             },
             ...(isDark ? [cardShadowDark] : [cardShadowLight]),
           ]}
@@ -598,7 +597,7 @@ const s = StyleSheet.create({
   statsBanner: {
     padding: 16,
     marginTop: 8,
-    borderRadius: 0,
+    borderRadius: 12,
   },
   statsRow: {
     flexDirection: 'row',
@@ -635,7 +634,7 @@ const s = StyleSheet.create({
   dreamCard: {
     width: 160,
     overflow: 'hidden',
-    borderRadius: 0,
+    borderRadius: 12,
   },
   dreamGradient: {
     height: 110,
@@ -692,7 +691,7 @@ const s = StyleSheet.create({
   tripCard: {
     marginBottom: 10,
     overflow: 'hidden',
-    borderRadius: 0,
+    borderRadius: 12,
   },
   tripImageBg: {
     ...StyleSheet.absoluteFillObject,
@@ -776,7 +775,7 @@ const s = StyleSheet.create({
     gap: 10,
     padding: 14,
     marginBottom: 8,
-    borderRadius: 0,
+    borderRadius: 12,
   },
   bucketInfo: {
     flex: 1,
@@ -798,7 +797,7 @@ const s = StyleSheet.create({
   exploreCard: {
     width: 140,
     overflow: 'hidden',
-    borderRadius: 0,
+    borderRadius: 12,
   },
   exploreGradient: {
     height: 100,
@@ -817,12 +816,11 @@ const s = StyleSheet.create({
   /* Empty state */
   emptyState: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
     padding: 32,
     marginTop: 12,
     gap: 10,
-    borderRadius: 0,
+    borderRadius: 12,
+    opacity: 0.7,
   },
   emptyEmoji: {
     fontSize: 32,

@@ -474,6 +474,7 @@ export default function ProfileScreen() {
                     borderColor: c.border,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
+                    borderRadius: 12,
                     ...(isDark ? cardShadowDark : cardShadowLight),
                   },
                   pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -886,6 +887,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 10,
     marginTop: 16,
+    borderRadius: 12,
   },
   editBtnText: { fontSize: 13, fontWeight: '600' },
 
@@ -922,6 +924,7 @@ const s = StyleSheet.create({
   chartCard: {
     padding: 16,
     overflow: 'hidden',
+    borderRadius: 12,
   },
   chartHeader: {
     flexDirection: 'row',
@@ -949,6 +952,7 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 6,
+    borderRadius: 12,
   },
   roundScoreWrap: { alignItems: 'center', width: 44 },
   roundScore: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
@@ -965,9 +969,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 32,
     paddingHorizontal: 20,
-    borderWidth: 1,
-    borderStyle: 'dashed',
     marginTop: 8,
+    borderRadius: 12,
+    opacity: 0.7,
   },
   emptyEmoji: { fontSize: 32, marginBottom: 8 },
   emptyTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
@@ -1010,6 +1014,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 14,
     marginTop: 12,
+    borderRadius: 12,
   },
   signOutText: { fontSize: 14, fontWeight: '700' },
 
@@ -1022,6 +1027,7 @@ const s = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 20,
     overflow: 'hidden',
+    borderRadius: 12,
   },
   integrityHeaderText: {
     flex: 1,
@@ -1032,6 +1038,7 @@ const s = StyleSheet.create({
   integrityBody: {
     padding: 16,
     gap: 12,
+    borderRadius: 12,
   },
   integrityScoreRow: {
     flexDirection: 'row',
@@ -1055,7 +1062,7 @@ const s = StyleSheet.create({
   integrityNote: { fontSize: 10, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
 
   /* Favorite Course hero card */
-  favCourseCard: { overflow: 'hidden' },
+  favCourseCard: { overflow: 'hidden', borderRadius: 12 },
   favCourseGradient: { paddingVertical: 20, paddingHorizontal: 20, gap: 8, overflow: 'hidden' },
   favCourseName: {
     fontSize: 18,

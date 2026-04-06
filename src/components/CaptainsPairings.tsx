@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   pairingFormat: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   pairingAvg: { fontSize: 13 },
   pairingSlots: { gap: 6 },
-  emptySlot: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderWidth: 1, borderStyle: 'dashed' },
+  emptySlot: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderWidth: 1, borderRadius: 12 },
   emptySlotText: { fontSize: 13 },
   assignedSlot: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8 },
   assignedName: { flex: 1, fontSize: 14, fontWeight: '500' },

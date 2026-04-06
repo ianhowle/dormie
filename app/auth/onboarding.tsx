@@ -1450,7 +1450,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     borderWidth: 1,
     borderColor: C.border,
-    borderStyle: 'dashed',
+    borderRadius: 12,
   },
 
   // Golfer type

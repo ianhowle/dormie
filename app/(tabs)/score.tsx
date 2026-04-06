@@ -2001,7 +2001,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderStyle: 'dashed',
+    borderRadius: 12,
     paddingVertical: 12,
   },
   addPlayerText: {
@@ -2438,7 +2438,7 @@ const st = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 14,
     borderWidth: 1,
-    borderStyle: 'dashed',
+    borderRadius: 12,
   },
   modalManualText: {
     fontSize: 13,

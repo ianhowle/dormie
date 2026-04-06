@@ -867,7 +867,7 @@ const z = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderStyle: 'dashed',
+    borderRadius: 12,
     paddingVertical: 12,
   },
   addPlayerText: { fontSize: 13, fontWeight: '600' },

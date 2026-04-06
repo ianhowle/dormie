@@ -55,11 +55,11 @@ export function formatToPar(score: number, par: number): string {
   return diff > 0 ? `+${diff}` : `${diff}`;
 }
 
-export function toParColor(score: number, par: number, c: { teal: string; urgent: string; text: string }): string {
+export function toParColor(score: number, par: number, c: { teal: string; urgent: string; text: string; scoreUnder?: string; scoreEven?: string; scoreOver?: string }): string {
   const diff = score - par;
-  if (diff < 0) return c.teal;
-  if (diff > 0) return c.urgent;
-  return c.text;
+  if (diff < 0) return c.scoreUnder ?? '#1D9E75';
+  if (diff > 0) return c.scoreOver ?? '#E24B4A';
+  return c.scoreEven ?? c.text;
 }
 
 // ─── Default Hole Generation ──────────────────────────────────────────
@@ -202,7 +202,7 @@ export function movementArrow(movement: Movement): string {
 }
 
 export function movementColor(movement: Movement): string {
-  if (movement === 'up') return '#006747'; // green/teal
-  if (movement === 'down') return '#C41E3A'; // red
+  if (movement === 'up') return '#1D9E75'; // PGA Tour green
+  if (movement === 'down') return '#E24B4A'; // PGA Tour red
   return '#6B6560'; // muted
 }

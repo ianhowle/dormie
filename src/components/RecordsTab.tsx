@@ -491,7 +491,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderStyle: 'dashed',
+    borderRadius: 12,
     padding: 14,
     marginBottom: 8,
   },

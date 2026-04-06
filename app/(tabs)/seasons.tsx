@@ -396,6 +396,7 @@ const st = StyleSheet.create({
   /* Active season card */
   activeCard: {
     borderWidth: 1,
+    borderRadius: 12,
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
@@ -484,6 +485,8 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
     padding: 14,
     marginBottom: 8,
   },
@@ -516,11 +519,11 @@ const st = StyleSheet.create({
   /* Empty state */
   emptyState: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
     padding: 32,
     marginTop: 24,
     gap: 12,
+    borderRadius: 12,
+    opacity: 0.7,
   },
   emptyTitle: {
     fontSize: 16,

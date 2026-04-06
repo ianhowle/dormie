@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Platform, StatusBar, RefreshControl, Animated as RNAnimated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -270,21 +270,16 @@ function LogoMenu({
   );
 }
 
-// ─── Greeting section — Masters green gradient + pinstripes ──────────
-function GreetingSection({ name, groupName, weather }: { name: string; groupName: string; weather: WeatherData | null }) {
+// ─── Greeting section — Hero banner with course photo or green gradient ──
+function GreetingSection({ name, groupName, weather, courseName }: { name: string; groupName: string; weather: WeatherData | null; courseName: string | null }) {
   const mastersGradient: [string, string] = ['#2A2318', '#1A1510'];
   const gradientColors = isMastersTheme() ? mastersGradient : (greenHeaderGradient as unknown as string[]);
   const subtitle = getGreetingSubtitle();
   const eventAccent = getEventAccentColor();
   const playoffs = isPlayoffsTheme();
 
-  return (
-    <LinearGradient
-      colors={gradientColors}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={st.greetingSection}
-    >
+  const content = (
+    <>
       <Pinstripes />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={[st.greetingText, isMastersTheme() && { color: '#C9A227' }]}>{getGreeting(name)}</Text>
@@ -307,6 +302,31 @@ function GreetingSection({ name, groupName, weather }: { name: string; groupName
       )}
       <Text style={st.greetingGroup}>{groupName}</Text>
       <Text style={st.goLowText}>GO LOW</Text>
+    </>
+  );
+
+  // Hero banner: use course photo as full-bleed background if available
+  if (courseName) {
+    return (
+      <CourseImage courseName={courseName} height={160}>
+        <LinearGradient
+          colors={['transparent', 'rgba(13,10,6,0.85)']}
+          style={st.greetingSection}
+        >
+          {content}
+        </LinearGradient>
+      </CourseImage>
+    );
+  }
+
+  return (
+    <LinearGradient
+      colors={gradientColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={st.greetingSection}
+    >
+      {content}
     </LinearGradient>
   );
 }
@@ -325,6 +345,8 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
 
   return (
     <View style={[st.tickerBar, tickerShadowDark]}>
+      {/* Gold left edge accent — broadcast chyron feel */}
+      <View style={st.tickerGoldEdge} />
       {/* STANDINGS label */}
       <View style={st.tickerLabelWrap}>
         <Text style={st.tickerLabel}>STANDINGS</Text>
@@ -337,7 +359,9 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
       >
         {standings.map((p, i) => {
           const arrowChar = p.movement === 'up' ? '\u25B2' : p.movement === 'down' ? '\u25BC' : '\u2013';
-          const arrowColor = p.movement === 'up' ? '#006747' : p.movement === 'down' ? '#C41E3A' : '#6B6560';
+          const arrowColor = p.movement === 'up' ? '#1D9E75' : p.movement === 'down' ? '#E24B4A' : '#6B6560';
+          // PGA Tour score color: under par green, even white, over par red
+          const scoreColor = p.toPar.startsWith('-') ? '#1D9E75' : p.toPar === 'E' ? '#E8E4DE' : '#E24B4A';
           return (
             <View
               key={i}
@@ -346,7 +370,7 @@ function ESPNTicker({ standings }: { standings: StandingPill[] }) {
               <Text style={st.tickerRank}>{p.rank}</Text>
               <Text style={[st.tickerArrow, { color: arrowColor }]}>{arrowChar}</Text>
               <Text style={[st.tickerName, p.isMe && st.tickerNameMe]}>{p.name}</Text>
-              <Text style={st.tickerScore}>{p.toPar}</Text>
+              <Text style={[st.tickerScore, { color: scoreColor }]}>{p.toPar}</Text>
             </View>
           );
         })}
@@ -765,6 +789,33 @@ function QuickStatsRow({ stats }: { stats: QuickStats }) {
   );
 }
 
+// ─── Animated action button with spring bounce ─────────────────────
+function ActionButton({ label, icon, onPress, style, textStyle, iconColor }: {
+  label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void;
+  style: any; textStyle: any; iconColor: string;
+}) {
+  const scaleAnim = useRef(new RNAnimated.Value(1)).current;
+  const handlePressIn = () => {
+    RNAnimated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  };
+  const handlePressOut = () => {
+    RNAnimated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }).start();
+  };
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      onPress={() => { haptics.light(); onPress(); }}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    >
+      <RNAnimated.View style={[st.actionBtn, style, { transform: [{ scale: scaleAnim }] }]}>
+        <Ionicons name={icon} size={18} color={iconColor} />
+        <Text style={textStyle}>{label}</Text>
+      </RNAnimated.View>
+    </Pressable>
+  );
+}
+
 // ─── Quick actions row ───────────────────────────────────────────────
 function QuickActions() {
   const { theme } = useTheme();
@@ -773,30 +824,30 @@ function QuickActions() {
 
   return (
     <View style={st.actionsRow}>
-      <Pressable
-        accessibilityLabel="Switch to Log Round"
-        onPress={() => { haptics.light(); router.push('/(tabs)/score'); }}
-        style={({ pressed }) => [st.actionBtn, { backgroundColor: c.greenDark }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-      >
-        <Ionicons name="add-circle-outline" size={18} color="#fff" />
-        <Text style={[st.actionPrimaryText, { fontFamily: SANS }]}>Log Round</Text>
-      </Pressable>
-      <Pressable
-        accessibilityLabel="Switch to New Trip"
-        onPress={() => { haptics.light(); router.push('/(tabs)/trips'); }}
-        style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-      >
-        <Ionicons name="airplane-outline" size={18} color={c.gold} />
-        <Text style={[st.actionSecText, { color: c.gold, fontFamily: SANS }]}>New Trip</Text>
-      </Pressable>
-      <Pressable
-        accessibilityLabel="Switch to Leaderboard"
-        onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
-        style={({ pressed }) => [st.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
-      >
-        <Ionicons name="trophy-outline" size={18} color={c.teal} />
-        <Text style={[st.actionSecText, { color: c.teal, fontFamily: SANS }]}>Leaderboard</Text>
-      </Pressable>
+      <ActionButton
+        label="Log Round"
+        icon="add-circle-outline"
+        onPress={() => router.push('/(tabs)/score')}
+        style={{ backgroundColor: c.greenDark }}
+        textStyle={[st.actionPrimaryText, { fontFamily: SANS }]}
+        iconColor="#fff"
+      />
+      <ActionButton
+        label="New Trip"
+        icon="airplane-outline"
+        onPress={() => router.push('/(tabs)/trips')}
+        style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }}
+        textStyle={[st.actionSecText, { color: c.gold, fontFamily: SANS }]}
+        iconColor={c.gold}
+      />
+      <ActionButton
+        label="Leaderboard"
+        icon="trophy-outline"
+        onPress={() => router.push('/(tabs)/leaderboard')}
+        style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }}
+        textStyle={[st.actionSecText, { color: c.teal, fontFamily: SANS }]}
+        iconColor={c.teal}
+      />
     </View>
   );
 }
@@ -1228,16 +1279,17 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={c.teal}
-            colors={['#006747']}
+            tintColor={c.gold}
+            colors={['#C9A227']}
           />
         }
       >
-        {/* Masters green greeting with active group name (Item 1) */}
+        {/* Hero banner: course photo background or Masters green gradient */}
         <GreetingSection
           name={firstName ?? 'Golfer'}
           groupName={activeGroup.name}
           weather={weather}
+          courseName={user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null}
         />
 
         {/* Gold divider below green header */}
@@ -1368,7 +1420,7 @@ export default function HomeScreen() {
           {showContent ? (
             <RoundResultCard />
           ) : (
-            <View style={[st.emptyHint, { borderColor: c.border }]}>
+            <View style={[st.emptyHint, { backgroundColor: c.surface }]}>
               <Ionicons name="golf-outline" size={16} color={c.textMuted} />
               <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>Play your first round to see results here.</Text>
             </View>
@@ -1378,17 +1430,18 @@ export default function HomeScreen() {
           {showContent ? (
             <NextMatchupCard />
           ) : (
-            <View style={[st.emptyHint, { borderColor: c.border }]}>
+            <View style={[st.emptyHint, { backgroundColor: c.surface }]}>
               <Ionicons name="people-outline" size={16} color={c.textMuted} />
               <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>Join a season to see your next matchup.</Text>
             </View>
           )}
 
-          {/* Strokes behind leader callout — always visible */}
-          <View style={{ backgroundColor: `${c.teal}10`, borderWidth: 1, borderColor: c.teal, padding: 12, marginTop: 12 }}>
-            <Text style={{ color: c.teal, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
-              You're 2.8 strokes behind Drew's average. Close the gap.
+          {/* Competitive nudge — editorial callout with gold left accent */}
+          <View style={{ backgroundColor: c.elevated, borderLeftWidth: 3, borderLeftColor: c.gold, padding: 12, marginTop: 12, borderRadius: 12 }}>
+            <Text style={{ color: c.gold, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
+              You're 2.8 strokes behind Drew's average.
             </Text>
+            <Text style={{ color: c.textMuted, fontSize: 11, marginTop: 2, fontFamily: SANS }}>Close the gap.</Text>
           </View>
 
           {/* Active streaks */}
@@ -1457,9 +1510,9 @@ export default function HomeScreen() {
               <GoldDivider style={{ marginBottom: 12 }} />
               <Pressable
                 onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
-                style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.urgent, borderLeftWidth: 3 }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [st.feedCard, { backgroundColor: c.elevated, borderColor: c.gold, borderLeftWidth: 3, borderRadius: 12 }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
-                <Ionicons name="people" size={20} color={c.urgent} style={{ marginRight: 10 }} />
+                <Ionicons name="people" size={20} color={c.gold} style={{ marginRight: 10 }} />
                 <Text style={[st.feedName, { color: c.text, fontFamily: SANS }]}>
                   {pendingRequests.length} pending friend request{pendingRequests.length > 1 ? 's' : ''}
                 </Text>
@@ -1634,6 +1687,8 @@ const st = StyleSheet.create({
     left: 20,
     width: 220,
     borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
     zIndex: 100,
     elevation: 10,
   },
@@ -1693,22 +1748,29 @@ const st = StyleSheet.create({
     marginTop: 8,
   },
 
-  /* ESPN Ticker — prominent floating Masters green card */
+  /* ESPN Ticker — prominent floating Masters green card with gold left edge */
   tickerBar: {
     backgroundColor: '#1E4D2B',
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    height: 48,
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  tickerGoldEdge: {
+    width: 3,
+    height: '100%' as any,
+    backgroundColor: '#C9A227',
   },
   tickerLabelWrap: {
     paddingHorizontal: 12,
   },
   tickerLabel: {
     color: '#C9A227',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.5,
     fontFamily: 'Georgia',
@@ -1735,16 +1797,16 @@ const st = StyleSheet.create({
   },
   tickerRank: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: 'Georgia',
   },
   tickerArrow: {
-    fontSize: 7,
+    fontSize: 8,
   },
   tickerName: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     fontFamily: 'Georgia',
   },
@@ -1752,8 +1814,7 @@ const st = StyleSheet.create({
     color: '#FFFFFF',
   },
   tickerScore: {
-    color: '#C9A227',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     fontFamily: 'Georgia',
     marginLeft: 2,
@@ -1793,6 +1854,8 @@ const st = StyleSheet.create({
   },
   seasonList: {
     borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   seasonRow: {
     flexDirection: 'row',
@@ -1824,6 +1887,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     padding: 16,
+    borderRadius: 12,
   },
   resultSide: {
     flex: 1,
@@ -1877,6 +1941,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     padding: 16,
+    borderRadius: 12,
   },
   matchupSide: {
     flex: 1,
@@ -1919,6 +1984,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 8,
+    borderRadius: 12,
   },
   groupInitialBox: {
     width: 40,
@@ -2019,6 +2085,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderWidth: 1,
+    borderRadius: 12,
   },
   statValue: {
     fontSize: 18,
@@ -2075,6 +2142,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 8,
+    borderRadius: 12,
   },
   feedLeft: {
     marginRight: 10,
@@ -2112,6 +2180,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 8,
+    borderRadius: 12,
   },
   upcomingInfo: {
     flex: 1,
@@ -2148,15 +2217,16 @@ const st = StyleSheet.create({
     marginTop: 1,
   },
 
-  /* Empty hint — subtle prompt for new users */
+  /* Empty hint — subtle secondary prompt for new users */
   emptyHint: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed',
     padding: 14,
     marginTop: 16,
+    borderRadius: 12,
+    opacity: 0.7,
   },
   emptyHintText: {
     fontSize: 12,
@@ -2166,11 +2236,11 @@ const st = StyleSheet.create({
   /* Empty state */
   emptyState: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
     padding: 32,
     marginTop: 24,
     gap: 10,
+    borderRadius: 12,
+    opacity: 0.7,
   },
   emptyEmoji: {
     fontSize: 32,

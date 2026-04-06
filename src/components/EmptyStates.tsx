@@ -239,6 +239,7 @@ const es = StyleSheet.create({
   },
   card: {
     borderWidth: 1,
+    borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     gap: 8,
@@ -259,6 +260,7 @@ const es = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 20,
     paddingVertical: 12,
+    borderRadius: 12,
     marginTop: 8,
   },
   btnText: {
@@ -277,6 +279,7 @@ const es = StyleSheet.create({
 const ghost = StyleSheet.create({
   table: {
     borderWidth: 1,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   header: {
@@ -305,6 +308,7 @@ const ghost = StyleSheet.create({
   avatar: {
     width: 28,
     height: 28,
+    borderRadius: 12,
     marginRight: 10,
   },
   nameArea: {
@@ -313,10 +317,12 @@ const ghost = StyleSheet.create({
   },
   nameLine: {
     height: 10,
+    borderRadius: 12,
   },
   subLine: {
     height: 7,
     width: 40,
+    borderRadius: 12,
   },
   score: {
     fontSize: 14,
@@ -334,6 +340,7 @@ const pse = StyleSheet.create({
   stat: {
     width: '31%',
     borderWidth: 1,
+    borderRadius: 12,
     padding: 12,
     alignItems: 'center',
   },
@@ -353,6 +360,7 @@ const season = StyleSheet.create({
   preview: {
     width: '100%',
     borderWidth: 1,
+    borderRadius: 12,
     overflow: 'hidden',
     marginTop: 8,
   },
