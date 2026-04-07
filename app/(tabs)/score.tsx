@@ -335,7 +335,7 @@ function CourseSearch({
 
   return (
     <View>
-      <View style={[st.searchWrap, { backgroundColor: c.elevated, borderColor: c.border, borderWidth: 1 }]}>
+      <View style={[st.searchWrap, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: c.border, borderWidth: 1 }]}>
         <Ionicons name="search" size={16} color={c.textMuted} />
         <TextInput
           style={[st.searchInput, { color: c.text, fontFamily: SANS }]}
@@ -355,7 +355,7 @@ function CourseSearch({
       </View>
 
       {open && results.length > 0 && (
-        <View style={[st.dropdown, { backgroundColor: c.elevated, borderColor: c.border }]}>
+        <View style={[st.dropdown, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: c.border }]}>
           {results.map((cr) => {
             const loc = cr.location || `${cr.city}, ${cr.state}`;
             return (
@@ -388,7 +388,7 @@ function CourseSearch({
             onSelect({ id: `custom-${Date.now()}`, name: query, par: 72, city: '', state: '' });
             setOpen(false);
           }}
-          style={[st.dropdown, st.customOption, { backgroundColor: c.elevated, borderColor: c.border }]}
+          style={[st.dropdown, st.customOption, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: c.border }]}
         >
           <Ionicons name="add-circle-outline" size={16} color={c.teal} />
           <Text style={[st.customText, { color: c.teal }]}>
@@ -630,7 +630,7 @@ function AddPlayerInline({
           }}
           style={({ pressed }) => [
             st.addDoneBtn,
-            { backgroundColor: c.greenDark },
+            { backgroundColor: theme.isDark ? c.greenDark : '#006747' },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >
@@ -701,7 +701,7 @@ function AddPlayerModal({
           </View>
 
           {/* Search */}
-          <View style={[st.modalSearchWrap, { backgroundColor: c.elevated, borderColor: c.border, borderWidth: 1 }]}>
+          <View style={[st.modalSearchWrap, { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: c.border, borderWidth: 1 }]}>
             <Ionicons name="search" size={16} color={c.textMuted} />
             <TextInput
               style={[st.modalSearchInput, { color: c.text, fontFamily: SANS }]}
@@ -789,7 +789,7 @@ function AddPlayerModal({
                   onPress={handleAddManual}
                   style={({ pressed }) => [
                     st.addDoneBtn,
-                    { backgroundColor: c.greenDark },
+                    { backgroundColor: theme.isDark ? c.greenDark : '#006747' },
                     pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
                   ]}
                 >
@@ -814,6 +814,7 @@ function FormatPicker({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const activeFormat = SCORING_FORMATS.find((f) => f.key === selected);
 
   return (
@@ -832,7 +833,7 @@ function FormatPicker({
               style={({ pressed }) => [
                 st.pill,
                 {
-                  backgroundColor: active ? 'rgba(0,103,71,0.08)' : c.elevated,
+                  backgroundColor: active ? 'rgba(0,103,71,0.08)' : (isDark ? c.elevated : '#FFFFFF'),
                   borderColor: active ? c.teal : c.border,
                 },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -872,6 +873,7 @@ function SideGamePicker({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const desc = lastToggled && selected.has(lastToggled) ? SIDE_GAME_DESCRIPTIONS[lastToggled] : null;
 
   return (
@@ -886,7 +888,7 @@ function SideGamePicker({
               style={({ pressed }) => [
                 st.sidePill,
                 {
-                  backgroundColor: active ? 'rgba(0,103,71,0.08)' : c.elevated,
+                  backgroundColor: active ? 'rgba(0,103,71,0.08)' : (isDark ? c.elevated : '#FFFFFF'),
                   borderColor: active ? c.teal : c.border,
                 },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -926,9 +928,10 @@ function ToggleRow<T extends string>({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
-    <View style={[st.toggleRow, { borderColor: c.border, borderWidth: 1 }]}>
+    <View style={[st.toggleRow, { borderColor: c.border, borderWidth: 1, backgroundColor: isDark ? undefined : '#FFFFFF' }]}>
       {options.map((opt) => {
         const active = opt.key === selected;
         return (
@@ -937,14 +940,14 @@ function ToggleRow<T extends string>({
             onPress={() => onSelect(opt.key)}
             style={({ pressed }) => [
               st.toggleBtn,
-              active && { backgroundColor: 'rgba(0,103,71,0.08)' },
+              active && { backgroundColor: isDark ? 'rgba(0,103,71,0.08)' : '#006747', },
               pressed && { opacity: 0.7 },
             ]}
           >
             <Text
               style={[
                 st.toggleLabel,
-                { color: active ? c.teal : c.textMuted, fontFamily: SANS },
+                { color: active ? (isDark ? c.teal : '#FFFFFF') : c.textMuted, fontFamily: SANS },
                 active && { fontWeight: '700' },
               ]}
             >
@@ -1293,7 +1296,7 @@ export default function ScoreScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         style={st.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1310,7 +1313,7 @@ export default function ScoreScreen() {
             end={{ x: 1, y: 1 }}
             style={st.header}
           >
-            <Pinstripes />
+            {isDark && <Pinstripes />}
             <Text style={[st.headerDormie, { fontFamily: GEO }]}>DORMIE</Text>
             <Text style={[st.headerTitle, { fontFamily: GEO }]}>
               New Round
@@ -1346,7 +1349,7 @@ export default function ScoreScreen() {
                           }}
                           style={[
                             st.teeGenderBtn,
-                            { borderColor: isActive ? c.teal : c.border, backgroundColor: isActive ? 'rgba(0,103,71,0.08)' : 'transparent' },
+                            { borderColor: isActive ? c.teal : c.border, backgroundColor: isActive ? 'rgba(0,103,71,0.08)' : (isDark ? 'transparent' : '#FFFFFF') },
                           ]}
                         >
                           <Text style={[st.teeGenderBtnText, { color: isActive ? c.teal : c.textMuted, fontFamily: SANS }]}>
@@ -1374,7 +1377,7 @@ export default function ScoreScreen() {
                       style={({ pressed }) => [
                         st.teeDropdownRow,
                         {
-                          backgroundColor: active ? 'rgba(0,103,71,0.08)' : c.elevated,
+                          backgroundColor: active ? 'rgba(0,103,71,0.08)' : (isDark ? c.elevated : '#FFFFFF'),
                           borderColor: active ? c.teal : c.border,
                         },
                         pressed && { opacity: 0.7 },
@@ -1472,7 +1475,7 @@ export default function ScoreScreen() {
                     style={({ pressed }) => [
                       st.roundTypeCard,
                       {
-                        backgroundColor: active ? 'rgba(0,103,71,0.05)' : c.elevated,
+                        backgroundColor: active ? 'rgba(0,103,71,0.05)' : (isDark ? c.elevated : '#FFFFFF'),
                         borderColor: active ? c.teal : c.border,
                         borderWidth: 1,
                       },
@@ -1498,7 +1501,7 @@ export default function ScoreScreen() {
             <SectionLabel title="LINK TO" />
             <View style={st.contextSection}>
               {/* Season link — multi-select */}
-              <View style={[st.contextCard, { backgroundColor: linkedSeasons.length > 0 ? 'rgba(201,162,39,0.05)' : c.elevated, borderColor: linkedSeasons.length > 0 ? c.gold : c.border, borderWidth: 1 }]}>
+              <View style={[st.contextCard, { backgroundColor: linkedSeasons.length > 0 ? 'rgba(201,162,39,0.05)' : (isDark ? c.elevated : '#FFFFFF'), borderColor: linkedSeasons.length > 0 ? c.gold : c.border, borderWidth: 1 }]}>
                 <View style={st.contextCardHeader}>
                   <Ionicons name="trophy" size={16} color={linkedSeasons.length > 0 ? c.gold : c.textMuted} />
                   <Text style={[st.contextCardTitle, { color: linkedSeasons.length > 0 ? c.gold : c.text, fontFamily: SANS }]}>
@@ -1589,7 +1592,7 @@ export default function ScoreScreen() {
                 style={({ pressed }) => [
                   st.contextCard,
                   {
-                    backgroundColor: linkedTrip ? 'rgba(0,103,71,0.08)' : c.elevated,
+                    backgroundColor: linkedTrip ? 'rgba(0,103,71,0.08)' : (isDark ? c.elevated : '#FFFFFF'),
                     borderColor: linkedTrip ? c.teal : c.border,
                     borderWidth: 1,
                   },
@@ -1650,7 +1653,7 @@ export default function ScoreScreen() {
                 style={({ pressed }) => [
                   st.contextCard,
                   {
-                    backgroundColor: linkedMatchup ? 'rgba(0,103,71,0.08)' : c.elevated,
+                    backgroundColor: linkedMatchup ? 'rgba(0,103,71,0.08)' : (isDark ? c.elevated : '#FFFFFF'),
                     borderColor: linkedMatchup ? c.teal : c.border,
                     borderWidth: 1,
                   },
@@ -1738,7 +1741,7 @@ export default function ScoreScreen() {
                     style={({ pressed }) => [
                       st.trackingCard,
                       {
-                        backgroundColor: active ? 'rgba(0,103,71,0.05)' : c.elevated,
+                        backgroundColor: active ? 'rgba(0,103,71,0.05)' : (isDark ? c.elevated : '#FFFFFF'),
                         borderColor: active ? c.teal : c.border,
                         borderWidth: 1,
                       },
@@ -1814,7 +1817,7 @@ export default function ScoreScreen() {
               style={({ pressed }) => [
                 st.startBtn,
                 canStart
-                  ? { backgroundColor: c.greenDark }
+                  ? { backgroundColor: isDark ? c.greenDark : '#006747' }
                   : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold },
                 pressed && canStart && { opacity: 0.7, transform: [{ scale: 0.98 }] },
               ]}

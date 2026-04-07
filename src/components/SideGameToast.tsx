@@ -358,7 +358,7 @@ function ManualInputModal({
   return (
     <Modal transparent animationType="fade" visible>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: c.cardBg }]}>
+        <View style={[styles.modalContent, { backgroundColor: c.cardBg, borderColor: c.border }]}>
           <View style={styles.modalHeader}>
             <Ionicons name="create" size={24} color={c.gold} />
             <Text style={[styles.modalTitle, { color: c.text }]}>{event.label}</Text>
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
 
   // Manual modal
   modalOverlay: { flex: 1, backgroundColor: '#00000088', justifyContent: 'center', paddingHorizontal: 24 },
-  modalContent: { padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  modalContent: { padding: 20, borderWidth: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   modalTitle: { fontSize: 16, fontWeight: '700' },
   modalDesc: { fontSize: 13, marginTop: 8, lineHeight: 20 },

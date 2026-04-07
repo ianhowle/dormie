@@ -73,6 +73,7 @@ function ScopeToggle({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={[st.toggleRow, { borderColor: c.border }]}>
@@ -84,13 +85,19 @@ function ScopeToggle({
             onPress={() => { haptics.light(); onToggle(s); }}
             style={[
               st.toggleBtn,
-              active && { backgroundColor: `${c.teal}20` },
+              active
+                ? { backgroundColor: isDark ? `${c.teal}20` : '#FFFFFF' }
+                : !isDark ? { backgroundColor: '#F2F0ED' } : undefined,
             ]}
           >
             <Text
               style={[
                 st.toggleLabel,
-                { color: active ? c.teal : c.textMuted },
+                {
+                  color: active
+                    ? (isDark ? c.teal : '#1A1A1A')
+                    : (isDark ? c.textMuted : '#6B6966'),
+                },
                 active && { fontWeight: '700' },
               ]}
             >
@@ -115,6 +122,7 @@ function ScoreModeToggle({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={[st.miniToggleRow, { borderColor: c.border }]}>
@@ -126,13 +134,19 @@ function ScoreModeToggle({
             onPress={() => { haptics.light(); onToggle(m); }}
             style={[
               st.miniToggleBtn,
-              active && { backgroundColor: `${c.teal}20` },
+              active
+                ? { backgroundColor: isDark ? `${c.teal}20` : '#FFFFFF' }
+                : !isDark ? { backgroundColor: '#F2F0ED' } : undefined,
             ]}
           >
             <Text
               style={[
                 st.miniToggleLabel,
-                { color: active ? c.teal : c.textMuted },
+                {
+                  color: active
+                    ? (isDark ? c.teal : '#1A1A1A')
+                    : (isDark ? c.textMuted : '#6B6966'),
+                },
                 active && { fontWeight: '700' },
               ]}
             >

@@ -38,6 +38,8 @@ export function HomeFeedEmpty() {
 function GhostRow({ index }: { index: number }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
+  const shimmerBase = isDark ? c.elevated : '#F2F0ED';
   const shimmer = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -52,10 +54,10 @@ function GhostRow({ index }: { index: number }) {
   return (
     <Animated.View style={[ghost.row, { borderBottomColor: c.border, opacity: shimmer }]}>
       <Text style={[ghost.pos, { color: c.textMuted, fontFamily: GEO }]}>{index + 1}</Text>
-      <View style={[ghost.avatar, { backgroundColor: c.elevated }]} />
+      <View style={[ghost.avatar, { backgroundColor: shimmerBase }]} />
       <View style={ghost.nameArea}>
-        <View style={[ghost.nameLine, { backgroundColor: c.elevated, width: 60 + Math.random() * 40 }]} />
-        <View style={[ghost.subLine, { backgroundColor: c.elevated }]} />
+        <View style={[ghost.nameLine, { backgroundColor: shimmerBase, width: 60 + Math.random() * 40 }]} />
+        <View style={[ghost.subLine, { backgroundColor: shimmerBase }]} />
       </View>
       <Text style={[ghost.score, { color: c.textMuted, fontFamily: GEO }]}>---</Text>
     </Animated.View>
@@ -198,10 +200,10 @@ export function SeasonEmpty() {
 
       <Pressable
         onPress={() => { haptics.light(); router.push('/season-create'); }}
-        style={({ pressed }) => [es.btn, { backgroundColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+        style={({ pressed }) => [es.btn, { backgroundColor: isDark ? c.gold : '#006747' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
-        <Ionicons name="add-circle-outline" size={16} color="#141210" />
-        <Text style={[es.btnText, { color: '#141210', fontFamily: SANS }]}>Create Season</Text>
+        <Ionicons name="add-circle-outline" size={16} color={isDark ? '#141210' : '#FFFFFF'} />
+        <Text style={[es.btnText, { color: isDark ? '#141210' : '#FFFFFF', fontFamily: SANS }]}>Create Season</Text>
       </Pressable>
     </View>
   );
@@ -223,7 +225,7 @@ export function TripsEmpty() {
       </Text>
       <Pressable
         onPress={() => { haptics.light(); router.push('/create-trip'); }}
-        style={({ pressed }) => [es.btn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+        style={({ pressed }) => [es.btn, { backgroundColor: isDark ? c.teal : '#006747' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
         <Text style={[es.btnText, { fontFamily: SANS }]}>Plan a Trip</Text>

@@ -2520,7 +2520,7 @@ function TripDetailScreenInner() {
                   <View style={[s.avatarRing, item.rsvp === 'confirmed' && { borderColor: c.teal, borderWidth: 2 }]}>
                     <Avatar id={item.id} size={36} name={item.name} />
                   </View>
-                  <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol }]} />
+                  <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol, borderColor: c.bg }]} />
                 </View>
                 <Text style={[s.playerCardName, { color: c.text }]} numberOfLines={1}>
                   {item.name.split(' ')[0]}

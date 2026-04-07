@@ -254,7 +254,7 @@ export default function PlayerDetailScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={theme.isDark ? 'light' : 'dark'} />
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         <ProfileHeader player={player} />
 

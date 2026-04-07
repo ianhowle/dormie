@@ -29,8 +29,8 @@ export function Skeleton({ width, height, style }: SkeletonProps) {
     outputRange: [-200, 200],
   });
 
-  const baseColor = theme.isDark ? '#1A1816' : '#E5E2DE';
-  const shimmerColor = theme.isDark ? '#262320' : '#F0EDE8';
+  const baseColor = theme.isDark ? '#1A1816' : '#F2F0ED';
+  const shimmerColor = theme.isDark ? '#262320' : '#E8E5E0';
 
   return (
     <View style={[{ width: width as any, height, backgroundColor: baseColor, overflow: 'hidden' }, style]}>

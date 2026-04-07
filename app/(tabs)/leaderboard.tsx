@@ -86,7 +86,7 @@ function ScopeToggle({
   const isDark = theme.isDark;
 
   return (
-    <View style={[styles.scopeRow, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.border }, ...[isDark ? cardShadowDark : cardShadowLight]]}>
+    <View style={[styles.scopeRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }, ...[isDark ? cardShadowDark : cardShadowLight]]}>
       {(['group', 'field'] as const).map((s) => {
         const active = s === scope;
         return (
@@ -96,13 +96,14 @@ function ScopeToggle({
             accessibilityLabel={`${s === 'group' ? 'My Group' : 'The Field'}${active ? ', selected' : ''}`}
             style={[
               styles.scopeBtn,
-              active && { backgroundColor: c.cardBg },
+              active && { backgroundColor: isDark ? c.cardBg : '#FFFFFF' },
+              active && !isDark && cardShadowLight,
             ]}
           >
             <Text
               style={[
                 styles.scopeLabel,
-                { color: active ? c.text : c.textMuted, fontFamily: SANS },
+                { color: active ? (isDark ? c.text : '#1A1A1A') : (isDark ? c.textMuted : '#6B6966'), fontFamily: SANS },
               ]}
             >
               {s === 'group' ? 'My Group' : 'The Field'}
@@ -223,6 +224,7 @@ function TabBar({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
 
   return (
     <View style={[styles.tabBar, { borderBottomColor: c.border }]}>
@@ -235,14 +237,15 @@ function TabBar({
             accessibilityLabel={`${t} tab${isActive ? ', selected' : ''}`}
             style={({ pressed }) => [
               styles.tab,
-              isActive && { backgroundColor: 'rgba(0,103,71,0.15)' },
+              isActive && isDark && { backgroundColor: 'rgba(0,103,71,0.15)' },
+              isActive && !isDark && { borderBottomWidth: 2, borderBottomColor: '#006747' },
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
             <Text
               style={[
                 styles.tabLabel,
-                { color: isActive ? c.teal : c.textMuted, fontFamily: SANS },
+                { color: isActive ? c.teal : (isDark ? c.textMuted : '#6B6966'), fontFamily: SANS },
               ]}
             >
               {t}
@@ -274,8 +277,10 @@ function positionLabel(pos: number): string {
 }
 
 function TableHeader() {
+  const { theme } = useTheme();
+  const isDark = theme.isDark;
   return (
-    <View style={[styles.tableRow, { backgroundColor: '#1E4D2B' }]}>
+    <View style={[styles.tableRow, { backgroundColor: isDark ? '#1E4D2B' : '#006747' }]}>
       <Text style={[styles.colPos, styles.colHeader]}>POS</Text>
       <Text style={[styles.colPlayer, styles.colHeader]}>PLAYER</Text>
       <Text style={[styles.colHero, styles.colHeader]}>AVG ±</Text>
@@ -299,11 +304,12 @@ function PlayerRow({
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const isDark = theme.isDark;
   const bgColor = isMe
     ? `${c.teal}12`
     : position % 2 === 0
-      ? c.cardBg
-      : c.elevated;
+      ? (isDark ? c.cardBg : '#FFFFFF')
+      : (isDark ? c.elevated : '#F8F7F5');
 
   // Position change flash animation
   const flashOpacity = useRef(new Animated.Value(1)).current;
@@ -358,6 +364,7 @@ function PlayerRow({
       style={({ pressed }) => [
         styles.tableRow,
         { backgroundColor: bgColor },
+        !isDark && { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' },
         isMe && { borderLeftWidth: 2, borderLeftColor: c.greenDark, backgroundColor: `${c.greenDark}0D` },
         pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
       ]}

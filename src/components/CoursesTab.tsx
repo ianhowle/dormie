@@ -27,10 +27,10 @@ function SearchBar({
   const c = theme.colors;
 
   return (
-    <View style={[s.searchWrap, { backgroundColor: c.elevated, borderColor: c.border }]}>
+    <View style={[s.searchWrap, { backgroundColor: theme.isDark ? c.elevated : '#F2F0ED', borderColor: theme.isDark ? c.border : 'rgba(0,0,0,0.06)' }]}>
       <Ionicons name="search" size={16} color={c.textMuted} />
       <TextInput
-        style={[s.searchInput, { color: c.text }]}
+        style={[s.searchInput, { color: theme.isDark ? c.text : '#1A1A1A' }]}
         placeholder="Search any course..."
         placeholderTextColor={c.textMuted}
         value={value}
@@ -56,7 +56,7 @@ function PlayedCourseCard({ course }: { course: PlayedCourse }) {
   return (
     <Pressable
       onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
-      style={({ pressed }) => [s.card, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : cardShadowLight]}
+      style={({ pressed }) => [s.card, { backgroundColor: theme.isDark ? c.cardBg : '#FFFFFF', borderColor: theme.isDark ? c.border : 'rgba(0,0,0,0.06)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : cardShadowLight]}
     >
       {/* Course image header (falls back to gradient) */}
       <CourseImage
@@ -116,10 +116,11 @@ function StatPill({
   value: string;
   c: ReturnType<typeof useTheme>['theme']['colors'];
 }) {
+  const { theme } = useTheme();
   return (
-    <View style={s.statPill}>
-      <Text style={[s.statValue, { color: c.text, fontFamily: GEO }]}>{value}</Text>
-      <Text style={[s.statLabel, { color: c.textMuted }]}>{label}</Text>
+    <View style={[s.statPill, !theme.isDark && { backgroundColor: '#F2F0ED', paddingHorizontal: 8, paddingVertical: 4 }]}>
+      <Text style={[s.statValue, { color: theme.isDark ? c.text : '#6B6966', fontFamily: GEO }]}>{value}</Text>
+      <Text style={[s.statLabel, { color: theme.isDark ? c.textMuted : '#6B6966' }]}>{label}</Text>
     </View>
   );
 }

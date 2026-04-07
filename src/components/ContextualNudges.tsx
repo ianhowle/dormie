@@ -31,7 +31,13 @@ export function NudgeCard({
   return (
     <View style={[
       styles.nudgeCard,
-      { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1, borderLeftWidth: 3 },
+      {
+        backgroundColor: isDark ? `${accent}10` : '#FFFFFF',
+        borderColor: isDark ? accent : 'rgba(0,0,0,0.06)',
+        borderWidth: 1,
+        borderLeftWidth: 3,
+        borderLeftColor: accent,
+      },
       isDark ? cardShadowDark : cardShadowLight,
     ]}>
       <View style={styles.nudgeContent}>
@@ -77,7 +83,13 @@ export function FriendRoundNudge({
   return (
     <View style={[
       styles.nudgeCard,
-      { backgroundColor: c.cardBg, borderColor: c.gold, borderWidth: 1, borderLeftWidth: 3, borderLeftColor: c.gold },
+      {
+        backgroundColor: isDark ? c.cardBg : '#FFFFFF',
+        borderColor: isDark ? c.gold : 'rgba(0,0,0,0.06)',
+        borderWidth: 1,
+        borderLeftWidth: 3,
+        borderLeftColor: c.gold,
+      },
       isDark ? cardShadowDark : cardShadowLight,
     ]}>
       <View style={styles.nudgeContent}>

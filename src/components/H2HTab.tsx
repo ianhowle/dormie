@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
-import { cardShadowDark, cardShadowLight } from '../theme/colors';
+import { cardShadowDark } from '../theme/colors';
 import { Avatar } from './Avatar';
 import { MOCK_H2H, type H2HMatchup } from '../data/h2h';
 import { DEMO_FIELD_H2H } from './DemoPeek';
@@ -112,7 +112,8 @@ function MatchupCard({ matchup }: { matchup: H2HMatchup }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [s.card, { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : cardShadowLight]}
+      style={({ pressed }) => [s.card, { backgroundColor: theme.isDark ? c.cardBg : '#FFFFFF', borderColor: theme.isDark ? c.border : 'rgba(0,0,0,0.06)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, theme.isDark ? cardShadowDark : Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, shadowOpacity: 0.06 }, android: { elevation: 2 }, default: {} })]}
+
       onPress={() =>
         router.push({
           pathname: '/h2h-detail',
@@ -124,10 +125,10 @@ function MatchupCard({ matchup }: { matchup: H2HMatchup }) {
       <View style={s.cardTop}>
         <Avatar id={matchup.opponentId} size={36} name={matchup.opponentName} />
         <View style={s.cardInfo}>
-          <Text style={[s.cardName, { color: c.text }]} numberOfLines={1}>
+          <Text style={[s.cardName, { color: theme.isDark ? c.text : '#1A1A1A', fontWeight: '700' }]} numberOfLines={1}>
             {matchup.opponentName}
           </Text>
-          <Text style={[s.cardSub, { color: c.textMuted }]}>
+          <Text style={[s.cardSub, { color: theme.isDark ? c.textMuted : '#6B6966' }]}>
             {matchup.opponentHandicap} HCP · {matchup.totalMatches} matches
           </Text>
         </View>

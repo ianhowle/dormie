@@ -209,7 +209,7 @@ export default function SignUpScreen() {
               onChangeText={setFullName}
               placeholder="Ian McGowan"
               placeholderTextColor={c.textMuted}
-              style={[styles.input, { backgroundColor: c.elevated, borderColor: nameFocused ? c.teal : c.border, color: c.text }]}
+              style={[styles.input, { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: nameFocused ? c.teal : c.border, color: c.text }]}
               autoCorrect={false}
               onFocus={() => setNameFocused(true)}
               onBlur={() => setNameFocused(false)}
@@ -224,7 +224,7 @@ export default function SignUpScreen() {
               onChangeText={setEmail}
               placeholder="you@example.com"
               placeholderTextColor={c.textMuted}
-              style={[styles.input, { backgroundColor: c.elevated, borderColor: emailFocused ? c.teal : c.border, color: c.text }]}
+              style={[styles.input, { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: emailFocused ? c.teal : c.border, color: c.text }]}
               autoCapitalize="none"
               keyboardType="email-address"
               autoCorrect={false}
@@ -242,7 +242,7 @@ export default function SignUpScreen() {
                 onChangeText={setPassword}
                 placeholder="6+ characters"
                 placeholderTextColor={c.textMuted}
-                style={[styles.input, { flex: 1, paddingRight: 44, backgroundColor: c.elevated, borderColor: passwordFocused ? c.teal : c.border, color: c.text }]}
+                style={[styles.input, { flex: 1, paddingRight: 44, backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: passwordFocused ? c.teal : c.border, color: c.text }]}
                 secureTextEntry={!showPassword}
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
@@ -272,7 +272,7 @@ export default function SignUpScreen() {
                 placeholderTextColor={c.textMuted}
                 keyboardType="default"
                 autoCorrect={false}
-                style={[styles.input, { backgroundColor: c.elevated, borderColor: cityFocused ? c.teal : c.border, color: c.text }]}
+                style={[styles.input, { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: cityFocused ? c.teal : c.border, color: c.text }]}
                 onFocus={() => setCityFocused(true)}
                 onBlur={() => setCityFocused(false)}
               />
@@ -282,7 +282,7 @@ export default function SignUpScreen() {
               <Pressable
                 onPress={() => setShowStatePicker(true)}
                 style={[styles.input, {
-                  backgroundColor: c.elevated,
+                  backgroundColor: theme.isDark ? c.elevated : '#FFFFFF',
                   borderColor: c.border,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
 
   // Create button
   createBtn: {
-    backgroundColor: '#1E4D2B',
+    backgroundColor: '#006747',
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,

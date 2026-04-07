@@ -282,7 +282,7 @@ export default function AvatarPickerScreen() {
                 disabled={saving}
                 style={({ pressed }) => [
                   styles.initialsOption,
-                  { borderColor: isSelected ? '#C9A227' : c.border, borderWidth: isSelected ? 2 : 1, ...cardShadow },
+                  { borderColor: isSelected ? (isDark ? '#C9A227' : '#006747') : c.border, borderWidth: isSelected ? 2 : 1, ...cardShadow },
                   pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
                 ]}
               >
@@ -323,7 +323,7 @@ export default function AvatarPickerScreen() {
                 disabled={saving}
                 style={({ pressed }) => [
                   styles.courseOption,
-                  { borderColor: isSelected ? '#C9A227' : c.border, borderWidth: isSelected ? 2 : 1, ...cardShadow },
+                  { borderColor: isSelected ? (isDark ? '#C9A227' : '#006747') : c.border, borderWidth: isSelected ? 2 : 1, ...cardShadow },
                   pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
                 ]}
               >
@@ -364,7 +364,7 @@ export default function AvatarPickerScreen() {
           disabled={saving}
           style={({ pressed }) => [
             styles.uploadBtn,
-            { backgroundColor: c.cardBg, borderColor: currentAvatarColor?.startsWith('photo:') ? '#C9A227' : c.border, borderWidth: currentAvatarColor?.startsWith('photo:') ? 2 : 1, ...cardShadow },
+            { backgroundColor: c.cardBg, borderColor: currentAvatarColor?.startsWith('photo:') ? (isDark ? '#C9A227' : '#006747') : c.border, borderWidth: currentAvatarColor?.startsWith('photo:') ? 2 : 1, ...cardShadow },
             pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
           ]}
         >

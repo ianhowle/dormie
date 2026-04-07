@@ -166,6 +166,7 @@ function BasicsStep({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
 
   return (
     <View style={styles.stepContent}>
@@ -175,7 +176,7 @@ function BasicsStep({
         onChangeText={setName}
         placeholder="e.g., 2026 FedEx Cup"
         placeholderTextColor={c.textMuted}
-        style={[styles.input, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
+        style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border }]}
       />
 
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Season Type</Text>
@@ -190,7 +191,7 @@ function BasicsStep({
             style={[
               styles.typeCard,
               {
-                backgroundColor: seasonType === t.key ? c.gold + '12' : c.elevated,
+                backgroundColor: seasonType === t.key ? c.gold + '12' : (theme.isDark ? c.elevated : c.cardBg),
                 borderColor: seasonType === t.key ? c.gold : c.border,
                 borderWidth: 1,
               },
@@ -222,6 +223,7 @@ function FormatStep({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const cardBgVal = theme.isDark ? c.elevated : c.cardBg;
 
   return (
     <View style={styles.stepContent}>
@@ -233,7 +235,7 @@ function FormatStep({
           style={[
             styles.presetCard,
             {
-              backgroundColor: preset === p.key ? c.teal + '12' : c.elevated,
+              backgroundColor: preset === p.key ? c.teal + '12' : cardBgVal,
               borderColor: preset === p.key ? c.teal : c.border,
               borderWidth: 1,
             },
@@ -469,6 +471,7 @@ function MajorsStep({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
 
   const regularWeeks = weeks.filter((w) => !w.isPlayoff && !w.isChampionship);
   const majorCount = regularWeeks.filter((w) => w.isMajor).length;
@@ -511,7 +514,7 @@ function MajorsStep({
             style={[
               styles.majorWeekCard,
               {
-                backgroundColor: w.isMajor ? c.gold + '12' : c.elevated,
+                backgroundColor: w.isMajor ? c.gold + '12' : (theme.isDark ? c.elevated : c.cardBg),
                 borderColor: w.isMajor ? c.gold : c.border,
                 borderWidth: 1,
               },
@@ -547,7 +550,7 @@ function MajorsStep({
             <TextInput
               value={w.majorName}
               onChangeText={(text) => updateMajorName(w.number, text)}
-              style={[styles.input, { backgroundColor: c.elevated, color: c.gold, borderColor: c.gold + '44' }]}
+              style={[styles.input, { backgroundColor: inputBg, color: c.gold, borderColor: c.gold + '44' }]}
               placeholderTextColor={c.textMuted}
             />
           </View>
@@ -567,6 +570,7 @@ function MembersStep({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const cardBgVal = theme.isDark ? c.elevated : c.cardBg;
 
   const toggle = (id: string) => {
     setSelectedIds(
@@ -591,7 +595,7 @@ function MembersStep({
             style={[
               styles.memberRow,
               {
-                backgroundColor: selected ? c.teal + '12' : c.elevated,
+                backgroundColor: selected ? c.teal + '12' : cardBgVal,
                 borderColor: selected ? c.teal : c.border,
                 borderWidth: 1,
               },
@@ -650,25 +654,26 @@ function ReviewStep({
   const presetData = LENGTH_PRESETS.find((p) => p.key === preset)!;
   const majors = weeks.filter((w) => w.isMajor);
   const members = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const reviewCardBg = theme.isDark ? c.elevated : c.cardBg;
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
       {/* Summary cards */}
-      <View style={[styles.reviewCard, { backgroundColor: c.elevated }]}>
+      <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
         <Text style={[styles.reviewCardTitle, { color: c.gold, fontFamily: GEO }]}>{name}</Text>
         <Text style={[styles.reviewCardSub, { color: c.textMuted }]}>
           {seasonType === 'fedex' ? 'FedEx Cup' : 'Ryder Cup'} — {presetData.label} ({presetData.total} weeks)
         </Text>
       </View>
 
-      <View style={[styles.reviewCard, { backgroundColor: c.elevated }]}>
+      <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
         <Text style={[styles.reviewLabel, { color: c.textMuted }]}>Scoring</Text>
         <Text style={[styles.reviewVal, { color: c.text }]}>
           {scoringMethod === 'position' ? 'Position-based points' : 'Raw Stableford'}
         </Text>
       </View>
 
-      <View style={[styles.reviewCard, { backgroundColor: c.elevated }]}>
+      <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
         <Text style={[styles.reviewLabel, { color: c.textMuted }]}>Rules</Text>
         <View style={styles.reviewRules}>
           {cutEnabled && <Text style={[styles.reviewRule, { color: c.text }]}>Cut: Top {Math.round(cutValue * 100)}%</Text>}
@@ -679,7 +684,7 @@ function ReviewStep({
       </View>
 
       {majors.length > 0 && (
-        <View style={[styles.reviewCard, { backgroundColor: c.elevated }]}>
+        <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
           <Text style={[styles.reviewLabel, { color: c.gold }]}>Majors</Text>
           {majors.map((m) => (
             <Text key={m.number} style={[styles.reviewMajor, { color: c.gold }]}>

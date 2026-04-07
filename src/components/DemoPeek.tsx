@@ -51,6 +51,8 @@ export function DemoBanner({
   onDismiss?: () => void;
   hasRealRounds?: boolean;
 }) {
+  const { theme } = useTheme();
+  const isDark = theme.isDark;
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -77,13 +79,20 @@ export function DemoBanner({
   };
 
   return (
-    <View style={styles.banner}>
-      <Ionicons name="information-circle" size={14} color="#141210" />
-      <Text style={[styles.bannerText, { fontFamily: SANS, flex: 1 }]}>
+    <View style={[
+      styles.banner,
+      !isDark && {
+        backgroundColor: '#FDF6E3',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(201,162,39,0.2)',
+      },
+    ]}>
+      <Ionicons name="information-circle" size={14} color={isDark ? '#141210' : '#C9A227'} />
+      <Text style={[styles.bannerText, { fontFamily: SANS, flex: 1 }, !isDark && { color: '#8B7422' }]}>
         Sample data — log rounds to see your real stats.
       </Text>
       <Pressable onPress={handleDismiss} hitSlop={10} style={styles.bannerClose}>
-        <Ionicons name="close" size={14} color="rgba(20,18,16,0.6)" />
+        <Ionicons name="close" size={14} color={isDark ? 'rgba(20,18,16,0.6)' : 'rgba(139,116,34,0.6)'} />
       </Pressable>
     </View>
   );

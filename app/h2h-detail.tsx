@@ -156,7 +156,7 @@ export default function H2HDetailScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={theme.isDark ? 'light' : 'dark'} />
       <ScrollView
         contentContainerStyle={[s.scrollContent, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}

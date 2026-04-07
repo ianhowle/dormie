@@ -163,7 +163,7 @@ function HeaderBar({
   const name = user?.user_metadata?.name ?? 'Golfer';
 
   return (
-    <View style={[st.headerBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+    <View style={[st.headerBar, { backgroundColor: isDark ? c.surface : '#FFFFFF', borderBottomColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }]}>
       {/* Logo button — flagstick on green square */}
       <Pressable onPress={() => { haptics.light(); onLogoPress(); }} style={({ pressed }) => [st.logoBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
         <View style={st.logoBg}>
@@ -230,7 +230,7 @@ function LogoMenu({
   return (
     <>
       <Pressable style={st.menuOverlay} onPress={onClose} />
-      <View style={[st.menuDropdown, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+      <View style={[st.menuDropdown, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : cardShadowLight]}>
         {items.map((item, i) => (
           <Pressable
             key={item.label}
@@ -598,7 +598,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
           <Text style={[st.seasonSubText, { color: c.teal, fontFamily: SANS, fontWeight: '700' }]}>View All Seasons</Text>
         </Pressable>
       </View>
-      <View style={[st.seasonList, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+      <View style={[st.seasonList, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : cardShadowLight]}>
         {renderColumnHeaders()}
         {standings.map((s, i) => renderRow(s, i))}
       </View>
@@ -620,7 +620,7 @@ function RoundResultCard() {
         ROUND {r.round} RESULT
       </Text>
       <GoldDivider style={{ marginBottom: 12 }} />
-      <View style={[st.resultCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+      <View style={[st.resultCard, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : cardShadowLight]}>
         {/* User side */}
         <View style={st.resultSide}>
           <Avatar id="1" size={44} name="McGowan" />
@@ -682,7 +682,7 @@ function NextMatchupCard() {
         NEXT MATCHUP {'\u2022'} ROUND {m.round}
       </Text>
       <GoldDivider style={{ marginBottom: 12 }} />
-      <View style={[st.matchupCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+      <View style={[st.matchupCard, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : cardShadowLight]}>
         {/* User side */}
         <View style={st.matchupSide}>
           <Avatar id="1" size={40} name="McGowan" />
@@ -735,13 +735,13 @@ function MyGroupsSection({
             style={({ pressed }) => [
               st.groupCard,
               {
-                backgroundColor: c.cardBg,
-                borderColor: c.border,
+                backgroundColor: isDark ? c.cardBg : '#FFFFFF',
+                borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)',
                 borderLeftWidth: isActive ? 3 : 1,
-                borderLeftColor: isActive ? '#006747' : c.border,
+                borderLeftColor: isActive ? '#006747' : (isDark ? c.border : 'rgba(0,0,0,0.06)'),
               },
               isDark ? cardShadowDark : cardShadowLight,
-              isActive && { backgroundColor: 'rgba(0,103,71,0.15)' },
+              isActive && { backgroundColor: isDark ? 'rgba(0,103,71,0.15)' : 'rgba(0,103,71,0.08)' },
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
@@ -778,7 +778,7 @@ function QuickStatsRow({ stats }: { stats: QuickStats }) {
   return (
     <View style={st.statsRow}>
       {items.map((item) => (
-        <View key={item.label} accessibilityLabel={statLabel(item.value, item.label)} style={[st.statBox, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight]}>
+        <View key={item.label} accessibilityLabel={statLabel(item.value, item.label)} style={[st.statBox, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : { ...cardShadowLight, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}>
           <Text style={[st.statValue, { color: item.color, fontFamily: GEO, fontSize: item.isHandicap ? 28 : 18, letterSpacing: item.isHandicap ? -1 : 0 }]}>
             {item.value}
           </Text>
@@ -820,6 +820,7 @@ function ActionButton({ label, icon, onPress, style, textStyle, iconColor }: {
 function QuickActions() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
 
   return (
@@ -828,7 +829,7 @@ function QuickActions() {
         label="Log Round"
         icon="add-circle-outline"
         onPress={() => router.push('/(tabs)/score')}
-        style={{ backgroundColor: c.greenDark }}
+        style={{ backgroundColor: isDark ? c.greenDark : '#006747' }}
         textStyle={[st.actionPrimaryText, { fontFamily: SANS }]}
         iconColor="#fff"
       />
@@ -836,17 +837,23 @@ function QuickActions() {
         label="New Trip"
         icon="airplane-outline"
         onPress={() => router.push('/(tabs)/trips')}
-        style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }}
-        textStyle={[st.actionSecText, { color: c.gold, fontFamily: SANS }]}
-        iconColor={c.gold}
+        style={isDark
+          ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.gold }
+          : { backgroundColor: '#F2F0ED', borderWidth: 0 }
+        }
+        textStyle={[st.actionSecText, { color: isDark ? c.gold : '#1A1A1A', fontFamily: SANS }]}
+        iconColor={isDark ? c.gold : '#1A1A1A'}
       />
       <ActionButton
         label="Leaderboard"
         icon="trophy-outline"
         onPress={() => router.push('/(tabs)/leaderboard')}
-        style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }}
-        textStyle={[st.actionSecText, { color: c.teal, fontFamily: SANS }]}
-        iconColor={c.teal}
+        style={isDark
+          ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }
+          : { backgroundColor: '#F2F0ED', borderWidth: 0 }
+        }
+        textStyle={[st.actionSecText, { color: isDark ? c.teal : '#1A1A1A', fontFamily: SANS }]}
+        iconColor={isDark ? c.teal : '#1A1A1A'}
       />
     </View>
   );
@@ -870,7 +877,7 @@ function FavoriteCourseSection({ courseName }: { courseName: string | null }) {
         </Pressable>
       </View>
       <GoldDivider style={{ marginBottom: 12 }} />
-      <View style={[{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }, isDark ? cardShadowDark : cardShadowLight]}>
+      <View style={[{ backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', overflow: 'hidden' }, isDark ? cardShadowDark : cardShadowLight]}>
         <CourseImage courseName={courseName} height={100}>
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
@@ -905,7 +912,7 @@ function FeedCard({ item }: { item: FeedItem }) {
   const isMe = item.playerId === '1';
 
   return (
-    <Pressable accessibilityLabel={`${isMe ? 'You' : item.playerName}: ${item.description}`} style={({ pressed }) => [st.feedCard, { backgroundColor: c.cardBg, borderColor: c.border }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+    <Pressable accessibilityLabel={`${isMe ? 'You' : item.playerName}: ${item.description}`} style={({ pressed }) => [st.feedCard, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
       <View style={st.feedLeft}>
         <Avatar id={item.playerId} size={36} name={item.playerName} />
       </View>
@@ -944,7 +951,7 @@ function UpcomingCard({ item }: { item: UpcomingItem }) {
       style={({ pressed }) => [
         st.upcomingCard,
         {
-          backgroundColor: c.cardBg,
+          backgroundColor: isDark ? c.cardBg : '#FFFFFF',
           borderColor: isTrip ? c.teal : c.gold,
           borderLeftWidth: 3,
         },
@@ -1258,7 +1265,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       {/* Fixed header bar with friend request badge (Item 6) */}
       <HeaderBar
         onLogoPress={() => setShowMenu(!showMenu)}
@@ -1279,8 +1286,8 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={c.gold}
-            colors={['#C9A227']}
+            tintColor={isDark ? c.gold : '#006747'}
+            colors={[isDark ? '#C9A227' : '#006747']}
           />
         }
       >
@@ -1297,7 +1304,7 @@ export default function HomeScreen() {
 
         {/* Resume interrupted round prompt */}
         {interruptedRound && (
-          <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+          <View style={{ margin: 16, marginBottom: 0, backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <Ionicons name="golf-outline" size={20} color={c.gold} />
               <Text style={{ fontFamily: GEO, fontSize: 15, fontWeight: '700', color: c.text }}>Unfinished Round</Text>
@@ -1353,7 +1360,7 @@ export default function HomeScreen() {
 
         {/* Monthly digest card — 1st-3rd of month, real data */}
         {shouldShowMonthlyDigest() && !monthlyDismissed && monthlyDigest && (
-          <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+          <View style={{ margin: 16, marginBottom: 0, backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: c.gold, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ backgroundColor: '#C9A227', paddingHorizontal: 8, paddingVertical: 3 }}>
                 <Text style={{ color: '#141210', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>{getPreviousMonthName()} RECAP</Text>
@@ -1399,7 +1406,7 @@ export default function HomeScreen() {
         )}
         {/* Monthly digest empty state — 1st-3rd, no rounds last month */}
         {shouldShowMonthlyDigest() && !monthlyDismissed && !monthlyDigest && hasRealData && (
-          <View style={{ margin: 16, marginBottom: 0, backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+          <View style={{ margin: 16, marginBottom: 0, backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', padding: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
             <Text style={{ color: c.gold, fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>{getPreviousMonthName()} RECAP</Text>
             <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', marginTop: 8, fontFamily: SANS }}>No rounds logged last month</Text>
             <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4, fontFamily: SANS }}>Get out there this month — your handicap is waiting.</Text>
@@ -1420,7 +1427,7 @@ export default function HomeScreen() {
           {showContent ? (
             <RoundResultCard />
           ) : (
-            <View style={[st.emptyHint, { backgroundColor: c.surface }]}>
+            <View style={[st.emptyHint, { backgroundColor: isDark ? c.surface : '#F2F0ED' }]}>
               <Ionicons name="golf-outline" size={16} color={c.textMuted} />
               <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>Play your first round to see results here.</Text>
             </View>
@@ -1430,14 +1437,14 @@ export default function HomeScreen() {
           {showContent ? (
             <NextMatchupCard />
           ) : (
-            <View style={[st.emptyHint, { backgroundColor: c.surface }]}>
+            <View style={[st.emptyHint, { backgroundColor: isDark ? c.surface : '#F2F0ED' }]}>
               <Ionicons name="people-outline" size={16} color={c.textMuted} />
               <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>Join a season to see your next matchup.</Text>
             </View>
           )}
 
           {/* Competitive nudge — editorial callout with gold left accent */}
-          <View style={{ backgroundColor: c.elevated, borderLeftWidth: 3, borderLeftColor: c.gold, padding: 12, marginTop: 12 }}>
+          <View style={{ backgroundColor: isDark ? c.elevated : '#F2F0ED', borderLeftWidth: 3, borderLeftColor: c.gold, padding: 12, marginTop: 12 }}>
             <Text style={{ color: c.gold, fontSize: 13, fontWeight: '600', fontFamily: SANS }}>
               You're 2.8 strokes behind Drew's average.
             </Text>
@@ -1451,7 +1458,7 @@ export default function HomeScreen() {
               <Text style={[st.sectionTitle, { color: c.gold, marginTop: 8 }]}>ACTIVE STREAKS</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {activeStreaks.map((streak) => (
-                  <View key={streak.id} style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, paddingHorizontal: 14, paddingVertical: 10, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                  <View key={streak.id} style={{ backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', paddingHorizontal: 14, paddingVertical: 10, ...(isDark ? cardShadowDark : cardShadowLight) }}>
                     <Text style={{ fontSize: 20 }}>{streak.emoji}</Text>
                     <Text style={{ color: c.text, fontSize: 12, fontWeight: '700', marginTop: 4, fontFamily: SANS }}>{streak.label}</Text>
                   </View>
@@ -1510,7 +1517,7 @@ export default function HomeScreen() {
               <GoldDivider style={{ marginBottom: 12 }} />
               <Pressable
                 onPress={() => { haptics.light(); router.push('/(tabs)/leaderboard'); }}
-                style={({ pressed }) => [st.feedCard, { backgroundColor: c.elevated, borderColor: 'transparent', borderLeftWidth: 3, borderLeftColor: '#C9A227' }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [st.feedCard, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderColor: 'transparent', borderLeftWidth: 3, borderLeftColor: '#C9A227' }, isDark ? cardShadowDark : cardShadowLight, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               >
                 <Ionicons name="people" size={20} color={c.gold} style={{ marginRight: 10 }} />
                 <Text style={[st.feedName, { color: c.text, fontFamily: SANS }]}>
@@ -1528,7 +1535,7 @@ export default function HomeScreen() {
               <GoldDivider style={{ marginBottom: 12 }} />
               {/* Weekly digest card — show every Monday, wired to real data */}
               {new Date().getDay() === 1 && !weeklyDismissed && weeklyDigestData && weeklyDigestData.roundsLogged > 0 && (
-                <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                <View style={{ backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: c.gold, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ backgroundColor: '#C9A227', paddingHorizontal: 8, paddingVertical: 3 }}>
                       <Text style={{ color: '#141210', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>THIS WEEK IN DORMIE</Text>
@@ -1573,7 +1580,7 @@ export default function HomeScreen() {
               )}
               {/* Weekly empty state — Monday, no rounds last week */}
               {new Date().getDay() === 1 && !weeklyDismissed && (!weeklyDigestData || weeklyDigestData.roundsLogged === 0) && hasRealData && (
-                <View style={{ backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
+                <View style={{ backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', padding: 16, marginBottom: 16, ...(isDark ? cardShadowDark : cardShadowLight) }}>
                   <Text style={{ color: c.gold, fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: GEO }}>THIS WEEK IN DORMIE</Text>
                   <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', marginTop: 8, fontFamily: SANS }}>No rounds last week</Text>
                   <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4, fontFamily: SANS }}>The course is calling. Make this week count.</Text>

@@ -156,19 +156,19 @@ export default function EditProfileScreen() {
 
         {/* Full Name */}
         <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: c.gold }]}>FULL NAME</Text>
+          <Text style={[styles.label, { color: isDark ? c.gold : '#6B6966' }]}>FULL NAME</Text>
           <TextInput
             value={name}
             onChangeText={setName}
             placeholder="Your name"
             placeholderTextColor={c.textMuted}
-            style={[styles.input, { backgroundColor: c.elevated, borderColor: c.border, color: c.text }]}
+            style={[styles.input, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', color: c.text }]}
           />
         </View>
 
         {/* City */}
         <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: c.gold }]}>CITY</Text>
+          <Text style={[styles.label, { color: isDark ? c.gold : '#6B6966' }]}>CITY</Text>
           <TextInput
             value={city}
             onChangeText={setCity}
@@ -176,18 +176,18 @@ export default function EditProfileScreen() {
             placeholderTextColor={c.textMuted}
             keyboardType="default"
             autoCorrect={false}
-            style={[styles.input, { backgroundColor: c.elevated, borderColor: c.border, color: c.text }]}
+            style={[styles.input, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', color: c.text }]}
           />
         </View>
 
         {/* State */}
         <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: c.gold }]}>STATE</Text>
+          <Text style={[styles.label, { color: isDark ? c.gold : '#6B6966' }]}>STATE</Text>
           <Pressable
             onPress={() => setShowStatePicker(true)}
             style={[styles.input, {
-              backgroundColor: c.elevated,
-              borderColor: c.border,
+              backgroundColor: isDark ? c.elevated : '#FFFFFF',
+              borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)',
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -202,7 +202,7 @@ export default function EditProfileScreen() {
 
         {/* Handicap Index */}
         <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: c.gold }]}>HANDICAP INDEX</Text>
+          <Text style={[styles.label, { color: isDark ? c.gold : '#6B6966' }]}>HANDICAP INDEX</Text>
           <TextInput
             ref={handicapRef}
             value={handicap}
@@ -210,7 +210,7 @@ export default function EditProfileScreen() {
             placeholder="0.0"
             placeholderTextColor={c.textMuted}
             keyboardType="decimal-pad"
-            style={[styles.input, { backgroundColor: c.elevated, borderColor: c.border, color: c.text }]}
+            style={[styles.input, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)', color: c.text }]}
           />
         </View>
 
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: 'rgba(128,128,128,0.2)',
   },
   modalTitle: {
     fontSize: 18,

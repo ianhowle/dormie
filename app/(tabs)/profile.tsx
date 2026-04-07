@@ -341,7 +341,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       <Animated.ScrollView
         bounces={true}
         showsVerticalScrollIndicator={false}
@@ -405,7 +405,7 @@ export default function ProfileScreen() {
                   <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)', marginLeft: 10 }]}>NET</Text>
                   <Text style={[s.handicapValue, {
                     color: typeof displayStats.scoringAvg === 'number'
-                      ? ((displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) < 0 ? c.teal : (displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) > 0 ? c.urgent : '#E8E4DE')
+                      ? ((displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) < 0 ? c.teal : (displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) > 0 ? c.urgent : c.scoreEven)
                       : 'rgba(255,255,255,0.5)',
                     fontFamily: GEO,
                   }]}>

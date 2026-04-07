@@ -124,7 +124,7 @@ export default function SettingsScreen() {
             <Text style={[s.settingText, { color: c.text, flex: 1 }]}>
               {theme.isDark ? 'Dark Mode' : 'Light Mode'}
             </Text>
-            <View style={[s.toggleTrack, { backgroundColor: theme.isDark ? c.teal : c.elevated, borderColor: theme.isDark ? c.teal : c.border }]}>
+            <View style={[s.toggleTrack, { backgroundColor: theme.isDark ? c.teal : '#F2F0ED', borderColor: theme.isDark ? c.teal : 'rgba(0,0,0,0.06)' }]}>
               <View style={[s.toggleKnob, theme.isDark && s.toggleKnobOn]} />
             </View>
           </Pressable>

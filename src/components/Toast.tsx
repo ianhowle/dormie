@@ -2,6 +2,7 @@ import React, { useEffect, useRef, createContext, useContext, useState, useCallb
 import { View, Text, Animated, StyleSheet, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../theme/ThemeContext';
 
 type ToastType = 'success' | 'info' | 'gold' | 'error';
 
@@ -24,11 +25,18 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-const TOAST_COLORS: Record<ToastType, { bg: string; text: string; icon: string }> = {
+const TOAST_COLORS_DARK: Record<ToastType, { bg: string; text: string; icon: string }> = {
   success: { bg: '#1E4D2B', text: '#FFFFFF', icon: '#006747' },
   info: { bg: '#1A1816', text: '#E8E4DE', icon: '#006747' },
   gold: { bg: '#2A2318', text: '#C9A227', icon: '#C9A227' },
   error: { bg: '#3A1A1A', text: '#FFFFFF', icon: '#C41E3A' },
+};
+
+const TOAST_COLORS_LIGHT: Record<ToastType, { bg: string; text: string; icon: string }> = {
+  success: { bg: '#FFFFFF', text: '#1E4D2B', icon: '#006747' },
+  info: { bg: '#FFFFFF', text: '#1A1A1A', icon: '#006747' },
+  gold: { bg: '#FFFFFF', text: '#8B6508', icon: '#C9A227' },
+  error: { bg: '#FFFFFF', text: '#C41E3A', icon: '#C41E3A' },
 };
 
 const DEFAULT_ICONS: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
@@ -39,12 +47,13 @@ const DEFAULT_ICONS: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
 };
 
 function ToastView({ config, onDone }: { config: ToastConfig; onDone: () => void }) {
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   const type = config.type ?? 'success';
-  const colors = TOAST_COLORS[type];
+  const colors = theme.isDark ? TOAST_COLORS_DARK[type] : TOAST_COLORS_LIGHT[type];
   const icon = config.icon ?? DEFAULT_ICONS[type];
   const duration = config.duration ?? 2000;
 
@@ -92,6 +101,7 @@ function ToastView({ config, onDone }: { config: ToastConfig; onDone: () => void
           top: insets.top + 8,
           transform: [{ translateY }],
           opacity,
+          ...(theme.isDark ? {} : { borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }),
         },
       ]}
     >

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
 import { GEO } from '../theme/fonts';
+import { useTheme } from '../theme/ThemeContext';
 
 type PersonalBestBannerProps = {
   visible: boolean;
@@ -10,6 +11,9 @@ type PersonalBestBannerProps = {
 };
 
 export function PersonalBestBanner({ visible, courseName, previousBest, onDone }: PersonalBestBannerProps) {
+  const { theme } = useTheme();
+  const isDark = theme.isDark;
+  const c = theme.colors;
   const slideY = useRef(new Animated.Value(-80)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -54,15 +58,20 @@ export function PersonalBestBanner({ visible, courseName, previousBest, onDone }
     <Animated.View
       style={[
         styles.banner,
-        { transform: [{ translateY: slideY }], opacity },
+        {
+          transform: [{ translateY: slideY }],
+          opacity,
+          backgroundColor: isDark ? '#2A2318' : '#FFFFFF',
+          borderColor: isDark ? '#C9A227' : 'rgba(0,0,0,0.06)',
+        },
       ]}
     >
       <Text style={styles.emoji}>🏆</Text>
       <View style={styles.textWrap}>
-        <Text style={styles.title}>NEW PERSONAL BEST</Text>
-        <Text style={styles.course}>at {courseName}</Text>
+        <Text style={[styles.title, { color: c.gold }]}>NEW PERSONAL BEST</Text>
+        <Text style={[styles.course, { color: c.text }]}>at {courseName}</Text>
         {previousBest != null && (
-          <Text style={styles.previous}>Previous: {previousBest}</Text>
+          <Text style={[styles.previous, { color: c.textMuted }]}>Previous: {previousBest}</Text>
         )}
       </View>
     </Animated.View>
@@ -78,9 +87,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#2A2318',
     borderWidth: 1,
-    borderColor: '#C9A227',
     padding: 16,
     zIndex: 9998,
   },
@@ -91,20 +98,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: '#C9A227',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 2,
     fontFamily: GEO,
   },
   course: {
-    color: '#E8E4DE',
     fontSize: 14,
     fontWeight: '600',
     marginTop: 2,
   },
   previous: {
-    color: '#6B6560',
     fontSize: 11,
     marginTop: 2,
   },

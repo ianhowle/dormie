@@ -30,10 +30,10 @@ function SearchBar({
   const c = theme.colors;
 
   return (
-    <View style={[s.searchWrap, { backgroundColor: c.elevated, borderColor: c.border }]}>
+    <View style={[s.searchWrap, { backgroundColor: theme.isDark ? c.elevated : '#F2F0ED', borderColor: theme.isDark ? c.border : 'rgba(0,0,0,0.06)' }]}>
       <Ionicons name="search" size={16} color={c.textMuted} />
       <TextInput
-        style={[s.searchInput, { color: c.text }]}
+        style={[s.searchInput, { color: theme.isDark ? c.text : '#1A1A1A' }]}
         placeholder="Search any course..."
         placeholderTextColor={c.textMuted}
         value={value}
@@ -105,11 +105,11 @@ function RecordsTable({
       <SectionHeader title={scope === 'field' ? 'FIELD COURSE RECORDS' : 'GROUP COURSE RECORDS'} />
       <View style={[s.table, { borderColor: c.border }]}>
         {/* Header row */}
-        <View style={[s.tableRow, { backgroundColor: '#1E4D2B', paddingVertical: 12 }]}>
-          <Text style={[s.colCourse, s.colHeader]}>COURSE</Text>
-          <Text style={[s.colHolder, s.colHeader]}>HOLDER</Text>
-          <Text style={[s.colToPar, s.colHeader]}>TO PAR</Text>
-          <Text style={[s.colScore, s.colHeader]}>SCORE</Text>
+        <View style={[s.tableRow, { backgroundColor: theme.isDark ? '#1E4D2B' : '#006747', paddingVertical: 12 }]}>
+          <Text style={[s.colCourse, s.colHeader, { color: theme.isDark ? '#E8E4DE' : '#FFFFFF' }]}>COURSE</Text>
+          <Text style={[s.colHolder, s.colHeader, { color: theme.isDark ? '#E8E4DE' : '#FFFFFF' }]}>HOLDER</Text>
+          <Text style={[s.colToPar, s.colHeader, { color: theme.isDark ? '#E8E4DE' : '#FFFFFF' }]}>TO PAR</Text>
+          <Text style={[s.colScore, s.colHeader, { color: theme.isDark ? '#E8E4DE' : '#FFFFFF' }]}>SCORE</Text>
         </View>
 
         {/* Data rows */}
@@ -118,8 +118,8 @@ function RecordsTable({
           const bgColor = isMe
             ? `${c.teal}12`
             : i % 2 === 0
-              ? c.cardBg
-              : c.elevated;
+              ? (theme.isDark ? c.cardBg : '#FFFFFF')
+              : (theme.isDark ? c.elevated : '#F8F7F5');
 
           return (
             <Pressable
@@ -128,18 +128,19 @@ function RecordsTable({
               style={({ pressed }) => [
                 s.tableRow,
                 { backgroundColor: bgColor, opacity: pressed ? 0.7 : 1 },
+                !theme.isDark && { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' },
                 isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
               ]}
             >
               {/* Course */}
               <View style={s.colCourse}>
                 <Text
-                  style={[s.courseName, { color: c.text }]}
+                  style={[s.courseName, { color: theme.isDark ? c.text : '#1A1A1A' }]}
                   numberOfLines={1}
                 >
                   {cr.name}
                 </Text>
-                <Text style={[s.courseMeta, { color: c.textMuted }]}>
+                <Text style={[s.courseMeta, { color: theme.isDark ? c.textMuted : '#6B6966' }]}>
                   Par {cr.par} · {cr.playerCount} players
                 </Text>
               </View>
@@ -209,8 +210,8 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
       style={[
         s.bucketCard,
         {
-          backgroundColor: isDark ? '#151312' : c.cardBg,
-          borderColor: c.border,
+          backgroundColor: isDark ? '#151312' : '#FFFFFF',
+          borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)',
         },
       ]}
     >
@@ -444,7 +445,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
   },
   colHeader: {
-    color: '#E8E4DE',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1,
@@ -502,7 +502,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
     padding: 14,
     marginBottom: 8,
   },

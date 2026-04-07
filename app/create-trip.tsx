@@ -87,7 +87,7 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
 
   return (
     <View style={[z.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={theme.isDark ? 'light' : 'dark'} />
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={[z.header, { backgroundColor: c.surface }]}>
@@ -185,6 +185,8 @@ function TypeSelection({ onSelect }: { onSelect: (t: TripType) => void }) {
 function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
+  const inputBg = isDark ? c.elevated : '#FFFFFF';
   const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -231,7 +233,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
 
   return (
     <View style={[z.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -256,7 +258,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Trip name */}
             <SectionLabel title="TRIP NAME" />
             <TextInput
-              style={[z.input, { color: c.text, backgroundColor: c.elevated, borderColor: c.border, fontFamily: GEO }]}
+              style={[z.input, { color: c.text, backgroundColor: inputBg, borderColor: c.border, fontFamily: GEO }]}
               placeholder="e.g. Scottsdale 2026"
               placeholderTextColor={c.textMuted}
               value={name}
@@ -267,7 +269,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Location */}
             <SectionLabel title="LOCATION" />
             <TextInput
-              style={[z.input, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
+              style={[z.input, { color: c.text, backgroundColor: inputBg, borderColor: c.border }]}
               placeholder="City or destination"
               placeholderTextColor={c.textMuted}
               value={location}
@@ -309,7 +311,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                 <SectionLabel title="DATES" />
                 <View style={z.dateRow}>
                   <TextInput
-                    style={[z.input, z.dateInput, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
+                    style={[z.input, z.dateInput, { color: c.text, backgroundColor: inputBg, borderColor: c.border }]}
                     placeholder="Start (YYYY-MM-DD)"
                     placeholderTextColor={c.textMuted}
                     value={startDate}
@@ -318,7 +320,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   />
                   <Text style={[z.dateTo, { color: c.textMuted }]}>to</Text>
                   <TextInput
-                    style={[z.input, z.dateInput, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
+                    style={[z.input, z.dateInput, { color: c.text, backgroundColor: inputBg, borderColor: c.border }]}
                     placeholder="End (YYYY-MM-DD)"
                     placeholderTextColor={c.textMuted}
                     value={endDate}
@@ -486,7 +488,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Stakes */}
             <SectionLabel title="STAKES (OPTIONAL)" />
             <TextInput
-              style={[z.input, { color: c.text, backgroundColor: c.elevated, borderColor: c.border }]}
+              style={[z.input, { color: c.text, backgroundColor: inputBg, borderColor: c.border }]}
               placeholder="e.g. $5 per skin, $20 Nassau"
               placeholderTextColor={c.textMuted}
               value={stakes}
@@ -585,7 +587,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               disabled={!canCreate}
               style={[
                 z.createBtn,
-                { backgroundColor: canCreate ? '#1E4D2B' : c.elevated },
+                { backgroundColor: canCreate ? '#006747' : c.elevated },
                 !canCreate && { opacity: 0.5 },
               ]}
             >

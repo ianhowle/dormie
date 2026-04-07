@@ -73,7 +73,7 @@ export const WolfModal = memo(function WolfModal({
               }}
               accessibilityLabel="Blind Wolf, quadruple risk"
               accessibilityRole="button"
-              style={({ pressed }) => [st.modalBtn, { backgroundColor: '#1A1A2A', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7 }]}
+              style={({ pressed }) => [st.modalBtn, { backgroundColor: theme.isDark ? '#1A1A2A' : '#1E4D2B', borderWidth: 1, borderColor: c.gold }, pressed && { opacity: 0.7 }]}
             >
               <Text style={[st.modalBtnText, { color: c.gold }]} maxFontSizeMultiplier={1.3}>Blind Wolf (4x risk)</Text>
             </Pressable>

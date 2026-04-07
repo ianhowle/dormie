@@ -149,6 +149,8 @@ function splitNine(holes: HoleResult[], side: 'front' | 'back') {
 
 // ─── Scoring Breakdown Bar ────────────────────────────────────────────
 function BreakdownBar({ counts, total }: { counts: Record<ScoreCategory, number>; total: number }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const categories: ScoreCategory[] = ['eagles', 'birdies', 'pars', 'bogeys', 'doubles'];
 
   return (
@@ -171,7 +173,7 @@ function BreakdownBar({ counts, total }: { counts: Record<ScoreCategory, number>
           return (
             <View key={cat} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: SCORE_CATEGORY_COLORS[cat] }]} />
-              <Text style={styles.legendText}>
+              <Text style={[styles.legendText, { color: c.textMuted }]}>
                 {counts[cat]} {SCORE_CATEGORY_LABELS[cat]}
               </Text>
             </View>
@@ -215,7 +217,7 @@ function PuttBreakdown({ buckets, colors: c }: { buckets: PuttBucket[]; colors: 
         return (
           <View key={b.label} style={[styles.puttBucketRow, { borderBottomColor: c.border }]}>
             <Text style={[styles.puttBucketLabel, { color: c.textMuted }]}>{b.label}</Text>
-            <View style={styles.puttBucketBar}>
+            <View style={[styles.puttBucketBar, { backgroundColor: c.borderLight }]}>
               <View style={[styles.puttBucketFill, { width: `${Math.min(makePct, 100)}%`, backgroundColor: aboveBench ? c.teal : c.urgent }]} />
               <View style={[styles.puttBenchmark, { left: `${b.benchmark}%`, backgroundColor: c.textMuted }]} />
             </View>
@@ -741,7 +743,7 @@ const styles = StyleSheet.create({
   breakdownLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 0 },
-  legendText: { fontSize: 10, color: '#FFFFFF99' },
+  legendText: { fontSize: 10 },
 
   // Stats grid
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -753,7 +755,7 @@ const styles = StyleSheet.create({
   puttBreakdown: {},
   puttBucketRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, gap: 8 },
   puttBucketLabel: { width: 70, fontSize: 10 },
-  puttBucketBar: { flex: 1, height: 6, backgroundColor: '#FFFFFF11', position: 'relative' },
+  puttBucketBar: { flex: 1, height: 6, position: 'relative' },
   puttBucketFill: { height: '100%', position: 'absolute', left: 0, top: 0 },
   puttBenchmark: { position: 'absolute', top: -2, width: 1, height: 10 },
   puttBucketVal: { width: 40, textAlign: 'right', fontSize: 13, fontWeight: '700' },

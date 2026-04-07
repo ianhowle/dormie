@@ -418,6 +418,7 @@ function StandingsTab({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const completedWeeks = weeks.filter((w) => w.completed);
 
   const renderStandingRow = useCallback(({ item: p, index: i }: { item: Standing; index: number }) => {
@@ -438,7 +439,11 @@ function StandingsTab({
           onPress={() => { haptics.light(); onPlayerTap(p); }}
           style={[
             styles.standingsRow,
-            { borderBottomColor: c.border, opacity: isCut ? 0.45 : 1 },
+            {
+              borderBottomColor: c.border,
+              opacity: isCut ? 0.45 : 1,
+              backgroundColor: isDark ? undefined : (i % 2 === 0 ? '#FFFFFF' : '#F8F7F5'),
+            },
           ]}
         >
           <Text
@@ -489,20 +494,20 @@ function StandingsTab({
 
   return (
     <View style={styles.standingsContainer}>
-      <View style={[styles.standingsHeader, { borderBottomColor: c.border }]}>
-        <Text style={[styles.shRank, { color: c.textMuted }]}>#</Text>
-        <Text style={[styles.shPlayer, { color: c.textMuted }]}>Player</Text>
+      <View style={[styles.standingsHeader, { borderBottomColor: c.border, backgroundColor: isDark ? undefined : '#006747' }]}>
+        <Text style={[styles.shRank, { color: isDark ? c.textMuted : '#FFFFFF' }]}>#</Text>
+        <Text style={[styles.shPlayer, { color: isDark ? c.textMuted : '#FFFFFF' }]}>Player</Text>
         {completedWeeks.map((w) => {
           const badge = getWeekBadge(w);
           return (
             <View key={w.number} style={styles.shWeek}>
-              <Text style={[styles.shWeekText, { color: badge ? badge.color : c.textMuted }]}>
+              <Text style={[styles.shWeekText, { color: isDark ? (badge ? badge.color : c.textMuted) : '#FFFFFF' }]}>
                 {w.number}
               </Text>
             </View>
           );
         })}
-        <Text style={[styles.shTotal, { color: c.gold, fontFamily: GEO }]}>PTS</Text>
+        <Text style={[styles.shTotal, { color: isDark ? c.gold : '#FFFFFF', fontFamily: GEO }]}>PTS</Text>
       </View>
 
       <FlatList

@@ -193,7 +193,7 @@ export default function DiscoverScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={theme.isDark ? 'light' : 'dark'} />
       {/* Header */}
       <View style={[s.header, { backgroundColor: c.surface }]}>
         <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>

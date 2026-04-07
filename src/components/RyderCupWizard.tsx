@@ -850,7 +850,7 @@ function StepSchedule({
           )}
 
           {/* Points for this session */}
-          <View style={w.sessionPtsRow}>
+          <View style={[w.sessionPtsRow, { borderColor: c.border }]}>
             <Text style={[w.sessionPtsLabel, { color: c.textMuted }]}>Points available</Text>
             <Text style={[w.sessionPtsVal, { color: c.teal, fontFamily: GEO }]}>
               {session.points}
@@ -1885,7 +1885,6 @@ const w = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   sessionPtsLabel: { fontSize: 11 },
   sessionPtsVal: { fontSize: 18, fontWeight: '700', letterSpacing: -1 },

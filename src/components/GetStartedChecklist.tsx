@@ -139,7 +139,7 @@ export function GetStartedChecklist({ hasHandicap, hasHomeCourse, hasFriend, has
         styles.container,
         {
           backgroundColor: c.cardBg,
-          borderColor: c.gold,
+          borderColor: isDark ? c.gold : 'rgba(0,0,0,0.06)',
           borderWidth: 1,
           opacity: Animated.multiply(fadeAnim, entryAnim),
           transform: [

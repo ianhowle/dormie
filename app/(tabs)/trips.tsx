@@ -200,6 +200,8 @@ function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
 
 // ─── Avatar stack ─────────────────────────────────────────────────────
 function AvatarStack({ playerIds, max }: { playerIds: string[]; max?: number }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const show = playerIds.slice(0, max ?? 4);
   const extra = playerIds.length - show.length;
 
@@ -212,7 +214,7 @@ function AvatarStack({ playerIds, max }: { playerIds: string[]; max?: number }) 
       ))}
       {extra > 0 && (
         <View style={[s.avatarExtra]}>
-          <Text style={s.avatarExtraText}>+{extra}</Text>
+          <Text style={[s.avatarExtraText, { color: c.textMuted }]}>+{extra}</Text>
         </View>
       )}
     </View>
@@ -457,7 +459,7 @@ export default function TripsScreen() {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       <ScrollView
         bounces={false}
         showsVerticalScrollIndicator={false}
@@ -682,7 +684,6 @@ const s = StyleSheet.create({
     marginLeft: -8,
   },
   avatarExtraText: {
-    color: '#6B6560',
     fontSize: 9,
     fontWeight: '700',
   },

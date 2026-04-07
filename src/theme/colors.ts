@@ -19,6 +19,7 @@ export const dark = {
   elevated: '#1A1816',     // Interactive/featured cards
   text: '#E8E4DE',
   textMuted: '#8A857F', // Bumped from #6B6560 for WCAG AA (4.84:1 on cardBg, 5.11:1 on bg)
+  textTertiary: '#6B6560', // Tertiary text (dark mode)
   border: 'rgba(255,255,255,0.06)', // Barely visible edge definition
   borderLight: 'rgba(255,255,255,0.04)',
   /** Score color coding — PGA Tour broadcast convention */
@@ -29,18 +30,19 @@ export const dark = {
 };
 
 export const light = {
-  bg: '#FAF8F4',
-  surface: '#FFFFFF',
-  cardBg: '#FFFFFF',
-  elevated: '#F5F1EB',
-  text: '#1A1A1A',
-  textMuted: '#6B6560', // Darkened from #8A857F for WCAG AA (5.42:1 on bg, 5.74:1 on white)
-  border: '#E5E2DE',
-  borderLight: '#EDEAE6',
-  /** Score color coding — PGA Tour broadcast convention */
-  scoreUnder: '#1D9E75',
-  scoreEven: '#1A1A1A',
-  scoreOver: '#E24B4A',
+  bg: '#F8F7F5',           // Warm off-white page background
+  surface: '#FFFFFF',      // True white cards float above warm bg
+  cardBg: '#FFFFFF',       // Card surface
+  elevated: '#F2F0ED',     // Inactive toggle / secondary surface
+  text: '#1A1A1A',         // Near-black primary text
+  textMuted: '#6B6966',    // Warm gray secondary text
+  textTertiary: '#9C9894', // Muted/tertiary text
+  border: 'rgba(0,0,0,0.06)',      // Barely visible edge definition
+  borderLight: 'rgba(0,0,0,0.04)', // Row separator
+  /** Score color coding — adjusted saturation for white backgrounds */
+  scoreUnder: '#0E7A5B',   // Deeper green for readability on white
+  scoreEven: '#6B6966',    // Warm gray even par
+  scoreOver: '#D43D3D',    // Deeper red for white background contrast
   ...accents,
 };
 
@@ -58,13 +60,13 @@ export const cardShadowDark = Platform.select({
   default: {},
 }) as Record<string, any>;
 
-/** Card shadow for light mode */
+/** Card shadow for light mode — subtle lift */
 export const cardShadowLight = Platform.select({
   ios: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
   },
   android: { elevation: 3 },
   default: {},

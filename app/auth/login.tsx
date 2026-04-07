@@ -134,7 +134,7 @@ export default function LoginScreen() {
               placeholderTextColor={c.textMuted}
               style={[
                 styles.input,
-                { backgroundColor: c.elevated, borderColor: emailFocused ? c.teal : c.border, color: c.text },
+                { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: emailFocused ? c.teal : c.border, color: c.text },
               ]}
               autoCapitalize="none"
               keyboardType="email-address"
@@ -155,7 +155,7 @@ export default function LoginScreen() {
                 placeholderTextColor={c.textMuted}
                 style={[
                   styles.input,
-                  { flex: 1, paddingRight: 44, backgroundColor: c.elevated, borderColor: passwordFocused ? c.teal : c.border, color: c.text },
+                  { flex: 1, paddingRight: 44, backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: passwordFocused ? c.teal : c.border, color: c.text },
                 ]}
                 secureTextEntry={!showPassword}
                 onFocus={() => setPasswordFocused(true)}
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
 
   // Button
   signInBtn: {
-    backgroundColor: '#1E4D2B',
+    backgroundColor: '#006747',
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,

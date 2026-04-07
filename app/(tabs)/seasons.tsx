@@ -259,7 +259,7 @@ export default function SeasonsTab() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style="light" />
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       <ScrollView
         bounces={false}
         showsVerticalScrollIndicator={false}
