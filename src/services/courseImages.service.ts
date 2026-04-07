@@ -78,21 +78,24 @@ async function findPlacePhotoReference(
   if (!GOOGLE_KEY) return null;
   try {
     const input = city ? `${courseName} ${city}` : courseName;
-    const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(input)}&inputtype=textquery&fields=photos,place_id&key=${GOOGLE_KEY}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.warn('[PHOTO] Find Place API HTTP error:', res.status);
-      return null;
+    const query = encodeURIComponent(input);
+    const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${query}&inputtype=textquery&fields=photos,place_id&key=${GOOGLE_KEY}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.candidates?.[0]?.photos?.[0]?.photo_reference) {
+      const candidate = data.candidates[0];
+      const photoRef = candidate.photos[0].photo_reference;
+      return { photoReference: photoRef, placeId: candidate.place_id };
     }
-    const data = await res.json();
-    console.warn('[PHOTO] Find Place response:', JSON.stringify(data).substring(0, 500));
-    const candidate = data.candidates?.[0];
-    if (!candidate?.place_id) return null;
-    const photoRef = candidate.photos?.[0]?.photo_reference;
-    if (!photoRef) return null;
-    return { photoReference: photoRef, placeId: candidate.place_id };
+
+    if (data.status !== 'OK') {
+      console.error('[PHOTO] Find Place API error status:', data.status);
+    }
+    return null;
   } catch (error: any) {
-    console.warn('[PHOTO] ERROR:', error?.message);
+    console.error('[PHOTO] Find Place API fetch error:', error?.message);
     return null;
   }
 }
@@ -202,23 +205,13 @@ export async function fetchCourseImage(
   location?: string,
   maxWidth: number = 800,
 ): Promise<string | null> {
-  // TEMPORARY DEBUG LOGGING
-  console.warn('[PHOTO] API Key prefix:', GOOGLE_KEY?.substring(0, 8));
-
   // 1. Check Supabase for already-cached photo_reference
-  console.warn('[PHOTO] Checking Supabase cache for:', courseName);
   const cachedRef = await getPhotoReferenceFromSupabase(courseName);
-  console.warn('[PHOTO] Supabase cache:', cachedRef ? 'HIT' : 'MISS');
   if (cachedRef) {
-    const photoUrl = getPhotoUrl(cachedRef, maxWidth);
-    console.warn('[PHOTO] Loading photo URL:', photoUrl);
-    return photoUrl;
+    return getPhotoUrl(cachedRef, maxWidth);
   }
 
-  if (!GOOGLE_KEY) {
-    console.warn('[PHOTO] ERROR: No Google Places API key configured');
-    return null;
-  }
+  if (!GOOGLE_KEY) return null;
 
   // 2. Check AsyncStorage cache
   const query = location
@@ -239,14 +232,9 @@ export async function fetchCourseImage(
 
   // 3. Try Google Places Find Place API first (more targeted)
   const city = location?.split(',')[0]?.trim();
-  const findInput = city ? `${courseName} ${city}` : courseName;
-  const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(findInput)}&inputtype=textquery&fields=photos,place_id&key=${GOOGLE_KEY}`;
-  console.warn('[PHOTO] Calling Find Place API for:', courseName, 'URL:', findUrl);
   const findResult = await findPlacePhotoReference(courseName, city);
-  console.warn('[PHOTO] Photo reference:', findResult?.photoReference || 'NONE');
   if (findResult) {
     const photoUrl = getPhotoUrl(findResult.photoReference, maxWidth);
-    console.warn('[PHOTO] Loading photo URL:', photoUrl);
     await setCache(cacheKey, {
       photoUrl: getPhotoUrl(findResult.photoReference), // default 800 for cache
       placeId: findResult.placeId,
@@ -258,13 +246,8 @@ export async function fetchCourseImage(
   }
 
   // 4. Fall back to Text Search
-  console.warn('[PHOTO] Falling back to Text Search for:', query);
   const result = await searchPlace(query);
-  if (!result) {
-    console.warn('[PHOTO] Text Search also returned no results');
-    return null;
-  }
-  console.warn('[PHOTO] Text Search photo reference:', result.photoReference || 'NONE');
+  if (!result) return null;
 
   await setCache(cacheKey, result);
   // Cache photo_reference to Supabase
