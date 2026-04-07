@@ -197,7 +197,7 @@ export function SeasonEmpty() {
       </View>
 
       <Pressable
-        onPress={() => { haptics.light(); router.push('/seasons'); }}
+        onPress={() => { haptics.light(); router.push('/season-create'); }}
         style={({ pressed }) => [es.btn, { backgroundColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="add-circle-outline" size={16} color="#141210" />

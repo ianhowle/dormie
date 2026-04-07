@@ -78,7 +78,7 @@ function RootLayoutNav() {
         <Stack.Screen name="h2h-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="player-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="season-detail" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="seasons" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="season-create" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="round-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />
