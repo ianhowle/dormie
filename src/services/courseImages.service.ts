@@ -175,25 +175,30 @@ async function getPhotoReferenceFromSupabase(
 
 // ─── Main fetch: course image by query ───────────────────────────────
 export async function searchCourseImage(query: string, maxWidth: number = 800): Promise<string | null> {
-  if (!GOOGLE_KEY) return null;
+  try {
+    if (!GOOGLE_KEY) return null;
 
-  const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
-  const cached = await getCached(cacheKey);
-  if (cached) {
-    // If cached has photoReference and caller wants different maxWidth, rebuild URL
-    if (cached.photoReference && maxWidth !== 800) {
-      return getPhotoUrl(cached.photoReference, maxWidth);
+    const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
+    const cached = await getCached(cacheKey);
+    if (cached) {
+      // If cached has photoReference and caller wants different maxWidth, rebuild URL
+      if (cached.photoReference && maxWidth !== 800) {
+        return getPhotoUrl(cached.photoReference, maxWidth);
+      }
+      return cached.photoUrl;
     }
-    return cached.photoUrl;
+
+    const result = await searchPlace(query);
+    if (!result) return null;
+
+    await setCache(cacheKey, result);
+    return maxWidth !== 800 && result.photoReference
+      ? getPhotoUrl(result.photoReference, maxWidth)
+      : result.photoUrl;
+  } catch (error: any) {
+    console.error('[PHOTO] searchCourseImage error:', error?.message);
+    return null;
   }
-
-  const result = await searchPlace(query);
-  if (!result) return null;
-
-  await setCache(cacheKey, result);
-  return maxWidth !== 800 && result.photoReference
-    ? getPhotoUrl(result.photoReference, maxWidth)
-    : result.photoUrl;
 }
 
 // ─── Convenience: fetch course image by name + location ──────────────
@@ -205,58 +210,63 @@ export async function fetchCourseImage(
   location?: string,
   maxWidth: number = 800,
 ): Promise<string | null> {
-  // 1. Check Supabase for already-cached photo_reference
-  const cachedRef = await getPhotoReferenceFromSupabase(courseName);
-  if (cachedRef) {
-    return getPhotoUrl(cachedRef, maxWidth);
-  }
-
-  if (!GOOGLE_KEY) return null;
-
-  // 2. Check AsyncStorage cache
-  const query = location
-    ? `${courseName} ${location} golf course`
-    : `${courseName} golf course`;
-  const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
-  const cached = await getCached(cacheKey);
-  if (cached) {
-    // If we have a photoReference in local cache, also persist to Supabase
-    if (cached.photoReference) {
-      cachePhotoReferenceToSupabase(courseName, location, cached.photoReference).catch(() => {});
+  try {
+    // 1. Check Supabase for already-cached photo_reference
+    const cachedRef = await getPhotoReferenceFromSupabase(courseName);
+    if (cachedRef) {
+      return getPhotoUrl(cachedRef, maxWidth);
     }
-    if (cached.photoReference && maxWidth !== 800) {
-      return getPhotoUrl(cached.photoReference, maxWidth);
+
+    if (!GOOGLE_KEY) return null;
+
+    // 2. Check AsyncStorage cache
+    const query = location
+      ? `${courseName} ${location} golf course`
+      : `${courseName} golf course`;
+    const cacheKey = query.toLowerCase().replace(/\s+/g, '_');
+    const cached = await getCached(cacheKey);
+    if (cached) {
+      // If we have a photoReference in local cache, also persist to Supabase
+      if (cached.photoReference) {
+        cachePhotoReferenceToSupabase(courseName, location, cached.photoReference).catch(() => {});
+      }
+      if (cached.photoReference && maxWidth !== 800) {
+        return getPhotoUrl(cached.photoReference, maxWidth);
+      }
+      return cached.photoUrl;
     }
-    return cached.photoUrl;
-  }
 
-  // 3. Try Google Places Find Place API first (more targeted)
-  const city = location?.split(',')[0]?.trim();
-  const findResult = await findPlacePhotoReference(courseName, city);
-  if (findResult) {
-    const photoUrl = getPhotoUrl(findResult.photoReference, maxWidth);
-    await setCache(cacheKey, {
-      photoUrl: getPhotoUrl(findResult.photoReference), // default 800 for cache
-      placeId: findResult.placeId,
-      photoReference: findResult.photoReference,
-    });
-    // Cache to Supabase for future instant loads
-    cachePhotoReferenceToSupabase(courseName, location, findResult.photoReference).catch(() => {});
-    return photoUrl;
-  }
+    // 3. Try Google Places Find Place API first (more targeted)
+    const city = location?.split(',')[0]?.trim();
+    const findResult = await findPlacePhotoReference(courseName, city);
+    if (findResult) {
+      const photoUrl = getPhotoUrl(findResult.photoReference, maxWidth);
+      await setCache(cacheKey, {
+        photoUrl: getPhotoUrl(findResult.photoReference), // default 800 for cache
+        placeId: findResult.placeId,
+        photoReference: findResult.photoReference,
+      });
+      // Cache to Supabase for future instant loads
+      cachePhotoReferenceToSupabase(courseName, location, findResult.photoReference).catch(() => {});
+      return photoUrl;
+    }
 
-  // 4. Fall back to Text Search
-  const result = await searchPlace(query);
-  if (!result) return null;
+    // 4. Fall back to Text Search
+    const result = await searchPlace(query);
+    if (!result) return null;
 
-  await setCache(cacheKey, result);
-  // Cache photo_reference to Supabase
-  if (result.photoReference) {
-    cachePhotoReferenceToSupabase(courseName, location, result.photoReference).catch(() => {});
+    await setCache(cacheKey, result);
+    // Cache photo_reference to Supabase
+    if (result.photoReference) {
+      cachePhotoReferenceToSupabase(courseName, location, result.photoReference).catch(() => {});
+    }
+    return maxWidth !== 800 && result.photoReference
+      ? getPhotoUrl(result.photoReference, maxWidth)
+      : result.photoUrl;
+  } catch (error: any) {
+    console.error('[PHOTO] fetchCourseImage error:', error?.message);
+    return null;
   }
-  return maxWidth !== 800 && result.photoReference
-    ? getPhotoUrl(result.photoReference, maxWidth)
-    : result.photoUrl;
 }
 
 // ─── Curated dream destination queries ───────────────────────────────
@@ -291,9 +301,14 @@ export function getDreamQuery(name: string): string | null {
 }
 
 export async function fetchDreamImage(name: string): Promise<string | null> {
-  const query = getDreamQuery(name);
-  if (!query) return null;
-  return searchCourseImage(query);
+  try {
+    const query = getDreamQuery(name);
+    if (!query) return null;
+    return searchCourseImage(query);
+  } catch (error: any) {
+    console.error('[PHOTO] fetchDreamImage error:', error?.message);
+    return null;
+  }
 }
 
 // Sync stub — returns null so DestinationImage handles async fetching internally

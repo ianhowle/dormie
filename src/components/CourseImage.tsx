@@ -120,9 +120,15 @@ export function CourseImage({
               if (retryUrl) setImageUrl(retryUrl);
               setLoading(false);
             }
+          }).catch((err) => {
+            console.error('[COURSE_IMAGE] Retry fetch error:', err?.message);
+            if (!cancelled) setLoading(false);
           });
         }, 2000);
       }
+    }).catch((err) => {
+      console.error('[COURSE_IMAGE] Fetch error:', err?.message);
+      if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
   }, [courseName, location, providedUrl, maxWidth]);
@@ -245,9 +251,15 @@ export function DestinationImage({
               if (retryUrl) setImageUrl(retryUrl);
               setLoading(false);
             }
+          }).catch((err) => {
+            console.error('[DESTINATION_IMAGE] Retry fetch error:', err?.message);
+            if (!cancelled) setLoading(false);
           });
         }, 2000);
       }
+    }).catch((err) => {
+      console.error('[DESTINATION_IMAGE] Fetch error:', err?.message);
+      if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
   }, [name, providedUrl]);
