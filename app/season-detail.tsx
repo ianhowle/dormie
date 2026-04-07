@@ -73,32 +73,6 @@ type BonusChallenge = {
 const POINTS_TABLE = [25, 20, 16, 12, 10, 8, 6, 4, 2, 1];
 
 
-const DEMO_STANDINGS: Standing[] = [
-  { playerId: '1', name: 'McGowan', handicap: 8, avatarColor: '#006747', points: 72, weekResults: [25, 16, 20, 12], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '2', name: 'Fletcher', handicap: 12, avatarColor: '#C9A227', points: 64, weekResults: [20, 25, 12, 8], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '3', name: 'Patterson', handicap: 6, avatarColor: '#1E4D2B', points: 56, weekResults: [16, 12, 25, 4], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '4', name: 'Sullivan', handicap: 15, avatarColor: '#C41E3A', points: 44, weekResults: [12, 20, 10, 2], wins: 0, topFives: 2, eventsPlayed: 4, bestFinish: 2, worstDrop: null, isCut: false },
-  { playerId: '5', name: 'Rodriguez', handicap: 10, avatarColor: '#006747', points: 38, weekResults: [10, 8, 16, 6], wins: 0, topFives: 1, eventsPlayed: 4, bestFinish: 3, worstDrop: null, isCut: false },
-  { playerId: '6', name: 'Chen', handicap: 18, avatarColor: '#C9A227', points: 30, weekResults: [8, 10, 6, 6], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 4, worstDrop: null, isCut: false },
-  { playerId: '7', name: 'Taylor', handicap: 14, avatarColor: '#1E4D2B', points: 22, weekResults: [6, 4, 8, 4], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 5, worstDrop: null, isCut: false },
-  { playerId: '8', name: 'Brooks', handicap: 20, avatarColor: '#C41E3A', points: 14, weekResults: [4, 6, 2, 2], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 6, worstDrop: null, isCut: false },
-];
-
-function buildDemoWeeks(totalWeeks: number, currentWeek: number): Week[] {
-  const formats = ['stableford', 'modified_stableford', 'stroke_net', 'quota', 'best9'];
-  return Array.from({ length: totalWeeks }, (_, i) => ({
-    number: i + 1,
-    format: formats[i % formats.length],
-    isPlayoff: i >= totalWeeks - 3 && i < totalWeeks - 1,
-    isChampionship: i === totalWeeks - 1,
-    isMajor: i === 3 || i === 8,
-    majorName: i === 3 ? 'The Masters' : i === 8 ? 'The Open' : null,
-    multiplier: i === totalWeeks - 1 ? 3 : (i >= totalWeeks - 3 ? 2 : (i === 3 || i === 8 ? 2 : 1)),
-    completed: i + 1 < currentWeek,
-    allScoresSubmitted: i + 1 < currentWeek,
-  }));
-}
-
 const MOCK_CHALLENGES: BonusChallenge[] = [
   { id: 'b1', label: 'Low Round', description: 'Lowest single-round gross score', leader: 'Ian McGowan', value: '74' },
   { id: 'b2', label: 'Most Birdies', description: 'Total birdies across all rounds', leader: 'Tommy Fleetwood', value: '18' },
@@ -764,12 +738,9 @@ function SeasonDetailScreenInner() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string; name?: string; currentWeek?: string; totalWeeks?: string; demo?: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const seasonId = params.id;
-  const isDemo = params.demo === '1';
-  const paramCurrentWeek = params.currentWeek ? parseInt(params.currentWeek, 10) : 0;
-  const paramTotalWeeks = params.totalWeeks ? parseInt(params.totalWeeks, 10) : 0;
 
   const [realStandings, setRealStandings] = useState<Standing[]>([]);
   const [realWeeks, setRealWeeks] = useState<Week[]>([]);
@@ -816,15 +787,9 @@ function SeasonDetailScreenInner() {
   }, [seasonId]);
 
   useEffect(() => {
-    if (isDemo) {
-      setRealStandings(DEMO_STANDINGS);
-      setRealWeeks(buildDemoWeeks(paramTotalWeeks || 12, paramCurrentWeek || 4));
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     refreshData().finally(() => setLoading(false));
-  }, [refreshData, isDemo, paramCurrentWeek, paramTotalWeeks]);
+  }, [refreshData]);
 
   const [tab, setTab] = useState<Tab>('standings');
   const [selectedPlayer, setSelectedPlayer] = useState<Standing | null>(null);

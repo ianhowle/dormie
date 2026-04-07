@@ -220,7 +220,7 @@ function LogoMenu({
 
   const items = [
     { label: 'Profile', icon: 'person-outline' as const, onPress: () => router.push('/(tabs)/profile') },
-    { label: 'Seasons', icon: 'trophy-outline' as const, onPress: () => router.push('/season-create') },
+    { label: 'Seasons', icon: 'trophy-outline' as const, onPress: () => router.push('/seasons') },
     { label: 'Create New Group', icon: 'add-circle-outline' as const, onPress: () => {} },
     { label: 'Invite Player', icon: 'person-add-outline' as const, onPress: () => {} },
     { label: 'Play a Round', icon: 'golf-outline' as const, onPress: () => router.push('/(tabs)/score') },
@@ -592,7 +592,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
           Round {season.currentRound} of {season.totalRounds}
         </Text>
         <Pressable
-          onPress={() => { haptics.light(); router.push('/(tabs)/seasons'); }}
+          onPress={() => { haptics.light(); router.push('/seasons'); }}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
           <Text style={[st.seasonSubText, { color: c.teal, fontFamily: SANS, fontWeight: '700' }]}>View All Seasons</Text>
