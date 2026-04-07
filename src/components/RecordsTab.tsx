@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { GEO } from '../theme/fonts';
-import { cardShadowDark, cardShadowLight } from '../theme/colors';
+import { cardShadowDark, cardShadowLight, tableShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
 import { useAuth } from '../lib/auth';
 import {
@@ -92,6 +92,7 @@ function RecordsTable({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
 
   const withRecords = courses.filter(
@@ -103,7 +104,7 @@ function RecordsTable({
   return (
     <View style={s.tableWrap}>
       <SectionHeader title={scope === 'field' ? 'FIELD COURSE RECORDS' : 'GROUP COURSE RECORDS'} />
-      <View style={[s.table, { borderColor: c.border }]}>
+      <View style={[s.table, { borderColor: c.border }, isDark ? cardShadowDark : tableShadowLight]}>
         {/* Header row */}
         <View style={[s.tableRow, { backgroundColor: theme.isDark ? '#1E4D2B' : '#006747', paddingVertical: 12 }]}>
           <Text style={[s.colCourse, s.colHeader, { color: theme.isDark ? '#E8E4DE' : '#FFFFFF' }]}>COURSE</Text>
@@ -213,6 +214,7 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
           backgroundColor: isDark ? '#151312' : '#FFFFFF',
           borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)',
         },
+        isDark ? cardShadowDark : cardShadowLight,
       ]}
     >
       <View style={s.bucketInfo}>
@@ -249,7 +251,7 @@ function DiscoverRow({ course }: { course: CommunityCourse }) {
   return (
     <Pressable
       onPress={() => router.push(`/course-detail?courseId=${course.id}`)}
-      style={[s.discoverRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
+      style={[s.discoverRow, { backgroundColor: c.cardBg, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}
     >
       <View style={s.discoverInfo}>
         <Text style={[s.discoverName, { color: c.text }]} numberOfLines={1}>

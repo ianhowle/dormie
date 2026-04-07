@@ -778,7 +778,7 @@ function QuickStatsRow({ stats }: { stats: QuickStats }) {
   return (
     <View style={st.statsRow}>
       {items.map((item) => (
-        <View key={item.label} accessibilityLabel={statLabel(item.value, item.label)} style={[st.statBox, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : { ...cardShadowLight, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}>
+        <View key={item.label} accessibilityLabel={statLabel(item.value, item.label)} style={[st.statBox, { backgroundColor: isDark ? c.cardBg : '#FFFFFF', borderColor: isDark ? c.border : 'rgba(0,0,0,0.06)' }, isDark ? cardShadowDark : cardShadowLight]}>
           <Text style={[st.statValue, { color: item.color, fontFamily: GEO, fontSize: item.isHandicap ? 28 : 18, letterSpacing: item.isHandicap ? -1 : 0 }]}>
             {item.value}
           </Text>

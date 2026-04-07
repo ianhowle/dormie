@@ -19,7 +19,7 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
-import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import { cardShadowDark, cardShadowLight, elevatedShadowLight, tableShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import { Avatar } from '../../src/components/Avatar';
 import GoldDivider from '../../src/components/GoldDivider';
 import { CoursesTab } from '../../src/components/CoursesTab';
@@ -86,7 +86,7 @@ function ScopeToggle({
   const isDark = theme.isDark;
 
   return (
-    <View style={[styles.scopeRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }, ...[isDark ? cardShadowDark : cardShadowLight]]}>
+    <View style={[styles.scopeRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }, ...[isDark ? cardShadowDark : elevatedShadowLight]]}>
       {(['group', 'field'] as const).map((s) => {
         const active = s === scope;
         return (
@@ -97,7 +97,7 @@ function ScopeToggle({
             style={[
               styles.scopeBtn,
               active && { backgroundColor: isDark ? c.cardBg : '#FFFFFF' },
-              active && !isDark && cardShadowLight,
+              active && !isDark && elevatedShadowLight,
             ]}
           >
             <Text
@@ -463,7 +463,7 @@ function LeaderboardTable({ players, myId, scope }: { players: LeaderboardPlayer
         </Text>
         <DataFreshness updatedAt={new Date()} isLive={false} />
       </View>
-      <View style={[styles.table, { borderColor: c.border, borderWidth: 1, backgroundColor: c.cardBg }, isDark ? cardShadowDark : cardShadowLight]}>
+      <View style={[styles.table, { borderColor: c.border, borderWidth: 1, backgroundColor: c.cardBg }, isDark ? cardShadowDark : tableShadowLight]}>
         <TableHeader />
         <GoldDivider />
         <FlatList

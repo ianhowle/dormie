@@ -60,15 +60,39 @@ export const cardShadowDark = Platform.select({
   default: {},
 }) as Record<string, any>;
 
-/** Card shadow for light mode — subtle lift */
+/** Card shadow for light mode — dual-shadow depth */
 export const cardShadowLight = Platform.select({
   ios: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.10,
+  },
+  android: { elevation: 4 },
+  default: {},
+}) as Record<string, any>;
+
+/** Elevated shadow for light mode — Welcome banner, toggle containers */
+export const elevatedShadowLight = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    shadowOpacity: 0.08,
   },
   android: { elevation: 3 },
+  default: {},
+}) as Record<string, any>;
+
+/** Table container shadow for light mode */
+export const tableShadowLight = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 6,
+    shadowOpacity: 0.05,
+  },
+  android: { elevation: 2 },
   default: {},
 }) as Record<string, any>;
 
