@@ -6,7 +6,9 @@ import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import { Avatar } from './Avatar';
 import { MOCK_H2H, type H2HMatchup } from '../data/h2h';
+import { DEMO_FIELD_H2H } from './DemoPeek';
 import type { RoundWithCourse } from '../lib/database.types';
+import type { LeaderboardScope } from '../data/leaderboard';
 
 // ─── Props ───────────────────────────────────────────────────────────
 type Friend = { id: string; name: string; handicap: number };
@@ -15,6 +17,7 @@ type H2HTabProps = {
   userId?: string;
   friends?: Friend[];
   realRounds?: RoundWithCourse[] | null;
+  scope?: LeaderboardScope;
 };
 
 // ─── Compute H2H records from real round data ────────────────────────
@@ -170,7 +173,7 @@ function MatchupCard({ matchup }: { matchup: H2HMatchup }) {
 }
 
 // ─── Main component ──────────────────────────────────────────────────
-export function H2HTab({ userId, friends, realRounds }: H2HTabProps = {}) {
+export function H2HTab({ userId, friends, realRounds, scope = 'group' }: H2HTabProps = {}) {
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -184,8 +187,9 @@ export function H2HTab({ userId, friends, realRounds }: H2HTabProps = {}) {
     ) {
       return computeH2H(userId, friends, realRounds);
     }
-    return MOCK_H2H;
-  }, [userId, friends, realRounds]);
+    // Demo data: different sets for group vs field
+    return scope === 'field' ? DEMO_FIELD_H2H : MOCK_H2H;
+  }, [userId, friends, realRounds, scope]);
 
   return (
     <View style={s.container}>
@@ -193,7 +197,7 @@ export function H2HTab({ userId, friends, realRounds }: H2HTabProps = {}) {
         HEAD TO HEAD
       </Text>
       <Text style={[s.subtitle, { color: c.textMuted }]}>
-        Your record against Group members
+        {scope === 'field' ? 'Your record against all Dormie players' : 'Your record against Group members'}
       </Text>
 
       {matchups.map((m) => (

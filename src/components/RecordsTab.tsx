@@ -15,6 +15,8 @@ import {
   type BucketListCourse,
   type CommunityCourse,
 } from '../data/courses';
+import { DEMO_FIELD_RECORDS, DEMO_FIELD_BUCKET_LIST } from './DemoPeek';
+import type { LeaderboardScope } from '../data/leaderboard';
 
 // ─── Search bar (same visual as CoursesTab) ──────────────────────────
 function SearchBar({
@@ -82,9 +84,11 @@ function toParColor(
 function RecordsTable({
   courses,
   myName,
+  scope = 'group',
 }: {
   courses: PlayedCourse[];
   myName: string;
+  scope?: LeaderboardScope;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -98,7 +102,7 @@ function RecordsTable({
 
   return (
     <View style={s.tableWrap}>
-      <SectionHeader title="GROUP COURSE RECORDS" />
+      <SectionHeader title={scope === 'field' ? 'FIELD COURSE RECORDS' : 'GROUP COURSE RECORDS'} />
       <View style={[s.table, { borderColor: c.border }]}>
         {/* Header row */}
         <View style={[s.tableRow, { backgroundColor: '#1E4D2B', paddingVertical: 12 }]}>
@@ -195,6 +199,7 @@ function RecordsTable({
 function BucketListCard({ course }: { course: BucketListCourse }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const isDark = theme.isDark;
   const router = useRouter();
   const hasCommunity = course.communityRounds !== null;
 
@@ -204,8 +209,8 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
       style={[
         s.bucketCard,
         {
-          backgroundColor: c.cardBg,
-          borderColor: c.gold,
+          backgroundColor: isDark ? '#151312' : c.cardBg,
+          borderColor: c.border,
         },
       ]}
     >
@@ -217,7 +222,7 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
           {course.city}, {course.state}
         </Text>
         {hasCommunity ? (
-          <Text style={[s.bucketStats, { color: c.teal }]}>
+          <Text style={[s.bucketStats, { color: c.gold }]}>
             {course.communityRounds} Dormie rounds · Avg:{' '}
             {(course.communityAvg ?? 0).toFixed(0)}
           </Text>
@@ -228,7 +233,7 @@ function BucketListCard({ course }: { course: BucketListCourse }) {
         )}
       </View>
       {hasCommunity && (
-        <Text style={[s.viewBtn, { color: c.teal }]}>View →</Text>
+        <Text style={[s.viewBtn, { color: c.gold }]}>View →</Text>
       )}
     </Pressable>
   );
@@ -282,11 +287,13 @@ export function RecordsTab({
   onSearchChange,
   courseRecords,
   bucketList,
+  scope = 'group',
 }: {
   search: string;
   onSearchChange: (v: string) => void;
   courseRecords?: PlayedCourse[] | null;
   bucketList?: BucketListCourse[] | null;
+  scope?: LeaderboardScope;
 }) {
   const { user } = useAuth();
   const myName: string =
@@ -294,10 +301,14 @@ export function RecordsTab({
 
   const playedSource = courseRecords && courseRecords.length > 0
     ? courseRecords
-    : PLAYED_SORTED;
+    : scope === 'field'
+      ? DEMO_FIELD_RECORDS as PlayedCourse[]
+      : PLAYED_SORTED;
   const bucketSource = bucketList && bucketList.length > 0
     ? bucketList
-    : MOCK_BUCKET_LIST;
+    : scope === 'field'
+      ? DEMO_FIELD_BUCKET_LIST
+      : MOCK_BUCKET_LIST;
 
   const q = search.trim().toLowerCase();
 
@@ -357,13 +368,13 @@ export function RecordsTab({
         <>
           {/* Section 1: Course records */}
           {recordsFiltered.length > 0 && (
-            <RecordsTable courses={recordsFiltered} myName={myName} />
+            <RecordsTable courses={recordsFiltered} myName={myName} scope={scope} />
           )}
 
           {/* Section 2: Bucket list */}
           {bucketFiltered.length > 0 && (
             <>
-              <SectionHeader title="⭐ BUCKET LIST" />
+              <SectionHeader title={`⭐ BUCKET LIST${scope === 'field' ? ' — THE FIELD' : ''}`} />
               {bucketFiltered.map((bl) => (
                 <BucketListCard key={bl.id} course={bl} />
               ))}

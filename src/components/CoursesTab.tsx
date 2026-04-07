@@ -12,6 +12,8 @@ import {
   type PlayedCourse,
   type CommunityCourse,
 } from '../data/courses';
+import { DEMO_FIELD_COURSES } from './DemoPeek';
+import type { LeaderboardScope } from '../data/leaderboard';
 
 // ─── Search input ────────────────────────────────────────────────────
 function SearchBar({
@@ -182,23 +184,27 @@ function SectionHeader({ title }: { title: string }) {
 export function CoursesTab({
   search,
   onSearchChange,
+  scope = 'group',
 }: {
   search: string;
   onSearchChange: (v: string) => void;
+  scope?: LeaderboardScope;
 }) {
   const q = search.trim().toLowerCase();
+
+  const courseSource = scope === 'field' ? DEMO_FIELD_COURSES as PlayedCourse[] : PLAYED_SORTED;
 
   const playedFiltered = useMemo(
     () =>
       q.length === 0
-        ? PLAYED_SORTED
-        : PLAYED_SORTED.filter(
+        ? courseSource
+        : courseSource.filter(
             (c) =>
               c.name.toLowerCase().includes(q) ||
               c.city.toLowerCase().includes(q) ||
               c.state.toLowerCase().includes(q),
           ),
-    [q],
+    [q, courseSource],
   );
 
   const communityFiltered = useMemo(
@@ -228,7 +234,7 @@ export function CoursesTab({
           {playedFiltered.length > 0 && (
             <>
               <SectionHeader
-                title={`PLAYED (${playedFiltered.length})`}
+                title={scope === 'field' ? `ALL COURSES (${playedFiltered.length})` : `PLAYED (${playedFiltered.length})`}
               />
               {playedFiltered.map((course) => (
                 <PlayedCourseCard key={course.id} course={course} />

@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
@@ -41,7 +42,9 @@ import { seasonsService } from '../../src/services/seasons.service';
 import { movementArrow, movementColor, formatToPar as fmtToPar } from '../../src/lib/scoring-utils';
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
 import { LeaderboardGhostEmpty } from '../../src/components/EmptyStates';
-import { DemoPeekToggle, DemoBanner, DEMO_LEADERBOARD } from '../../src/components/DemoPeek';
+import { DemoPeekToggle, DemoBanner, DEMO_LEADERBOARD, DEMO_FIELD_LEADERBOARD } from '../../src/components/DemoPeek';
+
+const WELCOME_BANNER_KEY = '@dormie/welcome_banner_dismissed';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -379,7 +382,7 @@ function PlayerRow({
             {player.name}
           </Text>
           <Text style={[styles.playerSub, { color: c.textMuted, fontFamily: SANS }]}>
-            {player.handicap} HCP · {player.courses} crs
+            {player.handicap} HCP · {player.rounds} rds
           </Text>
         </View>
       </View>
@@ -487,7 +490,20 @@ export default function LeaderboardScreen() {
   const [showDemoData, setShowDemoData] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(true); // default hidden until loaded
   const { showToast } = useToast();
+
+  // Welcome banner dismiss state
+  useEffect(() => {
+    AsyncStorage.getItem(WELCOME_BANNER_KEY).then((val) => {
+      setWelcomeDismissed(val === 'true');
+    });
+  }, []);
+
+  const dismissWelcome = useCallback(() => {
+    setWelcomeDismissed(true);
+    AsyncStorage.setItem(WELCOME_BANNER_KEY, 'true');
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -524,7 +540,19 @@ export default function LeaderboardScreen() {
     showToast({ message: 'Leaderboard updated', type: 'success' });
   }, [loadData, showToast]);
 
+  // Auto-dismiss welcome banner when: onboarding complete + 1 friend + 1 round
+  const hasAcceptedFriend = friends.length > 0;
+  const hasLoggedRound = myRounds.length > 0;
+  const onboardingComplete = user?.user_metadata?.onboarding_complete === true;
+
+  useEffect(() => {
+    if (onboardingComplete && hasAcceptedFriend && hasLoggedRound && !welcomeDismissed) {
+      dismissWelcome();
+    }
+  }, [onboardingComplete, hasAcceptedFriend, hasLoggedRound, welcomeDismissed, dismissWelcome]);
+
   // Build leaderboard from real data: aggregate rounds for user + friends
+  // Group scope = friends only; Field scope = all available users
   const leaderboardPlayers = useMemo((): LeaderboardPlayer[] => {
     if (!user) return [];
     // Collect all friend user IDs + self
@@ -532,10 +560,19 @@ export default function LeaderboardScreen() {
       const friend = f.friend as any;
       return friend ? { id: friend.id, name: friend.name, handicap: friend.handicap_index ?? 0 } : null;
     }).filter(Boolean) as { id: string; name: string; handicap: number }[];
-    const allUsers = [
-      { id: user.id, name: user.user_metadata?.name ?? 'You', handicap: user.user_metadata?.handicap_index ?? 0 },
-      ...friendUsers,
-    ];
+
+    // Group = self + friends; Field = all available users (in real data, same as group for now)
+    const allUsers = scope === 'group'
+      ? [
+          { id: user.id, name: user.user_metadata?.name ?? 'You', handicap: user.user_metadata?.handicap_index ?? 0 },
+          ...friendUsers,
+        ]
+      : [
+          { id: user.id, name: user.user_metadata?.name ?? 'You', handicap: user.user_metadata?.handicap_index ?? 0 },
+          ...friendUsers,
+          // Field would include all Dormie users — for now we include friends as baseline
+        ];
+
     if (myRounds.length === 0 && friends.length === 0) return [];
 
     // For now we only have myRounds (own rounds). Build entries for self.
@@ -576,7 +613,7 @@ export default function LeaderboardScreen() {
         toPar: avg - 72,
       };
     }).filter(p => p.rounds > 0).sort((a, b) => a.toPar - b.toPar);
-  }, [user, friends, myRounds]);
+  }, [user, friends, myRounds, scope]);
 
   const myId = user?.id;
 
@@ -646,10 +683,20 @@ export default function LeaderboardScreen() {
           <View style={styles.yourCard}>
             <Avatar id={me.id} size={40} name={me.name} />
             <View style={styles.yourInfo}>
-              {me.rounds === 0 && leaderboardPlayers.length <= 1 ? (
+              {me.rounds === 0 && leaderboardPlayers.length <= 1 && !welcomeDismissed ? (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.yourPos}>Welcome to Dormie</Text>
+                    <Text style={styles.yourMeta}>Play rounds and add friends to see standings</Text>
+                  </View>
+                  <Pressable onPress={dismissWelcome} hitSlop={10} style={{ padding: 2 }}>
+                    <Ionicons name="close" size={14} color="rgba(255,255,255,0.6)" />
+                  </Pressable>
+                </View>
+              ) : me.rounds === 0 && leaderboardPlayers.length <= 1 ? (
                 <>
-                  <Text style={styles.yourPos}>Welcome to Dormie</Text>
-                  <Text style={styles.yourMeta}>Play rounds and add friends to see standings</Text>
+                  <Text style={styles.yourPos}>--</Text>
+                  <Text style={styles.yourMeta}>Log rounds to see standings</Text>
                 </>
               ) : (
                 <>
@@ -691,7 +738,9 @@ export default function LeaderboardScreen() {
         )}
 
         {/* Demo banner — persistent when demo mode active */}
-        {showDemoData && leaderboardPlayers.length === 0 && <DemoBanner />}
+        {showDemoData && leaderboardPlayers.length === 0 && (
+          <DemoBanner hasRealRounds={myRounds.length > 0} />
+        )}
 
         {/* ── Tab content ── */}
         {!dataLoaded ? (
@@ -704,14 +753,18 @@ export default function LeaderboardScreen() {
           <View>
             {tab === 'Leaderboard' && (
               <LeaderboardTable
-                players={showDemoData && leaderboardPlayers.length === 0 ? DEMO_LEADERBOARD : leaderboardPlayers}
+                players={
+                  showDemoData && leaderboardPlayers.length === 0
+                    ? (scope === 'field' ? DEMO_FIELD_LEADERBOARD : DEMO_LEADERBOARD)
+                    : leaderboardPlayers
+                }
                 myId={myId}
                 scope={scope}
               />
             )}
-            {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} />}
-            {tab === 'H2H' && <H2HTab />}
-            {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} />}
+            {tab === 'Courses' && <CoursesTab search={search} onSearchChange={setSearch} scope={scope} />}
+            {tab === 'H2H' && <H2HTab scope={scope} />}
+            {tab === 'Records' && <RecordsTab search={search} onSearchChange={setSearch} scope={scope} />}
           </View>
         )}
         <View style={{ height: 32 + insets.bottom }} />
