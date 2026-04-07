@@ -197,7 +197,7 @@ export function SeasonEmpty() {
       </View>
 
       <Pressable
-        onPress={() => { haptics.light(); router.push('/seasons'); }}
+        onPress={() => { haptics.light(); router.push('/season-create'); }}
         style={({ pressed }) => [es.btn, { backgroundColor: c.gold }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="add-circle-outline" size={16} color="#141210" />
@@ -239,7 +239,6 @@ const es = StyleSheet.create({
   },
   card: {
     borderWidth: 1,
-    borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     gap: 8,
@@ -260,7 +259,6 @@ const es = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 12,
     marginTop: 8,
   },
   btnText: {
@@ -279,7 +277,6 @@ const es = StyleSheet.create({
 const ghost = StyleSheet.create({
   table: {
     borderWidth: 1,
-    borderRadius: 12,
     overflow: 'hidden',
   },
   header: {
@@ -360,7 +357,6 @@ const season = StyleSheet.create({
   preview: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: 12,
     overflow: 'hidden',
     marginTop: 8,
   },

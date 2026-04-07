@@ -126,7 +126,7 @@ function ActiveSeasonCard({ season }: { season: MockSeason }) {
     <Pressable
       onPress={() => {
         haptics.light();
-        router.push({ pathname: '/season-detail', params: { id: season.id } });
+        router.push({ pathname: '/season-detail', params: { id: season.id, name: season.name, currentWeek: String(season.currentWeek), totalWeeks: String(season.totalWeeks), demo: '1' } });
       }}
       style={({ pressed }) => [
         st.activeCard,
@@ -197,7 +197,7 @@ function PastSeasonCard({ season }: { season: MockSeason }) {
     <Pressable
       onPress={() => {
         haptics.light();
-        router.push({ pathname: '/season-detail', params: { id: season.id } });
+        router.push({ pathname: '/season-detail', params: { id: season.id, name: season.name, currentWeek: String(season.currentWeek), totalWeeks: String(season.totalWeeks), demo: '1' } });
       }}
       style={({ pressed }) => [
         st.pastCard,
@@ -277,7 +277,7 @@ export default function SeasonsTab() {
           <View style={st.headerRow}>
             <Text style={[st.headerTitle, { fontFamily: GEO }]}>Seasons</Text>
             <Pressable
-              onPress={() => { haptics.light(); router.push('/seasons'); }}
+              onPress={() => { haptics.light(); router.push('/season-create'); }}
               style={({ pressed }) => [
                 st.createBtn,
                 pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
@@ -396,7 +396,6 @@ const st = StyleSheet.create({
   /* Active season card */
   activeCard: {
     borderWidth: 1,
-    borderRadius: 12,
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
@@ -485,7 +484,6 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
     overflow: 'hidden',
     padding: 14,
     marginBottom: 8,
@@ -522,7 +520,6 @@ const st = StyleSheet.create({
     padding: 32,
     marginTop: 24,
     gap: 12,
-    borderRadius: 12,
     opacity: 0.7,
   },
   emptyTitle: {
