@@ -22,9 +22,12 @@ import { useAuth } from '../../src/lib/auth';
 import { GEO } from '../../src/theme/fonts';
 import { Avatar } from '../../src/components/Avatar';
 import { roundsService } from '../../src/services/rounds.service';
+import { friendsService } from '../../src/services/friends.service';
+import { tripsService } from '../../src/services/trips.service';
+import { seasonsService } from '../../src/services/seasons.service';
 import type { RoundWithCourse } from '../../src/lib/database.types';
-import { scoreColor, formatToPar as formatToParUtil, toParColor as toParColorUtil } from '../../src/lib/scoring-utils';
-import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+// scoring-utils available for future use
+import { cardShadowDark, cardShadowLight, elevatedShadowLight, greenHeaderGradient } from '../../src/theme/colors';
 import GoldDivider from '../../src/components/GoldDivider';
 import { haptics } from '../../src/lib/haptics';
 import { isSoundEnabled, setSoundEnabled } from '../../src/lib/sounds';
@@ -32,6 +35,8 @@ import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { ProfileStatsEmpty, HandicapGraphEmpty } from '../../src/components/EmptyStates';
 import { CourseImage } from '../../src/components/CourseImage';
+import { supabase } from '../../src/lib/supabase';
+import { MOCK_GROUPS } from '../../src/data/groups';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -197,11 +202,32 @@ export default function ProfileScreen() {
     user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
   );
 
+  // Settings preferences
+  const [scoringMode, setScoringMode] = useState<'gross' | 'net'>(
+    user?.user_metadata?.default_scoring ?? 'gross'
+  );
+  const [distanceUnit, setDistanceUnit] = useState<'yards' | 'meters'>(
+    user?.user_metadata?.distance_unit ?? 'yards'
+  );
+  const [profileVisibility, setProfileVisibility] = useState<'public' | 'friends'>(
+    user?.user_metadata?.profile_visibility ?? 'public'
+  );
+
+  // Social counts
+  const [friendCount, setFriendCount] = useState(0);
+  const [groupCount] = useState(MOCK_GROUPS.length);
+  const [seasonCount, setSeasonCount] = useState(0);
+  const [tripCount, setTripCount] = useState(0);
+
   const FAVORITE_COURSE_STATS = { bestScore: 71, avgScore: 75.2, roundsPlayed: 12 };
 
   const cardShadow = isDark ? cardShadowDark : cardShadowLight;
 
   const profileUser = useMemo(() => {
+    const createdAt = user ? new Date(user.created_at) : null;
+    const memberSinceStr = createdAt
+      ? createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      : '';
     return {
       id: user?.id ?? '',
       name: user?.user_metadata?.name ?? 'Golfer',
@@ -209,7 +235,9 @@ export default function ProfileScreen() {
       handicap: user?.user_metadata?.handicap_index ?? 0,
       city: user?.user_metadata?.city ?? '',
       state: user?.user_metadata?.state ?? '',
-      memberSince: user ? new Date(user.created_at).getFullYear().toString() : '',
+      memberSince: memberSinceStr,
+      golferType: (user?.user_metadata?.golfer_type as 'competitive' | 'social' | 'improving' | undefined) ?? null,
+      ghinNumber: (user?.user_metadata?.ghin_number as string | undefined) ?? null,
     };
   }, [user]);
 
@@ -228,16 +256,37 @@ export default function ProfileScreen() {
       .finally(() => setLoadingRounds(false));
   }, [user]);
 
+  // Fetch social counts
+  const fetchSocialCounts = useCallback(() => {
+    if (!user) return;
+    friendsService.getActiveFriends(user.id)
+      .then((friends) => setFriendCount(friends.length))
+      .catch(() => {});
+    tripsService.getByUser(user.id)
+      .then((trips) => setTripCount(trips.length))
+      .catch(() => {});
+    seasonsService.getByUser(user.id)
+      .then((seasons) => setSeasonCount(seasons.length))
+      .catch(() => {});
+  }, [user]);
+
   useEffect(() => {
     fetchRounds();
-  }, [fetchRounds]);
+    fetchSocialCounts();
+  }, [fetchRounds, fetchSocialCounts]);
+
+  // Save preference to Supabase auth metadata
+  const savePreference = useCallback((key: string, value: string) => {
+    supabase.auth.updateUser({ data: { [key]: value } }).catch(() => {});
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchRounds();
+    fetchSocialCounts();
     setRefreshing(false);
     showToast({ message: 'Profile updated', type: 'success' });
-  }, [fetchRounds, showToast]);
+  }, [fetchRounds, fetchSocialCounts, showToast]);
 
   // Compute real stats from rounds
   const realStats = useMemo(() => {
@@ -330,6 +379,26 @@ export default function ProfileScreen() {
     return trend;
   }, [realRounds, showDemoData]);
 
+  // Achievement badges
+  const badges = useMemo(() => {
+    const roundCount = realStats?.totalRounds ?? (showDemoData ? 47 : 0);
+    const courseCount = realStats?.coursesPlayed ?? (showDemoData ? 12 : 0);
+    const tripsCount = realStats?.tripsPlayed ?? (showDemoData ? 5 : 0);
+    const fCount = showDemoData ? 14 : friendCount;
+    const sCount = showDemoData ? 2 : seasonCount;
+
+    return [
+      { id: 'first-round', emoji: '\uD83C\uDFCC\uFE0F', label: 'First Round', earned: roundCount >= 1 },
+      { id: '10-rounds', emoji: '\uD83D\uDD1F', label: '10 Rounds', earned: roundCount >= 10 },
+      { id: '25-rounds', emoji: '\uD83C\uDFC5', label: '25 Rounds', earned: roundCount >= 25 },
+      { id: 'course-record', emoji: '\uD83C\uDFC6', label: 'Course Record', earned: showDemoData },
+      { id: 'trip-veteran', emoji: '\u2708\uFE0F', label: 'Trip Veteran', earned: tripsCount >= 1 },
+      { id: 'season-player', emoji: '\uD83C\uDFAF', label: 'Season Player', earned: sCount >= 1 },
+      { id: 'social-butterfly', emoji: '\uD83E\uDD1D', label: 'Social Butterfly', earned: fCount >= 10 },
+      { id: 'globe-trotter', emoji: '\uD83C\uDF0E', label: 'Globe Trotter', earned: courseCount >= 10 },
+    ];
+  }, [realStats, showDemoData, friendCount, seasonCount]);
+
   const toPar = (score: number, par: number) => {
     const diff = score - par;
     if (diff === 0) return 'E';
@@ -338,9 +407,9 @@ export default function ProfileScreen() {
 
   const toParColor = (score: number, par: number) => {
     const diff = score - par;
-    if (diff < 0) return c.teal;
-    if (diff > 0) return c.urgent;
-    return c.text;
+    if (diff < 0) return '#1D9E75';
+    if (diff > 0) return '#E24B4A';
+    return c.scoreEven;
   };
 
   const sourceBadge = (source: RecentRound['source']) => {
@@ -443,6 +512,34 @@ export default function ProfileScreen() {
               </View>
             </Animated.View>
 
+            {/* Golfer Identity Row */}
+            <View style={s.identityRow}>
+              {profileUser.golferType && (
+                <View style={s.golferTypePill}>
+                  <Text style={s.golferTypePillText}>
+                    {'\u26F3'} {profileUser.golferType.charAt(0).toUpperCase() + profileUser.golferType.slice(1)}
+                  </Text>
+                </View>
+              )}
+              {profileUser.ghinNumber && (
+                <Text style={s.identityMuted}>GHIN: {profileUser.ghinNumber}</Text>
+              )}
+              {profileUser.memberSince ? (
+                <Text style={s.identityMuted}>Member since {profileUser.memberSince}</Text>
+              ) : null}
+            </View>
+
+            {/* Friends & Groups Count */}
+            <View style={s.socialRow}>
+              <Pressable onPress={() => router.push('/add-friends')} hitSlop={8}>
+                <Text style={s.socialText}>{friendCount} Friends</Text>
+              </Pressable>
+              <Text style={s.socialDot}>{'\u00B7'}</Text>
+              <Pressable onPress={() => router.push('/groups')} hitSlop={8}>
+                <Text style={s.socialText}>{groupCount} Groups</Text>
+              </Pressable>
+            </View>
+
             <Pressable
               onPress={() => { haptics.light(); router.push('/edit-profile'); }}
               style={({ pressed }) => [s.editBtn, { borderColor: 'rgba(201,162,39,0.4)', opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
@@ -473,46 +570,31 @@ export default function ProfileScreen() {
         )}
 
         <View style={s.body}>
-          {/* ─── STATS GRID ──────────────────────────────────────── */}
+          {/* ─── STATS GRID (6-box) ─────────────────────────────── */}
           <SectionLabel title="STATS" />
           <DataFreshness updatedAt={lastUpdated} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+          <View style={s.statsGrid}>
             {[
-              { value: displayStats.totalRounds, label: 'RNDS', color: c.teal },
+              { value: displayStats.totalRounds, label: 'ROUNDS', color: c.teal },
               { value: displayStats.coursesPlayed, label: 'COURSES', color: c.teal },
               { value: displayStats.bestRound.score, label: 'BEST', color: c.gold },
               { value: typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg, label: 'AVG', color: c.teal },
-              { value: profileUser.handicap.toFixed(1), label: 'HCP', color: c.teal },
               { value: displayStats.courseRecords, label: 'RECORDS', color: c.gold },
+              { value: displayStats.tripsPlayed, label: 'TRIPS', color: c.teal },
             ].map((stat) => (
-              <Pressable
+              <View
                 key={stat.label}
-                style={({ pressed }) => [
-                  {
-                    flexDirection: 'row',
-                    alignItems: 'baseline',
-                    gap: 4,
-                    backgroundColor: c.cardBg,
-                    borderWidth: 1,
-                    borderColor: c.border,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 12,
-                    ...(isDark ? cardShadowDark : cardShadowLight),
-                  },
-                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-                ]}
-                accessibilityLabel={`${stat.label}: ${stat.value}`}
+                style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}
               >
-                <Text style={{ color: stat.color, fontSize: 18, fontWeight: '700', fontFamily: GEO, letterSpacing: -0.5 }}>
+                <Text style={[s.statValue, { color: stat.color, fontFamily: GEO }]}>
                   {stat.value}
                 </Text>
-                <Text style={{ color: c.textMuted, fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>
+                <Text style={[s.statLabel, { color: c.textMuted }]}>
                   {stat.label}
                 </Text>
-              </Pressable>
+              </View>
             ))}
-          </ScrollView>
+          </View>
 
           {/* Profile stats empty state with shimmer */}
           {!realStats && !showDemoData && (
@@ -534,6 +616,72 @@ export default function ProfileScreen() {
           )}
 
           <GoldDivider style={{ marginTop: 24 }} />
+
+          {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
+          <SectionLabel title="RECENT ROUNDS" />
+          {displayRounds.length === 0 && !loadingRounds && (
+            <Text style={[s.recentRoundsEmpty, { color: c.textMuted }]}>
+              Your recent rounds will appear here.
+            </Text>
+          )}
+          {displayRounds.map((round) => {
+            return (
+              <Pressable
+                key={round.id}
+                onPress={() => router.push({
+                  pathname: '/round-detail',
+                  params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
+                })}
+                style={({ pressed }) => [s.roundRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                accessibilityLabel={`${round.course}, score ${round.score}, ${round.date}`}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.roundCourse, { color: c.text }]} numberOfLines={1}>
+                    {round.course}
+                  </Text>
+                  <Text style={[s.roundDate, { color: c.textMuted }]}>{round.date}</Text>
+                </View>
+                <View style={s.roundScoreWrap}>
+                  <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
+                    {round.score}
+                  </Text>
+                  <Text style={[s.roundToPar, { color: toParColor(round.score, round.par), fontFamily: GEO }]}>
+                    {toPar(round.score, round.par)}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+
+          {<GoldDivider style={{ marginTop: 18 }} />}
+
+          {/* ─── ACHIEVEMENTS ──────────────────────────────────────── */}
+          <SectionLabel title="ACHIEVEMENTS" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+            {badges.map((badge) => (
+              <View
+                key={badge.id}
+                style={[
+                  s.badgeCard,
+                  {
+                    backgroundColor: c.elevated,
+                    borderWidth: 1,
+                    borderColor: badge.earned ? c.gold : c.border,
+                    opacity: badge.earned ? 1 : 0.3,
+                  },
+                ]}
+              >
+                <Text style={s.badgeEmoji}>
+                  {badge.earned ? badge.emoji : '\uD83D\uDD12'}
+                </Text>
+                <Text style={[s.badgeLabel, { color: badge.earned ? c.text : c.textMuted }]}>
+                  {badge.label}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          <GoldDivider style={{ marginTop: 18 }} />
 
           {/* ─── HANDICAP TREND (empty state when < 3 rounds) ─── */}
           {displayHandicapTrend.length === 0 && (
@@ -575,62 +723,6 @@ export default function ProfileScreen() {
             </>
           )}
 
-          {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
-          {displayRounds.length > 0 && <SectionLabel title="RECENT ROUNDS" />}
-          {displayRounds.length === 0 && !loadingRounds && (
-            <View style={[s.emptyState, { borderColor: c.border }]}>
-              <Text style={s.emptyEmoji}>⛳</Text>
-              <Text style={[s.emptyTitle, { color: c.text, fontFamily: GEO }]}>Your scorecard awaits</Text>
-              <Text style={[s.emptyDesc, { color: c.textMuted }]}>Every great golfer started with Round 1</Text>
-              <Pressable
-                onPress={() => router.push('/(tabs)/score')}
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
-              >
-                <Text style={[s.emptyCta, { color: c.teal }]}>Score a Round</Text>
-              </Pressable>
-            </View>
-          )}
-          {displayRounds.map((round) => {
-            const badge = sourceBadge(round.source);
-            return (
-              <Pressable
-                key={round.id}
-                onPress={() => router.push({
-                  pathname: '/round-detail',
-                  params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
-                })}
-                style={({ pressed }) => [s.roundRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-                accessibilityLabel={`${round.course}, score ${round.score}, ${round.date}`}
-                accessibilityHint="Swipe right to share"
-              >
-                <View style={s.roundScoreWrap}>
-                  <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
-                    {round.score}
-                  </Text>
-                  <Text style={[s.roundToPar, { color: toParColor(round.score, round.par), fontFamily: GEO }]}>
-                    {toPar(round.score, round.par)}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.roundCourse, { color: c.text }]} numberOfLines={1}>
-                    {round.course}
-                  </Text>
-                  <View style={s.roundMetaRow}>
-                    <Text style={[s.roundDate, { color: c.textMuted }]}>{round.date}</Text>
-                    <View style={[s.sourceBadge, { backgroundColor: `${badge.color}15` }]}>
-                      <Text style={[s.sourceBadgeText, { color: badge.color }]}>
-                        {badge.label}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-              </Pressable>
-            );
-          })}
-
-          {displayRounds.length > 0 && <GoldDivider style={{ marginTop: 18 }} />}
-
           {/* ─── HANDICAP INTEGRITY MONITOR ─────────────────────── */}
           <Pressable
             onPress={() => setShowIntegrity(!showIntegrity)}
@@ -644,7 +736,10 @@ export default function ProfileScreen() {
             >
               <Pinstripes />
               <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" />
-              <Text style={s.integrityHeaderText}>Handicap Integrity Monitor</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.integrityHeaderText}>Handicap Integrity Monitor</Text>
+                <Text style={s.integritySubtitle}>Tracks sandbagging and unusual scoring patterns</Text>
+              </View>
               <Ionicons name={showIntegrity ? 'chevron-up' : 'chevron-down'} size={18} color="rgba(255,255,255,0.6)" />
             </LinearGradient>
           </Pressable>
@@ -724,6 +819,96 @@ export default function ProfileScreen() {
 
           {/* ─── SETTINGS ─────────────────────────────────────────── */}
           <SectionLabel title="SETTINGS" />
+
+          {/* Default Scoring */}
+          <View style={[s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
+            <Ionicons name="golf-outline" size={20} color={c.teal} />
+            <Text style={[s.settingText, { color: c.text }]}>Default Scoring</Text>
+            <View style={[s.segmentedRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }]}>
+              {(['gross', 'net'] as const).map((opt) => {
+                const active = opt === scoringMode;
+                return (
+                  <Pressable
+                    key={opt}
+                    onPress={() => {
+                      haptics.light();
+                      setScoringMode(opt);
+                      savePreference('default_scoring', opt);
+                    }}
+                    style={[
+                      s.segmentedBtn,
+                      active && { backgroundColor: isDark ? c.cardBg : '#FFFFFF' },
+                      active && !isDark && elevatedShadowLight,
+                    ]}
+                  >
+                    <Text style={[s.segmentedLabel, { color: active ? (isDark ? c.text : '#1A1A1A') : (isDark ? c.textMuted : '#6B6966') }]}>
+                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Distance Units */}
+          <View style={[s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
+            <Ionicons name="resize-outline" size={20} color={c.teal} />
+            <Text style={[s.settingText, { color: c.text }]}>Distance Units</Text>
+            <View style={[s.segmentedRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }]}>
+              {(['yards', 'meters'] as const).map((opt) => {
+                const active = opt === distanceUnit;
+                return (
+                  <Pressable
+                    key={opt}
+                    onPress={() => {
+                      haptics.light();
+                      setDistanceUnit(opt);
+                      savePreference('distance_unit', opt);
+                    }}
+                    style={[
+                      s.segmentedBtn,
+                      active && { backgroundColor: isDark ? c.cardBg : '#FFFFFF' },
+                      active && !isDark && elevatedShadowLight,
+                    ]}
+                  >
+                    <Text style={[s.segmentedLabel, { color: active ? (isDark ? c.text : '#1A1A1A') : (isDark ? c.textMuted : '#6B6966') }]}>
+                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Profile Visibility */}
+          <View style={[s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
+            <Ionicons name="eye-outline" size={20} color={c.teal} />
+            <Text style={[s.settingText, { color: c.text }]}>Profile Visibility</Text>
+            <View style={[s.segmentedRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }]}>
+              {([{ key: 'public', label: 'Public' }, { key: 'friends', label: 'Friends Only' }] as const).map((opt) => {
+                const active = opt.key === profileVisibility;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    onPress={() => {
+                      haptics.light();
+                      setProfileVisibility(opt.key as 'public' | 'friends');
+                      savePreference('profile_visibility', opt.key);
+                    }}
+                    style={[
+                      s.segmentedBtn,
+                      active && { backgroundColor: isDark ? c.cardBg : '#FFFFFF' },
+                      active && !isDark && elevatedShadowLight,
+                    ]}
+                  >
+                    <Text style={[s.segmentedLabel, { color: active ? (isDark ? c.text : '#1A1A1A') : (isDark ? c.textMuted : '#6B6966') }]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
           {/* Dark / Light toggle */}
           <Pressable
@@ -929,7 +1114,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
 
-  /* Stats grid */
+  /* Stats grid (6-box) */
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -940,9 +1125,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 6,
+    borderRadius: 12,
   },
   statValue: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  statLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5, marginTop: 4, textAlign: 'center' },
+  statLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginTop: 4, textAlign: 'center' },
   statSub: { fontSize: 10, marginTop: 2, textAlign: 'center' },
 
   /* Handicap chart */
@@ -970,6 +1156,11 @@ const s = StyleSheet.create({
   chartWrap: { alignItems: 'center' },
 
   /* Recent rounds */
+  recentRoundsEmpty: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
   roundRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -979,12 +1170,11 @@ const s = StyleSheet.create({
     marginBottom: 6,
     borderRadius: 12,
   },
-  roundScoreWrap: { alignItems: 'center', width: 44 },
+  roundScoreWrap: { alignItems: 'flex-end', width: 48 },
   roundScore: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   roundToPar: { fontSize: 11, fontWeight: '700', marginTop: -2 },
   roundCourse: { fontSize: 13, fontWeight: '600' },
-  roundMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
-  roundDate: { fontSize: 10 },
+  roundDate: { fontSize: 10, marginTop: 3 },
   sourceBadge: { paddingHorizontal: 6, paddingVertical: 2 },
   sourceBadgeText: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
   roundPar: { fontSize: 11, fontWeight: '600' },
@@ -1055,10 +1245,14 @@ const s = StyleSheet.create({
     borderRadius: 12,
   },
   integrityHeaderText: {
-    flex: 1,
     fontSize: 14,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.8)',
+  },
+  integritySubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
   },
   integrityBody: {
     padding: 16,
@@ -1160,5 +1354,84 @@ const s = StyleSheet.create({
   demoToggle: {
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  /* Golfer identity row */
+  identityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  golferTypePill: {
+    borderWidth: 1,
+    borderColor: '#C9A227',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  golferTypePillText: {
+    color: '#C9A227',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  identityMuted: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+  },
+
+  /* Social row (friends & groups) */
+  socialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  socialText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  socialDot: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    opacity: 0.7,
+  },
+
+  /* Achievement badges */
+  badgeCard: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    gap: 4,
+  },
+  badgeEmoji: {
+    fontSize: 24,
+  },
+  badgeLabel: {
+    fontSize: 8,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+
+  /* Segmented control */
+  segmentedRow: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 12,
+  },
+  segmentedBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  segmentedLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
