@@ -269,7 +269,26 @@ export default function ProfileScreen() {
     tripsPlayed: '--' as any,
   };
 
-  const displayStats = realStats ?? EMPTY_STATS;
+  const DEMO_STATS = {
+    totalRounds: 47,
+    coursesPlayed: 12,
+    bestRound: { score: 71, course: 'Pebble Beach', par: 72 },
+    scoringAvg: 78.3,
+    courseRecords: 3,
+    tripsPlayed: 5,
+  };
+
+  const DEMO_ROUNDS: RecentRound[] = [
+    { id: 'demo-1', course: 'Pebble Beach', score: 71, par: 72, date: 'Mar 28, 2026', source: 'app' },
+    { id: 'demo-2', course: 'Torrey Pines South', score: 76, par: 72, date: 'Mar 15, 2026', source: 'ghin' },
+    { id: 'demo-3', course: 'Bethpage Black', score: 82, par: 71, date: 'Mar 2, 2026', source: 'manual' },
+    { id: 'demo-4', course: 'Pinehurst No. 2', score: 79, par: 72, date: 'Feb 18, 2026', source: 'app' },
+    { id: 'demo-5', course: 'Bandon Dunes', score: 77, par: 72, date: 'Feb 5, 2026', source: 'app' },
+  ];
+
+  const DEMO_HANDICAP_TREND = [14.2, 13.8, 13.5, 12.9, 12.6, 12.1, 11.8, 11.5, 11.2, 10.8, 10.5, 10.1, 9.8, 9.4];
+
+  const displayStats = realStats ?? (showDemoData ? DEMO_STATS : EMPTY_STATS);
 
   // Build recent rounds from real data
   const displayRounds: RecentRound[] = useMemo(() => {
@@ -283,12 +302,16 @@ export default function ProfileScreen() {
         source: r.source as 'manual' | 'ghin' | 'app',
       }));
     }
+    if (showDemoData) return DEMO_ROUNDS;
     return [];
-  }, [realRounds]);
+  }, [realRounds, showDemoData]);
 
   // Build handicap trend from real rounds using proper differential calculation
   const displayHandicapTrend = useMemo(() => {
-    if (realRounds.length < 3) return [];
+    if (realRounds.length < 3) {
+      if (showDemoData) return DEMO_HANDICAP_TREND;
+      return [];
+    }
     // Reverse to chronological order (oldest first) for running calculation
     const chronological = [...realRounds].reverse();
     const trend: number[] = [];
@@ -305,7 +328,7 @@ export default function ProfileScreen() {
       trend.push(Math.round(avg * 0.96 * 10) / 10);
     }
     return trend;
-  }, [realRounds]);
+  }, [realRounds, showDemoData]);
 
   const toPar = (score: number, par: number) => {
     const diff = score - par;
@@ -499,12 +522,14 @@ export default function ProfileScreen() {
           )}
 
           {/* Demo data toggle for new users */}
-          {!realStats && !showDemoData && (
+          {!realStats && (
             <Pressable
-              onPress={() => setShowDemoData(true)}
+              onPress={() => setShowDemoData(!showDemoData)}
               style={({ pressed }) => [s.demoToggleWrap, { opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
-              <Text style={[s.demoToggle, { color: c.teal }]}>Show demo data</Text>
+              <Text style={[s.demoToggle, { color: c.teal }]}>
+                {showDemoData ? 'Show real data' : 'Show demo data'}
+              </Text>
             </Pressable>
           )}
 
