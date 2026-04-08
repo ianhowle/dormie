@@ -10,6 +10,8 @@ import {
   Animated,
   Alert,
   RefreshControl,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
@@ -203,9 +205,6 @@ export default function ProfileScreen() {
   );
 
   // Settings preferences
-  const [scoringMode, setScoringMode] = useState<'gross' | 'net'>(
-    user?.user_metadata?.default_scoring ?? 'gross'
-  );
   const [distanceUnit, setDistanceUnit] = useState<'yards' | 'meters'>(
     user?.user_metadata?.distance_unit ?? 'yards'
   );
@@ -249,6 +248,7 @@ export default function ProfileScreen() {
     setLoadingRounds(true);
     return roundsService.getByUser(user.id, 20)
       .then((rounds) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setRealRounds(rounds);
         setLastUpdated(new Date());
       })
@@ -269,6 +269,13 @@ export default function ProfileScreen() {
       .then((seasons) => setSeasonCount(seasons.length))
       .catch(() => {});
   }, [user]);
+
+  // Enable LayoutAnimation on Android
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   useEffect(() => {
     fetchRounds();
@@ -329,10 +336,10 @@ export default function ProfileScreen() {
 
   const DEMO_ROUNDS: RecentRound[] = [
     { id: 'demo-1', course: 'Pebble Beach', score: 71, par: 72, date: 'Mar 28, 2026', source: 'app' },
-    { id: 'demo-2', course: 'Torrey Pines South', score: 76, par: 72, date: 'Mar 15, 2026', source: 'ghin' },
-    { id: 'demo-3', course: 'Bethpage Black', score: 82, par: 71, date: 'Mar 2, 2026', source: 'manual' },
-    { id: 'demo-4', course: 'Pinehurst No. 2', score: 79, par: 72, date: 'Feb 18, 2026', source: 'app' },
-    { id: 'demo-5', course: 'Bandon Dunes', score: 77, par: 72, date: 'Feb 5, 2026', source: 'app' },
+    { id: 'demo-2', course: 'Torrey Pines', score: 76, par: 72, date: 'Mar 15, 2026', source: 'ghin' },
+    { id: 'demo-3', course: 'Hermitage', score: 82, par: 71, date: 'Mar 2, 2026', source: 'manual' },
+    { id: 'demo-4', course: 'TPC Sawgrass', score: 79, par: 72, date: 'Feb 18, 2026', source: 'app' },
+    { id: 'demo-5', course: 'Governors Club', score: 77, par: 72, date: 'Feb 5, 2026', source: 'app' },
   ];
 
   const DEMO_HANDICAP_TREND = [14.2, 13.8, 13.5, 12.9, 12.6, 12.1, 11.8, 11.5, 11.2, 10.8, 10.5, 10.1, 9.8, 9.4];
@@ -573,31 +580,30 @@ export default function ProfileScreen() {
           {/* ─── STATS GRID (6-box) ─────────────────────────────── */}
           <SectionLabel title="STATS" />
           <DataFreshness updatedAt={lastUpdated} />
-          <View style={s.statsGrid}>
-            {[
-              { value: displayStats.totalRounds, label: 'ROUNDS', color: c.teal },
-              { value: displayStats.coursesPlayed, label: 'COURSES', color: c.teal },
-              { value: displayStats.bestRound.score, label: 'BEST', color: c.gold },
-              { value: typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg, label: 'AVG', color: c.teal },
-              { value: displayStats.courseRecords, label: 'RECORDS', color: c.gold },
-              { value: displayStats.tripsPlayed, label: 'TRIPS', color: c.teal },
-            ].map((stat) => (
-              <View
-                key={stat.label}
-                style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}
-              >
-                <Text style={[s.statValue, { color: stat.color, fontFamily: GEO }]}>
-                  {stat.value}
-                </Text>
-                <Text style={[s.statLabel, { color: c.textMuted }]}>
-                  {stat.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Profile stats empty state with shimmer */}
-          {!realStats && !showDemoData && (
+          {(realStats || showDemoData) ? (
+            <View style={s.statsGrid}>
+              {[
+                { value: displayStats.totalRounds, label: 'ROUNDS', color: c.teal },
+                { value: displayStats.coursesPlayed, label: 'COURSES', color: c.teal },
+                { value: displayStats.bestRound.score, label: 'BEST', color: c.gold },
+                { value: typeof displayStats.scoringAvg === 'number' ? displayStats.scoringAvg.toFixed(1) : displayStats.scoringAvg, label: 'AVG', color: c.teal },
+                { value: displayStats.courseRecords, label: 'RECORDS', color: c.gold },
+                { value: displayStats.tripsPlayed, label: 'TRIPS', color: c.teal },
+              ].map((stat) => (
+                <View
+                  key={stat.label}
+                  style={[s.statCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}
+                >
+                  <Text style={[s.statValue, { color: stat.color, fontFamily: GEO }]}>
+                    {stat.value}
+                  </Text>
+                  <Text style={[s.statLabel, { color: c.textMuted }]}>
+                    {stat.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
             <View style={{ marginTop: 16 }}>
               <ProfileStatsEmpty />
             </View>
@@ -606,7 +612,7 @@ export default function ProfileScreen() {
           {/* Demo data toggle for new users */}
           {!realStats && (
             <Pressable
-              onPress={() => setShowDemoData(!showDemoData)}
+              onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setShowDemoData(!showDemoData); }}
               style={({ pressed }) => [s.demoToggleWrap, { opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
             >
               <Text style={[s.demoToggle, { color: c.teal }]}>
@@ -619,10 +625,13 @@ export default function ProfileScreen() {
 
           {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
           <SectionLabel title="RECENT ROUNDS" />
+          <View style={{ minHeight: 200 }}>
           {displayRounds.length === 0 && !loadingRounds && (
-            <Text style={[s.recentRoundsEmpty, { color: c.textMuted }]}>
-              Your recent rounds will appear here.
-            </Text>
+            <View style={s.recentRoundsEmptyWrap}>
+              <Text style={[s.recentRoundsEmpty, { color: c.textMuted }]}>
+                Your recent rounds will appear here.
+              </Text>
+            </View>
           )}
           {displayRounds.map((round) => {
             return (
@@ -632,54 +641,85 @@ export default function ProfileScreen() {
                   pathname: '/round-detail',
                   params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
                 })}
-                style={({ pressed }) => [s.roundRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                style={({ pressed }) => [s.roundCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
                 accessibilityLabel={`${round.course}, score ${round.score}, ${round.date}`}
               >
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.roundCourse, { color: c.text }]} numberOfLines={1}>
-                    {round.course}
-                  </Text>
-                  <Text style={[s.roundDate, { color: c.textMuted }]}>{round.date}</Text>
+                <View style={s.roundCardImage}>
+                  <CourseImage
+                    courseName={round.course}
+                    height={120}
+                    style={{ width: 100, height: 120 }}
+                    gradient={['#006747', '#1E4D2B']}
+                  />
                 </View>
-                <View style={s.roundScoreWrap}>
-                  <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
-                    {round.score}
-                  </Text>
-                  <Text style={[s.roundToPar, { color: toParColor(round.score, round.par), fontFamily: GEO }]}>
-                    {toPar(round.score, round.par)}
-                  </Text>
+                <View style={s.roundCardContent}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.roundCourse, { color: c.text }]} numberOfLines={1}>
+                      {round.course}
+                    </Text>
+                    <Text style={[s.roundDate, { color: c.textMuted }]}>{round.date}</Text>
+                  </View>
+                  <View style={s.roundScoreWrap}>
+                    <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
+                      {round.score}
+                    </Text>
+                    <Text style={[s.roundToPar, { color: toParColor(round.score, round.par), fontFamily: GEO }]}>
+                      {toPar(round.score, round.par)}
+                    </Text>
+                  </View>
                 </View>
               </Pressable>
             );
           })}
+          </View>
 
           {<GoldDivider style={{ marginTop: 18 }} />}
 
           {/* ─── ACHIEVEMENTS ──────────────────────────────────────── */}
           <SectionLabel title="ACHIEVEMENTS" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
             {badges.map((badge) => (
               <View
                 key={badge.id}
                 style={[
                   s.badgeCard,
-                  {
-                    backgroundColor: c.elevated,
-                    borderWidth: 1,
-                    borderColor: badge.earned ? c.gold : c.border,
-                    opacity: badge.earned ? 1 : 0.3,
-                  },
+                  badge.earned
+                    ? {
+                        backgroundColor: '#1A1816',
+                        borderWidth: 2,
+                        borderColor: '#C9A227',
+                        shadowColor: 'rgba(201,162,39,0.3)',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 1,
+                        shadowRadius: 8,
+                        elevation: 4,
+                      }
+                    : {
+                        backgroundColor: c.elevated,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.08)',
+                        opacity: 0.35,
+                      },
                 ]}
               >
                 <Text style={s.badgeEmoji}>
                   {badge.earned ? badge.emoji : '\uD83D\uDD12'}
                 </Text>
-                <Text style={[s.badgeLabel, { color: badge.earned ? c.text : c.textMuted }]}>
+              </View>
+            ))}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+            {badges.map((badge) => (
+              <View key={badge.id} style={{ width: 80, alignItems: 'center' }}>
+                <Text
+                  style={[s.badgeName, { color: badge.earned ? '#C9A227' : c.textMuted }]}
+                  numberOfLines={1}
+                >
                   {badge.label}
                 </Text>
               </View>
             ))}
-          </ScrollView>
+          </View>
 
           <GoldDivider style={{ marginTop: 18 }} />
 
@@ -819,36 +859,6 @@ export default function ProfileScreen() {
 
           {/* ─── SETTINGS ─────────────────────────────────────────── */}
           <SectionLabel title="SETTINGS" />
-
-          {/* Default Scoring */}
-          <View style={[s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
-            <Ionicons name="golf-outline" size={20} color={c.teal} />
-            <Text style={[s.settingText, { color: c.text }]}>Default Scoring</Text>
-            <View style={[s.segmentedRow, { backgroundColor: isDark ? c.elevated : '#F2F0ED', borderWidth: 1, borderColor: isDark ? c.border : 'rgba(0,0,0,0.08)' }]}>
-              {(['gross', 'net'] as const).map((opt) => {
-                const active = opt === scoringMode;
-                return (
-                  <Pressable
-                    key={opt}
-                    onPress={() => {
-                      haptics.light();
-                      setScoringMode(opt);
-                      savePreference('default_scoring', opt);
-                    }}
-                    style={[
-                      s.segmentedBtn,
-                      active && { backgroundColor: isDark ? c.cardBg : '#FFFFFF' },
-                      active && !isDark && elevatedShadowLight,
-                    ]}
-                  >
-                    <Text style={[s.segmentedLabel, { color: active ? (isDark ? c.text : '#1A1A1A') : (isDark ? c.textMuted : '#6B6966') }]}>
-                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
 
           {/* Distance Units */}
           <View style={[s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow }]}>
@@ -1156,25 +1166,40 @@ const s = StyleSheet.create({
   chartWrap: { alignItems: 'center' },
 
   /* Recent rounds */
+  recentRoundsEmptyWrap: {
+    minHeight: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   recentRoundsEmpty: {
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: 8,
   },
-  roundRow: {
+  roundCard: {
+    flexDirection: 'row',
+    height: 120,
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  roundCardImage: {
+    width: 100,
+    height: 120,
+    overflow: 'hidden',
+  },
+  roundCardContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 6,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  roundScoreWrap: { alignItems: 'flex-end', width: 48 },
-  roundScore: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  roundToPar: { fontSize: 11, fontWeight: '700', marginTop: -2 },
-  roundCourse: { fontSize: 13, fontWeight: '600' },
-  roundDate: { fontSize: 10, marginTop: 3 },
+  roundScoreWrap: { alignItems: 'flex-end', width: 56 },
+  roundScore: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  roundToPar: { fontSize: 12, fontWeight: '700', marginTop: -2 },
+  roundCourse: { fontSize: 16, fontWeight: '700' },
+  roundDate: { fontSize: 12, marginTop: 4 },
   sourceBadge: { paddingHorizontal: 6, paddingVertical: 2 },
   sourceBadgeText: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
   roundPar: { fontSize: 11, fontWeight: '600' },
@@ -1401,15 +1426,14 @@ const s = StyleSheet.create({
 
   /* Achievement badges */
   badgeCard: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    gap: 4,
   },
   badgeEmoji: {
-    fontSize: 24,
+    fontSize: 28,
   },
   badgeLabel: {
     fontSize: 8,
@@ -1417,21 +1441,28 @@ const s = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.3,
   },
+  badgeName: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 
   /* Segmented control */
   segmentedRow: {
     flexDirection: 'row',
+    flex: 1,
     padding: 3,
     borderRadius: 12,
   },
   segmentedBtn: {
     flex: 1,
     paddingVertical: 6,
+    paddingHorizontal: 12,
     alignItems: 'center',
     borderRadius: 10,
   },
   segmentedLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
 });
