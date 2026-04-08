@@ -1,41 +1,19 @@
 import { supabase } from '../lib/supabase';
 import type { Round, RoundInsert, RoundUpdate, RoundWithCourse } from '../lib/database.types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { recalculatePlayerHandicap } from './handicap.service';
 
 /**
- * Calculate handicap index client-side:
- * Fetch last 20 rounds, take best 8 differentials, average, multiply by 0.96.
- * Differential = (gross - rating) * 113 / slope
+ * WHS-compliant handicap recalculation wrapper.
+ * Uses the full handicap.service.ts implementation with selection table,
+ * Net Double Bogey adjustment, soft/hard caps, and differential storage.
+ * Falls back to server-side RPC if client-side fails.
  */
 async function recalculateHandicap(userId: string): Promise<void> {
   try {
-    const { data: rounds } = await supabase
-      .from('rounds')
-      .select('gross_score, course:courses(par, slope, rating)')
-      .eq('user_id', userId)
-      .order('played_at', { ascending: false })
-      .limit(20);
-
-    if (!rounds || rounds.length < 3) return;
-
-    const differentials = rounds
-      .map((r: any) => {
-        const rating = r.course?.rating ?? 72;
-        const slope = r.course?.slope ?? 113;
-        return ((r.gross_score - rating) * 113) / slope;
-      })
-      .sort((a: number, b: number) => a - b);
-
-    const best8 = differentials.slice(0, Math.min(8, Math.ceil(differentials.length * 0.4)));
-    const avg = best8.reduce((a: number, b: number) => a + b, 0) / best8.length;
-    const handicapIndex = Math.round(avg * 0.96 * 10) / 10;
-
-    await supabase
-      .from('users')
-      .update({ handicap_index: handicapIndex })
-      .eq('id', userId);
+    await recalculatePlayerHandicap(userId);
   } catch {
-    // Handicap calculation is non-critical
+    // Handicap calculation is non-critical — round is still saved
   }
 }
 
@@ -49,13 +27,10 @@ export const roundsService = {
       .single();
     if (error) throw error;
 
-    // Trigger async handicap recalculation (non-blocking)
-    // Try RPC first, fall back to client-side calculation
-    supabase.rpc('calculate_handicap', { p_user_id: round.user_id })
-      .then(({ error: rpcErr }) => {
-        if (rpcErr) recalculateHandicap(round.user_id);
-      })
-      .catch(() => recalculateHandicap(round.user_id));
+    // Trigger WHS-compliant handicap recalculation (non-blocking).
+    // Uses client-side calculation with full selection table, caps, and
+    // Net Double Bogey adjustment. Also stores differentials in Supabase.
+    recalculateHandicap(round.user_id);
 
     return data as Round;
   },

@@ -39,6 +39,14 @@ import { ProfileStatsEmpty, HandicapGraphEmpty } from '../../src/components/Empt
 import { CourseImage } from '../../src/components/CourseImage';
 import { supabase } from '../../src/lib/supabase';
 import { MOCK_GROUPS } from '../../src/data/groups';
+import {
+  recalculatePlayerHandicap,
+  selectDifferentials,
+  calculateHandicapIndex,
+  calculateIntegrity,
+  type ScoreDifferential,
+  type IntegrityResult,
+} from '../../src/services/handicap.service';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -346,6 +354,9 @@ export default function ProfileScreen() {
 
   const displayStats = realStats ?? (showDemoData ? DEMO_STATS : EMPTY_STATS);
 
+  // WHS requires 3+ rounds to establish a handicap index
+  const hasEnoughRounds = realRounds.length >= 3 || showDemoData;
+
   // Build recent rounds from real data
   const displayRounds: RecentRound[] = useMemo(() => {
     if (realRounds.length > 0) {
@@ -362,7 +373,7 @@ export default function ProfileScreen() {
     return [];
   }, [realRounds, showDemoData]);
 
-  // Build handicap trend from real rounds using proper differential calculation
+  // WHS-compliant handicap trend using proper selection table and truncation
   const displayHandicapTrend = useMemo(() => {
     if (realRounds.length < 3) {
       if (showDemoData) return DEMO_HANDICAP_TREND;
@@ -372,19 +383,64 @@ export default function ProfileScreen() {
     const chronological = [...realRounds].reverse();
     const trend: number[] = [];
     for (let i = 2; i < chronological.length; i++) {
-      // Use rounds 0..i to compute running handicap at point i
       const window = chronological.slice(Math.max(0, i - 19), i + 1);
       const diffs = window.map(r => {
         const rating = (r.course as any)?.rating ?? (r.course?.par ?? 72);
         const slope = (r.course as any)?.slope ?? 113;
-        return ((r.gross_score - rating) * 113) / slope;
-      }).sort((a, b) => a - b);
-      const best = diffs.slice(0, Math.min(8, Math.ceil(diffs.length * 0.4)));
-      const avg = best.reduce((a, b) => a + b, 0) / best.length;
-      trend.push(Math.round(avg * 0.96 * 10) / 10);
+        // WHS differential: (113 / slope) * (gross - rating), truncated to 1 decimal
+        return Math.floor(((113 / slope) * (r.gross_score - rating)) * 10) / 10;
+      });
+      // Use WHS selection table instead of old "best 40% * 0.96" formula
+      const selection = selectDifferentials(diffs);
+      if (selection.selectedDifferentials.length > 0) {
+        trend.push(calculateHandicapIndex(selection.selectedDifferentials, selection.adjustment));
+      }
     }
     return trend;
   }, [realRounds, showDemoData]);
+
+  // WHS integrity monitor — computed from real round data
+  const integrityData: IntegrityResult | null = useMemo(() => {
+    if (realRounds.length < 3 && !showDemoData) return null;
+
+    if (showDemoData && realRounds.length < 3) {
+      return {
+        fairPlayScore: 92,
+        label: 'CLEAN' as const,
+        scoreVariance: 'Low' as const,
+        handicapTrend: 'Consistent' as const,
+        roundCompletion: 98,
+      };
+    }
+
+    // Build differentials from real rounds
+    const diffs: ScoreDifferential[] = realRounds.slice(0, 20).map(r => {
+      const rating = (r.course as any)?.rating ?? (r.course?.par ?? 72);
+      const slope = (r.course as any)?.slope ?? 113;
+      const differential = Math.floor(((113 / slope) * (r.gross_score - rating)) * 10) / 10;
+      return {
+        roundId: r.id,
+        adjustedGrossScore: r.gross_score,
+        courseRating: rating,
+        slopeRating: slope,
+        differential,
+        playedAt: r.played_at,
+      };
+    });
+
+    const rounds = realRounds.map(r => ({
+      hole_scores: r.hole_scores as any[] | null,
+      played_at: r.played_at,
+    }));
+
+    // Build index history from the trend for comparison
+    const indexHistory = displayHandicapTrend.map((idx, i) => ({
+      index: idx,
+      date: new Date(Date.now() - (displayHandicapTrend.length - i) * 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }));
+
+    return calculateIntegrity(diffs, profileUser.handicap, rounds, indexHistory);
+  }, [realRounds, showDemoData, displayHandicapTrend, profileUser.handicap]);
 
   // Achievement badges
   const badges = useMemo(() => {
@@ -499,20 +555,25 @@ export default function ProfileScreen() {
                 <View style={s.handicapRow}>
                   <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)' }]}>HCP</Text>
                   <Text style={[s.handicapValue, { color: c.teal, fontFamily: GEO }]}>
-                    {profileUser.handicap.toFixed(1)}
+                    {hasEnoughRounds ? profileUser.handicap.toFixed(1) : '--'}
                   </Text>
                   <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)', marginLeft: 10 }]}>NET</Text>
                   <Text style={[s.handicapValue, {
-                    color: typeof displayStats.scoringAvg === 'number'
-                      ? ((displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) < 0 ? c.teal : (displayStats.scoringAvg - (displayStats.bestRound.par ?? 72) - profileUser.handicap) > 0 ? c.urgent : c.scoreEven)
+                    color: (hasEnoughRounds && typeof displayStats.scoringAvg === 'number')
+                      ? ((displayStats.scoringAvg - profileUser.handicap) < 72 ? c.teal : (displayStats.scoringAvg - profileUser.handicap) > 72 ? c.urgent : c.scoreEven)
                       : 'rgba(255,255,255,0.5)',
                     fontFamily: GEO,
                   }]}>
-                    {typeof displayStats.scoringAvg === 'number'
-                      ? ((val: number) => val === 0 ? 'E' : val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1))(displayStats.scoringAvg - 72 - profileUser.handicap)
+                    {(hasEnoughRounds && typeof displayStats.scoringAvg === 'number')
+                      ? ((val: number) => val === 0 ? 'E' : val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1))(displayStats.scoringAvg - profileUser.handicap - 72)
                       : '--'}
                   </Text>
                 </View>
+                {!hasEnoughRounds && !showDemoData && (
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>
+                    Log 3 rounds to establish handicap
+                  </Text>
+                )}
                 <Text style={[s.location, { color: 'rgba(255,255,255,0.5)' }]}>
                   {profileUser.city}, {profileUser.state}
                 </Text>
@@ -785,43 +846,59 @@ export default function ProfileScreen() {
           </Pressable>
           <GoldDivider />
 
-          {showIntegrity && (
-            <View style={[s.integrityBody, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, borderTopWidth: 0, ...cardShadow }]}>
-              {/* Fair Play Score */}
-              <View style={s.integrityScoreRow}>
-                <Text style={[s.integrityScoreLabel, { color: c.textMuted }]}>Fair Play Score</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-                  <Text style={[s.integrityScoreValue, { color: c.teal, fontFamily: GEO }]}>92</Text>
-                  <View style={[s.integrityBadge, { backgroundColor: '#00674722' }]}>
-                    <Text style={[s.integrityBadgeText, { color: c.teal }]}>CLEAN</Text>
+          {showIntegrity && integrityData && (() => {
+            const integrityColor = integrityData.label === 'CLEAN' ? c.teal
+              : integrityData.label === 'REVIEW' ? c.gold : c.urgent;
+            const integrityBgColor = integrityData.label === 'CLEAN' ? '#00674722'
+              : integrityData.label === 'REVIEW' ? '#C9A22722' : '#C41E3A22';
+            return (
+              <View style={[s.integrityBody, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, borderTopWidth: 0, ...cardShadow }]}>
+                {/* Fair Play Score */}
+                <View style={s.integrityScoreRow}>
+                  <Text style={[s.integrityScoreLabel, { color: c.textMuted }]}>Fair Play Score</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                    <Text style={[s.integrityScoreValue, { color: integrityColor, fontFamily: GEO }]}>
+                      {integrityData.fairPlayScore}
+                    </Text>
+                    <View style={[s.integrityBadge, { backgroundColor: integrityBgColor }]}>
+                      <Text style={[s.integrityBadgeText, { color: integrityColor }]}>
+                        {integrityData.label}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              {/* Score bar */}
-              <View style={[s.integrityBar, { backgroundColor: c.elevated }]}>
-                <View style={[s.integrityBarFill, { backgroundColor: c.teal, width: '92%' }]} />
-              </View>
+                {/* Score bar */}
+                <View style={[s.integrityBar, { backgroundColor: c.elevated }]}>
+                  <View style={[s.integrityBarFill, { backgroundColor: integrityColor, width: `${integrityData.fairPlayScore}%` }]} />
+                </View>
 
-              {/* Factor breakdown */}
-              <View style={s.integrityFactors}>
-                <View style={s.integrityFactorRow}>
-                  <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Score Variance</Text>
-                  <Text style={[s.integrityFactorValue, { color: c.teal }]}>Low</Text>
+                {/* Factor breakdown */}
+                <View style={s.integrityFactors}>
+                  <View style={s.integrityFactorRow}>
+                    <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Score Variance</Text>
+                    <Text style={[s.integrityFactorValue, { color: integrityData.scoreVariance === 'Low' ? c.teal : integrityData.scoreVariance === 'Medium' ? c.gold : c.urgent }]}>
+                      {integrityData.scoreVariance}
+                    </Text>
+                  </View>
+                  <View style={s.integrityFactorRow}>
+                    <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Handicap Trend</Text>
+                    <Text style={[s.integrityFactorValue, { color: integrityData.handicapTrend === 'Rising' ? c.urgent : c.teal }]}>
+                      {integrityData.handicapTrend}
+                    </Text>
+                  </View>
+                  <View style={s.integrityFactorRow}>
+                    <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Round Completion</Text>
+                    <Text style={[s.integrityFactorValue, { color: integrityData.roundCompletion >= 90 ? c.teal : integrityData.roundCompletion >= 70 ? c.gold : c.urgent, fontFamily: GEO }]}>
+                      {integrityData.roundCompletion}%
+                    </Text>
+                  </View>
                 </View>
-                <View style={s.integrityFactorRow}>
-                  <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Handicap Trend</Text>
-                  <Text style={[s.integrityFactorValue, { color: c.teal }]}>Consistent</Text>
-                </View>
-                <View style={s.integrityFactorRow}>
-                  <Text style={[s.integrityFactorLabel, { color: c.textMuted }]}>Round Completion</Text>
-                  <Text style={[s.integrityFactorValue, { color: c.teal, fontFamily: GEO }]}>98%</Text>
-                </View>
-              </View>
 
-              <Text style={[s.integrityNote, { color: c.textMuted }]}>Minimum 3 rounds required</Text>
-            </View>
-          )}
+                <Text style={[s.integrityNote, { color: c.textMuted }]}>Minimum 3 rounds required</Text>
+              </View>
+            );
+          })()}
 
           {/* ─── FAVORITE COURSE ───────────────────────────────────── */}
           {favoriteCourse && (

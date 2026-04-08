@@ -9,9 +9,23 @@ export interface User {
   email: string;
   name: string;
   handicap_index: number;
+  low_handicap_index: number | null;
+  handicap_last_updated: string | null;
   city: string | null;
   state: string | null;
   avatar_color: string;
+  created_at: string;
+}
+
+export interface HandicapDifferential {
+  id: string;
+  user_id: string;
+  round_id: string;
+  adjusted_gross_score: number;
+  course_rating: number;
+  slope_rating: number;
+  differential: number;
+  played_at: string;
   created_at: string;
 }
 
