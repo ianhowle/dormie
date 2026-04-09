@@ -913,6 +913,40 @@ function MembersStep({
   );
 }
 
+// ─── Accordion Section ───────────────────────────────────────────────
+function AccordionSection({
+  title,
+  icon,
+  iconColor,
+  children,
+  defaultOpen,
+}: {
+  title: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  iconColor: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  const cardBg = theme.isDark ? c.elevated : c.cardBg;
+
+  return (
+    <View style={[styles.accordionSection, { backgroundColor: cardBg }]}>
+      <Pressable
+        onPress={() => { haptics.light(); setOpen(!open); }}
+        style={styles.accordionHeader}
+      >
+        <Ionicons name={icon} size={18} color={iconColor} />
+        <Text style={[styles.accordionTitle, { color: c.text }]}>{title}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
+      </Pressable>
+      {open && <View style={[styles.accordionBody, { borderTopColor: c.border }]}>{children}</View>}
+    </View>
+  );
+}
+
 // ─── Step: Review ─────────────────────────────────────────────────────
 function ReviewStep({
   name,
@@ -921,6 +955,7 @@ function ReviewStep({
   scoringMethod,
   weeks,
   selectedIds,
+  manualPlayers,
   cutEnabled,
   cutValue,
   dropWorst,
@@ -933,6 +968,7 @@ function ReviewStep({
   scoringMethod: ScoringMethod;
   weeks: WeekConfig[];
   selectedIds: string[];
+  manualPlayers: ManualPlayer[];
   cutEnabled: boolean;
   cutValue: number;
   dropWorst: boolean;
@@ -945,77 +981,102 @@ function ReviewStep({
   const presetData = LENGTH_PRESETS.find((p) => p.key === preset)!;
   const majors = weeks.filter((w) => w.isMajor);
   const members = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
-  const reviewCardBg = theme.isDark ? c.elevated : c.cardBg;
+  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', custom: 'Custom' }[seasonType];
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
-      {/* Summary cards */}
-      <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
-        <Text style={[styles.reviewCardTitle, { color: c.gold, fontFamily: GEO }]}>{name}</Text>
-        <Text style={[styles.reviewCardSub, { color: c.textMuted }]}>
-          {{ fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', custom: 'Custom' }[seasonType]} — {presetData.label} ({presetData.total} weeks)
+      {/* Hero header */}
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>
+          {name}
+        </Text>
+        <Text style={{ fontSize: 16, color: c.textMuted, marginTop: 6, textAlign: 'center' }}>
+          {typeLabel} — {presetData.label} ({presetData.total} weeks)
         </Text>
       </View>
 
-      <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
-        <Text style={[styles.reviewLabel, { color: c.textMuted }]}>Scoring</Text>
+      {/* Scoring */}
+      <AccordionSection title="Scoring" icon="stats-chart" iconColor={c.teal} defaultOpen>
         <Text style={[styles.reviewVal, { color: c.text }]}>
           {scoringMethod === 'position' ? 'Position-based points' : 'Raw Stableford'}
         </Text>
-      </View>
+        {scoringMethod === 'position' && (
+          <View style={[styles.pointsRow, { marginTop: 8 }]}>
+            {POINTS_TABLE.slice(0, 5).map((pts, i) => (
+              <View key={i} style={styles.pointsCell}>
+                <Text style={[styles.pointsPos, { color: c.textMuted }]}>{i + 1}</Text>
+                <Text style={[styles.pointsVal, { color: c.gold, fontFamily: GEO }]}>{pts}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </AccordionSection>
 
-      <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
-        <Text style={[styles.reviewLabel, { color: c.textMuted }]}>Rules</Text>
+      {/* Rules */}
+      <AccordionSection title="Rules" icon="settings-outline" iconColor={c.textMuted}>
         <View style={styles.reviewRules}>
           {cutEnabled && <Text style={[styles.reviewRule, { color: c.text }]}>Cut: Top {Math.round(cutValue * 100)}%</Text>}
           {dropWorst && <Text style={[styles.reviewRule, { color: c.text }]}>Drop worst week</Text>}
           <Text style={[styles.reviewRule, { color: c.text }]}>Playoff: {playoffMultiplier}× pts</Text>
           <Text style={[styles.reviewRule, { color: c.text }]}>Championship: {champMultiplier}× pts</Text>
         </View>
-      </View>
+      </AccordionSection>
 
+      {/* Majors */}
       {majors.length > 0 && (
-        <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
-          <Text style={[styles.reviewLabel, { color: c.gold }]}>Majors</Text>
+        <AccordionSection title={`Majors (${majors.length})`} icon="trophy" iconColor={c.gold}>
           {majors.map((m) => (
             <Text key={m.number} style={[styles.reviewMajor, { color: c.gold }]}>
               Wk {m.number} — {m.majorName}
             </Text>
           ))}
-        </View>
+        </AccordionSection>
       )}
 
-      {/* Schedule preview */}
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Schedule</Text>
-      {weeks.map((w) => (
-        <View key={w.number} style={[styles.schedRow, { borderBottomColor: c.border }]}>
-          <Text style={[styles.schedNum, { color: c.textMuted, fontFamily: GEO }]}>{w.number}</Text>
-          <Text style={[styles.schedFmt, { color: w.isMajor ? c.gold : w.isPlayoff ? c.urgent : c.text }]}>
-            {FORMAT_LABELS[w.format] ?? w.format}
-          </Text>
-          {w.isMajor && <Ionicons name="trophy" size={14} color={c.gold} />}
-          {w.isPlayoff && <Text style={[styles.schedBadge, { color: c.urgent }]}>PLF</Text>}
-          {w.isChampionship && <Text style={[styles.schedBadge, { color: c.gold }]}>CHMP</Text>}
-          {w.multiplier > 1 && (
-            <Text style={[styles.schedMult, { color: c.gold, fontFamily: GEO }]}>{w.multiplier}×</Text>
-          )}
-        </View>
-      ))}
-
-      {/* Members */}
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>
-        {members.length + 1} Members
-      </Text>
-      <View style={styles.memberChips}>
-        <View style={[styles.memberChip, { backgroundColor: c.teal + '22' }]}>
-          <Text style={[styles.memberChipText, { color: c.teal }]}>You (organizer)</Text>
-        </View>
-        {members.map((m) => (
-          <View key={m.id} style={[styles.memberChip, { backgroundColor: c.elevated }]}>
-            <Text style={[styles.memberChipText, { color: c.text }]}>{m.name}</Text>
+      {/* Schedule */}
+      <AccordionSection title={`Schedule (${weeks.length} weeks)`} icon="calendar-outline" iconColor={c.textMuted}>
+        {weeks.map((w) => (
+          <View key={w.number} style={[styles.schedRow, { borderBottomColor: c.border }]}>
+            <Text style={[styles.schedNum, { color: c.textMuted, fontFamily: GEO }]}>{w.number}</Text>
+            <Text style={[styles.schedFmt, { color: w.isMajor ? c.gold : w.isPlayoff ? c.urgent : c.text }]}>
+              {FORMAT_LABELS[w.format] ?? w.format}
+            </Text>
+            {w.isMajor && <Ionicons name="trophy" size={14} color={c.gold} />}
+            {w.isPlayoff && <Text style={[styles.schedBadge, { color: c.urgent }]}>PLF</Text>}
+            {w.isChampionship && <Text style={[styles.schedBadge, { color: c.gold }]}>CHMP</Text>}
+            {w.multiplier > 1 && (
+              <Text style={[styles.schedMult, { color: c.gold, fontFamily: GEO }]}>{w.multiplier}×</Text>
+            )}
           </View>
         ))}
-      </View>
+      </AccordionSection>
+
+      {/* Members */}
+      <AccordionSection title={`Members (${members.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+        <View style={styles.reviewAvatarRow}>
+          {/* You (organizer) */}
+          <View style={styles.reviewAvatarItem}>
+            <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
+              <Ionicons name="person" size={18} color={c.teal} />
+            </View>
+            <Text style={[styles.reviewAvatarName, { color: c.teal }]} numberOfLines={1}>You</Text>
+          </View>
+          {members.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <Avatar id={m.id} name={m.name} size={40} />
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+          {manualPlayers.map((p) => (
+            <View key={p.id} style={styles.reviewAvatarItem}>
+              <View style={[styles.reviewAvatarCircle, { backgroundColor: c.textMuted + '33' }]}>
+                <Ionicons name="person" size={18} color={c.textMuted} />
+              </View>
+              <Text style={[styles.reviewAvatarName, { color: c.textMuted }]} numberOfLines={1}>{p.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </View>
+      </AccordionSection>
     </ScrollView>
   );
 }
@@ -1085,9 +1146,10 @@ export default function SeasonsScreen() {
   }, [currentStep, name, selectedIds, manualPlayers]);
 
   const handleCreate = useCallback(async () => {
+    let newSeasonId: string | null = null;
     if (user) {
       try {
-        await seasonsService.create(
+        const created = await seasonsService.create(
           {
             name,
             type: seasonType,
@@ -1111,10 +1173,11 @@ export default function SeasonsScreen() {
           })),
           selectedIds
         );
+        newSeasonId = created.id;
       } catch {}
     }
     showToast({ message: 'Season created', type: 'gold', icon: 'trophy' });
-    router.back();
+    router.replace({ pathname: '/season-detail', params: { id: newSeasonId ?? '' } });
   }, [name, seasonType, scoringMethod, user, cutEnabled, cutValue, dropWorst, playoffMultiplier, champMultiplier, editableWeeks, selectedIds, router]);
 
   return (
@@ -1179,8 +1242,8 @@ export default function SeasonsScreen() {
         {currentStep === 'review' && (
           <ReviewStep
             name={name} seasonType={seasonType} preset={preset} scoringMethod={scoringMethod}
-            weeks={editableWeeks} selectedIds={selectedIds} cutEnabled={cutEnabled}
-            cutValue={cutValue} dropWorst={dropWorst}
+            weeks={editableWeeks} selectedIds={selectedIds} manualPlayers={manualPlayers}
+            cutEnabled={cutEnabled} cutValue={cutValue} dropWorst={dropWorst}
             playoffMultiplier={playoffMultiplier} champMultiplier={champMultiplier}
           />
         )}
@@ -1295,23 +1358,26 @@ const styles = StyleSheet.create({
   memberName: { fontSize: 15, fontWeight: '600' },
   memberHcp: { fontSize: 12, marginTop: 1 },
 
+  // Accordion
+  accordionSection: { marginBottom: 8 },
+  accordionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  accordionTitle: { flex: 1, fontSize: 15, fontWeight: '600' },
+  accordionBody: { paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: StyleSheet.hairlineWidth },
+
   // Review
-  reviewCard: { padding: 14, marginBottom: 8 },
-  reviewCardTitle: { fontSize: 20 },
-  reviewCardSub: { fontSize: 13, marginTop: 4 },
-  reviewLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase' as const },
   reviewVal: { fontSize: 14, marginTop: 4 },
   reviewRules: { marginTop: 6, gap: 4 },
   reviewRule: { fontSize: 13 },
   reviewMajor: { fontSize: 14, marginTop: 4, fontFamily: GEO },
+  reviewAvatarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
+  reviewAvatarItem: { alignItems: 'center', width: 52 },
+  reviewAvatarCircle: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  reviewAvatarName: { fontSize: 11, marginTop: 4, textAlign: 'center' },
   schedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   schedNum: { width: 24, fontSize: 13, textAlign: 'center' },
   schedFmt: { flex: 1, fontSize: 13 },
   schedBadge: { fontSize: 10, fontWeight: '700' },
   schedMult: { fontSize: 13 },
-  memberChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  memberChip: { paddingHorizontal: 10, paddingVertical: 6 },
-  memberChipText: { fontSize: 13, fontWeight: '500' },
 
   // Explanation card
   explanationCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderWidth: 1, marginBottom: 4 },
