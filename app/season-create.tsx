@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 :
 const { width: SCREEN_W } = Dimensions.get('window');
 
 // ─── Types ────────────────────────────────────────────────────────────
-type SeasonType = 'fedex' | 'ryder';
+type SeasonType = 'fedex' | 'ryder' | 'bracket' | 'stroke_series' | 'custom';
 type ScoringMethod = 'position' | 'stableford';
 
 type LengthPreset = {
@@ -77,9 +77,22 @@ const FORMAT_LABELS: Record<string, string> = {
   stableford: 'Stableford',
   modified_stableford: 'Mod. Stableford',
   stroke_net: 'Stroke (Net)',
+  stroke_gross: 'Stroke (Gross)',
   quota: 'Quota',
   best9: 'Best 9',
+  match_play: 'Match Play',
+  nassau: 'Nassau',
+  skins: 'Skins',
+  best_ball: 'Best Ball',
+  scramble: 'Scramble',
+  chapman: 'Chapman',
 };
+
+const ALL_FORMATS = [
+  'stableford', 'modified_stableford', 'stroke_net', 'stroke_gross',
+  'quota', 'best9', 'match_play', 'nassau', 'skins', 'best_ball',
+  'scramble', 'chapman',
+];
 
 const POINTS_TABLE = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
 
@@ -167,6 +180,15 @@ function BasicsStep({
   const { theme } = useTheme();
   const c = theme.colors;
   const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
+  const [nameFocused, setNameFocused] = useState(false);
+
+  const SEASON_TYPES: { key: SeasonType; icon?: React.ComponentProps<typeof Ionicons>['name']; emoji?: string; label: string; desc: string }[] = [
+    { key: 'fedex', icon: 'trophy', label: 'FedEx Cup', desc: 'Individual points race with playoffs' },
+    { key: 'ryder', icon: 'people', label: 'Ryder Cup', desc: 'Team competition (red vs blue)' },
+    { key: 'bracket', emoji: '🏆', label: 'Match Play Bracket', desc: 'Single elimination tournament' },
+    { key: 'stroke_series', emoji: '📋', label: 'Stroke Play Series', desc: 'Cumulative strokes, lowest total wins' },
+    { key: 'custom', emoji: '⚙️', label: 'Custom', desc: 'Build your own rules' },
+  ];
 
   return (
     <View style={styles.stepContent}>
@@ -176,15 +198,17 @@ function BasicsStep({
         onChangeText={setName}
         placeholder="e.g., 2026 FedEx Cup"
         placeholderTextColor={c.textMuted}
-        style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border }]}
+        onFocus={() => setNameFocused(true)}
+        onBlur={() => setNameFocused(false)}
+        style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: nameFocused ? '#C9A227' : c.border }]}
       />
 
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Season Type</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Choose how your group competes.
+      </Text>
       <View style={styles.typeCards}>
-        {([
-          { key: 'fedex' as SeasonType, icon: 'trophy' as const, label: 'FedEx Cup', desc: 'Individual points race with playoffs' },
-          { key: 'ryder' as SeasonType, icon: 'people' as const, label: 'Ryder Cup', desc: 'Team competition (red vs blue)' },
-        ]).map((t) => (
+        {SEASON_TYPES.map((t) => (
           <Pressable
             key={t.key}
             onPress={() => { haptics.light(); setSeasonType(t.key); }}
@@ -197,7 +221,11 @@ function BasicsStep({
               },
             ]}
           >
-            <Ionicons name={t.icon} size={28} color={seasonType === t.key ? c.gold : c.textMuted} />
+            {t.icon ? (
+              <Ionicons name={t.icon} size={28} color={seasonType === t.key ? c.gold : c.textMuted} />
+            ) : (
+              <Text style={{ fontSize: 28 }}>{t.emoji}</Text>
+            )}
             <Text style={[styles.typeCardLabel, { color: seasonType === t.key ? c.gold : c.text }]}>
               {t.label}
             </Text>
@@ -215,15 +243,27 @@ function FormatStep({
   setPreset,
   scoringMethod,
   setScoringMethod,
+  useCustomCycle,
+  setUseCustomCycle,
+  customCycle,
+  setCustomCycle,
 }: {
   preset: string;
   setPreset: (v: string) => void;
   scoringMethod: ScoringMethod;
   setScoringMethod: (v: ScoringMethod) => void;
+  useCustomCycle: boolean;
+  setUseCustomCycle: (v: boolean) => void;
+  customCycle: Record<number, string>;
+  setCustomCycle: (v: Record<number, string>) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const cardBgVal = theme.isDark ? c.elevated : c.cardBg;
+  const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
+
+  const presetData = LENGTH_PRESETS.find((p) => p.key === preset)!;
+  const totalWeeks = presetData.total;
 
   return (
     <View style={styles.stepContent}>
@@ -277,15 +317,83 @@ function FormatStep({
       )}
 
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Format Cycle</Text>
-      <View style={[styles.cyclePrev, { backgroundColor: c.elevated }]}>
-        {FORMAT_CYCLE.map((f, i) => (
-          <View key={f} style={[styles.cycleItem, { borderBottomColor: c.border }]}>
-            <Text style={[styles.cycleNum, { color: c.textMuted }]}>{i + 1}</Text>
-            <Text style={[styles.cycleName, { color: c.text }]}>{FORMAT_LABELS[f]}</Text>
-          </View>
-        ))}
-        <Text style={[styles.cycleNote, { color: c.textMuted }]}>Repeats through the season</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Formats rotate each week to keep competition fresh.
+      </Text>
+
+      {/* Cycle toggle */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>
+            {useCustomCycle ? 'Create custom cycle' : 'Use suggested cycle'}
+          </Text>
+        </View>
+        <Switch
+          value={useCustomCycle}
+          onValueChange={setUseCustomCycle}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={useCustomCycle ? c.teal : c.textMuted}
+        />
       </View>
+
+      {!useCustomCycle ? (
+        <View style={[styles.cyclePrev, { backgroundColor: c.elevated }]}>
+          {FORMAT_CYCLE.map((f, i) => (
+            <View key={f} style={[styles.cycleItem, { borderBottomColor: c.border }]}>
+              <Text style={[styles.cycleNum, { color: c.textMuted }]}>{i + 1}</Text>
+              <Text style={[styles.cycleName, { color: c.text }]}>{FORMAT_LABELS[f]}</Text>
+            </View>
+          ))}
+          <Text style={[styles.cycleNote, { color: c.textMuted }]}>Repeats through the season</Text>
+        </View>
+      ) : (
+        <View style={[styles.cyclePrev, { backgroundColor: c.elevated }]}>
+          {Array.from({ length: totalWeeks }, (_, i) => {
+            const weekNum = i + 1;
+            const currentFormat = customCycle[weekNum] ?? FORMAT_CYCLE[i % FORMAT_CYCLE.length];
+            const isExpanded = expandedWeek === weekNum;
+            return (
+              <View key={weekNum}>
+                <Pressable
+                  onPress={() => { haptics.light(); setExpandedWeek(isExpanded ? null : weekNum); }}
+                  style={[styles.cycleItem, { borderBottomColor: c.border }]}
+                >
+                  <Text style={[styles.cycleNum, { color: c.textMuted, fontFamily: GEO }]}>{weekNum}</Text>
+                  <Text style={[styles.cycleName, { color: c.text, flex: 1 }]}>{FORMAT_LABELS[currentFormat] ?? currentFormat}</Text>
+                  <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={c.textMuted} />
+                </Pressable>
+                {isExpanded && (
+                  <View style={styles.formatPicker}>
+                    {ALL_FORMATS.map((fmt) => (
+                      <Pressable
+                        key={fmt}
+                        onPress={() => {
+                          haptics.light();
+                          setCustomCycle({ ...customCycle, [weekNum]: fmt });
+                          setExpandedWeek(null);
+                        }}
+                        style={[
+                          styles.formatPickerItem,
+                          {
+                            backgroundColor: currentFormat === fmt ? c.teal + '18' : 'transparent',
+                            borderColor: currentFormat === fmt ? c.teal : c.border,
+                            borderWidth: 1,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.formatPickerText, { color: currentFormat === fmt ? c.teal : c.text }]}>
+                          {FORMAT_LABELS[fmt]}
+                        </Text>
+                        {currentFormat === fmt && <Ionicons name="checkmark" size={16} color={c.teal} />}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -662,7 +770,7 @@ function ReviewStep({
       <View style={[styles.reviewCard, { backgroundColor: reviewCardBg }]}>
         <Text style={[styles.reviewCardTitle, { color: c.gold, fontFamily: GEO }]}>{name}</Text>
         <Text style={[styles.reviewCardSub, { color: c.textMuted }]}>
-          {seasonType === 'fedex' ? 'FedEx Cup' : 'Ryder Cup'} — {presetData.label} ({presetData.total} weeks)
+          {{ fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', custom: 'Custom' }[seasonType]} — {presetData.label} ({presetData.total} weeks)
         </Text>
       </View>
 
@@ -754,17 +862,23 @@ export default function SeasonsScreen() {
   const [playoffMultiplier, setPlayoffMultiplier] = useState(2);
   const [champMultiplier, setChampMultiplier] = useState(3);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [useCustomCycle, setUseCustomCycle] = useState(false);
+  const [customCycle, setCustomCycle] = useState<Record<number, string>>({});
 
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
     const p = LENGTH_PRESETS.find((lp) => lp.key === preset)!;
     const result: WeekConfig[] = [];
     for (let i = 0; i < p.total; i++) {
+      const weekNum = i + 1;
       const isPlayoff = i >= p.regular && i < p.total - 1;
       const isChampionship = i === p.total - 1;
+      const format = useCustomCycle && customCycle[weekNum]
+        ? customCycle[weekNum]
+        : FORMAT_CYCLE[i % FORMAT_CYCLE.length];
       result.push({
-        number: i + 1,
-        format: FORMAT_CYCLE[i % FORMAT_CYCLE.length],
+        number: weekNum,
+        format,
         isMajor: false,
         majorName: '',
         isPlayoff,
@@ -773,7 +887,7 @@ export default function SeasonsScreen() {
       });
     }
     return result;
-  }, [preset, playoffMultiplier, champMultiplier]);
+  }, [preset, playoffMultiplier, champMultiplier, useCustomCycle, customCycle]);
 
   const [editableWeeks, setEditableWeeks] = useState<WeekConfig[]>(weeks);
 
@@ -858,7 +972,7 @@ export default function SeasonsScreen() {
           <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={setSeasonType} />
         )}
         {currentStep === 'format' && (
-          <FormatStep preset={preset} setPreset={setPreset} scoringMethod={scoringMethod} setScoringMethod={setScoringMethod} />
+          <FormatStep preset={preset} setPreset={setPreset} scoringMethod={scoringMethod} setScoringMethod={setScoringMethod} useCustomCycle={useCustomCycle} setUseCustomCycle={setUseCustomCycle} customCycle={customCycle} setCustomCycle={setCustomCycle} />
         )}
         {currentStep === 'rules' && (
           <RulesStep
@@ -930,8 +1044,8 @@ const styles = StyleSheet.create({
   input: { paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, borderWidth: 1 },
 
   // Type cards
-  typeCards: { flexDirection: 'row', gap: 10 },
-  typeCard: { flex: 1, padding: 16, alignItems: 'center', gap: 8 },
+  typeCards: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  typeCard: { width: '47%' as any, padding: 16, alignItems: 'center', gap: 8 },
   typeCardLabel: { fontSize: 15, fontWeight: '600' },
   typeCardDesc: { fontSize: 11, textAlign: 'center' },
 
@@ -960,6 +1074,9 @@ const styles = StyleSheet.create({
   cycleNum: { width: 20, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   cycleName: { fontSize: 14 },
   cycleNote: { fontSize: 11, fontStyle: 'italic', marginTop: 6, textAlign: 'center' },
+  formatPicker: { paddingHorizontal: 8, paddingVertical: 6, gap: 4 },
+  formatPickerItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8 },
+  formatPickerText: { fontSize: 13 },
 
   // Rules
   ruleRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
