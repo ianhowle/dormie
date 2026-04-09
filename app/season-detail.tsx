@@ -58,14 +58,16 @@ type Week = {
   multiplier: number;
   completed: boolean;
   allScoresSubmitted: boolean;
+  startDate: string | null;
+  endDate: string | null;
 };
 
 type BonusChallenge = {
   id: string;
   label: string;
+  emoji: string;
   description: string;
-  leader: string;
-  value: string;
+  topThree: { name: string; value: string }[];
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────
@@ -84,26 +86,45 @@ const DEMO_STANDINGS: Standing[] = [
   { playerId: '8', name: 'Brooks', handicap: 20, avatarColor: '#C41E3A', points: 14, weekResults: [4, 6, 2, 2], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 6, worstDrop: null, isCut: false },
 ];
 
+function formatDateShort(d: Date): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}`;
+}
+
 function buildDemoWeeks(totalWeeks: number, currentWeek: number): Week[] {
   const formats = ['stableford', 'modified_stableford', 'stroke_net', 'quota', 'best9'];
-  return Array.from({ length: totalWeeks }, (_, i) => ({
-    number: i + 1,
-    format: formats[i % formats.length],
-    isPlayoff: i >= totalWeeks - 3 && i < totalWeeks - 1,
-    isChampionship: i === totalWeeks - 1,
-    isMajor: i === 3 || i === 8,
-    majorName: i === 3 ? 'The Masters' : i === 8 ? 'The Open' : null,
-    multiplier: i === totalWeeks - 1 ? 3 : (i >= totalWeeks - 3 ? 2 : (i === 3 || i === 8 ? 2 : 1)),
-    completed: i + 1 < currentWeek,
-    allScoresSubmitted: i + 1 < currentWeek,
-  }));
+  // Season starts Mar 2, 2026 (a Monday)
+  const seasonStart = new Date(2026, 2, 2);
+  return Array.from({ length: totalWeeks }, (_, i) => {
+    const start = new Date(seasonStart);
+    start.setDate(seasonStart.getDate() + i * 7);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return {
+      number: i + 1,
+      format: formats[i % formats.length],
+      isPlayoff: i >= totalWeeks - 3 && i < totalWeeks - 1,
+      isChampionship: i === totalWeeks - 1,
+      isMajor: i === 3 || i === 8,
+      majorName: i === 3 ? 'The Masters' : i === 8 ? 'The Open' : null,
+      multiplier: i === totalWeeks - 1 ? 3 : (i >= totalWeeks - 3 ? 2 : (i === 3 || i === 8 ? 2 : 1)),
+      completed: i + 1 < currentWeek,
+      allScoresSubmitted: i + 1 < currentWeek,
+      startDate: formatDateShort(start),
+      endDate: formatDateShort(end),
+    };
+  });
 }
 
 const MOCK_CHALLENGES: BonusChallenge[] = [
-  { id: 'b1', label: 'Low Round', description: 'Lowest single-round gross score', leader: 'Ian McGowan', value: '74' },
-  { id: 'b2', label: 'Most Birdies', description: 'Total birdies across all rounds', leader: 'Tommy Fleetwood', value: '18' },
-  { id: 'b3', label: 'Iron Man', description: 'Most consecutive weeks played', leader: 'Drew Patterson', value: '6' },
-  { id: 'b4', label: 'Comeback Kid', description: 'Biggest position gain in a single week', leader: 'Sam Rodriguez', value: '+4' },
+  { id: 'b1', label: 'Low Round', emoji: '🏌️', description: 'Lowest single-round gross score', topThree: [{ name: 'McGowan', value: '74' }, { name: 'Patterson', value: '76' }, { name: 'Fletcher', value: '78' }] },
+  { id: 'b2', label: 'Most Birdies', emoji: '🐦', description: 'Total birdies across all rounds', topThree: [{ name: 'Fletcher', value: '18' }, { name: 'McGowan', value: '15' }, { name: 'Patterson', value: '12' }] },
+  { id: 'b3', label: 'Iron Man', emoji: '💪', description: 'Most consecutive weeks played', topThree: [{ name: 'Patterson', value: '6' }, { name: 'McGowan', value: '5' }, { name: 'Sullivan', value: '4' }] },
+  { id: 'b4', label: 'Comeback Kid', emoji: '🔄', description: 'Biggest position gain in a single week', topThree: [{ name: 'Rodriguez', value: '+4' }, { name: 'Chen', value: '+3' }, { name: 'Sullivan', value: '+2' }] },
+  { id: 'b5', label: 'Eagle Hunter', emoji: '🦅', description: 'Most eagles across all rounds', topThree: [{ name: 'McGowan', value: '4' }, { name: 'Fletcher', value: '3' }, { name: 'Patterson', value: '2' }] },
+  { id: 'b6', label: 'Consistency King', emoji: '📊', description: 'Lowest scoring variance (standard deviation)', topThree: [{ name: 'Sullivan', value: '2.1' }, { name: 'McGowan', value: '2.8' }, { name: 'Chen', value: '3.2' }] },
+  { id: 'b7', label: 'Streak Master', emoji: '🔥', description: 'Longest consecutive weeks with top-3 finish', topThree: [{ name: 'McGowan', value: '3' }, { name: 'Patterson', value: '2' }, { name: 'Fletcher', value: '2' }] },
+  { id: 'b8', label: 'Ace Race', emoji: '🎯', description: 'Most holes-in-one', topThree: [{ name: 'Patterson', value: '1' }, { name: 'Fletcher', value: '1' }, { name: 'McGowan', value: '0' }] },
 ];
 
 const MOCK_CAREER_STATS: Record<string, { seasonsPlayed: number; championships: number; playoffApps: number; bestFinish: number; avgRank: number; careerPoints: number }> = {
@@ -667,18 +688,40 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
 }
 
 // ─── Schedule Tab ─────────────────────────────────────────────────────
-function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: number }) {
+function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentWeek: number; seasonId: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
+
+  const handleWeekPress = (w: Week) => {
+    if (!w.completed) return;
+    haptics.light();
+    const dateRange = w.startDate && w.endDate ? `${w.startDate} – ${w.endDate}` : '';
+    router.push({
+      pathname: '/week-detail',
+      params: {
+        season_id: seasonId,
+        week_number: String(w.number),
+        format: w.format,
+        is_major: w.isMajor ? '1' : '0',
+        major_name: w.majorName ?? '',
+        multiplier: String(w.multiplier),
+        date_range: dateRange,
+      },
+    });
+  };
 
   return (
     <ScrollView style={styles.scheduleContainer} showsVerticalScrollIndicator={false}>
       {weeks.map((w) => {
         const badge = getWeekBadge(w);
         const isCurrent = w.number === currentWeek;
+        const Wrapper = w.completed ? Pressable : View;
+        const wrapperProps = w.completed ? { onPress: () => handleWeekPress(w) } : {};
         return (
-          <View
+          <Wrapper
             key={w.number}
+            {...wrapperProps}
             style={[
               styles.scheduleCard,
               { backgroundColor: c.cardBg, borderColor: isCurrent ? c.teal : c.border },
@@ -700,7 +743,10 @@ function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: numbe
                   </View>
                 )}
               </View>
-              {w.completed && <Ionicons name="checkmark-circle" size={20} color={c.teal} />}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {w.completed && <Ionicons name="checkmark-circle" size={20} color={c.teal} />}
+                {w.completed && <Ionicons name="chevron-forward" size={16} color={c.textMuted} />}
+              </View>
             </View>
 
             <View style={styles.scheduleCardBody}>
@@ -710,6 +756,11 @@ function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: numbe
                   {FORMAT_LABELS[w.format] ?? w.format}
                 </Text>
               </View>
+              {w.startDate && w.endDate && (
+                <Text style={[styles.scheduleDateRange, { color: c.textMuted }]}>
+                  {w.startDate} – {w.endDate}
+                </Text>
+              )}
               {w.multiplier > 1 && (
                 <View style={styles.scheduleInfoRow}>
                   <Ionicons name="star" size={14} color={c.gold} />
@@ -733,7 +784,7 @@ function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: numbe
                 </Text>
               </LinearGradient>
             )}
-          </View>
+          </Wrapper>
         );
       })}
     </ScrollView>
@@ -741,22 +792,43 @@ function ScheduleTab({ weeks, currentWeek }: { weeks: Week[]; currentWeek: numbe
 }
 
 // ─── Challenges Tab ───────────────────────────────────────────────────
+const MEDAL_COLORS = ['#C9A227', '#C0C0C0', '#CD7F32']; // gold, silver, bronze
+
 function ChallengesTab({ challenges }: { challenges: BonusChallenge[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
   return (
     <ScrollView style={styles.challengesContainer} showsVerticalScrollIndicator={false}>
-      {challenges.map((ch) => (
-        <View key={ch.id} style={[styles.challengeCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
-          <View style={styles.challengeHeader}>
-            <Ionicons name="ribbon" size={20} color={c.gold} />
-            <Text style={[styles.challengeLabel, { color: c.text }]}>{ch.label}</Text>
-          </View>
-          <Text style={[styles.challengeDesc, { color: c.textMuted }]}>{ch.description}</Text>
-          <View style={styles.challengeFooter}>
-            <Text style={[styles.challengeLeader, { color: c.teal }]}>{ch.leader}</Text>
-            <Text style={[styles.challengeVal, { color: c.gold, fontFamily: GEO }]}>{ch.value}</Text>
+      {challenges.map((ch, idx) => (
+        <View key={ch.id}>
+          {idx > 0 && <View style={[styles.challengeDivider, { backgroundColor: c.border }]} />}
+          <View style={[styles.challengeCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
+            <View style={styles.challengeHeader}>
+              <Text style={styles.challengeEmoji}>{ch.emoji}</Text>
+              <Text style={[styles.challengeLabel, { color: c.text }]}>{ch.label}</Text>
+            </View>
+            <Text style={[styles.challengeDesc, { color: c.textMuted }]}>{ch.description}</Text>
+            <View style={styles.challengeTop3}>
+              {ch.topThree.map((p, i) => (
+                <View key={i} style={styles.challengeTop3Row}>
+                  <Text style={[styles.challengeRank, { color: MEDAL_COLORS[i], fontFamily: GEO }]}>
+                    {i + 1}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.challengePlayerName,
+                      { color: i === 0 ? '#C9A227' : i === 1 ? '#C0C0C0' : '#CD7F32' },
+                    ]}
+                  >
+                    {p.name}
+                  </Text>
+                  <Text style={[styles.challengePlayerVal, { color: MEDAL_COLORS[i], fontFamily: GEO }]}>
+                    {p.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
       ))}
@@ -815,6 +887,8 @@ function SeasonDetailScreenInner() {
           multiplier: w.multiplier ?? 1,
           completed: w.completed ?? false,
           allScoresSubmitted: w.all_scores_submitted ?? false,
+          startDate: w.start_date ?? null,
+          endDate: w.end_date ?? null,
         })));
       }
     } catch {}
@@ -1021,7 +1095,7 @@ function SeasonDetailScreenInner() {
         </ScrollView>
       )}
 
-      {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} />}
+      {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} />}
       {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
 
       {/* Advance week */}
@@ -1103,18 +1177,23 @@ const styles = StyleSheet.create({
   scheduleCardBody: { marginTop: 8, gap: 4 },
   scheduleInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   scheduleInfoText: { fontSize: 13 },
+  scheduleDateRange: { fontSize: 11, marginTop: 2 },
   majorGlow: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, marginTop: 8 },
   majorNameText: { fontSize: 13, fontWeight: '600' },
 
   challengesContainer: { flex: 1, padding: 20 },
-  challengeCard: { padding: 14, marginBottom: 10 },
+  challengeCard: { padding: 14, marginBottom: 4 },
   challengeCardBorder: { borderWidth: 1 },
   challengeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  challengeEmoji: { fontSize: 20 },
   challengeLabel: { fontSize: 16, fontWeight: '600' },
   challengeDesc: { fontSize: 13, marginTop: 4 },
-  challengeFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  challengeLeader: { fontSize: 14, fontWeight: '600' },
-  challengeVal: { fontSize: 20, fontWeight: '700' },
+  challengeTop3: { marginTop: 10, gap: 4 },
+  challengeTop3Row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  challengeRank: { width: 20, fontSize: 14, fontWeight: '700' },
+  challengePlayerName: { flex: 1, fontSize: 14, fontWeight: '600' },
+  challengePlayerVal: { fontSize: 16, fontWeight: '700' },
+  challengeDivider: { height: StyleSheet.hairlineWidth, marginVertical: 6 },
 
   bracketContainer: { padding: 16 },
   bracketTitle: { fontSize: 14, fontWeight: '800', letterSpacing: 1.5, textAlign: 'center', marginBottom: 12 },

@@ -35,6 +35,7 @@ type MockSeason = {
   playerCount: number;
   leader?: { name: string; points: number };
   champion?: string;
+  championPoints?: number;
   yourPosition?: number;
   format: string;
 };
@@ -64,6 +65,7 @@ const MOCK_PAST_SEASONS: MockSeason[] = [
     totalWeeks: 10,
     playerCount: 6,
     champion: 'Patterson',
+    championPoints: 198,
     format: 'FedEx Cup Points',
   },
   {
@@ -75,6 +77,7 @@ const MOCK_PAST_SEASONS: MockSeason[] = [
     totalWeeks: 6,
     playerCount: 12,
     champion: 'Team Red',
+    championPoints: 16,
     format: 'Ryder Cup',
   },
   {
@@ -86,6 +89,7 @@ const MOCK_PAST_SEASONS: MockSeason[] = [
     totalWeeks: 8,
     playerCount: 5,
     champion: 'Sullivan',
+    championPoints: 142,
     format: 'Stableford',
   },
 ];
@@ -201,7 +205,7 @@ function PastSeasonCard({ season }: { season: MockSeason }) {
       }}
       style={({ pressed }) => [
         st.pastCard,
-        { backgroundColor: c.cardBg, borderColor: c.border },
+        { backgroundColor: c.cardBg, borderColor: c.border, borderLeftColor: '#C9A227', borderLeftWidth: 3 },
         isDark ? cardShadowDark : cardShadowLight,
         pressed && { opacity: 0.85 },
       ]}
@@ -211,16 +215,22 @@ function PastSeasonCard({ season }: { season: MockSeason }) {
         <Text style={[st.pastMeta, { color: c.textMuted, fontFamily: SANS }]}>
           {season.format} · {season.playerCount} players · {season.totalWeeks} weeks
         </Text>
-      </View>
-      <View style={st.pastRight}>
         {season.champion && (
-          <View style={st.championRow}>
-            <Ionicons name="trophy" size={12} color={c.gold} />
-            <Text style={[st.championName, { color: c.gold, fontFamily: GEO }]}>{season.champion}</Text>
+          <View style={st.pastChampionInfo}>
+            <Ionicons name="trophy" size={12} color="#C9A227" />
+            <Text style={[st.pastChampionName, { color: c.text, fontFamily: GEO }]}>{season.champion}</Text>
+            {season.championPoints != null && (
+              <Text style={[st.pastChampionPts, { color: c.gold, fontFamily: GEO }]}>
+                {season.championPoints} pts
+              </Text>
+            )}
           </View>
         )}
-        <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+        {season.champion && (
+          <Text style={[st.pastChampionLabel, { fontFamily: SANS }]}>Champion</Text>
+        )}
       </View>
+      <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ alignSelf: 'center' }} />
     </Pressable>
   );
 }
@@ -514,6 +524,26 @@ const st = StyleSheet.create({
   championName: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  pastChampionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  pastChampionName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  pastChampionPts: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pastChampionLabel: {
+    fontSize: 11,
+    color: '#C9A22799',
+    marginTop: 1,
+    marginLeft: 18,
   },
 
   /* Empty state */
