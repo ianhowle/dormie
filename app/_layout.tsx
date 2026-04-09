@@ -85,6 +85,7 @@ function RootLayoutNav() {
         <Stack.Screen name="avatar-picker" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="add-friends" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="groups" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="group-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="course-search" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </>

@@ -57,6 +57,12 @@ type RecentRound = {
   par: number;
   date: string;
   source: 'manual' | 'ghin' | 'app';
+  tee_name?: string;
+  tee_yardage?: number;
+  fairways_hit?: number;
+  greens_in_regulation?: number;
+  total_putts?: number;
+  players?: string[];
 };
 
 // Handicap trend is now computed from real rounds below
@@ -343,11 +349,11 @@ export default function ProfileScreen() {
   };
 
   const DEMO_ROUNDS: RecentRound[] = [
-    { id: 'demo-1', course: 'Pebble Beach', score: 71, par: 72, date: 'Mar 28, 2026', source: 'app' },
-    { id: 'demo-2', course: 'Torrey Pines', score: 76, par: 72, date: 'Mar 15, 2026', source: 'ghin' },
-    { id: 'demo-3', course: 'Hermitage', score: 82, par: 71, date: 'Mar 2, 2026', source: 'manual' },
-    { id: 'demo-4', course: 'TPC Sawgrass', score: 79, par: 72, date: 'Feb 18, 2026', source: 'app' },
-    { id: 'demo-5', course: 'Governors Club', score: 77, par: 72, date: 'Feb 5, 2026', source: 'app' },
+    { id: 'demo-1', course: 'Pebble Beach Golf Links', score: 71, par: 72, date: 'Mar 28, 2026', source: 'app', tee_name: 'Blue', tee_yardage: 6828, fairways_hit: 11, greens_in_regulation: 14, total_putts: 28, players: ['McGowan', 'Sullivan'] },
+    { id: 'demo-2', course: 'Torrey Pines South Course', score: 76, par: 72, date: 'Mar 15, 2026', source: 'ghin', tee_name: 'White', tee_yardage: 6615, fairways_hit: 9, greens_in_regulation: 11, total_putts: 31, players: ['Harrington'] },
+    { id: 'demo-3', course: 'Hermitage Golf Course — Presidents Reserve', score: 82, par: 71, date: 'Mar 2, 2026', source: 'manual', tee_name: 'Blue', tee_yardage: 6443, fairways_hit: 7, greens_in_regulation: 8, total_putts: 34 },
+    { id: 'demo-4', course: 'TPC Sawgrass Stadium Course', score: 79, par: 72, date: 'Feb 18, 2026', source: 'app', tee_name: 'Gold', tee_yardage: 6631, fairways_hit: 10, greens_in_regulation: 10, total_putts: 30, players: ['Kowalski', 'Ellison'] },
+    { id: 'demo-5', course: 'Governors Club', score: 77, par: 72, date: 'Feb 5, 2026', source: 'app', tee_name: 'White', tee_yardage: 6100, fairways_hit: 8, greens_in_regulation: 12, total_putts: 32, players: ['Rivera'] },
   ];
 
   const DEMO_HANDICAP_TREND = [14.2, 13.8, 13.5, 12.9, 12.6, 12.1, 11.8, 11.5, 11.2, 10.8, 10.5, 10.1, 9.8, 9.4];
@@ -360,14 +366,24 @@ export default function ProfileScreen() {
   // Build recent rounds from real data
   const displayRounds: RecentRound[] = useMemo(() => {
     if (realRounds.length > 0) {
-      return realRounds.slice(0, 5).map(r => ({
-        id: r.id,
-        course: r.course?.name ?? 'Unknown',
-        score: r.gross_score,
-        par: r.course?.par ?? 72,
-        date: new Date(r.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        source: r.source as 'manual' | 'ghin' | 'app',
-      }));
+      return realRounds.slice(0, 5).map(r => {
+        const holeScores = r.hole_scores as any[] | null;
+        const hasHoleData = holeScores && Array.isArray(holeScores) && holeScores.length >= 18;
+        return {
+          id: r.id,
+          course: r.course?.name ?? 'Unknown',
+          score: r.gross_score,
+          par: r.course?.par ?? 72,
+          date: new Date(r.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          source: r.source as 'manual' | 'ghin' | 'app',
+          tee_name: (r as any).tee_name ?? undefined,
+          tee_yardage: (r as any).tee_yardage ?? undefined,
+          fairways_hit: (r as any).fairways_hit ?? (hasHoleData ? holeScores.filter((h: any) => h.fairway_hit).length : undefined),
+          greens_in_regulation: (r as any).greens_in_regulation ?? (hasHoleData ? holeScores.filter((h: any) => h.gir).length : undefined),
+          total_putts: (r as any).total_putts ?? (hasHoleData ? holeScores.reduce((sum: number, h: any) => sum + (h.putts ?? 0), 0) || undefined : undefined),
+          players: (r as any).players ?? undefined,
+        };
+      });
     }
     if (showDemoData) return DEMO_ROUNDS;
     return [];
@@ -555,8 +571,17 @@ export default function ProfileScreen() {
                 <View style={s.handicapRow}>
                   <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)' }]}>HCP</Text>
                   <Text style={[s.handicapValue, { color: c.teal, fontFamily: GEO }]}>
-                    {hasEnoughRounds ? profileUser.handicap.toFixed(1) : '--'}
+                    {hasEnoughRounds
+                      ? profileUser.handicap.toFixed(1)
+                      : (profileUser.handicap > 0 ? profileUser.handicap.toFixed(1) : '--')}
                   </Text>
+                  {profileUser.ghinNumber && (
+                    <>
+                      <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginLeft: 4, marginRight: 4 }}>{'\u00B7'}</Text>
+                      <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)' }]}>GHIN</Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '600', marginLeft: 4 }}>{profileUser.ghinNumber}</Text>
+                    </>
+                  )}
                   <Text style={[s.handicapLabel, { color: 'rgba(255,255,255,0.5)', marginLeft: 10 }]}>NET</Text>
                   <Text style={[s.handicapValue, {
                     color: (hasEnoughRounds && typeof displayStats.scoringAvg === 'number')
@@ -569,7 +594,12 @@ export default function ProfileScreen() {
                       : '--'}
                   </Text>
                 </View>
-                {!hasEnoughRounds && !showDemoData && (
+                {!hasEnoughRounds && profileUser.handicap > 0 && !showDemoData && (
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>
+                    Self-reported
+                  </Text>
+                )}
+                {!hasEnoughRounds && profileUser.handicap === 0 && !showDemoData && (
                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>
                     Log 3 rounds to establish handicap
                   </Text>
@@ -695,6 +725,8 @@ export default function ProfileScreen() {
             </View>
           )}
           {displayRounds.map((round) => {
+            const yardageStr = round.tee_yardage ? round.tee_yardage.toLocaleString() : null;
+            const hasStats = round.fairways_hit != null || round.greens_in_regulation != null || round.total_putts != null;
             return (
               <Pressable
                 key={round.id}
@@ -702,32 +734,56 @@ export default function ProfileScreen() {
                   pathname: '/round-detail',
                   params: { roundId: round.id, course: round.course, score: String(round.score), par: String(round.par), date: round.date, source: round.source },
                 })}
-                style={({ pressed }) => [s.roundCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                style={({ pressed }) => [s.roundCard, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
                 accessibilityLabel={`${round.course}, score ${round.score}, ${round.date}`}
               >
                 <View style={s.roundCardImage}>
                   <CourseImage
                     courseName={round.course}
-                    height={120}
-                    style={{ width: 100, height: 120 }}
+                    height={140}
+                    style={{ width: '100%', height: 140 }}
                     gradient={['#006747', '#1E4D2B']}
                   />
                 </View>
                 <View style={s.roundCardContent}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.roundCourse, { color: c.text }]} numberOfLines={1}>
+                  {/* Row 1: Course name + score */}
+                  <View style={s.roundRow}>
+                    <Text style={[s.roundCourse, { color: c.text, flex: 1 }]}>
                       {round.course}
                     </Text>
-                    <Text style={[s.roundDate, { color: c.textMuted }]}>{round.date}</Text>
-                  </View>
-                  <View style={s.roundScoreWrap}>
                     <Text style={[s.roundScore, { color: c.text, fontFamily: GEO }]}>
                       {round.score}
                     </Text>
+                  </View>
+                  {/* Row 2: Date + to-par */}
+                  <View style={s.roundRow}>
+                    <Text style={[s.roundDate, { color: c.textMuted }]}>{round.date}</Text>
                     <Text style={[s.roundToPar, { color: toParColor(round.score, round.par), fontFamily: GEO }]}>
                       {toPar(round.score, round.par)}
                     </Text>
                   </View>
+                  {/* Row 3: Tee + yardage */}
+                  {(round.tee_name || yardageStr) && (
+                    <Text style={[s.roundMeta, { color: c.textMuted }]}>
+                      {[round.tee_name, yardageStr ? `${yardageStr} yds` : null].filter(Boolean).join(' \u00B7 ')}
+                    </Text>
+                  )}
+                  {/* Row 4: Stats (only if hole data exists) */}
+                  {hasStats && (
+                    <Text style={[s.roundMeta, { color: c.textMuted }]}>
+                      {[
+                        round.fairways_hit != null ? `${round.fairways_hit} FIR` : null,
+                        round.greens_in_regulation != null ? `${round.greens_in_regulation} GIR` : null,
+                        round.total_putts != null ? `${round.total_putts} Putts` : null,
+                      ].filter(Boolean).join(' \u00B7 ')}
+                    </Text>
+                  )}
+                  {/* Players */}
+                  {round.players && round.players.length > 0 && (
+                    <Text style={[s.roundPlayers, { color: c.textMuted }]}>
+                      with {round.players.join(', ')}
+                    </Text>
+                  )}
                 </View>
               </Pressable>
             );
@@ -745,22 +801,40 @@ export default function ProfileScreen() {
                 style={[
                   s.badgeCard,
                   badge.earned
-                    ? {
-                        backgroundColor: '#1A1816',
-                        borderWidth: 2,
-                        borderColor: '#C9A227',
-                        shadowColor: 'rgba(201,162,39,0.3)',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 1,
-                        shadowRadius: 8,
-                        elevation: 4,
-                      }
-                    : {
-                        backgroundColor: c.elevated,
-                        borderWidth: 1,
-                        borderColor: 'rgba(255,255,255,0.08)',
-                        opacity: 0.35,
-                      },
+                    ? isDark
+                      ? {
+                          backgroundColor: '#1A1816',
+                          borderWidth: 2,
+                          borderColor: '#C9A227',
+                          shadowColor: 'rgba(201,162,39,0.3)',
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 1,
+                          shadowRadius: 8,
+                          elevation: 4,
+                        }
+                      : {
+                          backgroundColor: '#FFFFFF',
+                          borderWidth: 2,
+                          borderColor: '#C9A227',
+                          shadowColor: '#C9A227',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 6,
+                          elevation: 4,
+                        }
+                    : isDark
+                      ? {
+                          backgroundColor: c.elevated,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.08)',
+                          opacity: 0.35,
+                        }
+                      : {
+                          backgroundColor: '#F2F0ED',
+                          borderWidth: 1,
+                          borderColor: 'rgba(0,0,0,0.08)',
+                          opacity: 0.35,
+                        },
                 ]}
               >
                 <Text style={s.badgeEmoji}>
@@ -1254,29 +1328,30 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   roundCard: {
-    flexDirection: 'row',
-    height: 120,
-    marginBottom: 8,
+    flexDirection: 'column',
+    marginBottom: 12,
     borderRadius: 12,
     overflow: 'hidden',
   },
   roundCardImage: {
-    width: 100,
-    height: 120,
+    width: '100%',
+    height: 140,
     overflow: 'hidden',
   },
   roundCardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    padding: 12,
   },
-  roundScoreWrap: { alignItems: 'flex-end', width: 56 },
-  roundScore: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
-  roundToPar: { fontSize: 12, fontWeight: '700', marginTop: -2 },
-  roundCourse: { fontSize: 16, fontWeight: '700' },
-  roundDate: { fontSize: 12, marginTop: 4 },
+  roundRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  roundScore: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
+  roundToPar: { fontSize: 12, fontWeight: '700' },
+  roundCourse: { fontSize: 15, fontWeight: '700' },
+  roundDate: { fontSize: 12, marginTop: 2 },
+  roundMeta: { fontSize: 11, marginTop: 3 },
+  roundPlayers: { fontSize: 11, fontStyle: 'italic', marginTop: 3 },
   sourceBadge: { paddingHorizontal: 6, paddingVertical: 2 },
   sourceBadgeText: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
   roundPar: { fontSize: 11, fontWeight: '600' },

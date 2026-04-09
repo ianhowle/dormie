@@ -1143,6 +1143,7 @@ export default function OnboardingScreen() {
       };
       if (golferType) metadata.golfer_type = golferType;
       if (handicap) metadata.handicap_index = parseFloat(handicap);
+      if (ghinNumber) metadata.ghin_number = ghinNumber;
       if (homeCourse) {
         metadata.home_course_id = homeCourse.id;
         metadata.home_course_name = homeCourse.name;

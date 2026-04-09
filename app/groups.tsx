@@ -32,14 +32,17 @@ function Pinstripes() {
   );
 }
 
-function GroupCard({ group }: { group: Group }) {
+function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
   const cardShadow = isDark ? cardShadowDark : cardShadowLight;
 
   return (
-    <View style={[gs.card, { backgroundColor: c.cardBg, borderColor: c.border, ...cardShadow }]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [gs.card, { backgroundColor: c.cardBg, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+    >
       <View style={[gs.cardInitials, { backgroundColor: group.color }]}>
         <Text style={gs.cardInitialsText}>{group.initials}</Text>
       </View>
@@ -48,7 +51,7 @@ function GroupCard({ group }: { group: Group }) {
         <Text style={[gs.cardMembers, { color: c.textMuted }]}>{group.memberCount} members</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-    </View>
+    </Pressable>
   );
 }
 
@@ -87,7 +90,12 @@ export default function GroupsScreen() {
         data={MOCK_GROUPS}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 20, paddingBottom: 40 + insets.bottom }}
-        renderItem={({ item }) => <GroupCard group={item} />}
+        renderItem={({ item }) => (
+          <GroupCard
+            group={item}
+            onPress={() => router.push({ pathname: '/group-detail', params: { groupId: item.id, groupName: item.name } })}
+          />
+        )}
         ListEmptyComponent={
           <View style={gs.empty}>
             <Ionicons name="people-outline" size={36} color={c.textMuted} />
