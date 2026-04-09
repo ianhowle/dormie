@@ -11,6 +11,8 @@ import {
   Switch,
   FlatList,
   Dimensions,
+  Share,
+  Modal,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,6 +64,12 @@ type Friend = {
   name: string;
   handicap: number;
   avatarColor: string;
+};
+
+type ManualPlayer = {
+  id: string;
+  name: string;
+  handicap: number | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────
@@ -541,23 +549,32 @@ function RulesStep({
 
       {/* Multipliers */}
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Point Multipliers</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 12 }]}>
+        Playoff and Championship weeks award bonus points. A 2× multiplier means all points earned that week are doubled.
+      </Text>
       <View style={[styles.multiplierRow, { backgroundColor: c.elevated }]}>
-        <Text style={[styles.multiplierLabel, { color: c.textMuted }]}>Playoff weeks</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.multiplierLabel, { color: c.textMuted }]}>Playoff weeks</Text>
+          <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>Semi-final and elimination rounds</Text>
+        </View>
         <View style={styles.stepperRow}>
           <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(Math.max(1, playoffMultiplier - 0.5)); }}>
-            <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
+            <Ionicons name="remove-circle-outline" size={24} color="rgba(255,255,255,0.4)" />
           </Pressable>
-          <Text style={[styles.stepperVal, { color: c.urgent, fontFamily: GEO }]}>{playoffMultiplier}×</Text>
+          <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{playoffMultiplier}×</Text>
           <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(playoffMultiplier + 0.5); }}>
-            <Ionicons name="add-circle-outline" size={24} color={c.urgent} />
+            <Ionicons name="add-circle-outline" size={24} color={c.gold} />
           </Pressable>
         </View>
       </View>
       <View style={[styles.multiplierRow, { backgroundColor: c.elevated }]}>
-        <Text style={[styles.multiplierLabel, { color: c.textMuted }]}>Championship week</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.multiplierLabel, { color: c.textMuted }]}>Championship week</Text>
+          <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>The final week — winner takes the season title</Text>
+        </View>
         <View style={styles.stepperRow}>
           <Pressable onPress={() => { haptics.light(); setChampMultiplier(Math.max(1, champMultiplier - 0.5)); }}>
-            <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
+            <Ionicons name="remove-circle-outline" size={24} color="rgba(255,255,255,0.4)" />
           </Pressable>
           <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{champMultiplier}×</Text>
           <Pressable onPress={() => { haptics.light(); setChampMultiplier(champMultiplier + 0.5); }}>
@@ -573,23 +590,33 @@ function RulesStep({
 function MajorsStep({
   weeks,
   setWeeks,
+  preset,
 }: {
   weeks: WeekConfig[];
   setWeeks: (w: WeekConfig[]) => void;
+  preset: string;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
 
+  const maxMajors = (preset === 'full' || preset === 'marathon') ? 4 : 2;
   const regularWeeks = weeks.filter((w) => !w.isPlayoff && !w.isChampionship);
   const majorCount = regularWeeks.filter((w) => w.isMajor).length;
+
+  const MAJOR_PLACEHOLDERS = [
+    'e.g., The Dormie Masters',
+    'e.g., The Dormie Open',
+    'e.g., The Dormie Invitational',
+    'e.g., The Dormie Championship',
+  ];
 
   const toggleMajor = (weekNum: number) => {
     setWeeks(
       weeks.map((w) => {
         if (w.number !== weekNum) return w;
         if (w.isMajor) return { ...w, isMajor: false, majorName: '', multiplier: 1 };
-        if (majorCount >= 2) return w;
+        if (majorCount >= maxMajors) return w;
         const nameIdx = regularWeeks.filter((rw) => rw.isMajor).length;
         return {
           ...w,
@@ -607,8 +634,16 @@ function MajorsStep({
 
   return (
     <View style={styles.stepContent}>
-      <Text style={[styles.fieldLabel, { color: c.text }]}>
-        Designate Majors ({majorCount}/2)
+      {/* Explanation card */}
+      <View style={[styles.explanationCard, { backgroundColor: c.gold + '12', borderColor: c.gold + '33' }]}>
+        <Ionicons name="trophy" size={18} color={c.gold} />
+        <Text style={{ fontSize: 13, color: c.textMuted, flex: 1 }}>
+          Majors are special weeks with 2× points and gold leaderboard styling — your group's version of The Masters and The Open.
+        </Text>
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>
+        Designate Majors ({majorCount}/{maxMajors})
       </Text>
       <Text style={[styles.fieldDesc, { color: c.textMuted }]}>
         Majors award 2× points and get special gold styling
@@ -650,7 +685,7 @@ function MajorsStep({
         ))}
 
         {/* Major name editing */}
-        {regularWeeks.filter((w) => w.isMajor).map((w) => (
+        {regularWeeks.filter((w) => w.isMajor).map((w, idx) => (
           <View key={`name-${w.number}`} style={{ marginTop: 8 }}>
             <Text style={[styles.majorNameLabel, { color: c.textMuted }]}>
               Week {w.number} Major Name
@@ -658,6 +693,7 @@ function MajorsStep({
             <TextInput
               value={w.majorName}
               onChangeText={(text) => updateMajorName(w.number, text)}
+              placeholder={MAJOR_PLACEHOLDERS[idx] ?? 'e.g., The Dormie Open'}
               style={[styles.input, { backgroundColor: inputBg, color: c.gold, borderColor: c.gold + '44' }]}
               placeholderTextColor={c.textMuted}
             />
@@ -672,13 +708,26 @@ function MajorsStep({
 function MembersStep({
   selectedIds,
   setSelectedIds,
+  seasonName,
+  manualPlayers,
+  setManualPlayers,
 }: {
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
+  seasonName: string;
+  manualPlayers: ManualPlayer[];
+  setManualPlayers: (p: ManualPlayer[]) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const cardBgVal = theme.isDark ? c.elevated : c.cardBg;
+  const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
+
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualHandicap, setManualHandicap] = useState('');
+
+  const totalPlayers = selectedIds.length + manualPlayers.length;
 
   const toggle = (id: string) => {
     setSelectedIds(
@@ -688,12 +737,100 @@ function MembersStep({
     );
   };
 
+  const handleShareInvite = async () => {
+    haptics.light();
+    try {
+      await Share.share({
+        message: `Join my ${seasonName || 'new'} season on Dormie!`,
+      });
+    } catch {}
+  };
+
+  const handleAddManual = () => {
+    if (!manualName.trim()) return;
+    haptics.success();
+    const newPlayer: ManualPlayer = {
+      id: `manual_${Date.now()}`,
+      name: manualName.trim(),
+      handicap: manualHandicap ? parseInt(manualHandicap, 10) : null,
+    };
+    setManualPlayers([...manualPlayers, newPlayer]);
+    setManualName('');
+    setManualHandicap('');
+    setShowManualModal(false);
+  };
+
+  const removeManual = (id: string) => {
+    haptics.light();
+    setManualPlayers(manualPlayers.filter((p) => p.id !== id));
+  };
+
   return (
     <View style={styles.stepContent}>
-      <Text style={[styles.fieldLabel, { color: c.text }]}>
-        Select Members ({selectedIds.length} selected)
+      {/* Action buttons */}
+      <View style={styles.memberActions}>
+        <Pressable
+          onPress={handleShareInvite}
+          style={[styles.memberActionBtn, { borderColor: '#006747' }]}
+        >
+          <Ionicons name="share-outline" size={18} color="#006747" />
+          <Text style={[styles.memberActionText, { color: '#006747' }]}>Share Invite Link</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => { haptics.light(); setShowManualModal(true); }}
+          style={[styles.memberActionBtn, { borderColor: c.textMuted }]}
+        >
+          <Ionicons name="person-add-outline" size={18} color={c.textMuted} />
+          <Text style={[styles.memberActionText, { color: c.textMuted }]}>Add Manual Player</Text>
+        </Pressable>
+      </View>
+
+      {/* Min 4 warning */}
+      {totalPlayers < 4 && (
+        <View style={[styles.minWarning, { backgroundColor: '#C41E3A' + '18' }]}>
+          <Ionicons name="warning-outline" size={16} color="#C41E3A" />
+          <Text style={{ fontSize: 13, color: '#C41E3A' }}>Minimum 4 players required</Text>
+        </View>
+      )}
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 12 }]}>
+        Select Members ({totalPlayers} selected)
       </Text>
 
+      {/* Manual players */}
+      {manualPlayers.map((p) => (
+        <View
+          key={p.id}
+          style={[
+            styles.memberRow,
+            {
+              backgroundColor: c.teal + '12',
+              borderColor: c.teal,
+              borderWidth: 1,
+            },
+          ]}
+        >
+          <View style={[styles.manualAvatar, { backgroundColor: c.textMuted + '33' }]}>
+            <Ionicons name="person" size={18} color={c.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.memberName, { color: c.teal }]}>{p.name}</Text>
+              <View style={[styles.manualBadge, { backgroundColor: c.textMuted + '33' }]}>
+                <Text style={styles.manualBadgeText}>MANUAL</Text>
+              </View>
+            </View>
+            {p.handicap != null && (
+              <Text style={[styles.memberHcp, { color: c.textMuted }]}>Handicap {p.handicap}</Text>
+            )}
+          </View>
+          <Pressable onPress={() => removeManual(p.id)} hitSlop={8}>
+            <Ionicons name="close-circle" size={22} color={c.textMuted} />
+          </Pressable>
+        </View>
+      ))}
+
+      {/* Friends list */}
       {MOCK_FRIENDS.map((f) => {
         const selected = selectedIds.includes(f.id);
         return (
@@ -726,6 +863,52 @@ function MembersStep({
           </Pressable>
         );
       })}
+
+      {/* Manual Player Modal */}
+      <Modal visible={showManualModal} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowManualModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.isDark ? c.card : '#FFFFFF' }]} onPress={() => {}}>
+            <Text style={[styles.modalTitle, { color: c.text }]}>Add Manual Player</Text>
+
+            <Text style={[styles.fieldLabel, { color: c.text }]}>Name</Text>
+            <TextInput
+              value={manualName}
+              onChangeText={setManualName}
+              placeholder="Player name"
+              placeholderTextColor={c.textMuted}
+              style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border }]}
+              autoFocus
+            />
+
+            <Text style={[styles.fieldLabel, { color: c.text, marginTop: 12 }]}>Handicap (optional)</Text>
+            <TextInput
+              value={manualHandicap}
+              onChangeText={setManualHandicap}
+              placeholder="e.g., 15"
+              placeholderTextColor={c.textMuted}
+              keyboardType="numeric"
+              style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border }]}
+            />
+
+            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 10, fontStyle: 'italic' }}>
+              Manual players don't need the app. You'll enter their scores each week.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <Pressable onPress={() => setShowManualModal(false)} style={[styles.modalBtn, { borderColor: c.border, borderWidth: 1 }]}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: c.textMuted }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleAddManual}
+                disabled={!manualName.trim()}
+                style={[styles.modalBtn, { backgroundColor: manualName.trim() ? '#006747' : c.elevated }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: manualName.trim() ? '#FFFFFF' : c.textMuted }}>Add Player</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -862,6 +1045,7 @@ export default function SeasonsScreen() {
   const [playoffMultiplier, setPlayoffMultiplier] = useState(2);
   const [champMultiplier, setChampMultiplier] = useState(3);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [manualPlayers, setManualPlayers] = useState<ManualPlayer[]>([]);
   const [useCustomCycle, setUseCustomCycle] = useState(false);
   const [customCycle, setCustomCycle] = useState<Record<number, string>>({});
 
@@ -896,9 +1080,9 @@ export default function SeasonsScreen() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basics') return name.trim().length >= 3;
-    if (currentStep === 'members') return selectedIds.length >= 1;
+    if (currentStep === 'members') return (selectedIds.length + manualPlayers.length) >= 4;
     return true;
-  }, [currentStep, name, selectedIds]);
+  }, [currentStep, name, selectedIds, manualPlayers]);
 
   const handleCreate = useCallback(async () => {
     if (user) {
@@ -987,10 +1171,10 @@ export default function SeasonsScreen() {
           />
         )}
         {currentStep === 'majors' && (
-          <MajorsStep weeks={editableWeeks} setWeeks={setEditableWeeks} />
+          <MajorsStep weeks={editableWeeks} setWeeks={setEditableWeeks} preset={preset} />
         )}
         {currentStep === 'members' && (
-          <MembersStep selectedIds={selectedIds} setSelectedIds={setSelectedIds} />
+          <MembersStep selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name} manualPlayers={manualPlayers} setManualPlayers={setManualPlayers} />
         )}
         {currentStep === 'review' && (
           <ReviewStep
@@ -1128,6 +1312,25 @@ const styles = StyleSheet.create({
   memberChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   memberChip: { paddingHorizontal: 10, paddingVertical: 6 },
   memberChipText: { fontSize: 13, fontWeight: '500' },
+
+  // Explanation card
+  explanationCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderWidth: 1, marginBottom: 4 },
+
+  // Member actions
+  memberActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  memberActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderWidth: 1 },
+  memberActionText: { fontSize: 13, fontWeight: '600' },
+  minWarning: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, marginBottom: 8 },
+  manualAvatar: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  manualBadge: { paddingHorizontal: 5, paddingVertical: 1 },
+  manualBadgeText: { fontSize: 9, fontWeight: '700', color: '#8A857F', letterSpacing: 1 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modalContent: { padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16 },
+  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  modalBtn: { flex: 1, alignItems: 'center', paddingVertical: 12 },
 
   // Bottom bar
   bottomBar: { padding: 16, borderTopWidth: 1 },
