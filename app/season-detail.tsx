@@ -12,6 +12,7 @@ import {
   Animated,
   Modal,
   Alert,
+  Share,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -639,7 +640,7 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
         <View style={styles.bracketColumn}>
           <Text style={[styles.bracketRoundLabel, { color: c.textMuted }]}>FINAL</Text>
 
-          <View style={[styles.bracketMatchup, { backgroundColor: c.elevated }]}>
+          <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, borderWidth: 1, borderColor: '#C9A227' }]}>
             {semi1Winner && (
               <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
                 <Avatar id={semi1Winner.playerId} name={semi1Winner.name} size={20} />
@@ -663,8 +664,7 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
           {/* Champion display */}
           {champion && (
             <View style={[styles.bracketChampion, { borderColor: '#C9A227' }]}>
-              <Ionicons name="trophy" size={16} color="#C9A227" />
-              <Text style={[styles.bracketChampionName, { color: '#C9A227', fontFamily: GEO }]}>{champion.name}</Text>
+              <Text style={[styles.bracketChampionName, { color: '#C9A227', fontFamily: GEO }]}>🏆 {champion.name}</Text>
             </View>
           )}
         </View>
@@ -1030,7 +1030,26 @@ function SeasonDetailScreenInner() {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
           <Text style={[styles.headerTitle, { fontFamily: GEO }]}>FedEx Cup</Text>
-          <View style={{ width: 24 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <Pressable
+              onPress={() => {
+                haptics.light();
+                Share.share({ message: `Join my ${params.name ?? 'FedEx Cup'} season on Dormie! Download: dormie.golf` });
+              }}
+              hitSlop={12}
+            >
+              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                haptics.light();
+                router.push({ pathname: '/season-settings', params: { id: seasonId, name: params.name ?? '' } });
+              }}
+              hitSlop={12}
+            >
+              <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
 
         {/* Progress dots */}
@@ -1268,11 +1287,11 @@ const styles = StyleSheet.create({
   bracketMatchup: { padding: 0 },
   bracketMatchupRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 8 },
   bracketConnectors: { width: 24, alignItems: 'center', justifyContent: 'center', position: 'relative', height: 160 },
-  bracketLineTop: { position: 'absolute', top: 30, right: 0, width: 12, height: 50, borderRightWidth: 1, borderTopWidth: 1, borderBottomWidth: 1 },
-  bracketLineBottom: { position: 'absolute', bottom: 30, right: 0, width: 12, height: 50, borderRightWidth: 1, borderTopWidth: 1, borderBottomWidth: 1 },
-  bracketLineCenter: { position: 'absolute', right: 0, width: 12, height: 1 },
-  bracketChampion: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, paddingVertical: 8, borderWidth: 1 },
-  bracketChampionName: { fontSize: 13, fontWeight: '700' },
+  bracketLineTop: { position: 'absolute', top: 30, right: 0, width: 12, height: 50, borderRightWidth: 2, borderTopWidth: 2, borderBottomWidth: 2 },
+  bracketLineBottom: { position: 'absolute', bottom: 30, right: 0, width: 12, height: 50, borderRightWidth: 2, borderTopWidth: 2, borderBottomWidth: 2 },
+  bracketLineCenter: { position: 'absolute', right: 0, width: 12, height: 2 },
+  bracketChampion: { alignItems: 'center', justifyContent: 'center', marginTop: 12, paddingVertical: 8, borderWidth: 1 },
+  bracketChampionName: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
 });
 
 export default function SeasonDetailScreen() {

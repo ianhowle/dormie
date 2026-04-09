@@ -184,13 +184,13 @@ export function SeasonEmpty() {
         Create your first season and challenge your crew.
       </Text>
 
-      {/* Mini preview mockup */}
-      <View style={[season.preview, { backgroundColor: c.elevated, borderColor: c.border }]}>
+      {/* Full-width preview leaderboard */}
+      <View style={[season.previewFull, { backgroundColor: c.elevated, borderColor: c.border }]}>
         <View style={[season.previewHeader, { backgroundColor: '#1E4D2B' }]}>
           <Text style={season.previewTitle}>SPRING CHAMPIONSHIP</Text>
         </View>
-        {['McGowan', 'Fletcher', 'Patterson'].map((name, i) => (
-          <View key={name} style={[season.previewRow, i < 2 && { borderBottomWidth: 1, borderBottomColor: c.border }]}>
+        {['McGowan', 'Fletcher', 'Patterson', 'Sullivan'].map((name, i) => (
+          <View key={name} style={[season.previewRow, i < 3 && { borderBottomWidth: 1, borderBottomColor: c.border }]}>
             <Text style={[season.previewRank, { color: c.textMuted, fontFamily: GEO }]}>{i + 1}</Text>
             <Text style={[season.previewName, { color: c.text, fontFamily: SANS }]}>{name}</Text>
             <Text style={[season.previewPts, { color: c.gold, fontFamily: GEO }]}>{72 - i * 8} pts</Text>
@@ -198,12 +198,20 @@ export function SeasonEmpty() {
         ))}
       </View>
 
+      {/* Mini schedule preview */}
+      <View style={[season.schedulePreview, { borderColor: c.border }]}>
+        <Ionicons name="calendar-outline" size={14} color={c.textMuted} />
+        <Text style={[season.scheduleText, { color: c.textMuted, fontFamily: SANS }]}>
+          Week 1: Stableford, Week 2: Match Play, Week 3: Best Ball...
+        </Text>
+      </View>
+
       <Pressable
         onPress={() => { haptics.light(); router.push('/season-create'); }}
-        style={({ pressed }) => [es.btn, { backgroundColor: isDark ? c.gold : '#006747' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
+        style={({ pressed }) => [es.btn, { backgroundColor: '#C9A227' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
-        <Ionicons name="add-circle-outline" size={16} color={isDark ? '#141210' : '#FFFFFF'} />
-        <Text style={[es.btnText, { color: isDark ? '#141210' : '#FFFFFF', fontFamily: SANS }]}>Create Season</Text>
+        <Ionicons name="add-circle-outline" size={16} color="#141210" />
+        <Text style={[es.btnText, { color: '#141210', fontFamily: SANS }]}>Create Season</Text>
       </Pressable>
     </View>
   );
@@ -366,6 +374,14 @@ const season = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 8,
   },
+  previewFull: {
+    width: '100%',
+    marginHorizontal: -24,
+    alignSelf: 'center',
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
   previewHeader: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -396,5 +412,20 @@ const season = StyleSheet.create({
   previewPts: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  schedulePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  scheduleText: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    flex: 1,
   },
 });
