@@ -125,8 +125,27 @@ const MOCK_FRIENDS: Friend[] = [
 ];
 
 // ─── Step definitions ─────────────────────────────────────────────────
-type Step = 'basics' | 'format' | 'rules' | 'majors' | 'members' | 'review';
-const STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
+type Step = 'basics' | 'format' | 'rules' | 'majors' | 'members' | 'review'
+  | 'rc_team_setup' | 'rc_match_format' | 'rc_members' | 'rc_review'
+  | 'bracket_setup' | 'bracket_rules' | 'bracket_members' | 'bracket_review'
+  | 'stroke_setup' | 'stroke_members' | 'stroke_review';
+
+const FEDEX_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
+const RYDER_STEPS: Step[] = ['basics', 'rc_members', 'rc_team_setup', 'rc_match_format', 'rc_review'];
+const BRACKET_STEPS: Step[] = ['basics', 'bracket_setup', 'bracket_rules', 'bracket_members', 'bracket_review'];
+const STROKE_STEPS: Step[] = ['basics', 'stroke_setup', 'stroke_members', 'stroke_review'];
+const CUSTOM_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
+
+function getStepsForType(type: SeasonType): Step[] {
+  switch (type) {
+    case 'ryder': return RYDER_STEPS;
+    case 'bracket': return BRACKET_STEPS;
+    case 'stroke_series': return STROKE_STEPS;
+    case 'custom': return CUSTOM_STEPS;
+    default: return FEDEX_STEPS;
+  }
+}
+
 const STEP_TITLES: Record<Step, string> = {
   basics: 'Season Basics',
   format: 'Format & Length',
@@ -134,6 +153,17 @@ const STEP_TITLES: Record<Step, string> = {
   majors: 'Majors',
   members: 'Members',
   review: 'Review',
+  rc_team_setup: 'Team Setup',
+  rc_match_format: 'Match Format',
+  rc_members: 'Members',
+  rc_review: 'Review',
+  bracket_setup: 'Bracket Setup',
+  bracket_rules: 'Match Rules',
+  bracket_members: 'Members',
+  bracket_review: 'Review',
+  stroke_setup: 'Series Setup',
+  stroke_members: 'Members',
+  stroke_review: 'Review',
 };
 
 // ─── Pill Selector ────────────────────────────────────────────────────
@@ -189,13 +219,14 @@ function BasicsStep({
   const c = theme.colors;
   const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
   const [nameFocused, setNameFocused] = useState(false);
+  const [expandedInfo, setExpandedInfo] = useState<SeasonType | null>(null);
 
-  const SEASON_TYPES: { key: SeasonType; icon?: React.ComponentProps<typeof Ionicons>['name']; emoji?: string; label: string; desc: string }[] = [
-    { key: 'fedex', icon: 'trophy', label: 'FedEx Cup', desc: 'Individual points race with playoffs' },
-    { key: 'ryder', icon: 'people', label: 'Ryder Cup', desc: 'Team competition (red vs blue)' },
-    { key: 'bracket', emoji: '🏆', label: 'Match Play Bracket', desc: 'Single elimination tournament' },
-    { key: 'stroke_series', emoji: '📋', label: 'Stroke Play Series', desc: 'Cumulative strokes, lowest total wins' },
-    { key: 'custom', emoji: '⚙️', label: 'Custom', desc: 'Build your own rules' },
+  const SEASON_TYPES: { key: SeasonType; icon: React.ComponentProps<typeof Ionicons>['name']; label: string; desc: string; whatsThis: string }[] = [
+    { key: 'fedex', icon: 'trophy-outline', label: 'FedEx Cup', desc: 'Individual points race with playoffs', whatsThis: 'Players earn points each week based on finish position. Top players advance to playoffs with bonus multipliers.' },
+    { key: 'ryder', icon: 'people-outline', label: 'Ryder Cup', desc: 'Team competition (red vs blue)', whatsThis: 'Two teams compete in foursomes, four-ball, and singles matches. Captains draft players and set pairings.' },
+    { key: 'bracket', icon: 'git-merge-outline', label: 'Match Play Bracket', desc: 'Single elimination tournament', whatsThis: 'Players face off head-to-head in a seeded bracket. Lose and you\'re out — last one standing wins.' },
+    { key: 'stroke_series', icon: 'document-text-outline', label: 'Stroke Play Series', desc: 'Cumulative strokes, lowest total wins', whatsThis: 'A multi-round series where cumulative stroke totals determine the winner. Option to drop your worst round.' },
+    { key: 'custom', icon: 'settings-outline', label: 'Custom', desc: 'Build your own rules', whatsThis: 'Full control over format, scoring, and structure. Mix and match any combination of rules.' },
   ];
 
   return (
@@ -216,30 +247,49 @@ function BasicsStep({
         Choose how your group competes.
       </Text>
       <View style={styles.typeCards}>
-        {SEASON_TYPES.map((t) => (
-          <Pressable
-            key={t.key}
-            onPress={() => { haptics.light(); setSeasonType(t.key); }}
-            style={[
-              styles.typeCard,
-              {
-                backgroundColor: seasonType === t.key ? c.gold + '12' : (theme.isDark ? c.elevated : c.cardBg),
-                borderColor: seasonType === t.key ? c.gold : c.border,
-                borderWidth: 1,
-              },
-            ]}
-          >
-            {t.icon ? (
-              <Ionicons name={t.icon} size={28} color={seasonType === t.key ? c.gold : c.textMuted} />
-            ) : (
-              <Text style={{ fontSize: 28 }}>{t.emoji}</Text>
-            )}
-            <Text style={[styles.typeCardLabel, { color: seasonType === t.key ? c.gold : c.text }]}>
-              {t.label}
-            </Text>
-            <Text style={[styles.typeCardDesc, { color: c.textMuted }]}>{t.desc}</Text>
-          </Pressable>
-        ))}
+        {SEASON_TYPES.map((t) => {
+          const isSelected = seasonType === t.key;
+          const isInfoOpen = expandedInfo === t.key;
+          return (
+            <View key={t.key} style={styles.typeCardWrapper}>
+              <Pressable
+                onPress={() => { haptics.light(); setSeasonType(t.key); }}
+                style={[
+                  styles.typeCard,
+                  {
+                    backgroundColor: isSelected ? '#1A1816' : (theme.isDark ? c.surface : c.cardBg),
+                    borderColor: isSelected ? '#C9A227' : 'rgba(255,255,255,0.08)',
+                    borderWidth: isSelected ? 2 : 1,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={t.icon}
+                  size={32}
+                  color={isSelected ? '#C9A227' : c.textMuted}
+                />
+                <Text style={[styles.typeCardLabel, { color: isSelected ? '#C9A227' : c.text }]}>
+                  {t.label}
+                </Text>
+                <Text style={[styles.typeCardDesc, { color: c.textMuted }]}>{t.desc}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { haptics.light(); setExpandedInfo(isInfoOpen ? null : t.key); }}
+                style={styles.whatsThisBtn}
+              >
+                <Ionicons name={isInfoOpen ? 'chevron-up' : 'help-circle-outline'} size={14} color={c.textMuted} />
+                <Text style={[styles.whatsThisText, { color: c.textMuted }]}>
+                  {isInfoOpen ? 'Hide' : "What's this?"}
+                </Text>
+              </Pressable>
+              {isInfoOpen && (
+                <View style={[styles.whatsThisBody, { backgroundColor: theme.isDark ? c.elevated : '#F5F1EB' }]}>
+                  <Text style={[styles.whatsThisDesc, { color: c.textMuted }]}>{t.whatsThis}</Text>
+                </View>
+              )}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -1081,6 +1131,708 @@ function ReviewStep({
   );
 }
 
+// ─── Ryder Cup: Team Setup ───────────────────────────────────────────
+type DraftMethod = 'snake' | 'captains_pick' | 'random';
+
+function RyderCupTeamSetupStep({
+  teamRedName,
+  setTeamRedName,
+  teamBlueName,
+  setTeamBlueName,
+  teamRedCaptain,
+  setTeamRedCaptain,
+  teamBlueCaptain,
+  setTeamBlueCaptain,
+  draftMethod,
+  setDraftMethod,
+  teamRedRoster,
+  teamBlueRoster,
+  selectedIds,
+}: {
+  teamRedName: string;
+  setTeamRedName: (v: string) => void;
+  teamBlueName: string;
+  setTeamBlueName: (v: string) => void;
+  teamRedCaptain: string | null;
+  setTeamRedCaptain: (v: string | null) => void;
+  teamBlueCaptain: string | null;
+  setTeamBlueCaptain: (v: string | null) => void;
+  draftMethod: DraftMethod;
+  setDraftMethod: (v: DraftMethod) => void;
+  teamRedRoster: string[];
+  teamBlueRoster: string[];
+  selectedIds: string[];
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
+
+  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+
+  const DRAFT_METHODS: { key: DraftMethod; label: string; desc: string }[] = [
+    { key: 'snake', label: 'Snake Draft', desc: 'Captains alternate picks (1-2-2-1)' },
+    { key: 'captains_pick', label: "Captain's Pick", desc: 'Captains choose freely' },
+    { key: 'random', label: 'Random', desc: 'Players assigned randomly to teams' },
+  ];
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Team Names</Text>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <View style={[styles.teamColorDot, { backgroundColor: '#C41E3A' }]} />
+          <TextInput
+            value={teamRedName}
+            onChangeText={setTeamRedName}
+            placeholder="Team Red"
+            placeholderTextColor={c.textMuted}
+            style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: '#C41E3A44' }]}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={[styles.teamColorDot, { backgroundColor: '#4682B4' }]} />
+          <TextInput
+            value={teamBlueName}
+            onChangeText={setTeamBlueName}
+            placeholder="Team Blue"
+            placeholderTextColor={c.textMuted}
+            style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: '#4682B444' }]}
+          />
+        </View>
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Team Captains</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted }]}>Select one captain per team from your members.</Text>
+
+      <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+        {/* Red captain */}
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.teamCaptainLabel, { color: '#C41E3A' }]}>{teamRedName || 'Team Red'} Captain</Text>
+          {allPlayers.map((p) => {
+            const isRedCaptain = teamRedCaptain === p.id;
+            const isBlue = teamBlueCaptain === p.id;
+            return (
+              <Pressable
+                key={p.id}
+                onPress={() => { if (!isBlue) { haptics.light(); setTeamRedCaptain(isRedCaptain ? null : p.id); } }}
+                style={[styles.captainPick, {
+                  backgroundColor: isRedCaptain ? '#C41E3A18' : (theme.isDark ? c.surface : c.cardBg),
+                  borderColor: isRedCaptain ? '#C41E3A' : c.border,
+                  opacity: isBlue ? 0.35 : 1,
+                }]}
+              >
+                <Text style={[styles.captainPickName, { color: isRedCaptain ? '#C41E3A' : c.text }]} numberOfLines={1}>
+                  {p.name.split(' ')[0]}
+                </Text>
+                {isRedCaptain && <Ionicons name="star" size={14} color="#C41E3A" />}
+              </Pressable>
+            );
+          })}
+        </View>
+        {/* Blue captain */}
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.teamCaptainLabel, { color: '#4682B4' }]}>{teamBlueName || 'Team Blue'} Captain</Text>
+          {allPlayers.map((p) => {
+            const isBlueCaptain = teamBlueCaptain === p.id;
+            const isRed = teamRedCaptain === p.id;
+            return (
+              <Pressable
+                key={p.id}
+                onPress={() => { if (!isRed) { haptics.light(); setTeamBlueCaptain(isBlueCaptain ? null : p.id); } }}
+                style={[styles.captainPick, {
+                  backgroundColor: isBlueCaptain ? '#4682B418' : (theme.isDark ? c.surface : c.cardBg),
+                  borderColor: isBlueCaptain ? '#4682B4' : c.border,
+                  opacity: isRed ? 0.35 : 1,
+                }]}
+              >
+                <Text style={[styles.captainPickName, { color: isBlueCaptain ? '#4682B4' : c.text }]} numberOfLines={1}>
+                  {p.name.split(' ')[0]}
+                </Text>
+                {isBlueCaptain && <Ionicons name="star" size={14} color="#4682B4" />}
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Draft Method</Text>
+      {DRAFT_METHODS.map((dm) => (
+        <Pressable
+          key={dm.key}
+          onPress={() => { haptics.light(); setDraftMethod(dm.key); }}
+          style={[styles.presetCard, {
+            backgroundColor: draftMethod === dm.key ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+            borderColor: draftMethod === dm.key ? c.teal : c.border,
+            borderWidth: 1,
+          }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.presetLabel, { color: draftMethod === dm.key ? c.teal : c.text }]}>{dm.label}</Text>
+            <Text style={[styles.presetDesc, { color: c.textMuted }]}>{dm.desc}</Text>
+          </View>
+          {draftMethod === dm.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+        </Pressable>
+      ))}
+
+      {/* Team rosters side-by-side preview */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Team Rosters</Text>
+      <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+        <View style={[styles.rosterColumn, { backgroundColor: '#C41E3A0C', borderColor: '#C41E3A33' }]}>
+          <Text style={[styles.rosterTitle, { color: '#C41E3A' }]}>{teamRedName || 'Team Red'}</Text>
+          {teamRedRoster.length === 0 ? (
+            <Text style={[styles.rosterEmpty, { color: c.textMuted }]}>Draft pending</Text>
+          ) : (
+            teamRedRoster.map((id) => {
+              const p = allPlayers.find((f) => f.id === id);
+              return p ? (
+                <Text key={id} style={[styles.rosterPlayer, { color: c.text }]}>{p.name.split(' ')[0]}</Text>
+              ) : null;
+            })
+          )}
+        </View>
+        <View style={[styles.rosterColumn, { backgroundColor: '#4682B40C', borderColor: '#4682B433' }]}>
+          <Text style={[styles.rosterTitle, { color: '#4682B4' }]}>{teamBlueName || 'Team Blue'}</Text>
+          {teamBlueRoster.length === 0 ? (
+            <Text style={[styles.rosterEmpty, { color: c.textMuted }]}>Draft pending</Text>
+          ) : (
+            teamBlueRoster.map((id) => {
+              const p = allPlayers.find((f) => f.id === id);
+              return p ? (
+                <Text key={id} style={[styles.rosterPlayer, { color: c.text }]}>{p.name.split(' ')[0]}</Text>
+              ) : null;
+            })
+          )}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── Ryder Cup: Match Format ────────────────────────────────────────
+type RCSessionType = 'foursomes' | 'four_ball' | 'singles';
+
+function RyderCupMatchFormatStep({
+  rcSessions,
+  setRcSessions,
+  rcNumDays,
+  setRcNumDays,
+  rcPointsPerMatch,
+  setRcPointsPerMatch,
+  rcHalvedPoints,
+  setRcHalvedPoints,
+}: {
+  rcSessions: Record<RCSessionType, boolean>;
+  setRcSessions: (v: Record<RCSessionType, boolean>) => void;
+  rcNumDays: number;
+  setRcNumDays: (v: number) => void;
+  rcPointsPerMatch: number;
+  setRcPointsPerMatch: (v: number) => void;
+  rcHalvedPoints: number;
+  setRcHalvedPoints: (v: number) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const SESSION_TYPES: { key: RCSessionType; label: string; desc: string }[] = [
+    { key: 'foursomes', label: 'Foursomes (Alternate Shot)', desc: '2v2 — teams alternate shots on the same ball' },
+    { key: 'four_ball', label: 'Four-Ball (Best Ball)', desc: '2v2 — best individual ball on each hole counts' },
+    { key: 'singles', label: 'Singles', desc: '1v1 match play head-to-head' },
+  ];
+
+  const DAY_CONFIGS = [
+    { days: 1, label: '1 Day', desc: 'All sessions in one day' },
+    { days: 2, label: '2 Days', desc: 'Day 1: Foursomes + Four-Ball, Day 2: Singles' },
+    { days: 3, label: '3 Days', desc: 'Classic Ryder Cup format spread over 3 days' },
+  ];
+
+  const toggleSession = (key: RCSessionType) => {
+    haptics.light();
+    setRcSessions({ ...rcSessions, [key]: !rcSessions[key] });
+  };
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Session Types</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Toggle which match formats to include.
+      </Text>
+
+      {SESSION_TYPES.map((st) => (
+        <Pressable
+          key={st.key}
+          onPress={() => toggleSession(st.key)}
+          style={[styles.ruleRow, { borderBottomColor: c.border }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ruleLabel, { color: rcSessions[st.key] ? c.teal : c.text }]}>{st.label}</Text>
+            <Text style={[styles.ruleDesc, { color: c.textMuted }]}>{st.desc}</Text>
+          </View>
+          <Switch
+            value={rcSessions[st.key]}
+            onValueChange={() => toggleSession(st.key)}
+            trackColor={{ false: c.elevated, true: c.teal + '66' }}
+            thumbColor={rcSessions[st.key] ? c.teal : c.textMuted}
+          />
+        </Pressable>
+      ))}
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Number of Days</Text>
+      {DAY_CONFIGS.map((dc) => (
+        <Pressable
+          key={dc.days}
+          onPress={() => { haptics.light(); setRcNumDays(dc.days); }}
+          style={[styles.presetCard, {
+            backgroundColor: rcNumDays === dc.days ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+            borderColor: rcNumDays === dc.days ? c.teal : c.border,
+            borderWidth: 1,
+          }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.presetLabel, { color: rcNumDays === dc.days ? c.teal : c.text }]}>{dc.label}</Text>
+            <Text style={[styles.presetDesc, { color: c.textMuted }]}>{dc.desc}</Text>
+          </View>
+          {rcNumDays === dc.days && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+        </Pressable>
+      ))}
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Points</Text>
+      <View style={[styles.multiplierRow, { backgroundColor: c.elevated }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.multiplierLabel, { color: c.text }]}>Points per match win</Text>
+        </View>
+        <View style={styles.stepperRow}>
+          <Pressable onPress={() => { haptics.light(); setRcPointsPerMatch(Math.max(0.5, rcPointsPerMatch - 0.5)); }}>
+            <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
+          </Pressable>
+          <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{rcPointsPerMatch}</Text>
+          <Pressable onPress={() => { haptics.light(); setRcPointsPerMatch(rcPointsPerMatch + 0.5); }}>
+            <Ionicons name="add-circle-outline" size={24} color={c.gold} />
+          </Pressable>
+        </View>
+      </View>
+      <View style={[styles.multiplierRow, { backgroundColor: c.elevated }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.multiplierLabel, { color: c.text }]}>Points for halved match</Text>
+        </View>
+        <View style={styles.stepperRow}>
+          <Pressable onPress={() => { haptics.light(); setRcHalvedPoints(Math.max(0, rcHalvedPoints - 0.5)); }}>
+            <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
+          </Pressable>
+          <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{rcHalvedPoints}</Text>
+          <Pressable onPress={() => { haptics.light(); setRcHalvedPoints(rcHalvedPoints + 0.5); }}>
+            <Ionicons name="add-circle-outline" size={24} color={c.gold} />
+          </Pressable>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── Ryder Cup: Review ──────────────────────────────────────────────
+function RyderCupReviewStep({
+  name,
+  teamRedName,
+  teamBlueName,
+  teamRedCaptain,
+  teamBlueCaptain,
+  draftMethod,
+  rcSessions,
+  rcNumDays,
+  rcPointsPerMatch,
+  rcHalvedPoints,
+  selectedIds,
+  manualPlayers,
+}: {
+  name: string;
+  teamRedName: string;
+  teamBlueName: string;
+  teamRedCaptain: string | null;
+  teamBlueCaptain: string | null;
+  draftMethod: DraftMethod;
+  rcSessions: Record<RCSessionType, boolean>;
+  rcNumDays: number;
+  rcPointsPerMatch: number;
+  rcHalvedPoints: number;
+  selectedIds: string[];
+  manualPlayers: ManualPlayer[];
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const redCaptainName = allPlayers.find((p) => p.id === teamRedCaptain)?.name ?? 'TBD';
+  const blueCaptainName = allPlayers.find((p) => p.id === teamBlueCaptain)?.name ?? 'TBD';
+  const draftLabels: Record<DraftMethod, string> = { snake: 'Snake Draft', captains_pick: "Captain's Pick", random: 'Random' };
+  const enabledSessions = (Object.keys(rcSessions) as RCSessionType[]).filter((k) => rcSessions[k]);
+  const sessionLabels: Record<RCSessionType, string> = { foursomes: 'Foursomes', four_ball: 'Four-Ball', singles: 'Singles' };
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>{name}</Text>
+        <Text style={{ fontSize: 16, color: c.textMuted, marginTop: 6 }}>Ryder Cup</Text>
+      </View>
+
+      <AccordionSection title="Teams" icon="people-outline" iconColor="#C41E3A" defaultOpen>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#C41E3A', marginBottom: 4 }}>{teamRedName || 'Team Red'}</Text>
+            <Text style={{ fontSize: 12, color: c.textMuted }}>Captain: {redCaptainName}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#4682B4', marginBottom: 4 }}>{teamBlueName || 'Team Blue'}</Text>
+            <Text style={{ fontSize: 12, color: c.textMuted }}>Captain: {blueCaptainName}</Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 8 }}>Draft: {draftLabels[draftMethod]}</Text>
+      </AccordionSection>
+
+      <AccordionSection title="Match Format" icon="golf-outline" iconColor={c.teal} defaultOpen>
+        {enabledSessions.map((s) => (
+          <Text key={s} style={{ fontSize: 14, color: c.text, marginTop: 4 }}>{sessionLabels[s]}</Text>
+        ))}
+        <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 8 }}>{rcNumDays} day{rcNumDays > 1 ? 's' : ''} of competition</Text>
+        <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>Win: {rcPointsPerMatch} pt{rcPointsPerMatch !== 1 ? 's' : ''} | Halved: {rcHalvedPoints} pt{rcHalvedPoints !== 1 ? 's' : ''}</Text>
+      </AccordionSection>
+
+      <AccordionSection title={`Members (${allPlayers.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+        <View style={styles.reviewAvatarRow}>
+          <View style={styles.reviewAvatarItem}>
+            <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
+              <Ionicons name="person" size={18} color={c.teal} />
+            </View>
+            <Text style={[styles.reviewAvatarName, { color: c.teal }]} numberOfLines={1}>You</Text>
+          </View>
+          {allPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <Avatar id={m.id} name={m.name} size={40} />
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </View>
+      </AccordionSection>
+    </ScrollView>
+  );
+}
+
+// ─── Match Play Bracket: Bracket Setup ──────────────────────────────
+type SeedingMethod = 'handicap' | 'qualifying' | 'random';
+
+function BracketSetupStep({
+  bracketSize,
+  setBracketSize,
+  seedingMethod,
+  setSeedingMethod,
+}: {
+  bracketSize: number;
+  setBracketSize: (v: number) => void;
+  seedingMethod: SeedingMethod;
+  setSeedingMethod: (v: SeedingMethod) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const BRACKET_SIZES = [4, 8, 16, 32];
+  const SEEDING_METHODS: { key: SeedingMethod; label: string; desc: string }[] = [
+    { key: 'handicap', label: 'By Handicap', desc: 'Lowest handicap gets top seed' },
+    { key: 'qualifying', label: 'Qualifying Round', desc: 'Play a round to set seeds' },
+    { key: 'random', label: 'Random', desc: 'Seeds assigned randomly' },
+  ];
+
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Bracket Size</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        How many players in the bracket?
+      </Text>
+      <View style={styles.pillRow}>
+        {BRACKET_SIZES.map((size) => (
+          <Pressable
+            key={size}
+            onPress={() => { haptics.light(); setBracketSize(size); }}
+            style={[styles.pill, {
+              backgroundColor: bracketSize === size ? c.teal + '22' : c.elevated,
+              borderColor: bracketSize === size ? c.teal : 'transparent',
+              borderWidth: 1,
+            }]}
+          >
+            <Text style={[styles.pillText, { color: bracketSize === size ? c.teal : c.textMuted, fontFamily: GEO }]}>
+              {size}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Seeding Method</Text>
+      {SEEDING_METHODS.map((sm) => (
+        <Pressable
+          key={sm.key}
+          onPress={() => { haptics.light(); setSeedingMethod(sm.key); }}
+          style={[styles.presetCard, {
+            backgroundColor: seedingMethod === sm.key ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+            borderColor: seedingMethod === sm.key ? c.teal : c.border,
+            borderWidth: 1,
+          }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.presetLabel, { color: seedingMethod === sm.key ? c.teal : c.text }]}>{sm.label}</Text>
+            <Text style={[styles.presetDesc, { color: c.textMuted }]}>{sm.desc}</Text>
+          </View>
+          {seedingMethod === sm.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// ─── Match Play Bracket: Match Rules ────────────────────────────────
+type BracketMatchLength = '18' | '9';
+type HandicapStrokes = 'full' | '80' | 'none';
+
+function BracketMatchRulesStep({
+  bracketMatchLength,
+  setBracketMatchLength,
+  bracketHandicap,
+  setBracketHandicap,
+}: {
+  bracketMatchLength: BracketMatchLength;
+  setBracketMatchLength: (v: BracketMatchLength) => void;
+  bracketHandicap: HandicapStrokes;
+  setBracketHandicap: (v: HandicapStrokes) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Match Length</Text>
+      <PillRow
+        options={['18', '9'] as BracketMatchLength[]}
+        selected={bracketMatchLength}
+        onSelect={setBracketMatchLength}
+        labels={{ '18': '18 Holes', '9': '9 Holes' }}
+        colors={c}
+      />
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Handicap Strokes</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        How handicap strokes are applied in matches.
+      </Text>
+      {([
+        { key: 'full' as HandicapStrokes, label: 'Full Handicap', desc: '100% of handicap difference' },
+        { key: '80' as HandicapStrokes, label: '80% Handicap', desc: '80% of handicap difference (USGA recommendation)' },
+        { key: 'none' as HandicapStrokes, label: 'No Handicap', desc: 'Scratch play — no strokes given' },
+      ]).map((opt) => (
+        <Pressable
+          key={opt.key}
+          onPress={() => { haptics.light(); setBracketHandicap(opt.key); }}
+          style={[styles.presetCard, {
+            backgroundColor: bracketHandicap === opt.key ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+            borderColor: bracketHandicap === opt.key ? c.teal : c.border,
+            borderWidth: 1,
+          }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.presetLabel, { color: bracketHandicap === opt.key ? c.teal : c.text }]}>{opt.label}</Text>
+            <Text style={[styles.presetDesc, { color: c.textMuted }]}>{opt.desc}</Text>
+          </View>
+          {bracketHandicap === opt.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// ─── Match Play Bracket: Review ─────────────────────────────────────
+function BracketReviewStep({
+  name,
+  bracketSize,
+  seedingMethod,
+  bracketMatchLength,
+  bracketHandicap,
+  selectedIds,
+  manualPlayers,
+}: {
+  name: string;
+  bracketSize: number;
+  seedingMethod: SeedingMethod;
+  bracketMatchLength: BracketMatchLength;
+  bracketHandicap: HandicapStrokes;
+  selectedIds: string[];
+  manualPlayers: ManualPlayer[];
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const seedLabels: Record<SeedingMethod, string> = { handicap: 'By Handicap', qualifying: 'Qualifying Round', random: 'Random' };
+  const hcpLabels: Record<HandicapStrokes, string> = { full: 'Full Handicap', '80': '80% Handicap', none: 'No Handicap' };
+  const rounds = Math.log2(bracketSize);
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>{name}</Text>
+        <Text style={{ fontSize: 16, color: c.textMuted, marginTop: 6 }}>Match Play Bracket</Text>
+      </View>
+
+      <AccordionSection title="Bracket" icon="git-merge-outline" iconColor={c.teal} defaultOpen>
+        <Text style={[styles.reviewVal, { color: c.text }]}>{bracketSize} players — {rounds} rounds</Text>
+        <Text style={[styles.reviewVal, { color: c.textMuted }]}>Seeding: {seedLabels[seedingMethod]}</Text>
+      </AccordionSection>
+
+      <AccordionSection title="Match Rules" icon="golf-outline" iconColor={c.teal} defaultOpen>
+        <Text style={[styles.reviewVal, { color: c.text }]}>{bracketMatchLength} holes per match</Text>
+        <Text style={[styles.reviewVal, { color: c.textMuted }]}>{hcpLabels[bracketHandicap]}</Text>
+      </AccordionSection>
+
+      <AccordionSection title={`Members (${allPlayers.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+        <View style={styles.reviewAvatarRow}>
+          <View style={styles.reviewAvatarItem}>
+            <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
+              <Ionicons name="person" size={18} color={c.teal} />
+            </View>
+            <Text style={[styles.reviewAvatarName, { color: c.teal }]} numberOfLines={1}>You</Text>
+          </View>
+          {allPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <Avatar id={m.id} name={m.name} size={40} />
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </View>
+      </AccordionSection>
+    </ScrollView>
+  );
+}
+
+// ─── Stroke Play Series: Series Setup ───────────────────────────────
+type StrokeScoringType = 'gross' | 'net' | 'both';
+
+function StrokeSeriesSetupStep({
+  strokeRounds,
+  setStrokeRounds,
+  strokeScoring,
+  setStrokeScoring,
+  strokeDropWorst,
+  setStrokeDropWorst,
+}: {
+  strokeRounds: number;
+  setStrokeRounds: (v: number) => void;
+  strokeScoring: StrokeScoringType;
+  setStrokeScoring: (v: StrokeScoringType) => void;
+  strokeDropWorst: boolean;
+  setStrokeDropWorst: (v: boolean) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const ROUND_OPTIONS = [4, 6, 8, 10];
+
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Number of Rounds</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Total rounds in the series.
+      </Text>
+      <View style={styles.pillRow}>
+        {ROUND_OPTIONS.map((n) => (
+          <Pressable
+            key={n}
+            onPress={() => { haptics.light(); setStrokeRounds(n); }}
+            style={[styles.pill, {
+              backgroundColor: strokeRounds === n ? c.teal + '22' : c.elevated,
+              borderColor: strokeRounds === n ? c.teal : 'transparent',
+              borderWidth: 1,
+            }]}
+          >
+            <Text style={[styles.pillText, { color: strokeRounds === n ? c.teal : c.textMuted, fontFamily: GEO }]}>{n}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Scoring</Text>
+      <PillRow
+        options={['gross', 'net', 'both'] as StrokeScoringType[]}
+        selected={strokeScoring}
+        onSelect={setStrokeScoring}
+        labels={{ gross: 'Gross', net: 'Net', both: 'Both' }}
+        colors={c}
+      />
+
+      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 16 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Drop Worst Round</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Your worst round score won't count toward the total
+          </Text>
+        </View>
+        <Switch
+          value={strokeDropWorst}
+          onValueChange={setStrokeDropWorst}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={strokeDropWorst ? c.teal : c.textMuted}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ─── Stroke Play Series: Review ─────────────────────────────────────
+function StrokeSeriesReviewStep({
+  name,
+  strokeRounds,
+  strokeScoring,
+  strokeDropWorst,
+  selectedIds,
+  manualPlayers,
+}: {
+  name: string;
+  strokeRounds: number;
+  strokeScoring: StrokeScoringType;
+  strokeDropWorst: boolean;
+  selectedIds: string[];
+  manualPlayers: ManualPlayer[];
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const scoringLabels: Record<StrokeScoringType, string> = { gross: 'Gross', net: 'Net', both: 'Gross + Net' };
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>{name}</Text>
+        <Text style={{ fontSize: 16, color: c.textMuted, marginTop: 6 }}>Stroke Play Series</Text>
+      </View>
+
+      <AccordionSection title="Series Setup" icon="document-text-outline" iconColor={c.teal} defaultOpen>
+        <Text style={[styles.reviewVal, { color: c.text }]}>{strokeRounds} rounds</Text>
+        <Text style={[styles.reviewVal, { color: c.textMuted }]}>Scoring: {scoringLabels[strokeScoring]}</Text>
+        {strokeDropWorst && <Text style={[styles.reviewVal, { color: c.textMuted }]}>Drop worst round enabled</Text>}
+      </AccordionSection>
+
+      <AccordionSection title={`Members (${allPlayers.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+        <View style={styles.reviewAvatarRow}>
+          <View style={styles.reviewAvatarItem}>
+            <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
+              <Ionicons name="person" size={18} color={c.teal} />
+            </View>
+            <Text style={[styles.reviewAvatarName, { color: c.teal }]} numberOfLines={1}>You</Text>
+          </View>
+          {allPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <Avatar id={m.id} name={m.name} size={40} />
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </View>
+      </AccordionSection>
+    </ScrollView>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────
 export default function SeasonsScreen() {
   const { theme } = useTheme();
@@ -1090,11 +1842,17 @@ export default function SeasonsScreen() {
   const { showToast } = useToast();
 
   const [step, setStep] = useState(0);
-  const currentStep = STEPS[step];
-
-  // State
-  const [name, setName] = useState('');
   const [seasonType, setSeasonType] = useState<SeasonType>('fedex');
+
+  const steps = useMemo(() => getStepsForType(seasonType), [seasonType]);
+  const currentStep = steps[step];
+
+  // State — shared
+  const [name, setName] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [manualPlayers, setManualPlayers] = useState<ManualPlayer[]>([]);
+
+  // State — FedEx / Custom
   const [preset, setPreset] = useState('standard');
   const [scoringMethod, setScoringMethod] = useState<ScoringMethod>('position');
   const [cutEnabled, setCutEnabled] = useState(true);
@@ -1105,10 +1863,32 @@ export default function SeasonsScreen() {
   const [dnsCap, setDnsCap] = useState(5);
   const [playoffMultiplier, setPlayoffMultiplier] = useState(2);
   const [champMultiplier, setChampMultiplier] = useState(3);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [manualPlayers, setManualPlayers] = useState<ManualPlayer[]>([]);
   const [useCustomCycle, setUseCustomCycle] = useState(false);
   const [customCycle, setCustomCycle] = useState<Record<number, string>>({});
+
+  // State — Ryder Cup
+  const [teamRedName, setTeamRedName] = useState('Team Red');
+  const [teamBlueName, setTeamBlueName] = useState('Team Blue');
+  const [teamRedCaptain, setTeamRedCaptain] = useState<string | null>(null);
+  const [teamBlueCaptain, setTeamBlueCaptain] = useState<string | null>(null);
+  const [draftMethod, setDraftMethod] = useState<DraftMethod>('snake');
+  const [rcSessions, setRcSessions] = useState<Record<RCSessionType, boolean>>({
+    foursomes: true, four_ball: true, singles: true,
+  });
+  const [rcNumDays, setRcNumDays] = useState(2);
+  const [rcPointsPerMatch, setRcPointsPerMatch] = useState(1);
+  const [rcHalvedPoints, setRcHalvedPoints] = useState(0.5);
+
+  // State — Match Play Bracket
+  const [bracketSize, setBracketSize] = useState(8);
+  const [seedingMethod, setSeedingMethod] = useState<SeedingMethod>('handicap');
+  const [bracketMatchLength, setBracketMatchLength] = useState<BracketMatchLength>('18');
+  const [bracketHandicap, setBracketHandicap] = useState<HandicapStrokes>('80');
+
+  // State — Stroke Play Series
+  const [strokeRounds, setStrokeRounds] = useState(6);
+  const [strokeScoring, setStrokeScoring] = useState<StrokeScoringType>('net');
+  const [strokeDropWorst, setStrokeDropWorst] = useState(false);
 
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
@@ -1141,7 +1921,9 @@ export default function SeasonsScreen() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basics') return name.trim().length >= 3;
-    if (currentStep === 'members') return (selectedIds.length + manualPlayers.length) >= 4;
+    if (currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'bracket_members' || currentStep === 'stroke_members') {
+      return (selectedIds.length + manualPlayers.length) >= 4;
+    }
     return true;
   }, [currentStep, name, selectedIds, manualPlayers]);
 
@@ -1197,7 +1979,7 @@ export default function SeasonsScreen() {
 
         {/* Progress */}
         <View style={styles.progressRow}>
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <View
               key={s}
               style={[
@@ -1216,7 +1998,7 @@ export default function SeasonsScreen() {
       {/* Step content */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {currentStep === 'basics' && (
-          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={setSeasonType} />
+          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); }} />
         )}
         {currentStep === 'format' && (
           <FormatStep preset={preset} setPreset={setPreset} scoringMethod={scoringMethod} setScoringMethod={setScoringMethod} useCustomCycle={useCustomCycle} setUseCustomCycle={setUseCustomCycle} customCycle={customCycle} setCustomCycle={setCustomCycle} />
@@ -1236,7 +2018,7 @@ export default function SeasonsScreen() {
         {currentStep === 'majors' && (
           <MajorsStep weeks={editableWeeks} setWeeks={setEditableWeeks} preset={preset} />
         )}
-        {currentStep === 'members' && (
+        {(currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'bracket_members' || currentStep === 'stroke_members') && (
           <MembersStep selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name} manualPlayers={manualPlayers} setManualPlayers={setManualPlayers} />
         )}
         {currentStep === 'review' && (
@@ -1247,11 +2029,73 @@ export default function SeasonsScreen() {
             playoffMultiplier={playoffMultiplier} champMultiplier={champMultiplier}
           />
         )}
+        {/* Ryder Cup steps */}
+        {currentStep === 'rc_team_setup' && (
+          <RyderCupTeamSetupStep
+            teamRedName={teamRedName} setTeamRedName={setTeamRedName}
+            teamBlueName={teamBlueName} setTeamBlueName={setTeamBlueName}
+            teamRedCaptain={teamRedCaptain} setTeamRedCaptain={setTeamRedCaptain}
+            teamBlueCaptain={teamBlueCaptain} setTeamBlueCaptain={setTeamBlueCaptain}
+            draftMethod={draftMethod} setDraftMethod={setDraftMethod}
+            teamRedRoster={[]} teamBlueRoster={[]} selectedIds={selectedIds}
+          />
+        )}
+        {currentStep === 'rc_match_format' && (
+          <RyderCupMatchFormatStep
+            rcSessions={rcSessions} setRcSessions={setRcSessions}
+            rcNumDays={rcNumDays} setRcNumDays={setRcNumDays}
+            rcPointsPerMatch={rcPointsPerMatch} setRcPointsPerMatch={setRcPointsPerMatch}
+            rcHalvedPoints={rcHalvedPoints} setRcHalvedPoints={setRcHalvedPoints}
+          />
+        )}
+        {currentStep === 'rc_review' && (
+          <RyderCupReviewStep
+            name={name} teamRedName={teamRedName} teamBlueName={teamBlueName}
+            teamRedCaptain={teamRedCaptain} teamBlueCaptain={teamBlueCaptain}
+            draftMethod={draftMethod} rcSessions={rcSessions} rcNumDays={rcNumDays}
+            rcPointsPerMatch={rcPointsPerMatch} rcHalvedPoints={rcHalvedPoints}
+            selectedIds={selectedIds} manualPlayers={manualPlayers}
+          />
+        )}
+        {/* Match Play Bracket steps */}
+        {currentStep === 'bracket_setup' && (
+          <BracketSetupStep
+            bracketSize={bracketSize} setBracketSize={setBracketSize}
+            seedingMethod={seedingMethod} setSeedingMethod={setSeedingMethod}
+          />
+        )}
+        {currentStep === 'bracket_rules' && (
+          <BracketMatchRulesStep
+            bracketMatchLength={bracketMatchLength} setBracketMatchLength={setBracketMatchLength}
+            bracketHandicap={bracketHandicap} setBracketHandicap={setBracketHandicap}
+          />
+        )}
+        {currentStep === 'bracket_review' && (
+          <BracketReviewStep
+            name={name} bracketSize={bracketSize} seedingMethod={seedingMethod}
+            bracketMatchLength={bracketMatchLength} bracketHandicap={bracketHandicap}
+            selectedIds={selectedIds} manualPlayers={manualPlayers}
+          />
+        )}
+        {/* Stroke Play Series steps */}
+        {currentStep === 'stroke_setup' && (
+          <StrokeSeriesSetupStep
+            strokeRounds={strokeRounds} setStrokeRounds={setStrokeRounds}
+            strokeScoring={strokeScoring} setStrokeScoring={setStrokeScoring}
+            strokeDropWorst={strokeDropWorst} setStrokeDropWorst={setStrokeDropWorst}
+          />
+        )}
+        {currentStep === 'stroke_review' && (
+          <StrokeSeriesReviewStep
+            name={name} strokeRounds={strokeRounds} strokeScoring={strokeScoring}
+            strokeDropWorst={strokeDropWorst} selectedIds={selectedIds} manualPlayers={manualPlayers}
+          />
+        )}
       </ScrollView>
 
       {/* Bottom button */}
       <View style={[styles.bottomBar, { borderTopColor: c.border }]}>
-        {currentStep === 'review' ? (
+        {step === steps.length - 1 ? (
           <Pressable
             onPress={() => { haptics.success(); handleCreate(); }}
             style={[styles.nextBtn, { backgroundColor: c.gold }]}
@@ -1291,10 +2135,15 @@ const styles = StyleSheet.create({
   input: { paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, borderWidth: 1 },
 
   // Type cards
-  typeCards: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  typeCard: { width: '47%' as any, padding: 16, alignItems: 'center', gap: 8 },
-  typeCardLabel: { fontSize: 15, fontWeight: '600' },
-  typeCardDesc: { fontSize: 11, textAlign: 'center' },
+  typeCards: { gap: 12 },
+  typeCardWrapper: { marginBottom: 0 },
+  typeCard: { height: 140, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  typeCardLabel: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  typeCardDesc: { fontSize: 12, textAlign: 'center' },
+  whatsThisBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 4, alignSelf: 'flex-start' },
+  whatsThisText: { fontSize: 12 },
+  whatsThisBody: { paddingHorizontal: 14, paddingVertical: 10, marginBottom: 4 },
+  whatsThisDesc: { fontSize: 13, lineHeight: 18 },
 
   // Pill row
   pillRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
@@ -1402,4 +2251,14 @@ const styles = StyleSheet.create({
   bottomBar: { padding: 16, borderTopWidth: 1 },
   nextBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
   nextBtnText: { fontSize: 16, fontWeight: '700' },
+
+  // Ryder Cup
+  teamColorDot: { width: 10, height: 10, marginBottom: 6 },
+  teamCaptainLabel: { fontSize: 12, fontWeight: '700', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  captainPick: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 4, borderWidth: 1 },
+  captainPickName: { fontSize: 13, fontWeight: '600' },
+  rosterColumn: { flex: 1, padding: 12, borderWidth: 1 },
+  rosterTitle: { fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  rosterPlayer: { fontSize: 13, marginBottom: 4 },
+  rosterEmpty: { fontSize: 12, fontStyle: 'italic' },
 });
