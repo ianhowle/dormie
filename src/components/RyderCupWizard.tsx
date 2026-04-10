@@ -59,6 +59,12 @@ const RC_FORMATS: { key: RCFormat; label: string; desc: string }[] = [
   { key: 'greensomes', label: 'Greensomes', desc: 'Both tee off, pick best drive, alternate from there' },
 ];
 
+const REMOTE_PLAY_HELP: Partial<Record<RCFormat, string>> = {
+  foursomes: 'Remote play: Each teammate plays their own round. Combine both players\u2019 net Stableford points. Team with the higher combined total wins the match.',
+  fourball: 'Remote play: Each teammate plays their own round. For each hole, take the better Stableford score between teammates. Team with the higher 18-hole best-ball total wins the match.',
+  singles: 'Remote play: Compare net Stableford totals. Higher score wins. For hole-by-hole drama, compare Stableford points per hole \u2014 most holes won takes the match.',
+};
+
 const QUICK_FILL = ['Scottsdale', 'Myrtle Beach', 'Bandon', 'Pinehurst', 'Pebble Beach'];
 
 const SUGGESTED_COURSES: Record<string, RCCourse[]> = {
@@ -749,6 +755,14 @@ function StepSchedule({
         <Text style={w.rcFormatBtnSub}>Foursomes → Four-Ball → Singles</Text>
       </Pressable>
 
+      {/* Remote play note */}
+      <View style={[w.remotePlayNote, { backgroundColor: `${c.gold}10`, borderColor: c.gold }]}>
+        <Ionicons name="information-circle" size={16} color={c.gold} />
+        <Text style={[w.remotePlayNoteText, { color: c.gold }]}>
+          Dormie adapts traditional Ryder Cup formats for remote play. Teams don't need to play together — scores are compared using net Stableford points.
+        </Text>
+      </View>
+
       <SectionLabel title="SESSIONS" />
       {sessions.map((session, idx) => (
         <View key={session.id} style={[w.sessionCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
@@ -790,6 +804,16 @@ function StepSchedule({
               );
             })}
           </ScrollView>
+
+          {/* Remote play helper text */}
+          {REMOTE_PLAY_HELP[session.format] && (
+            <View style={w.remoteHelpRow}>
+              <Text style={[w.remoteHelpIcon, { color: 'rgba(255,255,255,0.5)' }]}>ℹ️</Text>
+              <Text style={[w.remoteHelpText, { color: c.textMuted }]}>
+                {REMOTE_PLAY_HELP[session.format]}
+              </Text>
+            </View>
+          )}
 
           {/* Hole range */}
           <Text style={[w.sessionSubLabel, { color: c.textMuted }]}>HOLES</Text>
@@ -1899,6 +1923,28 @@ const w = StyleSheet.create({
     marginBottom: 8,
   },
   addSessionText: { fontSize: 13, fontWeight: '600' },
+  remotePlayNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  remotePlayNoteText: { fontSize: 12, fontWeight: '600', flex: 1 },
+  remoteHelpRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+  },
+  remoteHelpIcon: { fontSize: 11 },
+  remoteHelpText: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    flex: 1,
+    opacity: 0.7,
+  },
 
   /* Formation */
   formationRow: {
