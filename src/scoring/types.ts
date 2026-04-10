@@ -3,12 +3,19 @@ import type { MomentType } from '../components/DormieMoment';
 import type { SideGameEvent } from '../components/SideGameToast';
 import type { PlayerHoleResult } from '../components/HoleTransitionBanner';
 
+export type SideGameWin = {
+  label: string;
+  points: number;
+  holeNumber?: number | null;
+};
+
 export type LinkedSeason = {
   seasonId: string;
   seasonName: string;
   weekNumber: number;
   format: string;
   multiplier: number;
+  sideGameWins?: SideGameWin[];
 };
 
 export type CompetitionTab = {

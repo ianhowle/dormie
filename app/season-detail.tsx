@@ -571,6 +571,9 @@ function StandingsTab({
               +{seasonConfig?.participation_points ?? 50} participation bonus per week
             </Text>
           )}
+          <Text style={[styles.scoringTooltipLine, { color: c.text }]}>
+            Includes side game bonus points (if any)
+          </Text>
           <Text style={[styles.scoringTooltipDismiss, { color: c.textMuted }]}>Tap to dismiss</Text>
         </Pressable>
       )}

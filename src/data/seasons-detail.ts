@@ -14,6 +14,85 @@ export type SeasonStanding = {
 
 export type PlayoffStatus = 'regular' | 'playoffs' | 'finals' | 'completed';
 
+// ─── Weekly Side Games ───────────────────────────────────────────────
+
+export type WeeklySideGameType =
+  | 'closest_to_pin'
+  | 'longest_drive'
+  | 'most_birdies'
+  | 'low_round'
+  | 'most_improved'
+  | 'fewest_putts'
+  | 'sandbagger'
+  | 'custom';
+
+export type WeeklySideGame = {
+  id: string;
+  week_id: string;
+  type: WeeklySideGameType;
+  label: string;
+  description: string;
+  points: number;
+  hole_number: number | null;
+  winner_user_id: string | null;
+  winner_name: string | null;
+  created_at: string;
+};
+
+export const SIDE_GAME_TYPE_CONFIG: Record<
+  WeeklySideGameType,
+  { label: string; description: string; needsHole: boolean; emoji: string }
+> = {
+  closest_to_pin: {
+    label: 'Closest to Pin',
+    description: 'Closest tee shot to the pin on a par 3',
+    needsHole: true,
+    emoji: '\uD83C\uDFAF',
+  },
+  longest_drive: {
+    label: 'Longest Drive',
+    description: 'Longest drive in the fairway',
+    needsHole: true,
+    emoji: '\uD83D\uDCA8',
+  },
+  most_birdies: {
+    label: 'Most Birdies',
+    description: 'Player with the most birdies this week',
+    needsHole: false,
+    emoji: '\uD83D\uDC26',
+  },
+  low_round: {
+    label: 'Low Round',
+    description: 'Lowest gross score (separate from position points)',
+    needsHole: false,
+    emoji: '\uD83C\uDFC6',
+  },
+  most_improved: {
+    label: 'Most Improved',
+    description: 'Player who most exceeds their scoring average',
+    needsHole: false,
+    emoji: '\uD83D\uDCC8',
+  },
+  fewest_putts: {
+    label: 'Fewest Putts',
+    description: 'Player with the fewest total putts',
+    needsHole: false,
+    emoji: '\u26F3',
+  },
+  sandbagger: {
+    label: 'Sandbagger Alert',
+    description: 'Player who most outperforms their handicap',
+    needsHole: false,
+    emoji: '\uD83D\uDC40',
+  },
+  custom: {
+    label: 'Custom',
+    description: 'Commissioner-defined side game',
+    needsHole: false,
+    emoji: '\u2B50',
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Points table: positions 1-10 earn points; anything 11+ earns 0
 // ---------------------------------------------------------------------------

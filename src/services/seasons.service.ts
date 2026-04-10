@@ -124,4 +124,70 @@ export const seasonsService = {
       .eq('user_id', userId);
     if (error) throw error;
   },
+
+  // ─── Weekly Side Games ───────────────────────────────────────────────
+
+  /** Get side games for a specific week. */
+  async getSideGames(weekId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('season_week_side_games')
+      .select('*, winner:users(id, name)')
+      .eq('week_id', weekId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /** Add a side game to a week. */
+  async addSideGame(sideGame: {
+    week_id: string;
+    type: string;
+    label: string;
+    description: string;
+    points: number;
+    hole_number?: number | null;
+  }): Promise<any> {
+    const { data, error } = await supabase
+      .from('season_week_side_games')
+      .insert(sideGame)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  /** Remove a side game. */
+  async removeSideGame(sideGameId: string): Promise<void> {
+    const { error } = await supabase
+      .from('season_week_side_games')
+      .delete()
+      .eq('id', sideGameId);
+    if (error) throw error;
+  },
+
+  /** Pick the winner for a side game. */
+  async pickSideGameWinner(
+    sideGameId: string,
+    winnerUserId: string,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('season_week_side_games')
+      .update({ winner_user_id: winnerUserId })
+      .eq('id', sideGameId);
+    if (error) throw error;
+  },
+
+  /** Batch-update side game winners. */
+  async confirmSideGameWinners(
+    picks: { sideGameId: string; winnerUserId: string | null }[],
+  ): Promise<void> {
+    for (const pick of picks) {
+      if (!pick.winnerUserId) continue;
+      const { error } = await supabase
+        .from('season_week_side_games')
+        .update({ winner_user_id: pick.winnerUserId })
+        .eq('id', pick.sideGameId);
+      if (error) throw error;
+    }
+  },
 };

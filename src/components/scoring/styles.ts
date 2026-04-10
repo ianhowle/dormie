@@ -1778,6 +1778,28 @@ export const postRoundStyles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+
+  /* ─── Side Game Wins ───────────────────────────────── */
+  sideGameWinsSection: {
+    marginTop: 12,
+    gap: 8,
+  },
+  sideGameWinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+  },
+  sideGameWinLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sideGameWinPoints: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 2,
+  },
 });
 
 /* ─── Competition Impact ─────────────────────────────────────────── */

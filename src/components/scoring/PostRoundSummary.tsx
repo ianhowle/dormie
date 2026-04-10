@@ -664,6 +664,7 @@ function ShareCard({
   totalPar,
   seasonImpact,
   ryderCupImpact,
+  sideGameWins,
   onShare,
 }: {
   courseName: string;
@@ -672,6 +673,7 @@ function ShareCard({
   totalPar: number;
   seasonImpact: SeasonImpact | null;
   ryderCupImpact: RyderCupImpact | null;
+  sideGameWins?: { label: string; holeNumber?: number | null }[];
   onShare: () => void;
 }) {
   const { theme } = useTheme();
@@ -739,6 +741,14 @@ function ShareCard({
             <Ionicons name="people" size={10} color="rgba(255,255,255,0.7)" />
             <Text style={ci.shareImpactText}>
               Ryder Cup: {ryderCupImpact.matchResult === 'win' ? `Beat ${ryderCupImpact.opponentName}` : ryderCupImpact.matchResult === 'halved' ? `Halved with ${ryderCupImpact.opponentName}` : `Lost to ${ryderCupImpact.opponentName}`}, {ryderCupImpact.teamName} {ryderCupImpact.teamScore > ryderCupImpact.opponentTeamScore ? 'leads' : 'trails'}
+            </Text>
+          </View>
+        )}
+        {sideGameWins && sideGameWins.length > 0 && (
+          <View style={ci.shareImpactRow}>
+            <Ionicons name="trophy" size={10} color="#C9A227" />
+            <Text style={ci.shareImpactText}>
+              {sideGameWins.map((w) => `${w.label} winner`).join(', ')}
             </Text>
           </View>
         )}
@@ -880,6 +890,25 @@ const PostRoundSummary = memo(function PostRoundSummary({
             handicapImpact={handicapImpact}
           />
 
+          {/* Side Game Wins (from season weekly side games) */}
+          {linkedSeasons && linkedSeasons.length > 0 && linkedSeasons[0].sideGameWins && linkedSeasons[0].sideGameWins.length > 0 && (
+            <View style={ps.sideGameWinsSection}>
+              {linkedSeasons[0].sideGameWins.map((win, idx) => (
+                <View key={idx} style={[ps.sideGameWinRow, { backgroundColor: `${c.gold}12`, borderColor: `${c.gold}33` }]}>
+                  <Ionicons name="trophy" size={16} color={c.gold} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[ps.sideGameWinLabel, { color: c.gold, fontFamily: GEO }]}>
+                      Side Game: {win.label}{win.holeNumber ? ` (Hole ${win.holeNumber})` : ''}
+                    </Text>
+                    <Text style={[ps.sideGameWinPoints, { color: c.gold, fontFamily: GEO }]}>
+                      +{win.points} pts
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Tab bar */}
           <GoldDivider style={{ marginTop: 10 }} />
           <SummaryTabBar tab={tab} onSelect={setTab} hasGames={sideGameKeys.length > 0} />
@@ -927,6 +956,7 @@ const PostRoundSummary = memo(function PostRoundSummary({
             totalPar={totalPar}
             seasonImpact={seasonImpact}
             ryderCupImpact={null}
+            sideGameWins={linkedSeasons?.[0]?.sideGameWins}
             onShare={() => Alert.alert('Share', 'Sharing will generate an image in production.')}
           />
 
