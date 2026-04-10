@@ -1779,3 +1779,114 @@ export const postRoundStyles = StyleSheet.create({
     flex: 1,
   },
 });
+
+/* ─── Competition Impact ─────────────────────────────────────────── */
+export const competitionStyles = StyleSheet.create({
+  section: {
+    marginTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    fontFamily: GEO,
+  },
+  card: {
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 10,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginLeft: 'auto' as unknown as number,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 12,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  row: {
+    paddingVertical: 10,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  valueMain: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  valueSub: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  rankArrow: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  handicapValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  handicapChange: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  achievementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 10,
+    marginTop: 2,
+  },
+  achievementText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+
+  /* Share impact lines */
+  shareImpactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  shareImpactText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+});

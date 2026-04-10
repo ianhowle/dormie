@@ -92,6 +92,43 @@ export type PlayerTotals = {
 
 export type SummaryTab = 'scorecard' | 'stats' | 'games';
 
+// ─── Competition Impact types ───────────────────────────────────────
+export type SeasonImpact = {
+  seasonName: string;
+  pointsEarned: number;
+  weekPosition: number;
+  weekLabel: string; // "3rd place this week"
+  previousRank: number;
+  currentRank: number;
+  rankChange: number; // positive = improved
+  pointsBehindLeader: number;
+  leaderName: string;
+  isPlayoffWeek: boolean;
+  isChampionshipWeek: boolean;
+  multiplier: number;
+  isSeasonHigh: boolean;
+};
+
+export type RyderCupImpact = {
+  opponentName: string;
+  userScore: number;
+  opponentScore: number;
+  matchResult: 'win' | 'loss' | 'halved';
+  pointsForTeam: number; // 1, 0.5, or 0
+  teamName: string;
+  teamColor: 'red' | 'blue';
+  teamScore: number;
+  opponentTeamScore: number;
+};
+
+export type HandicapImpact = {
+  previousIndex: number;
+  newIndex: number;
+  change: number; // negative = improved
+  isCountingRound: boolean;
+  droppedRoundScore: number | null; // score that fell off the 20-round window
+};
+
 export type GameResult = {
   title: string;
   lines: { text: string; value?: string; highlight?: boolean }[];

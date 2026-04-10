@@ -17,8 +17,11 @@ import { formatToPar as fmtToPar } from '../../lib/scoring-utils';
 import type {
   PlayerConfig, HoleData, HoleScore,
   PlayerTotals, WolfHoleState, BBBHolePoints,
-  SummaryTab,
+  SummaryTab, LinkedSeason, SeasonImpact, RyderCupImpact, HandicapImpact,
 } from '../../scoring/types';
+import { CompetitionImpactSection } from './CompetitionImpact';
+import { computeSeasonImpact, computeHandicapImpact } from '../../data/competitionImpact';
+import { competitionStyles as ci } from './styles';
 import {
   computePlayerTotals, isGIR, pName,
   buildSkinsResult, buildSnakeResult, buildGreeniesResult,
@@ -659,12 +662,16 @@ function ShareCard({
   players,
   playerTotals,
   totalPar,
+  seasonImpact,
+  ryderCupImpact,
   onShare,
 }: {
   courseName: string;
   players: PlayerConfig[];
   playerTotals: PlayerTotals[];
   totalPar: number;
+  seasonImpact: SeasonImpact | null;
+  ryderCupImpact: RyderCupImpact | null;
   onShare: () => void;
 }) {
   const { theme } = useTheme();
@@ -717,6 +724,24 @@ function ShareCard({
             </Text>
           </View>
         )}
+
+        {/* Competition impact lines on share card */}
+        {seasonImpact && (
+          <View style={ci.shareImpactRow}>
+            <Ionicons name="trophy" size={10} color="#C9A227" />
+            <Text style={ci.shareImpactText}>
+              {seasonImpact.seasonName}: +{seasonImpact.pointsEarned} pts → {ordinal(seasonImpact.currentRank)} place
+            </Text>
+          </View>
+        )}
+        {ryderCupImpact && (
+          <View style={ci.shareImpactRow}>
+            <Ionicons name="people" size={10} color="rgba(255,255,255,0.7)" />
+            <Text style={ci.shareImpactText}>
+              Ryder Cup: {ryderCupImpact.matchResult === 'win' ? `Beat ${ryderCupImpact.opponentName}` : ryderCupImpact.matchResult === 'halved' ? `Halved with ${ryderCupImpact.opponentName}` : `Lost to ${ryderCupImpact.opponentName}`}, {ryderCupImpact.teamName} {ryderCupImpact.teamScore > ryderCupImpact.opponentTeamScore ? 'leads' : 'trails'}
+            </Text>
+          </View>
+        )}
       </LinearGradient>
 
       <Pressable onPress={onShare} style={({ pressed }) => [ps.shareBtn, { backgroundColor: c.elevated, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
@@ -725,6 +750,12 @@ function ShareCard({
       </Pressable>
     </View>
   );
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 const PostRoundSummary = memo(function PostRoundSummary({
@@ -738,6 +769,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
   sideGameKeys,
   wolfHoleDecisions,
   bbbHolePoints,
+  linkedSeasons,
+  courseSlope,
+  courseRating,
   onDone,
 }: {
   players: PlayerConfig[];
@@ -750,6 +784,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
   sideGameKeys: string[];
   wolfHoleDecisions?: Map<number, WolfHoleState>;
   bbbHolePoints?: Map<number, BBBHolePoints>;
+  linkedSeasons?: LinkedSeason[];
+  courseSlope?: number;
+  courseRating?: number;
   onDone: () => void;
 }) {
   const { theme } = useTheme();
@@ -762,6 +799,27 @@ const PostRoundSummary = memo(function PostRoundSummary({
     [players, holes, allScores, handicapStrokes],
   );
   const sorted = useMemo(() => [...playerTotals].sort((a, b) => a.gross - b.gross), [playerTotals]);
+
+  // ─── Competition Impact computation ───────────────────────────────
+  const userId = '1'; // Current user ID convention
+  const userTotals = playerTotals.find((r) => r.player.id === userId);
+
+  const seasonImpact = useMemo<SeasonImpact | null>(() => {
+    if (!linkedSeasons || linkedSeasons.length === 0) return null;
+    return computeSeasonImpact(linkedSeasons[0], playerTotals, userId);
+  }, [linkedSeasons, playerTotals]);
+
+  const handicapImpact = useMemo<HandicapImpact>(() => {
+    const player = players.find((p) => p.id === userId) ?? players[0];
+    const gross = userTotals?.gross ?? 0;
+    return computeHandicapImpact(
+      player,
+      gross,
+      totalPar,
+      courseSlope ?? 113,
+      courseRating ?? totalPar,
+    );
+  }, [players, userTotals, totalPar, courseSlope, courseRating]);
 
   return (
     <View style={[ps.screen, { backgroundColor: c.bg }]}>
@@ -814,8 +872,16 @@ const PostRoundSummary = memo(function PostRoundSummary({
             })}
           </View>
 
-          {/* Tab bar */}
+          {/* Competition Impact */}
           <GoldDivider style={{ marginTop: 20 }} />
+          <CompetitionImpactSection
+            seasonImpact={seasonImpact}
+            ryderCupImpact={null}
+            handicapImpact={handicapImpact}
+          />
+
+          {/* Tab bar */}
+          <GoldDivider style={{ marginTop: 10 }} />
           <SummaryTabBar tab={tab} onSelect={setTab} hasGames={sideGameKeys.length > 0} />
 
           {/* Tab content */}
@@ -859,6 +925,8 @@ const PostRoundSummary = memo(function PostRoundSummary({
             players={players}
             playerTotals={playerTotals}
             totalPar={totalPar}
+            seasonImpact={seasonImpact}
+            ryderCupImpact={null}
             onShare={() => Alert.alert('Share', 'Sharing will generate an image in production.')}
           />
 
