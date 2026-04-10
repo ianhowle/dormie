@@ -82,7 +82,11 @@ const LENGTH_PRESETS: LengthPreset[] = [
   { key: 'marathon', label: 'Marathon', description: '16 regular + 4 playoff', regular: 16, playoff: 4, total: 20 },
 ];
 
-const FORMAT_CYCLE = ['stableford', 'modified_stableford', 'stroke_net', 'quota', 'best9'];
+const FORMAT_CYCLE = [
+  'stableford', 'modified_stableford', 'stroke_net', 'stroke_gross',
+  'quota', 'best9', 'match_play', 'nassau', 'skins', 'best_ball',
+  'scramble', 'chapman',
+];
 const FORMAT_LABELS: Record<string, string> = {
   stableford: 'Stableford',
   modified_stableford: 'Mod. Stableford',
@@ -112,6 +116,15 @@ const CUT_OPTIONS: CutOption[] = [
   { label: '50%', value: 0.50 },
   { label: '67%', value: 0.67 },
   { label: '75%', value: 0.75 },
+];
+
+const SUGGESTED_COURSES_FLAT = [
+  { id: 'sc1', name: 'TPC Scottsdale' },
+  { id: 'mb1', name: 'TPC Myrtle Beach' },
+  { id: 'bd1', name: 'Bandon Dunes' },
+  { id: 'ph1', name: 'Pinehurst No. 2' },
+  { id: 'pb1', name: 'Pebble Beach Golf Links' },
+  { id: 'sc2', name: 'We-Ko-Pa Saguaro' },
 ];
 
 const DEFAULT_MAJOR_NAMES = ['The Dormie Invitational', 'The Dormie Championship'];
@@ -248,48 +261,35 @@ function BasicsStep({
       <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
         Choose how your group competes.
       </Text>
-      <View style={styles.typeCards}>
-        {SEASON_TYPES.map((t) => {
+      <View style={styles.typeGrid}>
+        {SEASON_TYPES.map((t, idx) => {
           const isSelected = seasonType === t.key;
-          const isInfoOpen = expandedInfo === t.key;
+          const isLast = idx === SEASON_TYPES.length - 1;
+          const isOddLast = isLast && SEASON_TYPES.length % 2 === 1;
           return (
-            <View key={t.key} style={styles.typeCardWrapper}>
-              <Pressable
-                onPress={() => { haptics.light(); setSeasonType(t.key); }}
-                style={[
-                  styles.typeCard,
-                  {
-                    backgroundColor: isSelected ? '#1A1816' : (theme.isDark ? c.surface : c.cardBg),
-                    borderColor: isSelected ? '#C9A227' : 'rgba(255,255,255,0.08)',
-                    borderWidth: isSelected ? 2 : 1,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={t.icon}
-                  size={32}
-                  color={isSelected ? '#C9A227' : c.textMuted}
-                />
-                <Text style={[styles.typeCardLabel, { color: isSelected ? '#C9A227' : c.text }]}>
-                  {t.label}
-                </Text>
-                <Text style={[styles.typeCardDesc, { color: c.textMuted }]}>{t.desc}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { haptics.light(); setExpandedInfo(isInfoOpen ? null : t.key); }}
-                style={styles.whatsThisBtn}
-              >
-                <Ionicons name={isInfoOpen ? 'chevron-up' : 'help-circle-outline'} size={14} color={c.textMuted} />
-                <Text style={[styles.whatsThisText, { color: c.textMuted }]}>
-                  {isInfoOpen ? 'Hide' : "What's this?"}
-                </Text>
-              </Pressable>
-              {isInfoOpen && (
-                <View style={[styles.whatsThisBody, { backgroundColor: theme.isDark ? c.elevated : '#F5F1EB' }]}>
-                  <Text style={[styles.whatsThisDesc, { color: c.textMuted }]}>{t.whatsThis}</Text>
-                </View>
-              )}
-            </View>
+            <Pressable
+              key={t.key}
+              onPress={() => { haptics.light(); setSeasonType(t.key); }}
+              style={[
+                styles.typeGridCard,
+                isOddLast ? styles.typeGridCardFull : styles.typeGridCardHalf,
+                {
+                  backgroundColor: isSelected ? '#1A1816' : (theme.isDark ? c.surface : c.cardBg),
+                  borderColor: isSelected ? '#C9A227' : 'rgba(255,255,255,0.08)',
+                  borderWidth: isSelected ? 2 : 1,
+                },
+              ]}
+            >
+              <Ionicons
+                name={t.icon}
+                size={28}
+                color={isSelected ? '#C9A227' : c.textMuted}
+              />
+              <Text style={[styles.typeGridLabel, { color: isSelected ? '#C9A227' : c.text }]}>
+                {t.label}
+              </Text>
+              <Text style={[styles.typeGridDesc, { color: c.textMuted }]} numberOfLines={2}>{t.desc}</Text>
+            </Pressable>
           );
         })}
       </View>
@@ -1250,7 +1250,7 @@ function ReviewStep({
 }
 
 // ─── Ryder Cup: Team Setup ───────────────────────────────────────────
-type DraftMethod = 'snake' | 'captains_pick' | 'random';
+type DraftMethod = 'snake' | 'captains_pick' | 'random' | 'auto_balance';
 
 function RyderCupTeamSetupStep({
   teamRedName,
@@ -1290,6 +1290,7 @@ function RyderCupTeamSetupStep({
   const DRAFT_METHODS: { key: DraftMethod; label: string; desc: string }[] = [
     { key: 'snake', label: 'Snake Draft', desc: 'Captains alternate picks (1-2-2-1)' },
     { key: 'captains_pick', label: "Captain's Pick", desc: 'Captains choose freely' },
+    { key: 'auto_balance', label: 'Auto-Balance', desc: 'Teams balanced by handicap' },
     { key: 'random', label: 'Random', desc: 'Players assigned randomly to teams' },
   ];
 
@@ -1438,6 +1439,13 @@ function RyderCupMatchFormatStep({
   setRcPointsPerMatch,
   rcHalvedPoints,
   setRcHalvedPoints,
+  rcWinCondition,
+  setRcWinCondition,
+  rcFirstToTarget,
+  setRcFirstToTarget,
+  rcDayCourses,
+  setRcDayCourses,
+  selectedIds,
 }: {
   rcSessions: Record<RCSessionType, boolean>;
   setRcSessions: (v: Record<RCSessionType, boolean>) => void;
@@ -1447,6 +1455,13 @@ function RyderCupMatchFormatStep({
   setRcPointsPerMatch: (v: number) => void;
   rcHalvedPoints: number;
   setRcHalvedPoints: (v: number) => void;
+  rcWinCondition: 'most_points' | 'first_to';
+  setRcWinCondition: (v: 'most_points' | 'first_to') => void;
+  rcFirstToTarget: number;
+  setRcFirstToTarget: (v: number) => void;
+  rcDayCourses: Record<number, { courseId: string; courseName: string; holes: 'front9' | 'back9' | 'full18' }>;
+  setRcDayCourses: (v: Record<number, { courseId: string; courseName: string; holes: 'front9' | 'back9' | 'full18' }>) => void;
+  selectedIds: string[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1542,6 +1557,128 @@ function RyderCupMatchFormatStep({
           </Pressable>
         </View>
       </View>
+
+      {/* Win Condition */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Win Condition</Text>
+      {([
+        { key: 'most_points' as const, label: 'Most Points', desc: 'Team with highest total after all matches' },
+        { key: 'first_to' as const, label: 'First to X', desc: 'Race to target — competition ends when one team reaches X points' },
+      ]).map((wc) => {
+        const active = wc.key === rcWinCondition;
+        return (
+          <Pressable
+            key={wc.key}
+            onPress={() => { haptics.light(); setRcWinCondition(wc.key); }}
+            style={[styles.presetCard, {
+              backgroundColor: active ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+              borderColor: active ? c.teal : c.border,
+              borderWidth: 1,
+            }]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.presetLabel, { color: active ? c.teal : c.text }]}>{wc.label}</Text>
+              <Text style={[styles.presetDesc, { color: c.textMuted }]}>{wc.desc}</Text>
+            </View>
+            {active && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+          </Pressable>
+        );
+      })}
+
+      {rcWinCondition === 'first_to' && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.text }]}>Target Points</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setRcFirstToTarget(Math.max(3, rcFirstToTarget - 0.5)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{rcFirstToTarget}</Text>
+              <Pressable onPress={() => { haptics.light(); setRcFirstToTarget(Math.min(50, rcFirstToTarget + 0.5)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={c.gold} />
+              </Pressable>
+            </View>
+          </View>
+          <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic', marginTop: 4 }}>
+            The competition ends as soon as one team reaches {rcFirstToTarget} points — even if matches remain.
+          </Text>
+        </View>
+      )}
+
+      {/* Course Assignment */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Course Assignment</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Optionally assign a course and hole range for each day/session.
+      </Text>
+      {Array.from({ length: rcNumDays }, (_, i) => {
+        const day = i + 1;
+        const dayCourse = rcDayCourses[day];
+        return (
+          <View key={day} style={[styles.presetCard, { backgroundColor: theme.isDark ? c.elevated : c.cardBg, borderColor: c.border, borderWidth: 1, flexDirection: 'column', alignItems: 'stretch' }]}>
+            <Text style={[styles.presetLabel, { color: c.text, marginBottom: 8 }]}>Day {day}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="golf-outline" size={16} color={dayCourse ? c.teal : c.textMuted} />
+              <Text style={{ fontSize: 13, color: dayCourse ? c.text : c.textMuted, flex: 1 }}>
+                {dayCourse ? dayCourse.courseName : 'TBD — no course assigned'}
+              </Text>
+              {dayCourse && (
+                <Pressable onPress={() => {
+                  const updated = { ...rcDayCourses };
+                  delete updated[day];
+                  setRcDayCourses(updated);
+                }} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={c.urgent} />
+                </Pressable>
+              )}
+            </View>
+            {/* Hole range pills */}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+              {(['front9', 'back9', 'full18'] as const).map((hr) => {
+                const label = hr === 'front9' ? 'Front 9' : hr === 'back9' ? 'Back 9' : 'Full 18';
+                const active = dayCourse?.holes === hr || (!dayCourse && hr === 'full18');
+                return (
+                  <Pressable
+                    key={hr}
+                    onPress={() => {
+                      haptics.light();
+                      setRcDayCourses({
+                        ...rcDayCourses,
+                        [day]: { courseId: dayCourse?.courseId ?? '', courseName: dayCourse?.courseName ?? 'TBD', holes: hr },
+                      });
+                    }}
+                    style={[styles.pill, {
+                      backgroundColor: active ? c.teal + '22' : c.surface ?? c.cardBg,
+                      borderColor: active ? c.teal : 'transparent',
+                      borderWidth: 1,
+                    }]}
+                  >
+                    <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {/* Quick-add course from suggestions */}
+            {!dayCourse && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                {Object.values(SUGGESTED_COURSES_FLAT).slice(0, 4).map((cc) => (
+                  <Pressable
+                    key={cc.id}
+                    onPress={() => {
+                      haptics.light();
+                      setRcDayCourses({
+                        ...rcDayCourses,
+                        [day]: { courseId: cc.id, courseName: cc.name, holes: 'full18' },
+                      });
+                    }}
+                    style={[styles.pill, { backgroundColor: c.surface ?? c.cardBg, borderColor: c.border, borderWidth: 1 }]}
+                  >
+                    <Text style={[styles.pillText, { color: c.textMuted, fontSize: 11 }]}>{cc.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -1558,6 +1695,11 @@ function RyderCupReviewStep({
   rcNumDays,
   rcPointsPerMatch,
   rcHalvedPoints,
+  rcWinCondition,
+  rcFirstToTarget,
+  rcDayCourses,
+  rcRevealEnabled,
+  setRcRevealEnabled,
   selectedIds,
   manualPlayers,
 }: {
@@ -1571,6 +1713,11 @@ function RyderCupReviewStep({
   rcNumDays: number;
   rcPointsPerMatch: number;
   rcHalvedPoints: number;
+  rcWinCondition: 'most_points' | 'first_to';
+  rcFirstToTarget: number;
+  rcDayCourses: Record<number, { courseId: string; courseName: string; holes: 'front9' | 'back9' | 'full18' }>;
+  rcRevealEnabled: boolean;
+  setRcRevealEnabled: (v: boolean) => void;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
 }) {
@@ -1580,7 +1727,7 @@ function RyderCupReviewStep({
   const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
   const redCaptainName = allPlayers.find((p) => p.id === teamRedCaptain)?.name ?? 'TBD';
   const blueCaptainName = allPlayers.find((p) => p.id === teamBlueCaptain)?.name ?? 'TBD';
-  const draftLabels: Record<DraftMethod, string> = { snake: 'Snake Draft', captains_pick: "Captain's Pick", random: 'Random' };
+  const draftLabels: Record<DraftMethod, string> = { snake: 'Snake Draft', captains_pick: "Captain's Pick", auto_balance: 'Auto-Balance', random: 'Random' };
   const enabledSessions = (Object.keys(rcSessions) as RCSessionType[]).filter((k) => rcSessions[k]);
   const sessionLabels: Record<RCSessionType, string> = { foursomes: 'Foursomes', four_ball: 'Four-Ball', singles: 'Singles' };
 
@@ -1611,6 +1758,35 @@ function RyderCupReviewStep({
         ))}
         <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 8 }}>{rcNumDays} day{rcNumDays > 1 ? 's' : ''} of competition</Text>
         <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>Win: {rcPointsPerMatch} pt{rcPointsPerMatch !== 1 ? 's' : ''} | Halved: {rcHalvedPoints} pt{rcHalvedPoints !== 1 ? 's' : ''}</Text>
+        <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+          Win Condition: {rcWinCondition === 'most_points' ? 'Most Points' : `First to ${rcFirstToTarget}`}
+        </Text>
+      </AccordionSection>
+
+      {/* Match Schedule */}
+      <AccordionSection title={`Match Schedule (${rcNumDays} day${rcNumDays > 1 ? 's' : ''})`} icon="calendar-outline" iconColor={c.textMuted}>
+        {Array.from({ length: rcNumDays }, (_, i) => {
+          const day = i + 1;
+          const dayCourse = rcDayCourses[day];
+          const holeLabel = dayCourse
+            ? (dayCourse.holes === 'front9' ? 'Front 9' : dayCourse.holes === 'back9' ? 'Back 9' : '18 Holes')
+            : '18 Holes';
+          return (
+            <View key={day} style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border, paddingVertical: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: c.text }}>Day {day}</Text>
+              {enabledSessions.map((s) => (
+                <Text key={s} style={{ fontSize: 13, color: c.textMuted, marginTop: 2 }}>{sessionLabels[s]}</Text>
+              ))}
+              <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
+                Course: {dayCourse ? dayCourse.courseName : 'TBD'} · {holeLabel}
+              </Text>
+              <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 1 }}>Pairings TBD</Text>
+            </View>
+          );
+        })}
+        <Text style={{ fontSize: 12, color: c.gold, fontFamily: GEO, marginTop: 8 }}>
+          Total possible: {rcNumDays * enabledSessions.length * rcPointsPerMatch} pts
+        </Text>
       </AccordionSection>
 
       <AccordionSection title={`Members (${allPlayers.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
@@ -1629,6 +1805,22 @@ function RyderCupReviewStep({
           ))}
         </View>
       </AccordionSection>
+
+      {/* Matchup Reveal Toggle */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 8 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Enable Matchup Reveal</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Cinematic reveal animation when players first open this season
+          </Text>
+        </View>
+        <Switch
+          value={rcRevealEnabled}
+          onValueChange={setRcRevealEnabled}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={rcRevealEnabled ? c.teal : c.textMuted}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -2000,6 +2192,11 @@ export default function SeasonsScreen() {
   const [rcNumDays, setRcNumDays] = useState(2);
   const [rcPointsPerMatch, setRcPointsPerMatch] = useState(1);
   const [rcHalvedPoints, setRcHalvedPoints] = useState(0.5);
+  const [rcWinCondition, setRcWinCondition] = useState<'most_points' | 'first_to'>('most_points');
+  const [rcFirstToTarget, setRcFirstToTarget] = useState(15);
+  type RCDayCourse = { courseId: string; courseName: string; holes: 'front9' | 'back9' | 'full18' };
+  const [rcDayCourses, setRcDayCourses] = useState<Record<number, RCDayCourse>>({});
+  const [rcRevealEnabled, setRcRevealEnabled] = useState(true);
 
   // State — Match Play Bracket
   const [bracketSize, setBracketSize] = useState(8);
@@ -2081,6 +2278,10 @@ export default function SeasonsScreen() {
         num_days: rcNumDays,
         points_per_match: rcPointsPerMatch,
         halved_points: rcHalvedPoints,
+        win_condition: rcWinCondition,
+        first_to_target: rcWinCondition === 'first_to' ? rcFirstToTarget : null,
+        day_courses: rcDayCourses,
+        reveal_enabled: rcRevealEnabled,
       });
     } else if (seasonType === 'bracket') {
       Object.assign(base, {
@@ -2097,7 +2298,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -2262,6 +2463,10 @@ export default function SeasonsScreen() {
             rcNumDays={rcNumDays} setRcNumDays={setRcNumDays}
             rcPointsPerMatch={rcPointsPerMatch} setRcPointsPerMatch={setRcPointsPerMatch}
             rcHalvedPoints={rcHalvedPoints} setRcHalvedPoints={setRcHalvedPoints}
+            rcWinCondition={rcWinCondition} setRcWinCondition={setRcWinCondition}
+            rcFirstToTarget={rcFirstToTarget} setRcFirstToTarget={setRcFirstToTarget}
+            rcDayCourses={rcDayCourses} setRcDayCourses={setRcDayCourses}
+            selectedIds={selectedIds}
           />
         )}
         {currentStep === 'rc_review' && (
@@ -2270,6 +2475,9 @@ export default function SeasonsScreen() {
             teamRedCaptain={teamRedCaptain} teamBlueCaptain={teamBlueCaptain}
             draftMethod={draftMethod} rcSessions={rcSessions} rcNumDays={rcNumDays}
             rcPointsPerMatch={rcPointsPerMatch} rcHalvedPoints={rcHalvedPoints}
+            rcWinCondition={rcWinCondition} rcFirstToTarget={rcFirstToTarget}
+            rcDayCourses={rcDayCourses}
+            rcRevealEnabled={rcRevealEnabled} setRcRevealEnabled={setRcRevealEnabled}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
           />
         )}
@@ -2357,16 +2565,13 @@ const styles = StyleSheet.create({
   fieldDesc: { fontSize: 13, marginBottom: 4 },
   input: { paddingHorizontal: 14, paddingVertical: 14, fontSize: 16, borderWidth: 1 },
 
-  // Type cards
-  typeCards: { gap: 12 },
-  typeCardWrapper: { marginBottom: 0 },
-  typeCard: { height: 140, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  typeCardLabel: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  typeCardDesc: { fontSize: 12, textAlign: 'center' },
-  whatsThisBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 4, alignSelf: 'flex-start' },
-  whatsThisText: { fontSize: 12 },
-  whatsThisBody: { paddingHorizontal: 14, paddingVertical: 10, marginBottom: 4 },
-  whatsThisDesc: { fontSize: 13, lineHeight: 18 },
+  // Type cards — 2-column grid
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  typeGridCard: { height: 120, padding: 12, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  typeGridCardHalf: { width: (SCREEN_W - 40 - 10) / 2 },
+  typeGridCardFull: { width: SCREEN_W - 40 },
+  typeGridLabel: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  typeGridDesc: { fontSize: 11, textAlign: 'center' },
 
   // Pill row
   pillRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },

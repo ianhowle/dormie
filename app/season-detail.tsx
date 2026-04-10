@@ -29,6 +29,8 @@ import { haptics } from '../src/lib/haptics';
 import { getPlayoffCutLine } from '../src/data/seasons-detail';
 import { supabase } from '../src/lib/supabase';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -1029,6 +1031,39 @@ function SeasonDetailScreenInner() {
   const [selectedPlayer, setSelectedPlayer] = useState<Standing | null>(null);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [showChampionCeremony, setShowChampionCeremony] = useState(false);
+  const [showReveal, setShowReveal] = useState(false);
+  const [revealChecked, setRevealChecked] = useState(false);
+
+  // Check if matchup reveal should be shown (first visit)
+  useEffect(() => {
+    if (revealChecked || !seasonId) return;
+    const checkReveal = async () => {
+      try {
+        const key = `dormie_reveal_seen_${seasonId}`;
+        const seen = await AsyncStorage.getItem(key);
+        if (!seen) {
+          // Check if this season has reveal enabled (from config)
+          const localData = await AsyncStorage.getItem('dormie_local_seasons');
+          if (localData) {
+            const seasons = JSON.parse(localData);
+            const season = seasons.find((s: any) => s.id === seasonId);
+            if (season?.config?.reveal_enabled) {
+              setShowReveal(true);
+            }
+          }
+        }
+      } catch {}
+      setRevealChecked(true);
+    };
+    checkReveal();
+  }, [seasonId, revealChecked]);
+
+  const handleRevealComplete = useCallback(async () => {
+    setShowReveal(false);
+    try {
+      await AsyncStorage.setItem(`dormie_reveal_seen_${seasonId}`, 'true');
+    } catch {}
+  }, [seasonId]);
 
   const standings = realStandings;
   const weeks = realWeeks;
@@ -1139,6 +1174,18 @@ function SeasonDetailScreenInner() {
       await doAdvance();
     }
   }, [seasonId, currentWeek, currentWeekData, standings, weeks, advancing, refreshData]);
+
+  // Show matchup reveal screen if enabled
+  if (showReveal) {
+    return (
+      <MatchupReveal
+        teamRedName="Team Red"
+        teamBlueName="Team Blue"
+        matchups={DEMO_MATCHUPS}
+        onComplete={handleRevealComplete}
+      />
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
