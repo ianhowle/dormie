@@ -143,6 +143,11 @@ export default function WeekDetailScreen() {
     major_name?: string;
     multiplier?: string;
     date_range?: string;
+    multi_round?: string;
+    rounds_allowed?: string;
+    best_rounds?: string;
+    participation_bonus?: string;
+    participation_points?: string;
   }>();
 
   const weekNumber = parseInt(params.week_number ?? '1', 10);
@@ -151,6 +156,13 @@ export default function WeekDetailScreen() {
   const majorName = params.major_name ?? null;
   const multiplier = parseInt(params.multiplier ?? '1', 10);
   const dateRange = params.date_range ?? null;
+
+  // Multi-round and participation config
+  const multiRound = params.multi_round === '1';
+  const roundsAllowed = parseInt(params.rounds_allowed ?? '1', 10);
+  const bestRounds = parseInt(params.best_rounds ?? '1', 10);
+  const hasParticipation = params.participation_bonus === '1';
+  const participationPts = parseInt(params.participation_points ?? '0', 10);
 
   const results = getWeekResults(weekNumber);
   const highlights = DEMO_HIGHLIGHTS[weekNumber] ?? DEMO_HIGHLIGHTS[1];
@@ -320,6 +332,74 @@ export default function WeekDetailScreen() {
           );
         })}
 
+        {/* Multi-Round Breakdown (if enabled) */}
+        {multiRound && (
+          <View style={[styles.multiRoundCard, { backgroundColor: theme.isDark ? c.elevated : '#F5F1EB', borderColor: c.border }]}>
+            <View style={styles.multiRoundHeader}>
+              <Ionicons name="layers-outline" size={16} color={c.teal} />
+              <Text style={[styles.multiRoundTitle, { color: c.teal, fontFamily: GEO }]}>
+                BEST {bestRounds} OF {roundsAllowed} ROUNDS
+              </Text>
+            </View>
+            <Text style={[styles.multiRoundDesc, { color: c.textMuted }]}>
+              Players logged up to {roundsAllowed} rounds this week. Top {bestRounds} count toward standings.
+            </Text>
+
+            {/* Demo: show McGowan's rounds as example */}
+            <View style={[styles.multiRoundExample, { borderTopColor: c.border }]}>
+              <Text style={[styles.multiRoundExLabel, { color: c.textMuted }]}>McGowan's rounds:</Text>
+              {[
+                { score: 74, points: 25, counted: true },
+                { score: 78, points: 16, counted: bestRounds >= 2 },
+                ...(roundsAllowed >= 3 ? [{ score: 82, points: 10, counted: false }] : []),
+              ].map((r, i) => (
+                <View key={i} style={styles.multiRoundRow}>
+                  <Ionicons
+                    name={r.counted ? 'checkmark-circle' : 'close-circle-outline'}
+                    size={16}
+                    color={r.counted ? c.teal : c.textMuted}
+                  />
+                  <Text style={[styles.multiRoundScore, { color: r.counted ? c.text : c.textMuted, fontFamily: GEO }]}>
+                    {r.score}
+                  </Text>
+                  <Text style={[styles.multiRoundPts, { color: r.counted ? c.gold : c.textMuted, fontFamily: GEO }]}>
+                    {r.points} pts
+                  </Text>
+                  {!r.counted && <Text style={[styles.multiRoundDropped, { color: c.textMuted }]}>dropped</Text>}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Points Breakdown (if participation enabled) */}
+        {hasParticipation && (
+          <View style={[styles.participationCard, { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', borderColor: c.teal + '33' }]}>
+            <View style={styles.participationHeader}>
+              <Ionicons name="hand-left-outline" size={16} color={c.teal} />
+              <Text style={[styles.participationTitle, { color: c.teal, fontFamily: GEO }]}>POINTS BREAKDOWN</Text>
+            </View>
+            <View style={styles.participationRow}>
+              <Text style={[styles.participationLabel, { color: c.textMuted }]}>Position points</Text>
+              <Text style={[styles.participationVal, { color: c.gold, fontFamily: GEO }]}>
+                {results[0]?.points ?? 0}
+              </Text>
+            </View>
+            <View style={[styles.participationRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }]}>
+              <Text style={[styles.participationLabel, { color: c.textMuted }]}>Participation bonus</Text>
+              <Text style={[styles.participationVal, { color: c.teal, fontFamily: GEO }]}>
+                +{participationPts}
+              </Text>
+            </View>
+            <View style={[styles.participationRow, { borderTopWidth: 1, borderTopColor: c.gold + '44' }]}>
+              <Text style={[styles.participationLabel, { color: c.text, fontWeight: '700' }]}>Total</Text>
+              <Text style={[styles.participationVal, { color: c.gold, fontFamily: GEO, fontSize: 18 }]}>
+                {(results[0]?.points ?? 0) + participationPts}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Week Highlights */}
         <View style={[styles.highlightsCard, { backgroundColor: theme.isDark ? c.elevated : '#F5F1EB' }]}>
           <Text style={[styles.highlightsTitle, { color: c.gold, fontFamily: GEO }]}>WEEK HIGHLIGHTS</Text>
@@ -422,4 +502,24 @@ const styles = StyleSheet.create({
   impactCard: { marginHorizontal: 16, marginTop: 12, padding: 14, borderWidth: 1 },
   impactTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginTop: 6, marginBottom: 6 },
   impactText: { fontSize: 14, lineHeight: 20 },
+
+  // Multi-Round Breakdown
+  multiRoundCard: { marginHorizontal: 16, marginTop: 20, padding: 16, borderWidth: 1 },
+  multiRoundHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  multiRoundTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  multiRoundDesc: { fontSize: 12, lineHeight: 17, marginBottom: 8 },
+  multiRoundExample: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, marginTop: 4 },
+  multiRoundExLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 6, textTransform: 'uppercase' as const },
+  multiRoundRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  multiRoundScore: { fontSize: 16, fontWeight: '700', width: 36 },
+  multiRoundPts: { fontSize: 13, fontWeight: '600', width: 48 },
+  multiRoundDropped: { fontSize: 11, fontStyle: 'italic' },
+
+  // Participation Breakdown
+  participationCard: { marginHorizontal: 16, marginTop: 12, padding: 14, borderWidth: 1 },
+  participationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  participationTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  participationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  participationLabel: { fontSize: 13 },
+  participationVal: { fontSize: 15, fontWeight: '700' },
 });

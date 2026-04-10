@@ -484,6 +484,16 @@ function RulesStep({
   setDnsSafetyNet,
   dnsSafetyMax,
   setDnsSafetyMax,
+  multiRoundWeek,
+  setMultiRoundWeek,
+  roundsAllowed,
+  setRoundsAllowed,
+  bestRoundsCount,
+  setBestRoundsCount,
+  participationBonus,
+  setParticipationBonus,
+  participationPoints,
+  setParticipationPoints,
 }: {
   cutEnabled: boolean;
   setCutEnabled: (v: boolean) => void;
@@ -509,6 +519,16 @@ function RulesStep({
   setDnsSafetyNet: (v: boolean) => void;
   dnsSafetyMax: number;
   setDnsSafetyMax: (v: number) => void;
+  multiRoundWeek: boolean;
+  setMultiRoundWeek: (v: boolean) => void;
+  roundsAllowed: number;
+  setRoundsAllowed: (v: number) => void;
+  bestRoundsCount: number;
+  setBestRoundsCount: (v: number) => void;
+  participationBonus: boolean;
+  setParticipationBonus: (v: boolean) => void;
+  participationPoints: number;
+  setParticipationPoints: (v: number) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -689,6 +709,105 @@ function RulesStep({
           </View>
           <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic', marginTop: 8 }}>
             Requires 3+ completed rounds to qualify. Limited uses prevent abuse.
+          </Text>
+        </View>
+      )}
+
+      {/* Multiple Rounds Per Week */}
+      <GoldDivider style={{ marginTop: 16, marginBottom: 4 }} />
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Multiple Rounds Per Week</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Allow multiple rounds per week. Only your best scores count toward standings.
+          </Text>
+        </View>
+        <Switch
+          value={multiRoundWeek}
+          onValueChange={setMultiRoundWeek}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={multiRoundWeek ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {multiRoundWeek && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Rounds allowed per week</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); const v = Math.max(2, roundsAllowed - 1); setRoundsAllowed(v); if (bestRoundsCount > v) setBestRoundsCount(v); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={roundsAllowed <= 2 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{roundsAllowed}</Text>
+              <Pressable onPress={() => { haptics.light(); setRoundsAllowed(Math.min(5, roundsAllowed + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={roundsAllowed >= 5 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Best rounds that count</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setBestRoundsCount(Math.max(1, bestRoundsCount - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={bestRoundsCount <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{bestRoundsCount}</Text>
+              <Pressable onPress={() => { haptics.light(); setBestRoundsCount(Math.min(roundsAllowed, bestRoundsCount + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={bestRoundsCount >= roundsAllowed ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+          <View style={[styles.explanationCard, { borderColor: c.teal + '33', backgroundColor: c.teal + '0A', marginTop: 8 }]}>
+            <Ionicons name="golf-outline" size={16} color={c.teal} />
+            <Text style={{ flex: 1, fontSize: 12, color: c.textMuted, lineHeight: 17 }}>
+              Best {bestRoundsCount} of {roundsAllowed} — play up to {roundsAllowed} rounds, only your top {bestRoundsCount} count. Great for groups with unpredictable schedules.
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Participation Bonus */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Participation Bonus</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Award bonus points just for showing up
+          </Text>
+        </View>
+        <Switch
+          value={participationBonus}
+          onValueChange={setParticipationBonus}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={participationBonus ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {participationBonus && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Points per week</Text>
+            <View style={styles.stepperRow}>
+              {[25, 50, 75, 100].map((pts) => (
+                <Pressable
+                  key={pts}
+                  onPress={() => { haptics.light(); setParticipationPoints(pts); }}
+                  style={[
+                    styles.cutPill,
+                    {
+                      backgroundColor: participationPoints === pts ? c.teal + '22' : 'transparent',
+                      borderColor: participationPoints === pts ? c.teal : c.border,
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.cutPillText, { color: participationPoints === pts ? c.teal : c.textMuted }]}>
+                    {pts}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic', marginTop: 8 }}>
+            Rewards consistency and keeps everyone engaged, even players out of contention. Awarded for completing at least 1 round during the week.
           </Text>
         </View>
       )}
@@ -1111,6 +1230,11 @@ function ReviewStep({
   makeupWindowWeeks,
   dnsSafetyNet,
   dnsSafetyMax,
+  multiRoundWeek,
+  roundsAllowed,
+  bestRoundsCount,
+  participationBonus,
+  participationPoints,
 }: {
   name: string;
   seasonType: SeasonType;
@@ -1128,6 +1252,11 @@ function ReviewStep({
   makeupWindowWeeks: number;
   dnsSafetyNet: boolean;
   dnsSafetyMax: number;
+  multiRoundWeek: boolean;
+  roundsAllowed: number;
+  bestRoundsCount: number;
+  participationBonus: boolean;
+  participationPoints: number;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1175,6 +1304,8 @@ function ReviewStep({
           <Text style={[styles.reviewRule, { color: c.text }]}>Championship: {champMultiplier}× pts</Text>
           {makeupWindowEnabled && <Text style={[styles.reviewRule, { color: c.text }]}>Makeup window: {makeupWindowWeeks} week{makeupWindowWeeks !== 1 ? 's' : ''}</Text>}
           {dnsSafetyNet && <Text style={[styles.reviewRule, { color: c.text }]}>DNS safety net: {dnsSafetyMax} use{dnsSafetyMax !== 1 ? 's' : ''}/season</Text>}
+          {multiRoundWeek && <Text style={[styles.reviewRule, { color: c.text }]}>Scoring: Best {bestRoundsCount} of {roundsAllowed} rounds per week</Text>}
+          {participationBonus && <Text style={[styles.reviewRule, { color: c.text }]}>Participation bonus: +{participationPoints} pts for completing the week</Text>}
         </View>
       </AccordionSection>
 
@@ -2180,6 +2311,13 @@ export default function SeasonsScreen() {
   const [useCustomCycle, setUseCustomCycle] = useState(false);
   const [customCycle, setCustomCycle] = useState<Record<number, string>>({});
 
+  // State — Multi-Round Week & Participation Bonus
+  const [multiRoundWeek, setMultiRoundWeek] = useState(false);
+  const [roundsAllowed, setRoundsAllowed] = useState(3);
+  const [bestRoundsCount, setBestRoundsCount] = useState(1);
+  const [participationBonus, setParticipationBonus] = useState(false);
+  const [participationPoints, setParticipationPoints] = useState(50);
+
   // State — Ryder Cup
   const [teamRedName, setTeamRedName] = useState('Team Red');
   const [teamBlueName, setTeamBlueName] = useState('Team Blue');
@@ -2266,6 +2404,11 @@ export default function SeasonsScreen() {
         makeup_window_weeks: makeupWindowEnabled ? makeupWindowWeeks : null,
         dns_safety_net: dnsSafetyNet,
         dns_safety_max: dnsSafetyNet ? dnsSafetyMax : null,
+        multi_round_week: multiRoundWeek,
+        rounds_allowed_per_week: multiRoundWeek ? roundsAllowed : null,
+        best_rounds_count: multiRoundWeek ? bestRoundsCount : null,
+        participation_bonus: participationBonus,
+        participation_points: participationBonus ? participationPoints : null,
       });
     } else if (seasonType === 'ryder') {
       Object.assign(base, {
@@ -2298,7 +2441,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -2428,6 +2571,11 @@ export default function SeasonsScreen() {
             makeupWindowWeeks={makeupWindowWeeks} setMakeupWindowWeeks={setMakeupWindowWeeks}
             dnsSafetyNet={dnsSafetyNet} setDnsSafetyNet={setDnsSafetyNet}
             dnsSafetyMax={dnsSafetyMax} setDnsSafetyMax={setDnsSafetyMax}
+            multiRoundWeek={multiRoundWeek} setMultiRoundWeek={setMultiRoundWeek}
+            roundsAllowed={roundsAllowed} setRoundsAllowed={setRoundsAllowed}
+            bestRoundsCount={bestRoundsCount} setBestRoundsCount={setBestRoundsCount}
+            participationBonus={participationBonus} setParticipationBonus={setParticipationBonus}
+            participationPoints={participationPoints} setParticipationPoints={setParticipationPoints}
           />
         )}
         {currentStep === 'majors' && (
@@ -2444,6 +2592,8 @@ export default function SeasonsScreen() {
             playoffMultiplier={playoffMultiplier} champMultiplier={champMultiplier}
             makeupWindowEnabled={makeupWindowEnabled} makeupWindowWeeks={makeupWindowWeeks}
             dnsSafetyNet={dnsSafetyNet} dnsSafetyMax={dnsSafetyMax}
+            multiRoundWeek={multiRoundWeek} roundsAllowed={roundsAllowed} bestRoundsCount={bestRoundsCount}
+            participationBonus={participationBonus} participationPoints={participationPoints}
           />
         )}
         {/* Ryder Cup steps */}

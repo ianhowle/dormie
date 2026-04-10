@@ -435,16 +435,23 @@ function StandingsTab({
   weeks,
   cutLineIndex,
   onPlayerTap,
+  seasonConfig,
 }: {
   standings: Standing[];
   weeks: Week[];
   cutLineIndex: number;
   onPlayerTap: (p: Standing) => void;
+  seasonConfig?: Record<string, any> | null;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
   const completedWeeks = weeks.filter((w) => w.completed);
+  const [showScoringTooltip, setShowScoringTooltip] = useState(false);
+
+  const hasMultiRound = !!seasonConfig?.multi_round_week;
+  const hasParticipation = !!seasonConfig?.participation_bonus;
+  const showTooltipIcon = hasMultiRound || hasParticipation;
 
   const renderStandingRow = useCallback(({ item: p, index: i }: { item: Standing; index: number }) => {
     const isCut = i >= cutLineIndex;
@@ -539,8 +546,34 @@ function StandingsTab({
             );
           })}
         </ScrollView>
-        <Text style={[styles.shTotal, { color: isDark ? c.gold : '#FFFFFF', fontFamily: GEO }]}>PTS</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Text style={[styles.shTotal, { color: isDark ? c.gold : '#FFFFFF', fontFamily: GEO }]}>PTS</Text>
+          {showTooltipIcon && (
+            <Pressable onPress={() => { haptics.light(); setShowScoringTooltip(!showScoringTooltip); }} hitSlop={8}>
+              <Ionicons name="information-circle-outline" size={14} color={isDark ? c.gold + '88' : 'rgba(255,255,255,0.6)'} />
+            </Pressable>
+          )}
+        </View>
       </View>
+
+      {/* Scoring tooltip */}
+      {showScoringTooltip && (
+        <Pressable onPress={() => setShowScoringTooltip(false)} style={[styles.scoringTooltip, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: c.gold + '44' }]}>
+          <Text style={[styles.scoringTooltipTitle, { color: c.gold, fontFamily: GEO }]}>SCORING RULES</Text>
+          <Text style={[styles.scoringTooltipLine, { color: c.text }]}>Position points (1st = 25, 2nd = 20, ...)</Text>
+          {hasMultiRound && (
+            <Text style={[styles.scoringTooltipLine, { color: c.text }]}>
+              Best {seasonConfig?.best_rounds_count ?? 1} of {seasonConfig?.rounds_allowed_per_week ?? 3} rounds count per week
+            </Text>
+          )}
+          {hasParticipation && (
+            <Text style={[styles.scoringTooltipLine, { color: c.text }]}>
+              +{seasonConfig?.participation_points ?? 50} participation bonus per week
+            </Text>
+          )}
+          <Text style={[styles.scoringTooltipDismiss, { color: c.textMuted }]}>Tap to dismiss</Text>
+        </Pressable>
+      )}
 
       <FlatList
         data={standings}
@@ -767,7 +800,7 @@ function PlayoffBracket({ standings, cutLineIndex, weeks }: { standings: Standin
 }
 
 // ─── Schedule Tab ─────────────────────────────────────────────────────
-function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentWeek: number; seasonId: string }) {
+function ScheduleTab({ weeks, currentWeek, seasonId, seasonConfig }: { weeks: Week[]; currentWeek: number; seasonId: string; seasonConfig?: Record<string, any> | null }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -786,6 +819,15 @@ function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentW
         major_name: w.majorName ?? '',
         multiplier: String(w.multiplier),
         date_range: dateRange,
+        ...(seasonConfig?.multi_round_week ? {
+          multi_round: '1',
+          rounds_allowed: String(seasonConfig.rounds_allowed_per_week ?? 3),
+          best_rounds: String(seasonConfig.best_rounds_count ?? 1),
+        } : {}),
+        ...(seasonConfig?.participation_bonus ? {
+          participation_bonus: '1',
+          participation_points: String(seasonConfig.participation_points ?? 50),
+        } : {}),
       },
     });
   };
@@ -1276,12 +1318,13 @@ function SeasonDetailScreenInner() {
               weeks={weeks}
               cutLineIndex={cutLineIndex}
               onPlayerTap={handlePlayerTap}
+              seasonConfig={null}
             />
           </View>
         </ScrollView>
       )}
 
-      {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} />}
+      {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={null} />}
       {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
 
       {/* Advance week */}
@@ -1339,6 +1382,12 @@ const styles = StyleSheet.create({
   shWeek: { width: 38, alignItems: 'center' },
   shWeekText: { fontSize: 10, fontWeight: '700' },
   shTotal: { width: 42, textAlign: 'right', fontSize: 11, fontWeight: '700' },
+
+  // Scoring tooltip
+  scoringTooltip: { marginHorizontal: 8, padding: 12, borderWidth: 1, marginBottom: 4 },
+  scoringTooltipTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 6 },
+  scoringTooltipLine: { fontSize: 12, lineHeight: 18, marginBottom: 2 },
+  scoringTooltipDismiss: { fontSize: 10, marginTop: 6, textAlign: 'center', fontStyle: 'italic' },
 
   standingsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 4 },
   srRank: { width: 28, fontSize: 16, fontWeight: '700' },

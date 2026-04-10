@@ -104,6 +104,63 @@ export function calculateStandingsWithDrops(
   return results;
 }
 
+// ─── Multi-Round Week & Participation Bonus ─────────────────────────
+
+export type MultiRoundConfig = {
+  multiRoundWeek: boolean;
+  roundsAllowedPerWeek: number;
+  bestRoundsCount: number;
+};
+
+export type ParticipationConfig = {
+  participationBonus: boolean;
+  participationPoints: number;
+};
+
+/**
+ * Given all round points a player logged in a single week, return the
+ * weekly total respecting "best X of Y" and participation bonus rules.
+ *
+ * @param roundPoints   Array of points earned per round this week (may be empty)
+ * @param multiRound    Multi-round configuration (null/undefined = single round)
+ * @param participation Participation bonus configuration (null/undefined = none)
+ */
+export function calculateWeeklyPoints(
+  roundPoints: number[],
+  multiRound?: MultiRoundConfig | null,
+  participation?: ParticipationConfig | null,
+): { total: number; countingRounds: number[]; droppedRounds: number[]; participationAwarded: boolean } {
+  if (roundPoints.length === 0) {
+    return { total: 0, countingRounds: [], droppedRounds: [], participationAwarded: false };
+  }
+
+  // Sort descending to pick best rounds
+  const sorted = [...roundPoints].sort((a, b) => b - a);
+
+  let countingRounds: number[];
+  let droppedRounds: number[];
+
+  if (multiRound?.multiRoundWeek && multiRound.bestRoundsCount > 0) {
+    const take = Math.min(multiRound.bestRoundsCount, sorted.length);
+    countingRounds = sorted.slice(0, take);
+    droppedRounds = sorted.slice(take);
+  } else {
+    // Single round mode — take the best one
+    countingRounds = [sorted[0]];
+    droppedRounds = sorted.slice(1);
+  }
+
+  let total = countingRounds.reduce((sum, pts) => sum + pts, 0);
+
+  // Participation bonus: awarded if player logged at least 1 round
+  const participationAwarded = !!(participation?.participationBonus && roundPoints.length > 0);
+  if (participationAwarded) {
+    total += participation!.participationPoints;
+  }
+
+  return { total, countingRounds, droppedRounds, participationAwarded };
+}
+
 /**
  * Project a player's season total using a DNS (did-not-start) average fill
  * for any missing weeks.
