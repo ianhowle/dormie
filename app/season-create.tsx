@@ -13,11 +13,13 @@ import {
   Dimensions,
   Share,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../src/theme/colors';
@@ -551,6 +553,11 @@ function RulesStep({
           thumbColor={dropWorst ? c.teal : c.textMuted}
         />
       </View>
+      {dropWorst && (
+        <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic', paddingHorizontal: 2, paddingTop: 6, paddingBottom: 4 }}>
+          Your lowest-scoring regular season week is excluded from your point total before the playoff cut is applied. Playoff and Championship weeks cannot be dropped.
+        </Text>
+      )}
 
       {/* DNS averaging */}
       <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
@@ -608,12 +615,12 @@ function RulesStep({
           <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>Semi-final and elimination rounds</Text>
         </View>
         <View style={styles.stepperRow}>
-          <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(Math.max(1, playoffMultiplier - 0.5)); }}>
-            <Ionicons name="remove-circle-outline" size={24} color="rgba(255,255,255,0.4)" />
+          <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(Math.max(2, playoffMultiplier - 0.5)); }}>
+            <Ionicons name="remove-circle-outline" size={24} color={playoffMultiplier <= 2 ? c.border : 'rgba(255,255,255,0.4)'} />
           </Pressable>
           <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{playoffMultiplier}×</Text>
-          <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(playoffMultiplier + 0.5); }}>
-            <Ionicons name="add-circle-outline" size={24} color={c.gold} />
+          <Pressable onPress={() => { haptics.light(); setPlayoffMultiplier(Math.min(3, playoffMultiplier + 0.5)); }}>
+            <Ionicons name="add-circle-outline" size={24} color={playoffMultiplier >= 3 ? c.border : c.gold} />
           </Pressable>
         </View>
       </View>
@@ -623,12 +630,12 @@ function RulesStep({
           <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>The final week — winner takes the season title</Text>
         </View>
         <View style={styles.stepperRow}>
-          <Pressable onPress={() => { haptics.light(); setChampMultiplier(Math.max(1, champMultiplier - 0.5)); }}>
-            <Ionicons name="remove-circle-outline" size={24} color="rgba(255,255,255,0.4)" />
+          <Pressable onPress={() => { haptics.light(); setChampMultiplier(Math.max(2.5, champMultiplier - 0.5)); }}>
+            <Ionicons name="remove-circle-outline" size={24} color={champMultiplier <= 2.5 ? c.border : 'rgba(255,255,255,0.4)'} />
           </Pressable>
           <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{champMultiplier}×</Text>
-          <Pressable onPress={() => { haptics.light(); setChampMultiplier(champMultiplier + 0.5); }}>
-            <Ionicons name="add-circle-outline" size={24} color={c.gold} />
+          <Pressable onPress={() => { haptics.light(); setChampMultiplier(Math.min(4, champMultiplier + 0.5)); }}>
+            <Ionicons name="add-circle-outline" size={24} color={champMultiplier >= 4 ? c.border : c.gold} />
           </Pressable>
         </View>
       </View>
@@ -1927,40 +1934,125 @@ export default function SeasonsScreen() {
     return true;
   }, [currentStep, name, selectedIds, manualPlayers]);
 
+  const [creating, setCreating] = useState(false);
+
+  const buildSeasonConfig = useCallback(() => {
+    const base: Record<string, any> = { season_type: seasonType };
+    if (seasonType === 'fedex' || seasonType === 'custom') {
+      Object.assign(base, {
+        scoring_method: scoringMethod,
+        cut_percentage: cutEnabled ? cutValue : null,
+        drop_worst: dropWorst,
+        dns_averaging: dnsAveraging,
+        dns_min_rounds: dnsMinRounds,
+        dns_cap: dnsCap,
+        playoff_multiplier: playoffMultiplier,
+        championship_multiplier: champMultiplier,
+        length_preset: preset,
+        use_custom_cycle: useCustomCycle,
+        custom_cycle: useCustomCycle ? customCycle : null,
+      });
+    } else if (seasonType === 'ryder') {
+      Object.assign(base, {
+        team_red_name: teamRedName,
+        team_blue_name: teamBlueName,
+        team_red_captain: teamRedCaptain,
+        team_blue_captain: teamBlueCaptain,
+        draft_method: draftMethod,
+        sessions: rcSessions,
+        num_days: rcNumDays,
+        points_per_match: rcPointsPerMatch,
+        halved_points: rcHalvedPoints,
+      });
+    } else if (seasonType === 'bracket') {
+      Object.assign(base, {
+        bracket_size: bracketSize,
+        seeding_method: seedingMethod,
+        match_length: bracketMatchLength,
+        handicap_strokes: bracketHandicap,
+      });
+    } else if (seasonType === 'stroke_series') {
+      Object.assign(base, {
+        num_rounds: strokeRounds,
+        scoring: strokeScoring,
+        drop_worst: strokeDropWorst,
+      });
+    }
+    return base;
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst]);
+
   const handleCreate = useCallback(async () => {
+    setCreating(true);
     let newSeasonId: string | null = null;
+    const config = buildSeasonConfig();
+
+    // Build weeks for FedEx/Custom types
+    const weeksPayload = (seasonType === 'fedex' || seasonType === 'custom')
+      ? editableWeeks.map((w) => ({
+          week_number: w.number,
+          format: w.format,
+          is_major: w.isMajor,
+          major_name: w.majorName || null,
+          is_playoff: w.isPlayoff,
+          is_championship: w.isChampionship,
+          multiplier: w.multiplier,
+        }))
+      : [];
+
+    // 1. Try Supabase
     if (user) {
       try {
         const created = await seasonsService.create(
           {
             name,
-            type: seasonType,
+            type: seasonType === 'bracket' || seasonType === 'stroke_series' ? 'custom' : seasonType as any,
             creator_id: user.id,
-            config: {
-              scoring_method: scoringMethod,
-              cut_percentage: cutEnabled ? cutValue : null,
-              drop_worst: dropWorst,
-              playoff_multiplier: playoffMultiplier,
-              championship_multiplier: champMultiplier,
-            },
+            config,
+            status: 'draft',
           },
-          editableWeeks.map((w) => ({
-            week_number: w.number,
-            format: w.format,
-            is_major: w.isMajor,
-            major_name: w.majorName || null,
-            is_playoff: w.isPlayoff,
-            is_championship: w.isChampionship,
-            multiplier: w.multiplier,
-          })),
+          weeksPayload,
           selectedIds
         );
         newSeasonId = created.id;
-      } catch {}
+      } catch (err) {
+        // Supabase failed — fall through to AsyncStorage fallback
+        console.warn('Supabase save failed, falling back to AsyncStorage:', err);
+      }
     }
+
+    // 2. AsyncStorage fallback if Supabase didn't work
+    if (!newSeasonId) {
+      try {
+        const localId = `local_season_${Date.now()}`;
+        const localSeason = {
+          id: localId,
+          name,
+          type: seasonType,
+          config,
+          status: 'draft',
+          creator_id: user?.id ?? 'local',
+          created_at: new Date().toISOString(),
+          weeks: weeksPayload,
+          member_ids: selectedIds,
+          manual_players: manualPlayers,
+        };
+        const existing = await AsyncStorage.getItem('dormie_local_seasons');
+        const seasons = existing ? JSON.parse(existing) : [];
+        seasons.push(localSeason);
+        await AsyncStorage.setItem('dormie_local_seasons', JSON.stringify(seasons));
+        newSeasonId = localId;
+      } catch (storageErr) {
+        console.warn('AsyncStorage save failed:', storageErr);
+        setCreating(false);
+        showToast({ message: 'Failed to create season', type: 'error', icon: 'alert-circle' });
+        return;
+      }
+    }
+
+    setCreating(false);
     showToast({ message: 'Season created', type: 'gold', icon: 'trophy' });
-    router.replace({ pathname: '/season-detail', params: { id: newSeasonId ?? '' } });
-  }, [name, seasonType, scoringMethod, user, cutEnabled, cutValue, dropWorst, playoffMultiplier, champMultiplier, editableWeeks, selectedIds, router]);
+    router.replace({ pathname: '/season-detail', params: { id: newSeasonId } });
+  }, [name, seasonType, user, editableWeeks, selectedIds, manualPlayers, buildSeasonConfig, router, showToast]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -2097,11 +2189,18 @@ export default function SeasonsScreen() {
       <View style={[styles.bottomBar, { borderTopColor: c.border }]}>
         {step === steps.length - 1 ? (
           <Pressable
-            onPress={() => { haptics.success(); handleCreate(); }}
-            style={[styles.nextBtn, { backgroundColor: c.gold }]}
+            onPress={() => { if (!creating) { haptics.success(); handleCreate(); } }}
+            disabled={creating}
+            style={[styles.nextBtn, { backgroundColor: creating ? c.elevated : c.gold }]}
           >
-            <Ionicons name="trophy" size={20} color="#000000" />
-            <Text style={[styles.nextBtnText, { color: '#000000', fontFamily: GEO }]}>Create Season</Text>
+            {creating ? (
+              <ActivityIndicator size="small" color={c.gold} />
+            ) : (
+              <>
+                <Ionicons name="trophy" size={20} color="#000000" />
+                <Text style={[styles.nextBtnText, { color: '#000000', fontFamily: GEO }]}>Create Season</Text>
+              </>
+            )}
           </Pressable>
         ) : (
           <Pressable

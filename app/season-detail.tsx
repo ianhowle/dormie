@@ -487,22 +487,24 @@ function StandingsTab({
             </View>
           </View>
 
-          {completedWeeks.map((w, wi) => {
-            const pts = p.weekResults[wi];
-            const isMajorWeek = w.isMajor || w.isChampionship;
-            return (
-              <View key={w.number} style={[styles.srWeekCell, isMajorWeek && { backgroundColor: c.gold + '0D' }]}>
-                <Text
-                  style={[
-                    styles.srWeekVal,
-                    { color: pts === null ? c.textMuted : pts === 15 ? c.gold : c.text, fontFamily: GEO },
-                  ]}
-                >
-                  {pts ?? '—'}
-                </Text>
-              </View>
-            );
-          })}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row' }}>
+            {completedWeeks.map((w, wi) => {
+              const pts = p.weekResults[wi];
+              const isMajorWeek = w.isMajor || w.isChampionship;
+              return (
+                <View key={w.number} style={[styles.srWeekCell, isMajorWeek && { backgroundColor: c.gold + '0D' }]}>
+                  <Text
+                    style={[
+                      styles.srWeekVal,
+                      { color: pts === null ? c.textMuted : pts === 15 ? c.gold : c.text, fontFamily: GEO },
+                    ]}
+                  >
+                    {pts ?? '—'}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
 
           <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>{p.points}</Text>
         </Pressable>
@@ -516,19 +518,22 @@ function StandingsTab({
 
   return (
     <View style={styles.standingsContainer}>
+      {/* Header */}
       <View style={[styles.standingsHeader, { borderBottomColor: c.border, backgroundColor: isDark ? undefined : '#006747' }]}>
         <Text style={[styles.shRank, { color: isDark ? c.textMuted : '#FFFFFF' }]}>#</Text>
         <Text style={[styles.shPlayer, { color: isDark ? c.textMuted : '#FFFFFF' }]}>Player</Text>
-        {completedWeeks.map((w) => {
-          const badge = getWeekBadge(w);
-          return (
-            <View key={w.number} style={styles.shWeek}>
-              <Text style={[styles.shWeekText, { color: isDark ? (badge ? badge.color : c.textMuted) : '#FFFFFF' }]}>
-                {w.number}
-              </Text>
-            </View>
-          );
-        })}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row' }}>
+          {completedWeeks.map((w) => {
+            const badge = getWeekBadge(w);
+            return (
+              <View key={w.number} style={styles.shWeek}>
+                <Text style={[styles.shWeekText, { color: isDark ? (badge ? badge.color : c.textMuted) : '#FFFFFF' }]}>
+                  Wk{w.number}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
         <Text style={[styles.shTotal, { color: isDark ? c.gold : '#FFFFFF', fontFamily: GEO }]}>PTS</Text>
       </View>
 
@@ -794,6 +799,20 @@ function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentW
 // ─── Challenges Tab ───────────────────────────────────────────────────
 const MEDAL_COLORS = ['#C9A227', '#C0C0C0', '#CD7F32']; // gold, silver, bronze
 
+const SEASON_RECORDS = [
+  { label: 'Fastest Round', value: '3h 12m', player: 'Patterson', icon: 'timer-outline' as const },
+  { label: 'Biggest Weekly Haul', value: '25 pts', player: 'McGowan (Wk 1)', icon: 'flame-outline' as const },
+  { label: 'Most Weeks at #1', value: '3 weeks', player: 'McGowan', icon: 'medal-outline' as const },
+];
+
+const FUN_STATS = [
+  'McGowan has never finished below 3rd',
+  'Sullivan has played every single week',
+  'Chen improved the most since Week 1 (+4 positions)',
+  'Fletcher leads all players with 6 birdies in a single week',
+  'Rodriguez has the most top-5 finishes without a win',
+];
+
 function ChallengesTab({ challenges }: { challenges: BonusChallenge[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -832,6 +851,36 @@ function ChallengesTab({ challenges }: { challenges: BonusChallenge[] }) {
           </View>
         </View>
       ))}
+
+      {/* Season Records */}
+      <View style={[styles.bonusSectionHeader, { borderTopColor: c.border }]}>
+        <Ionicons name="ribbon-outline" size={18} color={c.gold} />
+        <Text style={[styles.bonusSectionTitle, { color: c.gold, fontFamily: GEO }]}>SEASON RECORDS</Text>
+      </View>
+      {SEASON_RECORDS.map((rec, idx) => (
+        <View key={idx} style={[styles.recordRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <Ionicons name={rec.icon} size={20} color={c.teal} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.recordLabel, { color: c.text }]}>{rec.label}</Text>
+            <Text style={[styles.recordPlayer, { color: c.textMuted }]}>{rec.player}</Text>
+          </View>
+          <Text style={[styles.recordValue, { color: c.gold, fontFamily: GEO }]}>{rec.value}</Text>
+        </View>
+      ))}
+
+      {/* Fun Stats */}
+      <View style={[styles.bonusSectionHeader, { borderTopColor: c.border }]}>
+        <Ionicons name="sparkles-outline" size={18} color={c.teal} />
+        <Text style={[styles.bonusSectionTitle, { color: c.teal, fontFamily: GEO }]}>FUN STATS</Text>
+      </View>
+      {FUN_STATS.map((stat, idx) => (
+        <View key={idx} style={[styles.funStatRow, { borderBottomColor: c.border }]}>
+          <Text style={[styles.funStatBullet, { color: c.textMuted }]}>{'\u2022'}</Text>
+          <Text style={[styles.funStatText, { color: c.text }]}>{stat}</Text>
+        </View>
+      ))}
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
@@ -1169,7 +1218,7 @@ const styles = StyleSheet.create({
   standingsHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, paddingHorizontal: 4 },
   shRank: { width: 28, fontSize: 11, fontWeight: '600' },
   shPlayer: { flex: 1, fontSize: 11, fontWeight: '600', minWidth: 120 },
-  shWeek: { width: 32, alignItems: 'center' },
+  shWeek: { width: 38, alignItems: 'center' },
   shWeekText: { fontSize: 10, fontWeight: '700' },
   shTotal: { width: 42, textAlign: 'right', fontSize: 11, fontWeight: '700' },
 
@@ -1178,7 +1227,7 @@ const styles = StyleSheet.create({
   srPlayer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 120 },
   srName: { fontSize: 13, fontWeight: '600', maxWidth: 100 },
   srHcp: { fontSize: 10, marginTop: 1 },
-  srWeekCell: { width: 32, alignItems: 'center', paddingVertical: 2 },
+  srWeekCell: { width: 38, alignItems: 'center', paddingVertical: 2 },
   srWeekVal: { fontSize: 12 },
   srTotal: { width: 42, textAlign: 'right', fontSize: 16, fontWeight: '700' },
 
@@ -1213,6 +1262,15 @@ const styles = StyleSheet.create({
   challengePlayerName: { flex: 1, fontSize: 14, fontWeight: '600' },
   challengePlayerVal: { fontSize: 16, fontWeight: '700' },
   challengeDivider: { height: StyleSheet.hairlineWidth, marginVertical: 6 },
+  bonusSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 20, paddingBottom: 10, marginTop: 8, borderTopWidth: 1 },
+  bonusSectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  recordRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, marginBottom: 6, borderWidth: 1 },
+  recordLabel: { fontSize: 14, fontWeight: '600' },
+  recordPlayer: { fontSize: 12, marginTop: 1 },
+  recordValue: { fontSize: 18, fontWeight: '700' },
+  funStatRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  funStatBullet: { fontSize: 16, lineHeight: 20 },
+  funStatText: { fontSize: 14, lineHeight: 20, flex: 1 },
 
   bracketContainer: { padding: 16 },
   bracketTitle: { fontSize: 14, fontWeight: '800', letterSpacing: 1.5, textAlign: 'center', marginBottom: 12 },
