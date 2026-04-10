@@ -77,11 +77,11 @@ const POINTS_TABLE = [25, 20, 16, 12, 10, 8, 6, 4, 2, 1];
 
 
 const DEMO_STANDINGS: Standing[] = [
-  { playerId: '1', name: 'McGowan', handicap: 8, avatarColor: '#006747', points: 72, weekResults: [25, 16, 20, 12], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '2', name: 'Fletcher', handicap: 12, avatarColor: '#C9A227', points: 64, weekResults: [20, 25, 12, 8], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '3', name: 'Patterson', handicap: 6, avatarColor: '#1E4D2B', points: 56, weekResults: [16, 12, 25, 4], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
+  { playerId: '1', name: 'McGowan', handicap: 8, avatarColor: '#006747', points: 73, weekResults: [25, 16, 20, 12], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
+  { playerId: '2', name: 'Fletcher', handicap: 12, avatarColor: '#C9A227', points: 65, weekResults: [20, 25, 12, 8], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
+  { playerId: '3', name: 'Patterson', handicap: 6, avatarColor: '#1E4D2B', points: 57, weekResults: [16, 12, 25, 4], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
   { playerId: '4', name: 'Sullivan', handicap: 15, avatarColor: '#C41E3A', points: 44, weekResults: [12, 20, 10, 2], wins: 0, topFives: 2, eventsPlayed: 4, bestFinish: 2, worstDrop: null, isCut: false },
-  { playerId: '5', name: 'Rodriguez', handicap: 10, avatarColor: '#006747', points: 38, weekResults: [10, 8, 16, 6], wins: 0, topFives: 1, eventsPlayed: 4, bestFinish: 3, worstDrop: null, isCut: false },
+  { playerId: '5', name: 'Rodriguez', handicap: 10, avatarColor: '#006747', points: 40, weekResults: [10, 8, 16, 6], wins: 0, topFives: 1, eventsPlayed: 4, bestFinish: 3, worstDrop: null, isCut: false },
   { playerId: '6', name: 'Chen', handicap: 18, avatarColor: '#C9A227', points: 30, weekResults: [8, 10, 6, 6], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 4, worstDrop: null, isCut: false },
   { playerId: '7', name: 'Taylor', handicap: 14, avatarColor: '#1E4D2B', points: 22, weekResults: [6, 4, 8, 4], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 5, worstDrop: null, isCut: false },
   { playerId: '8', name: 'Brooks', handicap: 20, avatarColor: '#C41E3A', points: 14, weekResults: [4, 6, 2, 2], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 6, worstDrop: null, isCut: false },
@@ -123,9 +123,10 @@ const MOCK_CHALLENGES: BonusChallenge[] = [
   { id: 'b3', label: 'Iron Man', emoji: '💪', description: 'Most consecutive weeks played', topThree: [{ name: 'Patterson', value: '6' }, { name: 'McGowan', value: '5' }, { name: 'Sullivan', value: '4' }] },
   { id: 'b4', label: 'Comeback Kid', emoji: '🔄', description: 'Biggest position gain in a single week', topThree: [{ name: 'Rodriguez', value: '+4' }, { name: 'Chen', value: '+3' }, { name: 'Sullivan', value: '+2' }] },
   { id: 'b5', label: 'Eagle Hunter', emoji: '🦅', description: 'Most eagles across all rounds', topThree: [{ name: 'McGowan', value: '4' }, { name: 'Fletcher', value: '3' }, { name: 'Patterson', value: '2' }] },
-  { id: 'b6', label: 'Consistency King', emoji: '📊', description: 'Lowest scoring variance (standard deviation)', topThree: [{ name: 'Sullivan', value: '2.1' }, { name: 'McGowan', value: '2.8' }, { name: 'Chen', value: '3.2' }] },
-  { id: 'b7', label: 'Streak Master', emoji: '🔥', description: 'Longest consecutive weeks with top-3 finish', topThree: [{ name: 'McGowan', value: '3' }, { name: 'Patterson', value: '2' }, { name: 'Fletcher', value: '2' }] },
-  { id: 'b8', label: 'Ace Race', emoji: '🎯', description: 'Most holes-in-one', topThree: [{ name: 'Patterson', value: '1' }, { name: 'Fletcher', value: '1' }, { name: 'McGowan', value: '0' }] },
+  { id: 'b6', label: 'Most Improved', emoji: '📈', description: 'Biggest handicap/scoring improvement during the season', topThree: [{ name: 'Chen', value: '-3.2' }, { name: 'Rodriguez', value: '-2.1' }, { name: 'Brooks', value: '-1.8' }] },
+  { id: 'b7', label: 'Clutch Player', emoji: '🎯', description: 'Best scoring average on holes 16-18 (the closing stretch)', topThree: [{ name: 'McGowan', value: '-0.8' }, { name: 'Patterson', value: '-0.5' }, { name: 'Fletcher', value: '-0.3' }] },
+  { id: 'b8', label: 'Consistency King', emoji: '📊', description: 'Lowest scoring variance (standard deviation)', topThree: [{ name: 'Sullivan', value: '2.1' }, { name: 'McGowan', value: '2.8' }, { name: 'Chen', value: '3.2' }] },
+  { id: 'b9', label: 'Streak Master', emoji: '🔥', description: 'Longest consecutive weeks with top-3 finish', topThree: [{ name: 'McGowan', value: '3' }, { name: 'Patterson', value: '2' }, { name: 'Fletcher', value: '2' }] },
 ];
 
 const MOCK_CAREER_STATS: Record<string, { seasonsPlayed: number; championships: number; playoffApps: number; bestFinish: number; avgRank: number; careerPoints: number }> = {
@@ -506,7 +507,9 @@ function StandingsTab({
             })}
           </ScrollView>
 
-          <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>{p.points}</Text>
+          <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>
+            {completedWeeks.reduce((sum, _w, wi) => sum + (p.weekResults[wi] ?? 0), 0)}
+          </Text>
         </Pressable>
       </View>
     );
@@ -550,7 +553,7 @@ function StandingsTab({
         removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={hasPlayoffs ? (
-          <PlayoffBracket standings={standings} cutLineIndex={cutLineIndex} />
+          <PlayoffBracket standings={standings} cutLineIndex={cutLineIndex} weeks={weeks} />
         ) : null}
       />
     </View>
@@ -558,9 +561,78 @@ function StandingsTab({
 }
 
 // ─── Playoff Bracket ──────────────────────────────────────────────────
-function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cutLineIndex: number }) {
+function PlayoffBracket({ standings, cutLineIndex, weeks }: { standings: Standing[]; cutLineIndex: number; weeks: Week[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
+
+  const regularWeeks = weeks.filter((w) => !w.isPlayoff && !w.isChampionship);
+  const allRegularComplete = regularWeeks.every((w) => w.completed);
+  const totalRegularWeeks = regularWeeks.length;
+  const cutPercent = Math.round((cutLineIndex / standings.length) * 100);
+
+  // During regular season, show preview skeleton
+  if (!allRegularComplete) {
+    return (
+      <View style={styles.bracketContainer}>
+        <Text style={[styles.bracketTitle, { color: c.textMuted, fontFamily: GEO }]}>PLAYOFF PREVIEW</Text>
+
+        <View style={styles.bracketVisual}>
+          {/* Semi-Finals Column — TBD skeleton */}
+          <View style={styles.bracketColumn}>
+            <Text style={[styles.bracketRoundLabel, { color: c.textMuted }]}>SEMI-FINALS</Text>
+            <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, opacity: 0.4 }]}>
+              <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>1</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+              <View style={styles.bracketMatchupRow}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>4</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+            </View>
+            <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, marginTop: 12, opacity: 0.4 }]}>
+              <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>2</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+              <View style={styles.bracketMatchupRow}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>3</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Bracket connector lines */}
+          <View style={styles.bracketConnectors}>
+            <View style={[styles.bracketLineTop, { borderColor: c.textMuted, opacity: 0.3 }]} />
+            <View style={[styles.bracketLineBottom, { borderColor: c.textMuted, opacity: 0.3 }]} />
+            <View style={[styles.bracketLineCenter, { backgroundColor: c.textMuted, opacity: 0.3 }]} />
+          </View>
+
+          {/* Finals Column — TBD skeleton */}
+          <View style={styles.bracketColumn}>
+            <Text style={[styles.bracketRoundLabel, { color: c.textMuted }]}>FINAL</Text>
+            <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.textMuted + '33', opacity: 0.4 }]}>
+              <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+              <View style={styles.bracketMatchupRow}>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+            </View>
+            <View style={[styles.bracketChampion, { borderColor: c.textMuted + '33', opacity: 0.4 }]}>
+              <Text style={[styles.bracketChampionName, { color: c.textMuted, fontFamily: GEO }]}>TBD</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={{ fontSize: 12, color: c.textMuted, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }}>
+          Top {cutPercent}% qualify for playoffs after Week {totalRegularWeeks}
+        </Text>
+      </View>
+    );
+  }
+
   const qualifiers = standings.slice(0, Math.min(cutLineIndex, 4));
   const eliminated = standings.slice(cutLineIndex);
 
@@ -800,7 +872,6 @@ function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentW
 const MEDAL_COLORS = ['#C9A227', '#C0C0C0', '#CD7F32']; // gold, silver, bronze
 
 const SEASON_RECORDS = [
-  { label: 'Fastest Round', value: '3h 12m', player: 'Patterson', icon: 'timer-outline' as const },
   { label: 'Biggest Weekly Haul', value: '25 pts', player: 'McGowan (Wk 1)', icon: 'flame-outline' as const },
   { label: 'Most Weeks at #1', value: '3 weeks', player: 'McGowan', icon: 'medal-outline' as const },
 ];

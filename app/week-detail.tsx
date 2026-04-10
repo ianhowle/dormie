@@ -75,24 +75,24 @@ const DEMO_PREV_POSITIONS: Record<string, Record<number, number>> = {
 };
 
 // Demo highlights per week
-const DEMO_HIGHLIGHTS: Record<number, { bestHole: string; mostBirdies: string; biggestComeback: string }> = {
+const DEMO_HIGHLIGHTS: Record<number, { roundHighlight: string; mostBirdies: string; biggestComeback: string }> = {
   1: {
-    bestHole: 'McGowan — Eagle on Hole 7',
+    roundHighlight: 'McGowan — eagle on the par 5 7th to take the outright lead',
     mostBirdies: 'McGowan (5 birdies)',
     biggestComeback: 'Patterson (+3 positions)',
   },
   2: {
-    bestHole: 'Fletcher — Eagle on Hole 12',
+    roundHighlight: 'Fletcher — 3 consecutive birdies on holes 10-12 to surge past McGowan',
     mostBirdies: 'Fletcher (6 birdies)',
     biggestComeback: 'Sullivan (+2 positions)',
   },
   3: {
-    bestHole: 'Patterson — Eagle on Hole 3',
+    roundHighlight: 'Patterson — came back from 5 over through 9 to finish +1',
     mostBirdies: 'Patterson (4 birdies)',
     biggestComeback: 'Rodriguez (+3 positions)',
   },
   4: {
-    bestHole: 'Fletcher — Birdie streak Holes 4-6',
+    roundHighlight: 'Fletcher — birdie-birdie-birdie stretch on holes 4-6 to lock up 1st',
     mostBirdies: 'Fletcher (4 birdies)',
     biggestComeback: 'Chen (+2 positions)',
   },
@@ -326,8 +326,8 @@ export default function WeekDetailScreen() {
           <View style={styles.highlightRow}>
             <Text style={styles.highlightEmoji}>{'🦅'}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.highlightLabel, { color: c.textMuted }]}>Best Hole</Text>
-              <Text style={[styles.highlightValue, { color: c.text }]}>{highlights.bestHole}</Text>
+              <Text style={[styles.highlightLabel, { color: c.textMuted }]}>Round Highlight</Text>
+              <Text style={[styles.highlightValue, { color: c.text }]}>{highlights.roundHighlight}</Text>
             </View>
           </View>
           <View style={styles.highlightRow}>

@@ -476,6 +476,14 @@ function RulesStep({
   setPlayoffMultiplier,
   champMultiplier,
   setChampMultiplier,
+  makeupWindowEnabled,
+  setMakeupWindowEnabled,
+  makeupWindowWeeks,
+  setMakeupWindowWeeks,
+  dnsSafetyNet,
+  setDnsSafetyNet,
+  dnsSafetyMax,
+  setDnsSafetyMax,
 }: {
   cutEnabled: boolean;
   setCutEnabled: (v: boolean) => void;
@@ -493,6 +501,14 @@ function RulesStep({
   setPlayoffMultiplier: (v: number) => void;
   champMultiplier: number;
   setChampMultiplier: (v: number) => void;
+  makeupWindowEnabled: boolean;
+  setMakeupWindowEnabled: (v: boolean) => void;
+  makeupWindowWeeks: number;
+  setMakeupWindowWeeks: (v: number) => void;
+  dnsSafetyNet: boolean;
+  setDnsSafetyNet: (v: boolean) => void;
+  dnsSafetyMax: number;
+  setDnsSafetyMax: (v: number) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -601,6 +617,79 @@ function RulesStep({
               </Pressable>
             </View>
           </View>
+        </View>
+      )}
+
+      {/* Makeup Window */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Makeup Window</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Allow late round submissions within a window
+          </Text>
+        </View>
+        <Switch
+          value={makeupWindowEnabled}
+          onValueChange={setMakeupWindowEnabled}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={makeupWindowEnabled ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {makeupWindowEnabled && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Rounds can be submitted up to</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setMakeupWindowWeeks(Math.max(1, makeupWindowWeeks - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={makeupWindowWeeks <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{makeupWindowWeeks}</Text>
+              <Pressable onPress={() => { haptics.light(); setMakeupWindowWeeks(Math.min(3, makeupWindowWeeks + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={makeupWindowWeeks >= 3 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+          <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>week{makeupWindowWeeks !== 1 ? 's' : ''} late</Text>
+          <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic', marginTop: 8 }}>
+            Players can submit their round during the scheduled week or within the makeup window. After the window closes, the week becomes DNS.
+          </Text>
+        </View>
+      )}
+
+      {/* DNS Safety Net */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>DNS Safety Net</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Use season average at 50% value instead of zero for missed weeks
+          </Text>
+        </View>
+        <Switch
+          value={dnsSafetyNet}
+          onValueChange={setDnsSafetyNet}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={dnsSafetyNet ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {dnsSafetyNet && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Max uses per season</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setDnsSafetyMax(Math.max(1, dnsSafetyMax - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={dnsSafetyMax <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{dnsSafetyMax}</Text>
+              <Pressable onPress={() => { haptics.light(); setDnsSafetyMax(Math.min(3, dnsSafetyMax + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={dnsSafetyMax >= 3 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+          <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic', marginTop: 8 }}>
+            Requires 3+ completed rounds to qualify. Limited uses prevent abuse.
+          </Text>
         </View>
       )}
 
@@ -1018,6 +1107,10 @@ function ReviewStep({
   dropWorst,
   playoffMultiplier,
   champMultiplier,
+  makeupWindowEnabled,
+  makeupWindowWeeks,
+  dnsSafetyNet,
+  dnsSafetyMax,
 }: {
   name: string;
   seasonType: SeasonType;
@@ -1031,6 +1124,10 @@ function ReviewStep({
   dropWorst: boolean;
   playoffMultiplier: number;
   champMultiplier: number;
+  makeupWindowEnabled: boolean;
+  makeupWindowWeeks: number;
+  dnsSafetyNet: boolean;
+  dnsSafetyMax: number;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1076,6 +1173,8 @@ function ReviewStep({
           {dropWorst && <Text style={[styles.reviewRule, { color: c.text }]}>Drop worst week</Text>}
           <Text style={[styles.reviewRule, { color: c.text }]}>Playoff: {playoffMultiplier}× pts</Text>
           <Text style={[styles.reviewRule, { color: c.text }]}>Championship: {champMultiplier}× pts</Text>
+          {makeupWindowEnabled && <Text style={[styles.reviewRule, { color: c.text }]}>Makeup window: {makeupWindowWeeks} week{makeupWindowWeeks !== 1 ? 's' : ''}</Text>}
+          {dnsSafetyNet && <Text style={[styles.reviewRule, { color: c.text }]}>DNS safety net: {dnsSafetyMax} use{dnsSafetyMax !== 1 ? 's' : ''}/season</Text>}
         </View>
       </AccordionSection>
 
@@ -1134,6 +1233,18 @@ function ReviewStep({
           ))}
         </View>
       </AccordionSection>
+
+      {/* Championship Bonus Challenges tip */}
+      {weeks.some((w) => w.isChampionship) && (
+        <View style={[styles.explanationCard, { borderColor: c.gold + '44', backgroundColor: c.gold + '0A', marginTop: 12 }]}>
+          <Ionicons name="bulb-outline" size={18} color={c.gold} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, color: c.text, lineHeight: 18 }}>
+              Tip: When championship week arrives, you'll be prompted to add bonus challenges like "Beat your handicap (+3)" and "Most birdies (+3)" to raise the stakes.
+            </Text>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -1870,6 +1981,10 @@ export default function SeasonsScreen() {
   const [dnsCap, setDnsCap] = useState(5);
   const [playoffMultiplier, setPlayoffMultiplier] = useState(2);
   const [champMultiplier, setChampMultiplier] = useState(3);
+  const [makeupWindowEnabled, setMakeupWindowEnabled] = useState(true);
+  const [makeupWindowWeeks, setMakeupWindowWeeks] = useState(2);
+  const [dnsSafetyNet, setDnsSafetyNet] = useState(false);
+  const [dnsSafetyMax, setDnsSafetyMax] = useState(2);
   const [useCustomCycle, setUseCustomCycle] = useState(false);
   const [customCycle, setCustomCycle] = useState<Record<number, string>>({});
 
@@ -1951,6 +2066,9 @@ export default function SeasonsScreen() {
         length_preset: preset,
         use_custom_cycle: useCustomCycle,
         custom_cycle: useCustomCycle ? customCycle : null,
+        makeup_window_weeks: makeupWindowEnabled ? makeupWindowWeeks : null,
+        dns_safety_net: dnsSafetyNet,
+        dns_safety_max: dnsSafetyNet ? dnsSafetyMax : null,
       });
     } else if (seasonType === 'ryder') {
       Object.assign(base, {
@@ -1979,7 +2097,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -2105,6 +2223,10 @@ export default function SeasonsScreen() {
             dnsCap={dnsCap} setDnsCap={setDnsCap}
             playoffMultiplier={playoffMultiplier} setPlayoffMultiplier={setPlayoffMultiplier}
             champMultiplier={champMultiplier} setChampMultiplier={setChampMultiplier}
+            makeupWindowEnabled={makeupWindowEnabled} setMakeupWindowEnabled={setMakeupWindowEnabled}
+            makeupWindowWeeks={makeupWindowWeeks} setMakeupWindowWeeks={setMakeupWindowWeeks}
+            dnsSafetyNet={dnsSafetyNet} setDnsSafetyNet={setDnsSafetyNet}
+            dnsSafetyMax={dnsSafetyMax} setDnsSafetyMax={setDnsSafetyMax}
           />
         )}
         {currentStep === 'majors' && (
@@ -2119,6 +2241,8 @@ export default function SeasonsScreen() {
             weeks={editableWeeks} selectedIds={selectedIds} manualPlayers={manualPlayers}
             cutEnabled={cutEnabled} cutValue={cutValue} dropWorst={dropWorst}
             playoffMultiplier={playoffMultiplier} champMultiplier={champMultiplier}
+            makeupWindowEnabled={makeupWindowEnabled} makeupWindowWeeks={makeupWindowWeeks}
+            dnsSafetyNet={dnsSafetyNet} dnsSafetyMax={dnsSafetyMax}
           />
         )}
         {/* Ryder Cup steps */}
