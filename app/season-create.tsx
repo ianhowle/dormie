@@ -29,6 +29,16 @@ import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
 import { useToast } from '../src/components/Toast';
+import { BracketPreview } from '../src/components/BracketView';
+import {
+  type BracketSize,
+  type BracketSeedingMethod,
+  type BracketFormat,
+  type BracketScoringMethod,
+  getBracketRounds,
+  getBracketRoundLabel,
+  generateBracketMatches,
+} from '../src/data/seasons-detail';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -250,7 +260,7 @@ function BasicsStep({
       <TextInput
         value={name}
         onChangeText={setName}
-        placeholder="e.g., 2026 FedEx Cup"
+        placeholder={seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
         placeholderTextColor={c.textMuted}
         onFocus={() => setNameFocused(true)}
         onBlur={() => setNameFocused(false)}
@@ -976,12 +986,14 @@ function MembersStep({
   seasonName,
   manualPlayers,
   setManualPlayers,
+  bracketSize: memberBracketSize,
 }: {
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
   seasonName: string;
   manualPlayers: ManualPlayer[];
   setManualPlayers: (p: ManualPlayer[]) => void;
+  bracketSize?: BracketSize;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -1051,15 +1063,44 @@ function MembersStep({
       </View>
 
       {/* Min 4 warning */}
-      {totalPlayers < 4 && (
+      {!memberBracketSize && totalPlayers < 4 && (
         <View style={[styles.minWarning, { backgroundColor: '#C41E3A' + '18' }]}>
           <Ionicons name="warning-outline" size={16} color="#C41E3A" />
           <Text style={{ fontSize: 13, color: '#C41E3A' }}>Minimum 4 players required</Text>
         </View>
       )}
 
+      {/* Bracket size warning */}
+      {memberBracketSize != null && (() => {
+        const totalWithYou = totalPlayers + 1;
+        const diff = totalWithYou - memberBracketSize;
+        if (diff < 0) {
+          const byeCount = Math.abs(diff);
+          return (
+            <View style={[styles.minWarning, { backgroundColor: '#C9A227' + '18' }]}>
+              <Ionicons name="information-circle-outline" size={16} color="#C9A227" />
+              <Text style={{ fontSize: 13, color: '#C9A227', flex: 1 }}>
+                {byeCount} slot{byeCount > 1 ? 's' : ''} will be filled with BYE{byeCount > 1 ? 's' : ''}. Add {byeCount} more player{byeCount > 1 ? 's' : ''} to fill the bracket.
+              </Text>
+            </View>
+          );
+        } else if (diff > 0) {
+          const nextSize = memberBracketSize === 4 ? 8 : memberBracketSize === 8 ? 16 : memberBracketSize === 16 ? 32 : null;
+          return (
+            <View style={[styles.minWarning, { backgroundColor: '#C41E3A' + '18' }]}>
+              <Ionicons name="warning-outline" size={16} color="#C41E3A" />
+              <Text style={{ fontSize: 13, color: '#C41E3A', flex: 1 }}>
+                {diff} too many players for a {memberBracketSize}-player bracket.
+                {nextSize ? ` Increase bracket size to ${nextSize} or remove ${diff} player${diff > 1 ? 's' : ''}.` : ` Remove ${diff} player${diff > 1 ? 's' : ''}.`}
+              </Text>
+            </View>
+          );
+        }
+        return null;
+      })()}
+
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 12 }]}>
-        Select Members ({totalPlayers} selected)
+        Select Members ({totalPlayers} selected{memberBracketSize ? ` / ${memberBracketSize - 1} needed` : ''})
       </Text>
 
       {/* Manual players */}
@@ -1957,31 +1998,47 @@ function RyderCupReviewStep({
 }
 
 // ─── Match Play Bracket: Bracket Setup ──────────────────────────────
-type SeedingMethod = 'handicap' | 'qualifying' | 'random';
+type SeedingMethod = BracketSeedingMethod;
+
+const BRACKET_SIZE_HELPERS: Record<number, string> = {
+  4: '4 players = Semifinals + Final.',
+  8: '8 players = Quarterfinals through Final.',
+  16: '16 players = Round of 16 through Final.',
+  32: '32 players = Round of 32 through Final.',
+};
 
 function BracketSetupStep({
   bracketSize,
   setBracketSize,
   seedingMethod,
   setSeedingMethod,
+  bracketFormat,
+  setBracketFormat,
 }: {
-  bracketSize: number;
-  setBracketSize: (v: number) => void;
+  bracketSize: BracketSize;
+  setBracketSize: (v: BracketSize) => void;
   seedingMethod: SeedingMethod;
   setSeedingMethod: (v: SeedingMethod) => void;
+  bracketFormat: BracketFormat;
+  setBracketFormat: (v: BracketFormat) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const BRACKET_SIZES = [4, 8, 16, 32];
-  const SEEDING_METHODS: { key: SeedingMethod; label: string; desc: string }[] = [
-    { key: 'handicap', label: 'By Handicap', desc: 'Lowest handicap gets top seed' },
-    { key: 'qualifying', label: 'Qualifying Round', desc: 'Play a round to set seeds' },
-    { key: 'random', label: 'Random', desc: 'Seeds assigned randomly' },
+  const BRACKET_SIZES: BracketSize[] = [4, 8, 16, 32];
+  const rounds = getBracketRounds(bracketSize);
+  const SEEDING_METHODS: { key: SeedingMethod; label: string; desc: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+    { key: 'handicap', label: 'By Handicap', desc: 'Lowest handicap gets 1 seed', icon: 'stats-chart-outline' },
+    { key: 'qualifying', label: 'By Qualifying Round', desc: 'Run a qualifying week then use results to seed', icon: 'golf-outline' },
+    { key: 'random', label: 'Random', desc: 'Seeds assigned randomly at season start', icon: 'shuffle-outline' },
+  ];
+  const BRACKET_FORMATS: { key: BracketFormat; label: string; desc: string }[] = [
+    { key: 'single', label: 'Single Elimination', desc: 'Lose once, you\'re out' },
+    { key: 'double', label: 'Double Elimination', desc: 'Must lose twice to be eliminated (adds losers bracket)' },
   ];
 
   return (
-    <View style={styles.stepContent}>
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
       <Text style={[styles.fieldLabel, { color: c.text }]}>Bracket Size</Text>
       <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
         How many players in the bracket?
@@ -2004,6 +2061,19 @@ function BracketSetupStep({
         ))}
       </View>
 
+      {/* Helper text */}
+      <View style={[styles.bracketHelper, { backgroundColor: c.teal + '0D' }]}>
+        <Ionicons name="information-circle-outline" size={16} color={c.teal} />
+        <Text style={[styles.bracketHelperText, { color: c.textMuted }]}>
+          {BRACKET_SIZE_HELPERS[bracketSize]} {rounds} rounds to crown a champion.
+        </Text>
+      </View>
+
+      {/* Visual bracket preview */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Bracket Preview</Text>
+      <BracketPreview size={bracketSize} />
+
+      {/* Seeding method */}
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Seeding Method</Text>
       {SEEDING_METHODS.map((sm) => (
         <Pressable
@@ -2015,6 +2085,7 @@ function BracketSetupStep({
             borderWidth: 1,
           }]}
         >
+          <Ionicons name={sm.icon} size={20} color={seedingMethod === sm.key ? c.teal : c.textMuted} style={{ marginRight: 10 }} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.presetLabel, { color: seedingMethod === sm.key ? c.teal : c.text }]}>{sm.label}</Text>
             <Text style={[styles.presetDesc, { color: c.textMuted }]}>{sm.desc}</Text>
@@ -2022,33 +2093,76 @@ function BracketSetupStep({
           {seedingMethod === sm.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
         </Pressable>
       ))}
-    </View>
+
+      {/* Qualifying note */}
+      {seedingMethod === 'qualifying' && (
+        <View style={[styles.bracketHelper, { backgroundColor: c.gold + '0D', marginTop: 4 }]}>
+          <Ionicons name="calendar-outline" size={16} color={c.gold} />
+          <Text style={[styles.bracketHelperText, { color: c.textMuted }]}>
+            You'll set up a qualifying week before the bracket begins.
+          </Text>
+        </View>
+      )}
+
+      {/* Bracket format */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Bracket Format</Text>
+      {BRACKET_FORMATS.map((bf) => (
+        <Pressable
+          key={bf.key}
+          onPress={() => { haptics.light(); setBracketFormat(bf.key); }}
+          style={[styles.presetCard, {
+            backgroundColor: bracketFormat === bf.key ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+            borderColor: bracketFormat === bf.key ? c.teal : c.border,
+            borderWidth: 1,
+          }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.presetLabel, { color: bracketFormat === bf.key ? c.teal : c.text }]}>{bf.label}</Text>
+            <Text style={[styles.presetDesc, { color: c.textMuted }]}>{bf.desc}</Text>
+          </View>
+          {bracketFormat === bf.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+        </Pressable>
+      ))}
+    </ScrollView>
   );
 }
 
 // ─── Match Play Bracket: Match Rules ────────────────────────────────
-type BracketMatchLength = '18' | '9';
-type HandicapStrokes = 'full' | '80' | 'none';
+type HandicapStrokes = 'full' | 'reduced' | 'none';
 
 function BracketMatchRulesStep({
   bracketMatchLength,
   setBracketMatchLength,
   bracketHandicap,
   setBracketHandicap,
+  bracketScoringMethod,
+  setBracketScoringMethod,
+  roundDeadlineDays,
+  setRoundDeadlineDays,
 }: {
-  bracketMatchLength: BracketMatchLength;
-  setBracketMatchLength: (v: BracketMatchLength) => void;
+  bracketMatchLength: '18' | '9';
+  setBracketMatchLength: (v: '18' | '9') => void;
   bracketHandicap: HandicapStrokes;
   setBracketHandicap: (v: HandicapStrokes) => void;
+  bracketScoringMethod: BracketScoringMethod;
+  setBracketScoringMethod: (v: BracketScoringMethod) => void;
+  roundDeadlineDays: number;
+  setRoundDeadlineDays: (v: number) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
+  const SCORING_METHODS: { key: BracketScoringMethod; label: string; desc: string }[] = [
+    { key: 'match_play', label: 'Match Play (Holes Won)', desc: 'Traditional — most holes won wins the match' },
+    { key: 'stableford', label: 'Net Stableford', desc: 'Compare total Stableford points' },
+    { key: 'stroke_play', label: 'Stroke Play', desc: 'Lowest net strokes wins the match' },
+  ];
+
   return (
-    <View style={styles.stepContent}>
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
       <Text style={[styles.fieldLabel, { color: c.text }]}>Match Length</Text>
       <PillRow
-        options={['18', '9'] as BracketMatchLength[]}
+        options={['18', '9'] as ('18' | '9')[]}
         selected={bracketMatchLength}
         onSelect={setBracketMatchLength}
         labels={{ '18': '18 Holes', '9': '9 Holes' }}
@@ -2060,9 +2174,9 @@ function BracketMatchRulesStep({
         How handicap strokes are applied in matches.
       </Text>
       {([
-        { key: 'full' as HandicapStrokes, label: 'Full Handicap', desc: '100% of handicap difference' },
-        { key: '80' as HandicapStrokes, label: '80% Handicap', desc: '80% of handicap difference (USGA recommendation)' },
-        { key: 'none' as HandicapStrokes, label: 'No Handicap', desc: 'Scratch play — no strokes given' },
+        { key: 'full' as HandicapStrokes, label: 'Full 100%', desc: 'Lower handicap gives full strokes' },
+        { key: 'reduced' as HandicapStrokes, label: 'Reduced 80%', desc: 'Competition adjustment (USGA recommendation)' },
+        { key: 'none' as HandicapStrokes, label: 'None (Gross)', desc: 'No handicap strokes — scratch play' },
       ]).map((opt) => (
         <Pressable
           key={opt.key}
@@ -2080,7 +2194,57 @@ function BracketMatchRulesStep({
           {bracketHandicap === opt.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
         </Pressable>
       ))}
-    </View>
+
+      {/* Scoring Method */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Scoring Method</Text>
+      {SCORING_METHODS.map((sm) => (
+        <Pressable
+          key={sm.key}
+          onPress={() => { haptics.light(); setBracketScoringMethod(sm.key); }}
+          style={[styles.presetCard, {
+            backgroundColor: bracketScoringMethod === sm.key ? c.teal + '12' : (theme.isDark ? c.surface : c.cardBg),
+            borderColor: bracketScoringMethod === sm.key ? c.teal : c.border,
+            borderWidth: 1,
+          }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.presetLabel, { color: bracketScoringMethod === sm.key ? c.teal : c.text }]}>{sm.label}</Text>
+            <Text style={[styles.presetDesc, { color: c.textMuted }]}>{sm.desc}</Text>
+          </View>
+          {bracketScoringMethod === sm.key && <Ionicons name="checkmark-circle" size={22} color={c.teal} />}
+        </Pressable>
+      ))}
+
+      {/* Remote play note */}
+      <View style={[styles.bracketHelper, { backgroundColor: c.teal + '0D', marginTop: 12 }]}>
+        <Ionicons name="globe-outline" size={16} color={c.teal} />
+        <Text style={[styles.bracketHelperText, { color: c.textMuted }]}>
+          For remote matches, players don't need to play together. Scores are compared after both players complete their rounds.
+        </Text>
+      </View>
+
+      {/* Deadline per Round */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Deadline per Round</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Players have {roundDeadlineDays} days to complete their match each round.
+      </Text>
+      <View style={styles.stepperRow}>
+        <Pressable
+          onPress={() => { if (roundDeadlineDays > 3) { haptics.light(); setRoundDeadlineDays(roundDeadlineDays - 1); } }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated, opacity: roundDeadlineDays <= 3 ? 0.4 : 1 }]}
+        >
+          <Ionicons name="remove" size={18} color={c.text} />
+        </Pressable>
+        <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{roundDeadlineDays}</Text>
+        <Text style={[styles.stepperUnit, { color: c.textMuted }]}>days</Text>
+        <Pressable
+          onPress={() => { if (roundDeadlineDays < 14) { haptics.light(); setRoundDeadlineDays(roundDeadlineDays + 1); } }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated, opacity: roundDeadlineDays >= 14 ? 0.4 : 1 }]}
+        >
+          <Ionicons name="add" size={18} color={c.text} />
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -2089,16 +2253,22 @@ function BracketReviewStep({
   name,
   bracketSize,
   seedingMethod,
+  bracketFormat,
   bracketMatchLength,
   bracketHandicap,
+  bracketScoringMethod,
+  roundDeadlineDays,
   selectedIds,
   manualPlayers,
 }: {
   name: string;
-  bracketSize: number;
+  bracketSize: BracketSize;
   seedingMethod: SeedingMethod;
-  bracketMatchLength: BracketMatchLength;
+  bracketFormat: BracketFormat;
+  bracketMatchLength: '18' | '9';
   bracketHandicap: HandicapStrokes;
+  bracketScoringMethod: BracketScoringMethod;
+  roundDeadlineDays: number;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
 }) {
@@ -2106,28 +2276,71 @@ function BracketReviewStep({
   const c = theme.colors;
 
   const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const totalPlayerCount = allPlayers.length + manualPlayers.length + 1;
   const seedLabels: Record<SeedingMethod, string> = { handicap: 'By Handicap', qualifying: 'Qualifying Round', random: 'Random' };
-  const hcpLabels: Record<HandicapStrokes, string> = { full: 'Full Handicap', '80': '80% Handicap', none: 'No Handicap' };
-  const rounds = Math.log2(bracketSize);
+  const hcpLabels: Record<HandicapStrokes, string> = { full: 'Full 100%', reduced: 'Reduced 80%', none: 'None (Gross)' };
+  const scoringLabels: Record<BracketScoringMethod, string> = { match_play: 'Match Play (Holes Won)', stableford: 'Net Stableford', stroke_play: 'Stroke Play' };
+  const formatLabels: Record<BracketFormat, string> = { single: 'Single Elimination', double: 'Double Elimination' };
+  const rounds = getBracketRounds(bracketSize);
+  const byeCount = bracketSize - totalPlayerCount;
+
+  // Generate preview bracket matches
+  const previewPlayers = useMemo(() => {
+    const players: { id: string; name: string; seed: number }[] = [];
+    // "You" is always seed 1 in preview
+    players.push({ id: 'you', name: 'You', seed: 1 });
+    let seedNum = 2;
+    for (const p of allPlayers) {
+      if (seedNum > bracketSize) break;
+      players.push({ id: p.id, name: p.name.split(' ')[0], seed: seedNum++ });
+    }
+    for (const p of manualPlayers) {
+      if (seedNum > bracketSize) break;
+      players.push({ id: p.id, name: p.name, seed: seedNum++ });
+    }
+    return players;
+  }, [allPlayers, manualPlayers, bracketSize]);
+
+  const previewMatches = useMemo(
+    () => generateBracketMatches(bracketSize, previewPlayers),
+    [bracketSize, previewPlayers],
+  );
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Ionicons name="trophy" size={36} color={c.gold} style={{ marginBottom: 8 }} />
         <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>{name}</Text>
         <Text style={{ fontSize: 16, color: c.textMuted, marginTop: 6 }}>Match Play Bracket</Text>
       </View>
 
-      <AccordionSection title="Bracket" icon="git-merge-outline" iconColor={c.teal} defaultOpen>
-        <Text style={[styles.reviewVal, { color: c.text }]}>{bracketSize} players — {rounds} rounds</Text>
-        <Text style={[styles.reviewVal, { color: c.textMuted }]}>Seeding: {seedLabels[seedingMethod]}</Text>
+      {/* Bracket visualization */}
+      <AccordionSection title={`Bracket — ${rounds} Rounds`} icon="git-merge-outline" iconColor={c.gold} defaultOpen>
+        <BracketPreview size={bracketSize} />
+        <View style={{ gap: 4, marginTop: 8 }}>
+          <Text style={[styles.reviewVal, { color: c.text }]}>{bracketSize} players, {formatLabels[bracketFormat]}</Text>
+          <Text style={[styles.reviewVal, { color: c.textMuted }]}>Seeding: {seedLabels[seedingMethod]}</Text>
+          {seedingMethod === 'qualifying' && (
+            <Text style={[styles.reviewVal, { color: c.gold }]}>Qualifying round required before bracket begins</Text>
+          )}
+          {byeCount > 0 && (
+            <Text style={[styles.reviewVal, { color: c.urgent }]}>{byeCount} BYE slot{byeCount > 1 ? 's' : ''} in first round</Text>
+          )}
+        </View>
       </AccordionSection>
 
+      {/* Match rules */}
       <AccordionSection title="Match Rules" icon="golf-outline" iconColor={c.teal} defaultOpen>
-        <Text style={[styles.reviewVal, { color: c.text }]}>{bracketMatchLength} holes per match</Text>
-        <Text style={[styles.reviewVal, { color: c.textMuted }]}>{hcpLabels[bracketHandicap]}</Text>
+        <View style={{ gap: 4 }}>
+          <Text style={[styles.reviewVal, { color: c.text }]}>{bracketMatchLength} holes per match</Text>
+          <Text style={[styles.reviewVal, { color: c.text }]}>Handicap: {hcpLabels[bracketHandicap]}</Text>
+          <Text style={[styles.reviewVal, { color: c.text }]}>Scoring: {scoringLabels[bracketScoringMethod]}</Text>
+          <Text style={[styles.reviewVal, { color: c.textMuted }]}>{roundDeadlineDays} days to complete each round</Text>
+        </View>
       </AccordionSection>
 
-      <AccordionSection title={`Members (${allPlayers.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+      {/* Members */}
+      <AccordionSection title={`Members (${totalPlayerCount})`} icon="people" iconColor={c.teal} defaultOpen>
         <View style={styles.reviewAvatarRow}>
           <View style={styles.reviewAvatarItem}>
             <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
@@ -2139,6 +2352,14 @@ function BracketReviewStep({
             <View key={m.id} style={styles.reviewAvatarItem}>
               <Avatar id={m.id} name={m.name} size={40} />
               <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+          {manualPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <View style={[styles.reviewAvatarCircle, { backgroundColor: c.elevated }]}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: c.textMuted }}>{m.name.charAt(0)}</Text>
+              </View>
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name}</Text>
             </View>
           ))}
         </View>
@@ -2337,10 +2558,13 @@ export default function SeasonsScreen() {
   const [rcRevealEnabled, setRcRevealEnabled] = useState(true);
 
   // State — Match Play Bracket
-  const [bracketSize, setBracketSize] = useState(8);
+  const [bracketSize, setBracketSize] = useState<BracketSize>(8);
   const [seedingMethod, setSeedingMethod] = useState<SeedingMethod>('handicap');
-  const [bracketMatchLength, setBracketMatchLength] = useState<BracketMatchLength>('18');
-  const [bracketHandicap, setBracketHandicap] = useState<HandicapStrokes>('80');
+  const [bracketFormat, setBracketFormat] = useState<BracketFormat>('single');
+  const [bracketMatchLength, setBracketMatchLength] = useState<'18' | '9'>('18');
+  const [bracketHandicap, setBracketHandicap] = useState<HandicapStrokes>('reduced');
+  const [bracketScoringMethod, setBracketScoringMethod] = useState<BracketScoringMethod>('match_play');
+  const [roundDeadlineDays, setRoundDeadlineDays] = useState(7);
 
   // State — Stroke Play Series
   const [strokeRounds, setStrokeRounds] = useState(6);
@@ -2378,8 +2602,12 @@ export default function SeasonsScreen() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basics') return name.trim().length >= 3;
-    if (currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'bracket_members' || currentStep === 'stroke_members') {
+    if (currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'stroke_members') {
       return (selectedIds.length + manualPlayers.length) >= 4;
+    }
+    if (currentStep === 'bracket_members') {
+      // For bracket, need at least 3 others (you + 3 = 4 minimum)
+      return (selectedIds.length + manualPlayers.length) >= 3;
     }
     return true;
   }, [currentStep, name, selectedIds, manualPlayers]);
@@ -2430,8 +2658,11 @@ export default function SeasonsScreen() {
       Object.assign(base, {
         bracket_size: bracketSize,
         seeding_method: seedingMethod,
+        format: bracketFormat,
         match_length: bracketMatchLength,
         handicap_strokes: bracketHandicap,
+        scoring_method: bracketScoringMethod,
+        round_deadline_days: roundDeadlineDays,
       });
     } else if (seasonType === 'stroke_series') {
       Object.assign(base, {
@@ -2441,7 +2672,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketMatchLength, bracketHandicap, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -2582,7 +2813,11 @@ export default function SeasonsScreen() {
           <MajorsStep weeks={editableWeeks} setWeeks={setEditableWeeks} preset={preset} />
         )}
         {(currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'bracket_members' || currentStep === 'stroke_members') && (
-          <MembersStep selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name} manualPlayers={manualPlayers} setManualPlayers={setManualPlayers} />
+          <MembersStep
+            selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name}
+            manualPlayers={manualPlayers} setManualPlayers={setManualPlayers}
+            bracketSize={currentStep === 'bracket_members' ? bracketSize : undefined}
+          />
         )}
         {currentStep === 'review' && (
           <ReviewStep
@@ -2636,18 +2871,23 @@ export default function SeasonsScreen() {
           <BracketSetupStep
             bracketSize={bracketSize} setBracketSize={setBracketSize}
             seedingMethod={seedingMethod} setSeedingMethod={setSeedingMethod}
+            bracketFormat={bracketFormat} setBracketFormat={setBracketFormat}
           />
         )}
         {currentStep === 'bracket_rules' && (
           <BracketMatchRulesStep
             bracketMatchLength={bracketMatchLength} setBracketMatchLength={setBracketMatchLength}
             bracketHandicap={bracketHandicap} setBracketHandicap={setBracketHandicap}
+            bracketScoringMethod={bracketScoringMethod} setBracketScoringMethod={setBracketScoringMethod}
+            roundDeadlineDays={roundDeadlineDays} setRoundDeadlineDays={setRoundDeadlineDays}
           />
         )}
         {currentStep === 'bracket_review' && (
           <BracketReviewStep
             name={name} bracketSize={bracketSize} seedingMethod={seedingMethod}
+            bracketFormat={bracketFormat}
             bracketMatchLength={bracketMatchLength} bracketHandicap={bracketHandicap}
+            bracketScoringMethod={bracketScoringMethod} roundDeadlineDays={roundDeadlineDays}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
           />
         )}
@@ -2829,6 +3069,12 @@ const styles = StyleSheet.create({
   bottomBar: { padding: 16, borderTopWidth: 1 },
   nextBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
   nextBtnText: { fontSize: 16, fontWeight: '700' },
+
+  // Bracket
+  bracketHelper: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, marginTop: 8 },
+  bracketHelperText: { flex: 1, fontSize: 12, lineHeight: 18 },
+  stepperBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  stepperUnit: { fontSize: 14, marginLeft: -4 },
 
   // Ryder Cup
   teamColorDot: { width: 10, height: 10, marginBottom: 6 },

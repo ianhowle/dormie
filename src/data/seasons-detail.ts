@@ -1,6 +1,148 @@
 // FedEx Cup-style season computation
 // Future: wire totals to Supabase `season_standings` and `round_results` tables
 
+// ─── Match Play Bracket Types ────────────────────────────────────────
+
+export type BracketSize = 4 | 8 | 16 | 32;
+export type BracketSeedingMethod = 'handicap' | 'qualifying' | 'random';
+export type BracketFormat = 'single' | 'double';
+export type BracketMatchLength = '9' | '18';
+export type BracketHandicapStrokes = 'full' | 'reduced' | 'none';
+export type BracketScoringMethod = 'match_play' | 'stableford' | 'stroke_play';
+export type BracketMatchStatus = 'pending' | 'in_progress' | 'completed' | 'bye';
+
+export type BracketConfig = {
+  size: BracketSize;
+  seeding_method: BracketSeedingMethod;
+  format: BracketFormat;
+  match_length: BracketMatchLength;
+  handicap_strokes: BracketHandicapStrokes;
+  scoring_method: BracketScoringMethod;
+  round_deadline_days: number;
+};
+
+export type BracketMatch = {
+  id: string;
+  season_id: string;
+  round: number;
+  position: number;
+  player1_id: string | null;
+  player2_id: string | null;
+  player1_name: string | null;
+  player2_name: string | null;
+  player1_seed: number | null;
+  player2_seed: number | null;
+  player1_score: number | null;
+  player2_score: number | null;
+  winner_id: string | null;
+  status: BracketMatchStatus;
+  deadline: string | null;
+  is_losers_bracket?: boolean;
+};
+
+/**
+ * Number of rounds required for a given bracket size.
+ */
+export function getBracketRounds(size: BracketSize): number {
+  return Math.log2(size);
+}
+
+/**
+ * Get round label for a given round number and total rounds.
+ */
+export function getBracketRoundLabel(round: number, totalRounds: number): string {
+  const roundsFromEnd = totalRounds - round;
+  if (roundsFromEnd === 0) return 'Final';
+  if (roundsFromEnd === 1) return 'Semifinals';
+  if (roundsFromEnd === 2) return 'Quarterfinals';
+  return `Round of ${Math.pow(2, roundsFromEnd + 1)}`;
+}
+
+/**
+ * Generate initial bracket matches with seeding.
+ * Standard bracket seeding: 1v8, 4v5, 2v7, 3v6 for 8 players (ensures
+ * top seeds are on opposite sides of the bracket).
+ */
+export function generateBracketMatches(
+  size: BracketSize,
+  players: { id: string; name: string; seed: number }[],
+): BracketMatch[] {
+  const totalRounds = getBracketRounds(size);
+  const firstRoundMatchCount = size / 2;
+  const matches: BracketMatch[] = [];
+
+  // Standard seeding order for first round
+  const seedOrder = generateSeedOrder(size);
+
+  // First round matches
+  for (let i = 0; i < firstRoundMatchCount; i++) {
+    const seed1 = seedOrder[i * 2];
+    const seed2 = seedOrder[i * 2 + 1];
+    const p1 = players.find((p) => p.seed === seed1) ?? null;
+    const p2 = players.find((p) => p.seed === seed2) ?? null;
+
+    const isBye = !p1 || !p2;
+    matches.push({
+      id: `r1_m${i + 1}`,
+      season_id: '',
+      round: 1,
+      position: i + 1,
+      player1_id: p1?.id ?? null,
+      player2_id: p2?.id ?? null,
+      player1_name: p1?.name ?? null,
+      player2_name: p2?.name ?? null,
+      player1_seed: p1?.seed ?? null,
+      player2_seed: p2?.seed ?? null,
+      player1_score: null,
+      player2_score: null,
+      winner_id: isBye ? (p1?.id ?? p2?.id ?? null) : null,
+      status: isBye ? 'bye' : 'pending',
+      deadline: null,
+    });
+  }
+
+  // Subsequent rounds (empty matches — filled as winners advance)
+  for (let r = 2; r <= totalRounds; r++) {
+    const matchCount = size / Math.pow(2, r);
+    for (let i = 0; i < matchCount; i++) {
+      matches.push({
+        id: `r${r}_m${i + 1}`,
+        season_id: '',
+        round: r,
+        position: i + 1,
+        player1_id: null,
+        player2_id: null,
+        player1_name: null,
+        player2_name: null,
+        player1_seed: null,
+        player2_seed: null,
+        player1_score: null,
+        player2_score: null,
+        winner_id: null,
+        status: 'pending',
+        deadline: null,
+      });
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Generate standard bracket seeding order.
+ * Ensures 1v(size), 2v(size-1), etc. with proper bracket placement
+ * so top seeds meet as late as possible.
+ */
+function generateSeedOrder(size: number): number[] {
+  if (size === 2) return [1, 2];
+  const half = generateSeedOrder(size / 2);
+  const result: number[] = [];
+  for (const seed of half) {
+    result.push(seed, size + 1 - seed);
+  }
+  return result;
+}
+
 export type SeasonStanding = {
   playerId: string;
   playerName: string;
