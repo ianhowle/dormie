@@ -30,6 +30,7 @@ import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
 import { useToast } from '../src/components/Toast';
 import { BracketPreview } from '../src/components/BracketView';
+import { SIDE_GAMES } from '../src/data/scoring';
 import {
   type BracketSize,
   type BracketSeedingMethod,
@@ -162,6 +163,14 @@ type CustomTeamFormation = 'auto_balance' | 'snake_draft' | 'captains_pick' | 'm
 type CustomTeamScoring = 'combined' | 'match_play' | 'best_x_of_y';
 type CustomSeedingMethod = 'handicap' | 'qualifying' | 'random';
 type CustomElimination = 'single' | 'double';
+type CustomDnsPolicy = 'zero' | 'average_50' | 'average_75' | 'commissioner';
+type CustomHandicapMode = 'full' | 'reduced_80' | 'reduced_75' | 'reduced_50' | 'none' | 'progressive';
+type CustomSideGameMode = 'commissioner_weekly' | 'pre_configure' | 'disabled';
+
+type CustomTemplate = {
+  name: string;
+  config: Record<string, any>;
+};
 
 const FEDEX_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 const RYDER_STEPS: Step[] = ['basics', 'rc_members', 'rc_team_setup', 'rc_match_format', 'rc_review'];
@@ -208,8 +217,8 @@ const STEP_TITLES: Record<Step, string> = {
   custom_structure: 'Competition Structure',
   custom_length: 'Season Length',
   custom_scoring: 'Scoring',
-  custom_rules: 'Rules',
-  custom_bonuses: 'Bonuses',
+  custom_rules: 'Flexibility Rules',
+  custom_bonuses: 'Bonus Features',
 };
 
 // ─── Pill Selector ────────────────────────────────────────────────────
@@ -1285,6 +1294,724 @@ function CustomScoringStep({
         )}
       </View>
     </View>
+  );
+}
+
+// ─── Step: Custom Rules (Flexibility) ────────────────────────────────
+function CustomRulesStep({
+  multiRound, setMultiRound,
+  roundsAllowed, setRoundsAllowed,
+  bestCount, setBestCount,
+  participation, setParticipation,
+  participationPoints, setParticipationPoints,
+  dropWorst, setDropWorst,
+  dropCount, setDropCount,
+  makeupWindow, setMakeupWindow,
+  makeupDays, setMakeupDays,
+  dnsPolicy, setDnsPolicy,
+  handicapMode, setHandicapMode,
+}: {
+  multiRound: boolean;
+  setMultiRound: (v: boolean) => void;
+  roundsAllowed: number;
+  setRoundsAllowed: (v: number) => void;
+  bestCount: number;
+  setBestCount: (v: number) => void;
+  participation: boolean;
+  setParticipation: (v: boolean) => void;
+  participationPoints: number;
+  setParticipationPoints: (v: number) => void;
+  dropWorst: boolean;
+  setDropWorst: (v: boolean) => void;
+  dropCount: number;
+  setDropCount: (v: number) => void;
+  makeupWindow: boolean;
+  setMakeupWindow: (v: boolean) => void;
+  makeupDays: number;
+  setMakeupDays: (v: number) => void;
+  dnsPolicy: CustomDnsPolicy;
+  setDnsPolicy: (v: CustomDnsPolicy) => void;
+  handicapMode: CustomHandicapMode;
+  setHandicapMode: (v: CustomHandicapMode) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const DNS_OPTIONS: { key: CustomDnsPolicy; label: string }[] = [
+    { key: 'zero', label: 'Zero points' },
+    { key: 'average_50', label: 'Season average at 50%' },
+    { key: 'average_75', label: 'Season average at 75%' },
+    { key: 'commissioner', label: 'Commissioner assigns manually' },
+  ];
+
+  const HANDICAP_OPTIONS: { key: CustomHandicapMode; label: string; desc?: string }[] = [
+    { key: 'full', label: 'Full (100%)' },
+    { key: 'reduced_80', label: 'Reduced (80%)' },
+    { key: 'reduced_75', label: 'Reduced (75%)' },
+    { key: 'reduced_50', label: 'Reduced (50%)' },
+    { key: 'none', label: 'None (gross scores only)' },
+    { key: 'progressive', label: 'Progressive (reduces over season)' },
+  ];
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Multiple Rounds Per Week */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Multiple Rounds Per Week</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Allow more than one round per scoring week
+          </Text>
+        </View>
+        <Switch
+          value={multiRound}
+          onValueChange={setMultiRound}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={multiRound ? c.teal : c.textMuted}
+        />
+      </View>
+      {multiRound && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Rounds allowed per week</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); const v = Math.max(2, roundsAllowed - 1); setRoundsAllowed(v); if (bestCount > v) setBestCount(v); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={roundsAllowed <= 2 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{roundsAllowed}</Text>
+              <Pressable onPress={() => { haptics.light(); setRoundsAllowed(Math.min(5, roundsAllowed + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={roundsAllowed >= 5 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Best rounds that count</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setBestCount(Math.max(1, bestCount - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={bestCount <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{bestCount}</Text>
+              <Pressable onPress={() => { haptics.light(); setBestCount(Math.min(Math.min(3, roundsAllowed), bestCount + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={bestCount >= Math.min(3, roundsAllowed) ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+          <View style={[styles.explanationCard, { borderColor: c.teal + '33', backgroundColor: c.teal + '0A', marginTop: 8 }]}>
+            <Ionicons name="golf-outline" size={16} color={c.teal} />
+            <Text style={{ flex: 1, fontSize: 12, color: c.textMuted, lineHeight: 17 }}>
+              Best {bestCount} of {roundsAllowed} rounds count toward standings
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Participation Bonus */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Participation Bonus</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Bonus points just for completing the week
+          </Text>
+        </View>
+        <Switch
+          value={participation}
+          onValueChange={setParticipation}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={participation ? c.teal : c.textMuted}
+        />
+      </View>
+      {participation && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+            {[25, 50, 75, 100].map((pts) => (
+              <Pressable
+                key={pts}
+                onPress={() => { haptics.light(); setParticipationPoints(pts); }}
+                style={[
+                  styles.cutPill,
+                  {
+                    backgroundColor: participationPoints === pts ? c.teal + '22' : 'transparent',
+                    borderColor: participationPoints === pts ? c.teal : c.border,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.cutPillText, { color: participationPoints === pts ? c.teal : c.textMuted }]}>
+                  {pts} pts
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Drop Worst Weeks */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Drop Worst Weeks</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Applies to regular season only, not playoffs
+          </Text>
+        </View>
+        <Switch
+          value={dropWorst}
+          onValueChange={setDropWorst}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={dropWorst ? c.teal : c.textMuted}
+        />
+      </View>
+      {dropWorst && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Weeks to drop</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setDropCount(Math.max(1, dropCount - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={dropCount <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{dropCount}</Text>
+              <Pressable onPress={() => { haptics.light(); setDropCount(Math.min(3, dropCount + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={dropCount >= 3 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Makeup Windows */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Makeup Windows</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Days to submit a late round before DNS is recorded
+          </Text>
+        </View>
+        <Switch
+          value={makeupWindow}
+          onValueChange={setMakeupWindow}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={makeupWindow ? c.teal : c.textMuted}
+        />
+      </View>
+      {makeupWindow && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Days allowed</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setMakeupDays(Math.max(3, makeupDays - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={makeupDays <= 3 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{makeupDays}</Text>
+              <Pressable onPress={() => { haptics.light(); setMakeupDays(Math.min(14, makeupDays + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={makeupDays >= 14 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* DNS Policy */}
+      <GoldDivider style={{ marginTop: 16, marginBottom: 4 }} />
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 12 }]}>When a player misses a week entirely</Text>
+      <View style={{ gap: 2 }}>
+        {DNS_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => { haptics.light(); setDnsPolicy(opt.key); }}
+            style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+          >
+            <View style={[styles.customRadioOuter, { borderColor: dnsPolicy === opt.key ? c.teal : c.textMuted }]}>
+              {dnsPolicy === opt.key && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+            </View>
+            <Text style={[styles.customRadioLabel, { color: dnsPolicy === opt.key ? c.teal : c.text }]}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Handicap Application */}
+      <GoldDivider style={{ marginTop: 16, marginBottom: 4 }} />
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 12 }]}>How handicap strokes are applied</Text>
+      <View style={{ gap: 2 }}>
+        {HANDICAP_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => { haptics.light(); setHandicapMode(opt.key); }}
+            style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+          >
+            <View style={[styles.customRadioOuter, { borderColor: handicapMode === opt.key ? c.teal : c.textMuted }]}>
+              {handicapMode === opt.key && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+            </View>
+            <Text style={[styles.customRadioLabel, { color: handicapMode === opt.key ? c.teal : c.text }]}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {handicapMode === 'progressive' && (
+        <View style={[styles.explanationCard, { borderColor: c.gold + '33', backgroundColor: c.gold + '0A', marginTop: 8 }]}>
+          <Ionicons name="trending-down-outline" size={16} color={c.gold} />
+          <Text style={{ flex: 1, fontSize: 12, color: c.textMuted, lineHeight: 17 }}>
+            Starts at 100%, reduces 5% each week to reward improvement
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Step: Custom Bonuses ────────────────────────────────────────────
+function CustomBonusesStep({
+  sideGameMode, setSideGameMode,
+  sideGameToggles, setSideGameToggles,
+  trackAchievements, setTrackAchievements,
+  achievementBonus, setAchievementBonus,
+  achievementPoints, setAchievementPoints,
+  majorWeeks, setMajorWeeks,
+  majorWeekNumbers, setMajorWeekNumbers,
+  majorNames, setMajorNames,
+  majorMultiplier, setMajorMultiplier,
+  rivalryTracking, setRivalryTracking,
+  regularWeeks,
+}: {
+  sideGameMode: CustomSideGameMode;
+  setSideGameMode: (v: CustomSideGameMode) => void;
+  sideGameToggles: Record<string, boolean>;
+  setSideGameToggles: (v: Record<string, boolean>) => void;
+  trackAchievements: boolean;
+  setTrackAchievements: (v: boolean) => void;
+  achievementBonus: boolean;
+  setAchievementBonus: (v: boolean) => void;
+  achievementPoints: number;
+  setAchievementPoints: (v: number) => void;
+  majorWeeks: boolean;
+  setMajorWeeks: (v: boolean) => void;
+  majorWeekNumbers: number[];
+  setMajorWeekNumbers: (v: number[]) => void;
+  majorNames: string[];
+  setMajorNames: (v: string[]) => void;
+  majorMultiplier: number;
+  setMajorMultiplier: (v: number) => void;
+  rivalryTracking: boolean;
+  setRivalryTracking: (v: boolean) => void;
+  regularWeeks: number;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
+
+  const SIDE_GAME_OPTIONS: { key: CustomSideGameMode; label: string; desc: string }[] = [
+    { key: 'commissioner_weekly', label: 'Commissioner adds per week', desc: 'Flexible, add as you go' },
+    { key: 'pre_configure', label: 'Pre-configure for season', desc: 'Select side games now' },
+    { key: 'disabled', label: 'Disabled', desc: 'No side games' },
+  ];
+
+  const toggleSideGame = (key: string) => {
+    haptics.light();
+    setSideGameToggles({ ...sideGameToggles, [key]: !sideGameToggles[key] });
+  };
+
+  const toggleMajorWeek = (weekNum: number) => {
+    haptics.light();
+    if (majorWeekNumbers.includes(weekNum)) {
+      setMajorWeekNumbers(majorWeekNumbers.filter((w) => w !== weekNum));
+    } else {
+      setMajorWeekNumbers([...majorWeekNumbers, weekNum].sort((a, b) => a - b));
+    }
+  };
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Side Games */}
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Weekly side games</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Closest to pin, longest drive, etc.
+      </Text>
+      <View style={{ gap: 2 }}>
+        {SIDE_GAME_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => { haptics.light(); setSideGameMode(opt.key); }}
+            style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+          >
+            <View style={[styles.customRadioOuter, { borderColor: sideGameMode === opt.key ? c.teal : c.textMuted }]}>
+              {sideGameMode === opt.key && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.customRadioLabel, { color: sideGameMode === opt.key ? c.teal : c.text }]}>
+                {opt.label}
+              </Text>
+              <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>{opt.desc}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+      {sideGameMode === 'pre_configure' && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated, marginTop: 8 }]}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {SIDE_GAMES.map((sg) => {
+              const active = !!sideGameToggles[sg.key];
+              return (
+                <Pressable
+                  key={sg.key}
+                  onPress={() => toggleSideGame(sg.key)}
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: active ? c.teal + '22' : 'transparent',
+                      borderColor: active ? c.teal : c.border,
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>
+                    {sg.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Achievements */}
+      <GoldDivider style={{ marginTop: 16, marginBottom: 4 }} />
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Track Achievements</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Low round, most birdies, iron man, etc.
+          </Text>
+        </View>
+        <Switch
+          value={trackAchievements}
+          onValueChange={setTrackAchievements}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={trackAchievements ? c.teal : c.textMuted}
+        />
+      </View>
+      {trackAchievements && (
+        <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ruleLabel, { color: c.text }]}>Award Bonus Points for Achievements</Text>
+          </View>
+          <Switch
+            value={achievementBonus}
+            onValueChange={setAchievementBonus}
+            trackColor={{ false: c.elevated, true: c.teal + '66' }}
+            thumbColor={achievementBonus ? c.teal : c.textMuted}
+          />
+        </View>
+      )}
+      {trackAchievements && achievementBonus && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Points per achievement</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setAchievementPoints(Math.max(5, achievementPoints - 5)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={achievementPoints <= 5 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{achievementPoints}</Text>
+              <Pressable onPress={() => { haptics.light(); setAchievementPoints(Math.min(25, achievementPoints + 5)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={achievementPoints >= 25 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Major Weeks */}
+      <GoldDivider style={{ marginTop: 16, marginBottom: 4 }} />
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Designate Major Weeks</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Major weeks have elevated stakes and custom names
+          </Text>
+        </View>
+        <Switch
+          value={majorWeeks}
+          onValueChange={setMajorWeeks}
+          trackColor={{ false: c.elevated, true: c.gold + '66' }}
+          thumbColor={majorWeeks ? c.gold : c.textMuted}
+        />
+      </View>
+      {majorWeeks && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={[styles.fieldLabel, { color: c.text, marginBottom: 8 }]}>Select major weeks</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {Array.from({ length: regularWeeks }, (_, i) => i + 1).map((weekNum) => {
+              const active = majorWeekNumbers.includes(weekNum);
+              return (
+                <Pressable
+                  key={weekNum}
+                  onPress={() => toggleMajorWeek(weekNum)}
+                  style={[
+                    styles.cutPill,
+                    {
+                      backgroundColor: active ? c.gold + '22' : c.elevated,
+                      borderColor: active ? c.gold : c.border,
+                      borderWidth: 1,
+                      minWidth: 36,
+                      alignItems: 'center' as const,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.cutPillText, { color: active ? c.gold : c.textMuted, textAlign: 'center' }]}>
+                    {weekNum}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Major Names</Text>
+          <TextInput
+            value={majorNames[0] ?? ''}
+            onChangeText={(v) => { const n = [...majorNames]; n[0] = v; setMajorNames(n); }}
+            placeholder="Major 1 name"
+            placeholderTextColor={c.textMuted}
+            style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border, marginBottom: 8 }]}
+          />
+          <TextInput
+            value={majorNames[1] ?? ''}
+            onChangeText={(v) => { const n = [...majorNames]; n[1] = v; setMajorNames(n); }}
+            placeholder="Major 2 name"
+            placeholderTextColor={c.textMuted}
+            style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border }]}
+          />
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Major Multiplier</Text>
+          <View style={styles.pillRow}>
+            {[1.5, 2].map((mult) => {
+              const active = majorMultiplier === mult;
+              return (
+                <Pressable
+                  key={mult}
+                  onPress={() => { haptics.light(); setMajorMultiplier(mult); }}
+                  style={[styles.pill, { backgroundColor: active ? c.gold + '22' : c.elevated, borderColor: active ? c.gold : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: active ? c.gold : c.textMuted }]}>
+                    {mult}x
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Rivalry Tracking */}
+      <GoldDivider style={{ marginTop: 16, marginBottom: 4 }} />
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Rivalry Tracking</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Track head-to-head records between all players throughout the season
+          </Text>
+        </View>
+        <Switch
+          value={rivalryTracking}
+          onValueChange={setRivalryTracking}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={rivalryTracking ? c.teal : c.textMuted}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ─── Step: Custom Review ─────────────────────────────────────────────
+function CustomReviewStep({
+  name,
+  baseFormat, teamCount, teamFormation, teamScoring, bestX, bestY,
+  divisions, divisionCount, crossDivision,
+  bracketSize, seeding, elimination,
+  regularWeeks, playoffsEnabled, playoffWeeks,
+  qualificationType, qualificationValue, playoffMultiplier, championshipEnabled,
+  championshipMultiplier,
+  scoringMethod, formatMode, singleFormat,
+  multiRound, roundsAllowed, bestCount,
+  participation, participationPoints,
+  dropWorst, dropCount,
+  makeupWindow, makeupDays,
+  dnsPolicy, handicapMode,
+  sideGameMode, trackAchievements, achievementBonus, achievementPoints,
+  majorWeeks, majorWeekNumbers, majorNames, majorMultiplier,
+  rivalryTracking,
+  selectedIds, manualPlayers,
+  onSaveTemplate,
+}: {
+  name: string;
+  baseFormat: CustomBaseFormat;
+  teamCount: number; teamFormation: string; teamScoring: string; bestX: number; bestY: number;
+  divisions: boolean; divisionCount: number; crossDivision: boolean;
+  bracketSize: number; seeding: string; elimination: string;
+  regularWeeks: number; playoffsEnabled: boolean; playoffWeeks: number;
+  qualificationType: string; qualificationValue: number; playoffMultiplier: number; championshipEnabled: boolean;
+  championshipMultiplier: number;
+  scoringMethod: string; formatMode: string; singleFormat: string;
+  multiRound: boolean; roundsAllowed: number; bestCount: number;
+  participation: boolean; participationPoints: number;
+  dropWorst: boolean; dropCount: number;
+  makeupWindow: boolean; makeupDays: number;
+  dnsPolicy: CustomDnsPolicy; handicapMode: CustomHandicapMode;
+  sideGameMode: CustomSideGameMode; trackAchievements: boolean; achievementBonus: boolean; achievementPoints: number;
+  majorWeeks: boolean; majorWeekNumbers: number[]; majorNames: string[]; majorMultiplier: number;
+  rivalryTracking: boolean;
+  selectedIds: string[]; manualPlayers: ManualPlayer[];
+  onSaveTemplate: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const members = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+
+  const BASE_FORMAT_LABELS: Record<CustomBaseFormat, string> = {
+    individual: 'Individual', teams: 'Teams', h2h: 'Head-to-Head', bracket: 'Bracket',
+  };
+  const SCORING_LABELS: Record<string, string> = {
+    position: 'Position Points', stableford_accum: 'Stableford Accumulation', strokes: 'Cumulative Strokes',
+    wins_losses: 'Wins / Losses', match_points: 'Match Points',
+  };
+  const FORMAT_MODE_LABELS: Record<string, string> = {
+    same: 'Same all season', rotating: 'Rotating', random: 'Random', commissioner: "Commissioner's choice",
+  };
+  const DNS_LABELS: Record<CustomDnsPolicy, string> = {
+    zero: 'Zero points', average_50: 'Season avg at 50%', average_75: 'Season avg at 75%', commissioner: 'Commissioner assigns',
+  };
+  const HANDICAP_LABELS: Record<CustomHandicapMode, string> = {
+    full: 'Full (100%)', reduced_80: 'Reduced (80%)', reduced_75: 'Reduced (75%)', reduced_50: 'Reduced (50%)', none: 'Gross scores only', progressive: 'Progressive',
+  };
+  const SIDE_GAME_LABELS: Record<CustomSideGameMode, string> = {
+    commissioner_weekly: 'Commissioner adds per week', pre_configure: 'Pre-configured', disabled: 'Disabled',
+  };
+
+  const totalWeeks = regularWeeks + (playoffsEnabled ? playoffWeeks + (championshipEnabled ? 1 : 0) : 0);
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      {/* Hero header */}
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Ionicons name="settings-outline" size={20} color={c.gold} />
+          <Text style={{ fontSize: 13, color: c.textMuted, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase' }}>Custom Season</Text>
+        </View>
+        <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>
+          {name}
+        </Text>
+      </View>
+
+      {/* Competition Structure */}
+      <AccordionSection title="Competition Structure" icon="trophy-outline" iconColor={c.gold} defaultOpen>
+        <Text style={[styles.reviewVal, { color: c.text }]}>
+          {BASE_FORMAT_LABELS[baseFormat]}
+        </Text>
+        {baseFormat === 'teams' && (
+          <View style={styles.reviewRules}>
+            <Text style={[styles.reviewRule, { color: c.text }]}>{teamCount} teams — {teamFormation.replace(/_/g, ' ')}</Text>
+            <Text style={[styles.reviewRule, { color: c.text }]}>Scoring: {teamScoring === 'best_x_of_y' ? `Best ${bestX} of ${bestY}` : teamScoring.replace(/_/g, ' ')}</Text>
+          </View>
+        )}
+        {baseFormat === 'h2h' && divisions && (
+          <View style={styles.reviewRules}>
+            <Text style={[styles.reviewRule, { color: c.text }]}>{divisionCount} divisions{crossDivision ? ', cross-division play' : ''}</Text>
+          </View>
+        )}
+        {baseFormat === 'bracket' && (
+          <View style={styles.reviewRules}>
+            <Text style={[styles.reviewRule, { color: c.text }]}>{bracketSize}-player bracket — {seeding} seeding</Text>
+            <Text style={[styles.reviewRule, { color: c.text }]}>{elimination === 'single' ? 'Single' : 'Double'} elimination</Text>
+          </View>
+        )}
+      </AccordionSection>
+
+      {/* Season Length */}
+      <AccordionSection title="Season Length" icon="calendar-outline" iconColor={c.textMuted}>
+        <View style={styles.reviewRules}>
+          <Text style={[styles.reviewRule, { color: c.text }]}>{regularWeeks} regular weeks</Text>
+          {playoffsEnabled && <Text style={[styles.reviewRule, { color: c.text }]}>{playoffWeeks} playoff weeks ({playoffMultiplier}x pts)</Text>}
+          {playoffsEnabled && championshipEnabled && <Text style={[styles.reviewRule, { color: c.text }]}>Championship week ({championshipMultiplier}x pts)</Text>}
+          <Text style={[styles.reviewRule, { color: c.textMuted, fontFamily: GEO }]}>{totalWeeks} total weeks</Text>
+        </View>
+      </AccordionSection>
+
+      {/* Scoring */}
+      <AccordionSection title="Scoring" icon="stats-chart" iconColor={c.teal}>
+        <View style={styles.reviewRules}>
+          <Text style={[styles.reviewRule, { color: c.text }]}>{SCORING_LABELS[scoringMethod] ?? scoringMethod}</Text>
+          <Text style={[styles.reviewRule, { color: c.text }]}>Format: {FORMAT_MODE_LABELS[formatMode] ?? formatMode}</Text>
+          {formatMode === 'same' && <Text style={[styles.reviewRule, { color: c.textMuted }]}>{FORMAT_LABELS[singleFormat] ?? singleFormat}</Text>}
+        </View>
+      </AccordionSection>
+
+      {/* Flexibility Rules */}
+      <AccordionSection title="Flexibility Rules" icon="options-outline" iconColor={c.textMuted}>
+        <View style={styles.reviewRules}>
+          {multiRound && <Text style={[styles.reviewRule, { color: c.text }]}>Best {bestCount} of {roundsAllowed} rounds per week</Text>}
+          {participation && <Text style={[styles.reviewRule, { color: c.text }]}>Participation bonus: +{participationPoints} pts</Text>}
+          {dropWorst && <Text style={[styles.reviewRule, { color: c.text }]}>Drop {dropCount} worst week{dropCount !== 1 ? 's' : ''}</Text>}
+          {makeupWindow && <Text style={[styles.reviewRule, { color: c.text }]}>Makeup window: {makeupDays} days</Text>}
+          <Text style={[styles.reviewRule, { color: c.text }]}>DNS: {DNS_LABELS[dnsPolicy]}</Text>
+          <Text style={[styles.reviewRule, { color: c.text }]}>Handicap: {HANDICAP_LABELS[handicapMode]}</Text>
+          {!multiRound && !participation && !dropWorst && !makeupWindow && (
+            <Text style={[styles.reviewRule, { color: c.textMuted, fontStyle: 'italic' }]}>Default rules</Text>
+          )}
+        </View>
+      </AccordionSection>
+
+      {/* Bonus Features */}
+      <AccordionSection title="Bonus Features" icon="star-outline" iconColor={c.gold}>
+        <View style={styles.reviewRules}>
+          <Text style={[styles.reviewRule, { color: c.text }]}>Side games: {SIDE_GAME_LABELS[sideGameMode]}</Text>
+          {trackAchievements && (
+            <Text style={[styles.reviewRule, { color: c.text }]}>
+              Achievements: tracked{achievementBonus ? ` (+${achievementPoints} pts)` : ''}
+            </Text>
+          )}
+          {majorWeeks && majorWeekNumbers.length > 0 && (
+            <Text style={[styles.reviewRule, { color: c.gold }]}>
+              Majors: Wk {majorWeekNumbers.join(', ')} ({majorMultiplier}x)
+            </Text>
+          )}
+          {rivalryTracking && <Text style={[styles.reviewRule, { color: c.text }]}>Rivalry tracking enabled</Text>}
+        </View>
+      </AccordionSection>
+
+      {/* Members */}
+      <AccordionSection title={`Members (${members.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+        <View style={styles.reviewAvatarRow}>
+          <View style={styles.reviewAvatarItem}>
+            <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
+              <Ionicons name="person" size={18} color={c.teal} />
+            </View>
+            <Text style={[styles.reviewAvatarName, { color: c.teal }]} numberOfLines={1}>You</Text>
+          </View>
+          {members.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <Avatar id={m.id} name={m.name} size={40} />
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+          {manualPlayers.map((p) => (
+            <View key={p.id} style={styles.reviewAvatarItem}>
+              <View style={[styles.reviewAvatarCircle, { backgroundColor: c.textMuted + '33' }]}>
+                <Ionicons name="person" size={18} color={c.textMuted} />
+              </View>
+              <Text style={[styles.reviewAvatarName, { color: c.textMuted }]} numberOfLines={1}>{p.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </View>
+      </AccordionSection>
+
+      {/* Save as Template */}
+      <Pressable
+        onPress={() => { haptics.light(); onSaveTemplate(); }}
+        style={[styles.explanationCard, { borderColor: c.gold + '44', backgroundColor: c.gold + '0A', marginTop: 16, justifyContent: 'center' }]}
+      >
+        <Ionicons name="bookmark-outline" size={18} color={c.gold} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: c.gold }}>Save as Template</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -4524,6 +5251,50 @@ function LeagueReviewStep({
   );
 }
 
+// ─── Built-in Templates ──────────────────────────────────────────────
+const BUILT_IN_TEMPLATES: { key: string; label: string; desc: string; icon: React.ComponentProps<typeof Ionicons>['name']; config: Record<string, any> }[] = [
+  {
+    key: 'blank', label: 'Blank', desc: 'Start with defaults', icon: 'add-outline',
+    config: {},
+  },
+  {
+    key: 'fedex_style', label: 'FedEx Cup Style', desc: 'Individual, position points, playoffs, championship', icon: 'trophy-outline',
+    config: {
+      customBaseFormat: 'individual', customScoringMethod: 'position', customPlayoffsEnabled: true, customPlayoffWeeks: 2,
+      customChampionshipEnabled: true, customRegularWeeks: 10, customPlayoffMultiplier: 2, customChampionshipMultiplier: 3,
+      customFormatMode: 'rotating', customUseDefaultScale: true,
+    },
+  },
+  {
+    key: 'ryder_style', label: 'Ryder Cup Style', desc: 'Teams (2), match points, no playoffs', icon: 'people-outline',
+    config: {
+      customBaseFormat: 'teams', customTeamCount: 2, customScoringMethod: 'match_points', customPlayoffsEnabled: false,
+      customRegularWeeks: 8, customTeamFormation: 'captains_pick', customTeamScoring: 'combined',
+    },
+  },
+  {
+    key: 'match_play_style', label: 'Match Play Style', desc: 'Bracket, single elimination', icon: 'git-merge-outline',
+    config: {
+      customBaseFormat: 'bracket', customBracketSize: 8, customSeeding: 'handicap', customElimination: 'single',
+      customScoringMethod: 'wins_losses', customPlayoffsEnabled: false,
+    },
+  },
+  {
+    key: 'stroke_play_style', label: 'Stroke Play Style', desc: 'Individual, cumulative strokes', icon: 'golf-outline',
+    config: {
+      customBaseFormat: 'individual', customScoringMethod: 'strokes', customPlayoffsEnabled: false,
+      customRegularWeeks: 8, customFormatMode: 'same', customSingleFormat: 'stableford',
+    },
+  },
+  {
+    key: 'league_style', label: 'League Style', desc: 'H2H with divisions, W/L scoring', icon: 'people-outline',
+    config: {
+      customBaseFormat: 'h2h', customDivisions: true, customDivisionCount: 2, customScoringMethod: 'wins_losses',
+      customPlayoffsEnabled: true, customPlayoffWeeks: 2, customRegularWeeks: 10, customCrossDivision: true,
+    },
+  },
+];
+
 // ─── Main Screen ──────────────────────────────────────────────────────
 export default function SeasonsScreen() {
   const { theme } = useTheme();
@@ -4660,6 +5431,131 @@ export default function SeasonsScreen() {
   const [customSingleFormat, setCustomSingleFormat] = useState('stableford');
   const [customFormatAssignments, setCustomFormatAssignments] = useState<string[]>([]);
 
+  // State — Custom Rules (Part 3)
+  const [customMultiRound, setCustomMultiRound] = useState(false);
+  const [customRoundsAllowed, setCustomRoundsAllowed] = useState(3);
+  const [customBestCount, setCustomBestCount] = useState(1);
+  const [customParticipation, setCustomParticipation] = useState(false);
+  const [customParticipationPoints, setCustomParticipationPoints] = useState(50);
+  const [customDropWorst, setCustomDropWorst] = useState(false);
+  const [customDropCount, setCustomDropCount] = useState(1);
+  const [customMakeupWindow, setCustomMakeupWindow] = useState(true);
+  const [customMakeupDays, setCustomMakeupDays] = useState(7);
+  const [customDnsPolicy, setCustomDnsPolicy] = useState<CustomDnsPolicy>('zero');
+  const [customHandicapMode, setCustomHandicapMode] = useState<CustomHandicapMode>('full');
+
+  // State — Custom Bonuses (Part 3)
+  const [customSideGameMode, setCustomSideGameMode] = useState<CustomSideGameMode>('commissioner_weekly');
+  const [customSideGameToggles, setCustomSideGameToggles] = useState<Record<string, boolean>>({});
+  const [customTrackAchievements, setCustomTrackAchievements] = useState(true);
+  const [customAchievementBonus, setCustomAchievementBonus] = useState(false);
+  const [customAchievementPoints, setCustomAchievementPoints] = useState(10);
+  const [customMajorWeeks, setCustomMajorWeeks] = useState(false);
+  const [customMajorWeekNumbers, setCustomMajorWeekNumbers] = useState<number[]>([]);
+  const [customMajorNames, setCustomMajorNames] = useState<string[]>(['The Dormie Invitational', 'The Dormie Championship']);
+  const [customMajorMultiplier, setCustomMajorMultiplier] = useState<number>(1.5);
+  const [customRivalryTracking, setCustomRivalryTracking] = useState(true);
+
+  // State — Template system
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savedTemplates, setSavedTemplates] = useState<CustomTemplate[]>([]);
+
+  // Load saved templates on mount
+  const loadTemplates = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem('custom_templates');
+      if (raw) setSavedTemplates(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  // Apply a template config to state
+  const applyTemplate = useCallback((cfg: Record<string, any>) => {
+    if (cfg.customBaseFormat) setCustomBaseFormat(cfg.customBaseFormat);
+    if (cfg.customTeamCount) setCustomTeamCount(cfg.customTeamCount);
+    if (cfg.customTeamFormation) setCustomTeamFormation(cfg.customTeamFormation);
+    if (cfg.customTeamScoring) setCustomTeamScoring(cfg.customTeamScoring);
+    if (cfg.customBestX) setCustomBestX(cfg.customBestX);
+    if (cfg.customBestY) setCustomBestY(cfg.customBestY);
+    if (cfg.customDivisions !== undefined) setCustomDivisions(cfg.customDivisions);
+    if (cfg.customDivisionCount) setCustomDivisionCount(cfg.customDivisionCount);
+    if (cfg.customCrossDivision !== undefined) setCustomCrossDivision(cfg.customCrossDivision);
+    if (cfg.customBracketSize) setCustomBracketSize(cfg.customBracketSize);
+    if (cfg.customSeeding) setCustomSeeding(cfg.customSeeding);
+    if (cfg.customElimination) setCustomElimination(cfg.customElimination);
+    if (cfg.customRegularWeeks) setCustomRegularWeeks(cfg.customRegularWeeks);
+    if (cfg.customPlayoffsEnabled !== undefined) setCustomPlayoffsEnabled(cfg.customPlayoffsEnabled);
+    if (cfg.customPlayoffWeeks) setCustomPlayoffWeeks(cfg.customPlayoffWeeks);
+    if (cfg.customQualificationType) setCustomQualificationType(cfg.customQualificationType);
+    if (cfg.customQualificationValue) setCustomQualificationValue(cfg.customQualificationValue);
+    if (cfg.customPlayoffMultiplier) setCustomPlayoffMultiplier(cfg.customPlayoffMultiplier);
+    if (cfg.customChampionshipEnabled !== undefined) setCustomChampionshipEnabled(cfg.customChampionshipEnabled);
+    if (cfg.customChampionshipMultiplier) setCustomChampionshipMultiplier(cfg.customChampionshipMultiplier);
+    if (cfg.customChampionshipFormat) setCustomChampionshipFormat(cfg.customChampionshipFormat);
+    if (cfg.customScoringMethod) setCustomScoringMethod(cfg.customScoringMethod);
+    if (cfg.customUseDefaultScale !== undefined) setCustomUseDefaultScale(cfg.customUseDefaultScale);
+    if (cfg.customPointsScale) setCustomPointsScale(cfg.customPointsScale);
+    if (cfg.customLargeScale !== undefined) setCustomLargeScale(cfg.customLargeScale);
+    if (cfg.customFormatMode) setCustomFormatMode(cfg.customFormatMode);
+    if (cfg.customSingleFormat) setCustomSingleFormat(cfg.customSingleFormat);
+    if (cfg.customFormatAssignments) setCustomFormatAssignments(cfg.customFormatAssignments);
+    if (cfg.customMultiRound !== undefined) setCustomMultiRound(cfg.customMultiRound);
+    if (cfg.customRoundsAllowed) setCustomRoundsAllowed(cfg.customRoundsAllowed);
+    if (cfg.customBestCount) setCustomBestCount(cfg.customBestCount);
+    if (cfg.customParticipation !== undefined) setCustomParticipation(cfg.customParticipation);
+    if (cfg.customParticipationPoints) setCustomParticipationPoints(cfg.customParticipationPoints);
+    if (cfg.customDropWorst !== undefined) setCustomDropWorst(cfg.customDropWorst);
+    if (cfg.customDropCount) setCustomDropCount(cfg.customDropCount);
+    if (cfg.customMakeupWindow !== undefined) setCustomMakeupWindow(cfg.customMakeupWindow);
+    if (cfg.customMakeupDays) setCustomMakeupDays(cfg.customMakeupDays);
+    if (cfg.customDnsPolicy) setCustomDnsPolicy(cfg.customDnsPolicy);
+    if (cfg.customHandicapMode) setCustomHandicapMode(cfg.customHandicapMode);
+    if (cfg.customSideGameMode) setCustomSideGameMode(cfg.customSideGameMode);
+    if (cfg.customSideGameToggles) setCustomSideGameToggles(cfg.customSideGameToggles);
+    if (cfg.customTrackAchievements !== undefined) setCustomTrackAchievements(cfg.customTrackAchievements);
+    if (cfg.customAchievementBonus !== undefined) setCustomAchievementBonus(cfg.customAchievementBonus);
+    if (cfg.customAchievementPoints) setCustomAchievementPoints(cfg.customAchievementPoints);
+    if (cfg.customMajorWeeks !== undefined) setCustomMajorWeeks(cfg.customMajorWeeks);
+    if (cfg.customMajorWeekNumbers) setCustomMajorWeekNumbers(cfg.customMajorWeekNumbers);
+    if (cfg.customMajorNames) setCustomMajorNames(cfg.customMajorNames);
+    if (cfg.customMajorMultiplier) setCustomMajorMultiplier(cfg.customMajorMultiplier);
+    if (cfg.customRivalryTracking !== undefined) setCustomRivalryTracking(cfg.customRivalryTracking);
+    setShowTemplateModal(false);
+  }, []);
+
+  // Save current config as a template
+  const saveAsTemplate = useCallback(async () => {
+    if (!templateName.trim()) return;
+    const cfg: Record<string, any> = {
+      customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring,
+      customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision,
+      customBracketSize, customSeeding, customElimination,
+      customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks,
+      customQualificationType, customQualificationValue, customPlayoffMultiplier,
+      customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat,
+      customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale,
+      customFormatMode, customSingleFormat, customFormatAssignments,
+      customMultiRound, customRoundsAllowed, customBestCount,
+      customParticipation, customParticipationPoints,
+      customDropWorst, customDropCount, customMakeupWindow, customMakeupDays,
+      customDnsPolicy, customHandicapMode,
+      customSideGameMode, customSideGameToggles,
+      customTrackAchievements, customAchievementBonus, customAchievementPoints,
+      customMajorWeeks, customMajorWeekNumbers, customMajorNames, customMajorMultiplier,
+      customRivalryTracking,
+    };
+    const newTemplate: CustomTemplate = { name: templateName.trim(), config: cfg };
+    const updated = [...savedTemplates, newTemplate];
+    setSavedTemplates(updated);
+    try {
+      await AsyncStorage.setItem('custom_templates', JSON.stringify(updated));
+    } catch {}
+    setShowSaveTemplateModal(false);
+    setTemplateName('');
+    showToast('Template saved!');
+  }, [templateName, savedTemplates, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments, customMultiRound, customRoundsAllowed, customBestCount, customParticipation, customParticipationPoints, customDropWorst, customDropCount, customMakeupWindow, customMakeupDays, customDnsPolicy, customHandicapMode, customSideGameMode, customSideGameToggles, customTrackAchievements, customAchievementBonus, customAchievementPoints, customMajorWeeks, customMajorWeekNumbers, customMajorNames, customMajorMultiplier, customRivalryTracking, showToast]);
+
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
     const p = LENGTH_PRESETS.find((lp) => lp.key === preset)!;
@@ -4760,6 +5656,31 @@ export default function SeasonsScreen() {
           single_format: customFormatMode === 'same' ? customSingleFormat : null,
           format_assignments: customFormatMode === 'rotating' ? customFormatAssignments.slice(0, customRegularWeeks) : null,
         },
+        custom_rules: {
+          multi_round: customMultiRound,
+          rounds_allowed: customMultiRound ? customRoundsAllowed : null,
+          best_count: customMultiRound ? customBestCount : null,
+          participation_bonus: customParticipation,
+          participation_points: customParticipation ? customParticipationPoints : null,
+          drop_worst: customDropWorst,
+          drop_count: customDropWorst ? customDropCount : null,
+          makeup_window: customMakeupWindow,
+          makeup_days: customMakeupWindow ? customMakeupDays : null,
+          dns_policy: customDnsPolicy,
+          handicap_mode: customHandicapMode,
+        },
+        custom_bonuses: {
+          side_game_mode: customSideGameMode,
+          side_game_toggles: customSideGameMode === 'pre_configure' ? customSideGameToggles : null,
+          track_achievements: customTrackAchievements,
+          achievement_bonus: customTrackAchievements ? customAchievementBonus : false,
+          achievement_points: customTrackAchievements && customAchievementBonus ? customAchievementPoints : null,
+          major_weeks: customMajorWeeks,
+          major_week_numbers: customMajorWeeks ? customMajorWeekNumbers : null,
+          major_names: customMajorWeeks ? customMajorNames : null,
+          major_multiplier: customMajorWeeks ? customMajorMultiplier : null,
+          rivalry_tracking: customRivalryTracking,
+        },
       });
     } else if (seasonType === 'fedex') {
       Object.assign(base, {
@@ -4845,7 +5766,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments, customMultiRound, customRoundsAllowed, customBestCount, customParticipation, customParticipationPoints, customDropWorst, customDropCount, customMakeupWindow, customMakeupDays, customDnsPolicy, customHandicapMode, customSideGameMode, customSideGameToggles, customTrackAchievements, customAchievementBonus, customAchievementPoints, customMajorWeeks, customMajorWeekNumbers, customMajorNames, customMajorMultiplier, customRivalryTracking]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -4956,7 +5877,7 @@ export default function SeasonsScreen() {
       {/* Step content */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {currentStep === 'basics' && (
-          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); }} customDescription={customDescription} setCustomDescription={setCustomDescription} />
+          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); if (t === 'custom') { loadTemplates(); setShowTemplateModal(true); } }} customDescription={customDescription} setCustomDescription={setCustomDescription} />
         )}
         {currentStep === 'custom_structure' && (
           <CustomStructureStep
@@ -5000,15 +5921,35 @@ export default function SeasonsScreen() {
             regularWeeks={customRegularWeeks}
           />
         )}
-        {(currentStep === 'custom_rules' || currentStep === 'custom_bonuses') && (
-          <View style={styles.stepContent}>
-            <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border }]}>
-              <Ionicons name="construct-outline" size={18} color={c.gold} />
-              <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
-                This step will be configured in the next update.
-              </Text>
-            </View>
-          </View>
+        {currentStep === 'custom_rules' && (
+          <CustomRulesStep
+            multiRound={customMultiRound} setMultiRound={setCustomMultiRound}
+            roundsAllowed={customRoundsAllowed} setRoundsAllowed={setCustomRoundsAllowed}
+            bestCount={customBestCount} setBestCount={setCustomBestCount}
+            participation={customParticipation} setParticipation={setCustomParticipation}
+            participationPoints={customParticipationPoints} setParticipationPoints={setCustomParticipationPoints}
+            dropWorst={customDropWorst} setDropWorst={setCustomDropWorst}
+            dropCount={customDropCount} setDropCount={setCustomDropCount}
+            makeupWindow={customMakeupWindow} setMakeupWindow={setCustomMakeupWindow}
+            makeupDays={customMakeupDays} setMakeupDays={setCustomMakeupDays}
+            dnsPolicy={customDnsPolicy} setDnsPolicy={setCustomDnsPolicy}
+            handicapMode={customHandicapMode} setHandicapMode={setCustomHandicapMode}
+          />
+        )}
+        {currentStep === 'custom_bonuses' && (
+          <CustomBonusesStep
+            sideGameMode={customSideGameMode} setSideGameMode={setCustomSideGameMode}
+            sideGameToggles={customSideGameToggles} setSideGameToggles={setCustomSideGameToggles}
+            trackAchievements={customTrackAchievements} setTrackAchievements={setCustomTrackAchievements}
+            achievementBonus={customAchievementBonus} setAchievementBonus={setCustomAchievementBonus}
+            achievementPoints={customAchievementPoints} setAchievementPoints={setCustomAchievementPoints}
+            majorWeeks={customMajorWeeks} setMajorWeeks={setCustomMajorWeeks}
+            majorWeekNumbers={customMajorWeekNumbers} setMajorWeekNumbers={setCustomMajorWeekNumbers}
+            majorNames={customMajorNames} setMajorNames={setCustomMajorNames}
+            majorMultiplier={customMajorMultiplier} setMajorMultiplier={setCustomMajorMultiplier}
+            rivalryTracking={customRivalryTracking} setRivalryTracking={setCustomRivalryTracking}
+            regularWeeks={customRegularWeeks}
+          />
         )}
         {currentStep === 'format' && (
           <FormatStep preset={preset} setPreset={setPreset} scoringMethod={scoringMethod} setScoringMethod={setScoringMethod} useCustomCycle={useCustomCycle} setUseCustomCycle={setUseCustomCycle} customCycle={customCycle} setCustomCycle={setCustomCycle} />
@@ -5044,7 +5985,7 @@ export default function SeasonsScreen() {
             bracketSize={currentStep === 'bracket_members' ? bracketSize : undefined}
           />
         )}
-        {currentStep === 'review' && (
+        {currentStep === 'review' && seasonType !== 'custom' && (
           <ReviewStep
             name={name} seasonType={seasonType} preset={preset} scoringMethod={scoringMethod}
             weeks={editableWeeks} selectedIds={selectedIds} manualPlayers={manualPlayers}
@@ -5054,6 +5995,32 @@ export default function SeasonsScreen() {
             dnsSafetyNet={dnsSafetyNet} dnsSafetyMax={dnsSafetyMax}
             multiRoundWeek={multiRoundWeek} roundsAllowed={roundsAllowed} bestRoundsCount={bestRoundsCount}
             participationBonus={participationBonus} participationPoints={participationPoints}
+          />
+        )}
+        {currentStep === 'review' && seasonType === 'custom' && (
+          <CustomReviewStep
+            name={name}
+            baseFormat={customBaseFormat} teamCount={customTeamCount} teamFormation={customTeamFormation}
+            teamScoring={customTeamScoring} bestX={customBestX} bestY={customBestY}
+            divisions={customDivisions} divisionCount={customDivisionCount} crossDivision={customCrossDivision}
+            bracketSize={customBracketSize} seeding={customSeeding} elimination={customElimination}
+            regularWeeks={customRegularWeeks} playoffsEnabled={customPlayoffsEnabled}
+            playoffWeeks={customPlayoffWeeks} qualificationType={customQualificationType}
+            qualificationValue={customQualificationValue} playoffMultiplier={customPlayoffMultiplier}
+            championshipEnabled={customChampionshipEnabled} championshipMultiplier={customChampionshipMultiplier}
+            scoringMethod={customScoringMethod} formatMode={customFormatMode} singleFormat={customSingleFormat}
+            multiRound={customMultiRound} roundsAllowed={customRoundsAllowed} bestCount={customBestCount}
+            participation={customParticipation} participationPoints={customParticipationPoints}
+            dropWorst={customDropWorst} dropCount={customDropCount}
+            makeupWindow={customMakeupWindow} makeupDays={customMakeupDays}
+            dnsPolicy={customDnsPolicy} handicapMode={customHandicapMode}
+            sideGameMode={customSideGameMode} trackAchievements={customTrackAchievements}
+            achievementBonus={customAchievementBonus} achievementPoints={customAchievementPoints}
+            majorWeeks={customMajorWeeks} majorWeekNumbers={customMajorWeekNumbers}
+            majorNames={customMajorNames} majorMultiplier={customMajorMultiplier}
+            rivalryTracking={customRivalryTracking}
+            selectedIds={selectedIds} manualPlayers={manualPlayers}
+            onSaveTemplate={() => setShowSaveTemplateModal(true)}
           />
         )}
         {/* Ryder Cup steps */}
@@ -5214,7 +6181,7 @@ export default function SeasonsScreen() {
             ) : (
               <>
                 <Ionicons name="trophy" size={20} color="#000000" />
-                <Text style={[styles.nextBtnText, { color: '#000000', fontFamily: GEO }]}>Create Season</Text>
+                <Text style={[styles.nextBtnText, { color: '#000000', fontFamily: GEO }]}>{seasonType === 'custom' ? 'Start Season' : 'Create Season'}</Text>
               </>
             )}
           </Pressable>
@@ -5231,6 +6198,80 @@ export default function SeasonsScreen() {
           </Pressable>
         )}
       </View>
+
+      {/* Template Selection Modal */}
+      <Modal visible={showTemplateModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: c.cardBg }]}>
+            <Text style={[styles.modalTitle, { color: c.text }]}>Start from Template</Text>
+            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+              {BUILT_IN_TEMPLATES.map((t) => (
+                <Pressable
+                  key={t.key}
+                  onPress={() => { haptics.light(); applyTemplate(t.config); }}
+                  style={[styles.presetCard, { backgroundColor: theme.isDark ? c.surface : c.elevated, borderColor: c.border, borderWidth: 1, marginBottom: 8 }]}
+                >
+                  <Ionicons name={t.icon} size={22} color={c.teal} style={{ marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.presetLabel, { color: c.text }]}>{t.label}</Text>
+                    <Text style={[styles.presetDesc, { color: c.textMuted }]}>{t.desc}</Text>
+                  </View>
+                </Pressable>
+              ))}
+              {savedTemplates.map((t, i) => (
+                <Pressable
+                  key={`saved_${i}`}
+                  onPress={() => { haptics.light(); applyTemplate(t.config); }}
+                  style={[styles.presetCard, { backgroundColor: theme.isDark ? c.surface : c.elevated, borderColor: c.gold + '44', borderWidth: 1, marginBottom: 8 }]}
+                >
+                  <Ionicons name="bookmark" size={22} color={c.gold} style={{ marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.presetLabel, { color: c.gold }]}>{t.name}</Text>
+                    <Text style={[styles.presetDesc, { color: c.textMuted }]}>Saved template</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              onPress={() => { haptics.light(); setShowTemplateModal(false); }}
+              style={[styles.nextBtn, { backgroundColor: c.elevated, marginTop: 12 }]}
+            >
+              <Text style={[styles.nextBtnText, { color: c.text }]}>Start Fresh</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Save Template Modal */}
+      <Modal visible={showSaveTemplateModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: c.cardBg }]}>
+            <Text style={[styles.modalTitle, { color: c.text }]}>Save as Template</Text>
+            <TextInput
+              value={templateName}
+              onChangeText={setTemplateName}
+              placeholder="Template name"
+              placeholderTextColor={c.textMuted}
+              style={[styles.input, { backgroundColor: theme.isDark ? c.elevated : '#FFFFFF', color: c.text, borderColor: c.border, marginBottom: 16 }]}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={() => { setShowSaveTemplateModal(false); setTemplateName(''); }}
+                style={[styles.modalBtn, { backgroundColor: c.elevated }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: c.textMuted }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { haptics.success(); saveAsTemplate(); }}
+                style={[styles.modalBtn, { backgroundColor: templateName.trim() ? c.gold : c.elevated }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: templateName.trim() ? '#000000' : c.textMuted }}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
