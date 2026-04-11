@@ -154,13 +154,13 @@ type Step = 'basics' | 'format' | 'rules' | 'majors' | 'members' | 'review'
   | 'rc_team_setup' | 'rc_match_format' | 'rc_members' | 'rc_review'
   | 'bracket_setup' | 'bracket_rules' | 'bracket_members' | 'bracket_review'
   | 'stroke_format' | 'stroke_policies' | 'stroke_members' | 'stroke_review'
-  | 'league_structure' | 'league_schedule' | 'league_members' | 'league_review';
+  | 'league_structure' | 'league_schedule' | 'league_scoring' | 'league_members' | 'league_review';
 
 const FEDEX_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 const RYDER_STEPS: Step[] = ['basics', 'rc_members', 'rc_team_setup', 'rc_match_format', 'rc_review'];
 const BRACKET_STEPS: Step[] = ['basics', 'bracket_setup', 'bracket_rules', 'bracket_members', 'bracket_review'];
 const STROKE_STEPS: Step[] = ['basics', 'stroke_format', 'stroke_policies', 'stroke_members', 'stroke_review'];
-const LEAGUE_STEPS: Step[] = ['basics', 'league_structure', 'league_schedule', 'league_members', 'league_review'];
+const LEAGUE_STEPS: Step[] = ['basics', 'league_structure', 'league_schedule', 'league_scoring', 'league_members', 'league_review'];
 const CUSTOM_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 
 function getStepsForType(type: SeasonType): Step[] {
@@ -195,6 +195,7 @@ const STEP_TITLES: Record<Step, string> = {
   stroke_review: 'Review',
   league_structure: 'League Structure',
   league_schedule: 'Schedule',
+  league_scoring: 'Scoring & Playoffs',
   league_members: 'Members',
   league_review: 'Review',
 };
@@ -3125,7 +3126,283 @@ function LeagueScheduleStep({
   );
 }
 
-// ─── League: Step 5 — Review ────────────────────────────────────────
+// ─── League: Step 4 — Scoring & Playoffs ────────────────────────────
+type LeagueWinDetermination = 'stableford' | 'strokes' | 'holes';
+
+function LeagueScoringStep({
+  leagueScoringFormat,
+  setLeagueScoringFormat,
+  leagueSameFormatAllSeason,
+  setLeagueSameFormatAllSeason,
+  leagueWinDetermination,
+  setLeagueWinDetermination,
+  leagueMarginBonus,
+  setLeagueMarginBonus,
+  leagueMarginThreshold,
+  setLeagueMarginThreshold,
+  leaguePlayoffTeams,
+  setLeaguePlayoffTeams,
+  leagueChampionshipFormat,
+  setLeagueChampionshipFormat,
+  leagueDivisions,
+  leagueDivisionCount,
+  leagueWeeks,
+}: {
+  leagueScoringFormat: string;
+  setLeagueScoringFormat: (v: string) => void;
+  leagueSameFormatAllSeason: boolean;
+  setLeagueSameFormatAllSeason: (v: boolean) => void;
+  leagueWinDetermination: LeagueWinDetermination;
+  setLeagueWinDetermination: (v: LeagueWinDetermination) => void;
+  leagueMarginBonus: boolean;
+  setLeagueMarginBonus: (v: boolean) => void;
+  leagueMarginThreshold: number;
+  setLeagueMarginThreshold: (v: number) => void;
+  leaguePlayoffTeams: 2 | 4 | 6 | 8;
+  setLeaguePlayoffTeams: (v: 2 | 4 | 6 | 8) => void;
+  leagueChampionshipFormat: string;
+  setLeagueChampionshipFormat: (v: string) => void;
+  leagueDivisions: boolean;
+  leagueDivisionCount: number;
+  leagueWeeks: number;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const WIN_OPTIONS: { key: LeagueWinDetermination; label: string; desc: string }[] = [
+    { key: 'stableford', label: 'Higher Stableford Points Wins', desc: 'Best for Stableford, Mod. Stableford, and Quota formats' },
+    { key: 'strokes', label: 'Lower Net Strokes Wins', desc: 'Best for Stroke (Net), Stroke (Gross), and Best 9 formats' },
+    { key: 'holes', label: 'More Holes Won', desc: 'Match play style — count holes won within the matchup round' },
+  ];
+
+  // Calculate playoff weeks based on teams
+  const playoffRounds = Math.ceil(Math.log2(leaguePlayoffTeams));
+  const divisionWinners = leagueDivisions ? leagueDivisionCount : 0;
+  const wildCards = Math.max(0, leaguePlayoffTeams - divisionWinners);
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Section 1 — How Matchups Work */}
+      <View style={[styles.explanationCard, { backgroundColor: c.gold + '12', borderColor: c.gold + '33', marginBottom: 16 }]}>
+        <Ionicons name="information-circle" size={18} color={c.gold} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: c.gold }}>How Matchups Work</Text>
+          <Text style={{ fontSize: 12, color: c.textMuted }}>Each week you play ONE opponent</Text>
+          <Text style={{ fontSize: 12, color: c.textMuted }}>Better score wins the matchup (1 Win)</Text>
+          <Text style={{ fontSize: 12, color: c.textMuted }}>Worse score loses (1 Loss)</Text>
+          <Text style={{ fontSize: 12, color: c.textMuted }}>Ties: Both players receive 0.5 Win and 0.5 Loss</Text>
+        </View>
+      </View>
+
+      {/* Section 2 — Scoring Format */}
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Scoring Format</Text>
+
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Same Format All Season</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Every week uses the same scoring format
+          </Text>
+        </View>
+        <Switch
+          value={leagueSameFormatAllSeason}
+          onValueChange={setLeagueSameFormatAllSeason}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={leagueSameFormatAllSeason ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {leagueSameFormatAllSeason ? (
+        <View style={{ marginTop: 8 }}>
+          <View style={styles.pillRow}>
+            {ALL_FORMATS.map((fmt) => {
+              const isActive = leagueScoringFormat === fmt;
+              return (
+                <Pressable
+                  key={fmt}
+                  onPress={() => { haptics.light(); setLeagueScoringFormat(fmt); }}
+                  style={[styles.pill, { backgroundColor: isActive ? c.teal + '22' : c.elevated, borderColor: isActive ? c.teal : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: isActive ? c.teal : c.textMuted }]}>{FORMAT_LABELS[fmt]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginTop: 8 }]}>
+          <Ionicons name="create-outline" size={18} color={c.teal} />
+          <Text style={{ fontSize: 13, color: c.textMuted, flex: 1 }}>
+            Commissioner assigns the format each week before matchups begin
+          </Text>
+        </View>
+      )}
+
+      {/* Section 3 — Win Determination */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Win Determination</Text>
+      {WIN_OPTIONS.map((opt) => {
+        const isActive = leagueWinDetermination === opt.key;
+        return (
+          <Pressable
+            key={opt.key}
+            onPress={() => { haptics.light(); setLeagueWinDetermination(opt.key); }}
+            style={[styles.strokeRadioRow, { backgroundColor: isActive ? c.teal + '12' : c.elevated, borderColor: isActive ? c.teal : c.border, borderWidth: 1, marginBottom: 8 }]}
+          >
+            <View style={[styles.strokeRadioOuter, { borderColor: isActive ? c.teal : c.textMuted }]}>
+              {isActive && <View style={[styles.strokeRadioInner, { backgroundColor: c.teal }]} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.strokeRadioLabel, { color: isActive ? c.text : c.textMuted }]}>{opt.label}</Text>
+              <Text style={[styles.strokeRadioDesc, { color: c.textMuted }]}>{opt.desc}</Text>
+            </View>
+          </Pressable>
+        );
+      })}
+
+      {/* Section 4 — Margin Bonus */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 16 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Margin Bonus</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Award bonus credit for dominant wins
+          </Text>
+        </View>
+        <Switch
+          value={leagueMarginBonus}
+          onValueChange={setLeagueMarginBonus}
+          trackColor={{ false: c.elevated, true: c.gold + '66' }}
+          thumbColor={leagueMarginBonus ? c.gold : c.textMuted}
+        />
+      </View>
+      {leagueMarginBonus && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Win by more than</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setLeagueMarginThreshold(Math.max(5, leagueMarginThreshold - 5)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={leagueMarginThreshold <= 5 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{leagueMarginThreshold}</Text>
+              <Text style={[styles.stepperUnit, { color: c.textMuted }]}>pts</Text>
+              <Pressable onPress={() => { haptics.light(); setLeagueMarginThreshold(Math.min(20, leagueMarginThreshold + 5)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={leagueMarginThreshold >= 20 ? c.border : c.gold} />
+              </Pressable>
+            </View>
+          </View>
+          <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
+            Win by {leagueMarginThreshold}+ points = 1.5 wins instead of 1
+          </Text>
+        </View>
+      )}
+
+      {/* Section 5 — Playoff Structure */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Playoff Structure</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Number of teams that qualify for the postseason
+      </Text>
+      <View style={styles.pillRow}>
+        {([2, 4, 6, 8] as const).map((count) => {
+          const isActive = leaguePlayoffTeams === count;
+          return (
+            <Pressable
+              key={count}
+              onPress={() => { haptics.light(); setLeaguePlayoffTeams(count); }}
+              style={[styles.pill, { backgroundColor: isActive ? c.gold + '22' : c.elevated, borderColor: isActive ? c.gold : 'transparent', borderWidth: 1, paddingHorizontal: 18 }]}
+            >
+              <Text style={[styles.pillText, { color: isActive ? c.gold : c.textMuted }]}>{count}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {leagueDivisions && divisionWinners > 0 && (
+        <View style={{ marginTop: 10, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="shield-checkmark" size={14} color={c.teal} />
+            <Text style={{ fontSize: 12, color: c.textMuted }}>
+              {divisionWinners} division winner{divisionWinners > 1 ? 's' : ''} automatically qualify
+            </Text>
+          </View>
+          {wildCards > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="ticket" size={14} color={c.gold} />
+              <Text style={{ fontSize: 12, color: c.textMuted }}>
+                {wildCards} wild card spot{wildCards > 1 ? 's' : ''} go to best records among non-winners
+              </Text>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="list" size={14} color={c.textMuted} />
+            <Text style={{ fontSize: 12, color: c.textMuted }}>
+              Division winners get top seeds, then by record
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {!leagueDivisions && (
+        <View style={{ marginTop: 10, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="list" size={14} color={c.teal} />
+            <Text style={{ fontSize: 12, color: c.textMuted }}>
+              Top {leaguePlayoffTeams} players by record qualify, seeded by wins
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Section 6 — Playoff Format */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Playoff Format</Text>
+      <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginBottom: 8 }]}>
+        <Ionicons name="git-merge-outline" size={18} color={c.gold} />
+        <Text style={{ fontSize: 13, color: c.textMuted, flex: 1 }}>
+          Single elimination bracket · {playoffRounds} round{playoffRounds > 1 ? 's' : ''} to the championship
+        </Text>
+      </View>
+
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 8 }]}>Championship match format</Text>
+      <View style={styles.pillRow}>
+        <Pressable
+          onPress={() => { haptics.light(); setLeagueChampionshipFormat('same'); }}
+          style={[styles.pill, { backgroundColor: leagueChampionshipFormat === 'same' ? c.gold + '22' : c.elevated, borderColor: leagueChampionshipFormat === 'same' ? c.gold : 'transparent', borderWidth: 1 }]}
+        >
+          <Text style={[styles.pillText, { color: leagueChampionshipFormat === 'same' ? c.gold : c.textMuted }]}>Same as Regular Season</Text>
+        </Pressable>
+      </View>
+      {leagueChampionshipFormat !== 'same' && (
+        <View style={{ marginTop: 4 }}>
+          <View style={styles.pillRow}>
+            {ALL_FORMATS.map((fmt) => {
+              const isActive = leagueChampionshipFormat === fmt;
+              return (
+                <Pressable
+                  key={fmt}
+                  onPress={() => { haptics.light(); setLeagueChampionshipFormat(fmt); }}
+                  style={[styles.pill, { backgroundColor: isActive ? c.gold + '22' : c.elevated, borderColor: isActive ? c.gold : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: isActive ? c.gold : c.textMuted }]}>{FORMAT_LABELS[fmt]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+      <Pressable
+        onPress={() => {
+          haptics.light();
+          setLeagueChampionshipFormat(leagueChampionshipFormat === 'same' ? 'stableford' : 'same');
+        }}
+        style={{ marginTop: 8 }}
+      >
+        <Text style={{ fontSize: 12, color: c.teal, fontWeight: '600' }}>
+          {leagueChampionshipFormat === 'same' ? 'Pick a specific format instead' : 'Use same as regular season'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── League: Step 6 — Review ────────────────────────────────────────
 function LeagueReviewStep({
   name,
   leagueDivisions,
@@ -3136,6 +3413,13 @@ function LeagueReviewStep({
   leagueDivisionGames,
   leagueCrossDivision,
   leagueRivalryWeek,
+  leagueScoringFormat,
+  leagueSameFormatAllSeason,
+  leagueWinDetermination,
+  leagueMarginBonus,
+  leagueMarginThreshold,
+  leaguePlayoffTeams,
+  leagueChampionshipFormat,
   selectedIds,
   manualPlayers,
 }: {
@@ -3148,6 +3432,13 @@ function LeagueReviewStep({
   leagueDivisionGames: LeagueDivisionGames;
   leagueCrossDivision: boolean;
   leagueRivalryWeek: boolean;
+  leagueScoringFormat: string;
+  leagueSameFormatAllSeason: boolean;
+  leagueWinDetermination: LeagueWinDetermination;
+  leagueMarginBonus: boolean;
+  leagueMarginThreshold: number;
+  leaguePlayoffTeams: 2 | 4 | 6 | 8;
+  leagueChampionshipFormat: string;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
 }) {
@@ -3156,6 +3447,14 @@ function LeagueReviewStep({
 
   const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
   const totalPlayers = allPlayers.length + manualPlayers.length + 1;
+
+  const winLabels: Record<LeagueWinDetermination, string> = {
+    stableford: 'Higher Stableford points',
+    strokes: 'Lower net strokes',
+    holes: 'More holes won',
+  };
+
+  const playoffRounds = Math.ceil(Math.log2(leaguePlayoffTeams));
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
@@ -3198,6 +3497,31 @@ function LeagueReviewStep({
         {leagueRivalryWeek && (
           <Text style={[styles.reviewVal, { color: c.gold }]}>Rivalry Week enabled</Text>
         )}
+      </AccordionSection>
+
+      {/* Scoring & Playoffs */}
+      <AccordionSection title="Scoring & Playoffs" icon="trophy-outline" iconColor={c.gold} defaultOpen>
+        {leagueSameFormatAllSeason ? (
+          <Text style={[styles.reviewVal, { color: c.text }]}>
+            Format: {FORMAT_LABELS[leagueScoringFormat] ?? leagueScoringFormat} (all season)
+          </Text>
+        ) : (
+          <Text style={[styles.reviewVal, { color: c.text }]}>Format: Commissioner picks each week</Text>
+        )}
+        <Text style={[styles.reviewVal, { color: c.text }]}>Win by: {winLabels[leagueWinDetermination]}</Text>
+        {leagueMarginBonus && (
+          <Text style={[styles.reviewVal, { color: c.gold }]}>
+            Margin bonus: +0.5 wins for {leagueMarginThreshold}+ point blowouts
+          </Text>
+        )}
+        <Text style={[styles.reviewVal, { color: c.text, marginTop: 6 }]}>
+          Playoffs: Top {leaguePlayoffTeams} · {playoffRounds}-round bracket
+        </Text>
+        <Text style={[styles.reviewVal, { color: c.textMuted }]}>
+          Championship: {leagueChampionshipFormat === 'same'
+            ? 'Same as regular season'
+            : FORMAT_LABELS[leagueChampionshipFormat] ?? leagueChampionshipFormat}
+        </Text>
       </AccordionSection>
 
       {/* Members */}
@@ -3322,6 +3646,13 @@ export default function SeasonsScreen() {
   const [leagueCrossDivision, setLeagueCrossDivision] = useState(true);
   const [leagueRivalryWeek, setLeagueRivalryWeek] = useState(false);
   const [leagueSchedulePreview, setLeagueSchedulePreview] = useState<{ week: number; matchups: { a: string; b: string }[] }[]>([]);
+  const [leagueScoringFormat, setLeagueScoringFormat] = useState('stableford');
+  const [leagueSameFormatAllSeason, setLeagueSameFormatAllSeason] = useState(true);
+  const [leagueWinDetermination, setLeagueWinDetermination] = useState<'stableford' | 'strokes' | 'holes'>('stableford');
+  const [leagueMarginBonus, setLeagueMarginBonus] = useState(false);
+  const [leagueMarginThreshold, setLeagueMarginThreshold] = useState(10);
+  const [leaguePlayoffTeams, setLeaguePlayoffTeams] = useState<2 | 4 | 6 | 8>(4);
+  const [leagueChampionshipFormat, setLeagueChampionshipFormat] = useState('same');
 
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
@@ -3448,11 +3779,18 @@ export default function SeasonsScreen() {
           division_games: leagueDivisions ? leagueDivisionGames : null,
           cross_division: leagueDivisions ? leagueCrossDivision : null,
           rivalry_week: leagueRivalryWeek,
+          scoring_format: leagueSameFormatAllSeason ? leagueScoringFormat : null,
+          same_format_all_season: leagueSameFormatAllSeason,
+          win_determination: leagueWinDetermination,
+          margin_bonus: leagueMarginBonus,
+          margin_threshold: leagueMarginBonus ? leagueMarginThreshold : null,
+          playoff_teams: leaguePlayoffTeams,
+          championship_format: leagueChampionshipFormat === 'same' ? null : leagueChampionshipFormat,
         },
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -3721,6 +4059,19 @@ export default function SeasonsScreen() {
             leagueDivisionNames={leagueDivisionNames}
           />
         )}
+        {currentStep === 'league_scoring' && (
+          <LeagueScoringStep
+            leagueScoringFormat={leagueScoringFormat} setLeagueScoringFormat={setLeagueScoringFormat}
+            leagueSameFormatAllSeason={leagueSameFormatAllSeason} setLeagueSameFormatAllSeason={setLeagueSameFormatAllSeason}
+            leagueWinDetermination={leagueWinDetermination} setLeagueWinDetermination={setLeagueWinDetermination}
+            leagueMarginBonus={leagueMarginBonus} setLeagueMarginBonus={setLeagueMarginBonus}
+            leagueMarginThreshold={leagueMarginThreshold} setLeagueMarginThreshold={setLeagueMarginThreshold}
+            leaguePlayoffTeams={leaguePlayoffTeams} setLeaguePlayoffTeams={setLeaguePlayoffTeams}
+            leagueChampionshipFormat={leagueChampionshipFormat} setLeagueChampionshipFormat={setLeagueChampionshipFormat}
+            leagueDivisions={leagueDivisions} leagueDivisionCount={leagueDivisionCount}
+            leagueWeeks={leagueWeeks}
+          />
+        )}
         {(currentStep === 'league_members') && (
           <MembersStep
             selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name}
@@ -3734,6 +4085,10 @@ export default function SeasonsScreen() {
             leagueDivisionNames={leagueDivisionNames} leagueAutoBalance={leagueAutoBalance}
             leagueWeeks={leagueWeeks} leagueDivisionGames={leagueDivisionGames}
             leagueCrossDivision={leagueCrossDivision} leagueRivalryWeek={leagueRivalryWeek}
+            leagueScoringFormat={leagueScoringFormat} leagueSameFormatAllSeason={leagueSameFormatAllSeason}
+            leagueWinDetermination={leagueWinDetermination} leagueMarginBonus={leagueMarginBonus}
+            leagueMarginThreshold={leagueMarginThreshold} leaguePlayoffTeams={leaguePlayoffTeams}
+            leagueChampionshipFormat={leagueChampionshipFormat}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
           />
         )}
