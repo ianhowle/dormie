@@ -90,11 +90,11 @@ export const seasonsService = {
     return data as SeasonWeekWithScores[];
   },
 
-  /** Submit (upsert) a score for a season week. */
+  /** Submit (upsert) a score for a season week. Supports multi-round weeks. */
   async submitScore(score: SeasonScoreInsert): Promise<void> {
     const { error } = await supabase
       .from('season_scores')
-      .upsert(score, { onConflict: 'season_week_id,user_id' });
+      .upsert(score, { onConflict: 'season_week_id,user_id,round_id' });
     if (error) throw error;
   },
 
@@ -105,6 +105,82 @@ export const seasonsService = {
     });
     if (error) throw error;
     return data as SeasonStandingsEntry[];
+  },
+
+  /**
+   * Client-side standings computation that respects is_counting flags.
+   * Sums only counting scores per user, adds participation bonuses,
+   * and sorts by total points descending.
+   */
+  async getStandingsWithCounting(seasonId: string): Promise<SeasonStandingsEntry[]> {
+    // Fetch all weeks with scores for this season
+    const { data: weeks, error: wErr } = await supabase
+      .from('season_weeks')
+      .select('id, week_number, season_scores(user_id, points, is_counting, participation_bonus, user:users(id, name))')
+      .eq('season_id', seasonId)
+      .order('week_number', { ascending: true });
+    if (wErr) throw wErr;
+
+    // Aggregate per-user totals from counting scores only
+    const userTotals = new Map<string, {
+      name: string;
+      totalPoints: number;
+      weeksPlayed: number;
+      bestFinish: number;
+      participationTotal: number;
+    }>();
+
+    for (const week of (weeks ?? [])) {
+      // Group scores by user for this week
+      const weekScores = (week as any).season_scores ?? [];
+      const userScoresInWeek = new Map<string, number[]>();
+
+      for (const score of weekScores) {
+        if (!score.is_counting) continue;
+        const userId = score.user_id;
+        const userName = score.user?.name ?? 'Unknown';
+
+        if (!userTotals.has(userId)) {
+          userTotals.set(userId, {
+            name: userName,
+            totalPoints: 0,
+            weeksPlayed: 0,
+            bestFinish: 999,
+            participationTotal: 0,
+          });
+        }
+
+        const entry = userTotals.get(userId)!;
+        entry.totalPoints += score.points + (score.participation_bonus ?? 0);
+        entry.participationTotal += score.participation_bonus ?? 0;
+
+        if (!userScoresInWeek.has(userId)) {
+          userScoresInWeek.set(userId, []);
+        }
+        userScoresInWeek.get(userId)!.push(score.points);
+      }
+
+      // Count weeks played
+      for (const userId of userScoresInWeek.keys()) {
+        const entry = userTotals.get(userId)!;
+        entry.weeksPlayed += 1;
+      }
+    }
+
+    // Convert to array and sort
+    const standings: SeasonStandingsEntry[] = [];
+    for (const [userId, data] of userTotals) {
+      standings.push({
+        user_id: userId,
+        user_name: data.name,
+        total_points: data.totalPoints,
+        weeks_played: data.weeksPlayed,
+        best_finish: data.bestFinish < 999 ? data.bestFinish : 1,
+      });
+    }
+
+    standings.sort((a, b) => b.total_points - a.total_points);
+    return standings;
   },
 
   /** Add a member to a season. */

@@ -17,6 +17,7 @@ import {
 import { roundsService } from '../services/rounds.service';
 import { coursesService } from '../services/courses.service';
 import { seasonsService } from '../services/seasons.service';
+import { processSeasonRound } from '../services/scoring.service';
 import { MOCK_GROUP_PLAYERS } from '../data/leaderboard';
 import { MOCK_UPCOMING_TRIPS } from '../data/trips';
 
@@ -614,17 +615,17 @@ export function useScoringState() {
         ...(linkedSeasons.length > 0 ? { season_week_id: linkedSeasons[0].seasonId } : {}),
       });
       if (linkedSeasons.length > 0) {
+        const coursePars = holes.map((h) => h.par);
         for (const ls of linkedSeasons) {
           try {
-            let points = grossTotal;
-            if (ls.format?.toLowerCase().includes('stableford') && holeScores.length > 0) {
-              const { calculateStablefordPoints } = await import('../data/scoring');
-              points = holeScores.reduce((sum, h) => {
-                const holePar = holes.find(hole => hole.number === h.hole)?.par ?? 4;
-                return sum + calculateStablefordPoints(h.gross, holePar, 0);
-              }, 0);
-            }
-            await seasonsService.submitScore({ season_week_id: ls.seasonId, user_id: user.id, points, round_id: savedRound.id });
+            await processSeasonRound({
+              roundId: savedRound.id,
+              userId: user.id,
+              seasonWeekId: ls.seasonId,
+              seasonId: ls.seasonId,
+              holeScores,
+              coursePars,
+            });
           } catch {}
         }
       }

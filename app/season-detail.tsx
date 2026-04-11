@@ -26,7 +26,8 @@ import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
-import { getPlayoffCutLine } from '../src/data/seasons-detail';
+import { getPlayoffCutLine, calculateWeeklyPoints } from '../src/data/seasons-detail';
+import type { MultiRoundConfig, ParticipationConfig } from '../src/data/seasons-detail';
 import { supabase } from '../src/lib/supabase';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
@@ -1039,10 +1040,16 @@ function SeasonDetailScreenInner() {
   const refreshData = useCallback(async () => {
     if (!seasonId) return;
     try {
-      const [standingsData, weeksData] = await Promise.all([
-        seasonsService.getStandings(seasonId),
-        seasonsService.getWeeks(seasonId),
-      ]);
+      // Use counting-aware standings that filter by is_counting and include participation bonus
+      let standingsData;
+      try {
+        standingsData = await seasonsService.getStandingsWithCounting(seasonId);
+      } catch {
+        // Fall back to RPC standings if client-side computation fails
+        standingsData = await seasonsService.getStandings(seasonId);
+      }
+      const weeksData = await seasonsService.getWeeks(seasonId);
+
       if (standingsData && standingsData.length > 0) {
         setRealStandings(standingsData.map((s: any, i: number) => ({
           playerId: s.user_id,

@@ -197,6 +197,8 @@ export interface SeasonScore {
   user_id: string;
   round_id: string | null;
   points: number;
+  is_counting: boolean;
+  participation_bonus: number;
 }
 
 // ── Insert types (omit generated fields) ─────────────────────────────
@@ -237,7 +239,7 @@ export type SeasonWeekInsert = Pick<SeasonWeek, 'season_id' | 'week_number'> &
   Partial<Omit<SeasonWeek, 'id' | 'season_id' | 'week_number'>>;
 
 export type SeasonScoreInsert = Pick<SeasonScore, 'season_week_id' | 'user_id' | 'points'> &
-  Partial<Pick<SeasonScore, 'round_id'>>;
+  Partial<Pick<SeasonScore, 'round_id' | 'is_counting' | 'participation_bonus'>>;
 
 // ── Update types ─────────────────────────────────────────────────────
 
