@@ -38,6 +38,8 @@ import { LeagueStandings, buildDemoLeagueData } from '../src/components/LeagueSt
 import type { LeaguePlayer } from '../src/components/LeagueStandings';
 import { WeeklyMatchupCard, buildDemoMatchup } from '../src/components/WeeklyMatchupCard';
 import { SeasonStatsSection, MatchPlayTaleOfTheTape } from '../src/components/SeasonStatsSection';
+import { getCareerStats } from '../src/services/seasonStats.service';
+import type { CareerStats } from '../src/services/seasonStats.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -138,14 +140,6 @@ const MOCK_CHALLENGES: BonusChallenge[] = [
   { id: 'b8', label: 'Consistency King', emoji: '📊', description: 'Lowest scoring variance (standard deviation)', topThree: [{ name: 'Sullivan', value: '2.1' }, { name: 'McGowan', value: '2.8' }, { name: 'Chen', value: '3.2' }] },
   { id: 'b9', label: 'Streak Master', emoji: '🔥', description: 'Longest consecutive weeks with top-3 finish', topThree: [{ name: 'McGowan', value: '3' }, { name: 'Patterson', value: '2' }, { name: 'Fletcher', value: '2' }] },
 ];
-
-const MOCK_CAREER_STATS: Record<string, { seasonsPlayed: number; championships: number; playoffApps: number; bestFinish: number; avgRank: number; careerPoints: number }> = {
-  '1': { seasonsPlayed: 4, championships: 1, playoffApps: 3, bestFinish: 1, avgRank: 2.1, careerPoints: 312 },
-  '2': { seasonsPlayed: 4, championships: 1, playoffApps: 3, bestFinish: 1, avgRank: 2.8, careerPoints: 285 },
-  '3': { seasonsPlayed: 3, championships: 0, playoffApps: 2, bestFinish: 1, avgRank: 3.5, careerPoints: 198 },
-  '4': { seasonsPlayed: 4, championships: 0, playoffApps: 1, bestFinish: 2, avgRank: 4.2, careerPoints: 176 },
-  '5': { seasonsPlayed: 2, championships: 0, playoffApps: 0, bestFinish: 3, avgRank: 5.0, careerPoints: 84 },
-};
 
 const CUT_PERCENTAGE = 0.67;
 const FORMAT_LABELS: Record<string, string> = {
@@ -297,6 +291,13 @@ function PlayerStatsModal({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const [careerStats, setCareerStats] = useState<CareerStats | null>(null);
+
+  useEffect(() => {
+    if (!visible || !player) { setCareerStats(null); return; }
+    getCareerStats(player.playerId).then(setCareerStats).catch(() => setCareerStats(null));
+  }, [visible, player?.playerId]);
+
   if (!player) return null;
 
   const completedWeeks = weeks.filter((w) => w.completed);
@@ -386,44 +387,38 @@ function PlayerStatsModal({
             </View>
           )}
 
-          {/* Career Stats */}
-          {MOCK_CAREER_STATS[player.playerId] && (
+          {/* Career Stats — loaded from Supabase */}
+          {careerStats && (
             <View style={{ marginTop: 16 }}>
               <Text style={[styles.sectionTitle, { color: c.text }]}>Career Stats</Text>
               <View style={[styles.careerStatsGrid, { backgroundColor: c.elevated }]}>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: c.text, fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].seasonsPlayed}
+                    {careerStats.seasonsPlayed}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Seasons Played</Text>
                 </View>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: '#C9A227', fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].championships}
+                    {careerStats.championships}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Championships</Text>
                 </View>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: c.text, fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].playoffApps}
+                    {careerStats.playoffApps}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Playoff Apps</Text>
                 </View>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: '#006747', fontFamily: GEO }]}>
-                    {ordinal(MOCK_CAREER_STATS[player.playerId].bestFinish)}
+                    {ordinal(careerStats.bestFinish)}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Best Finish</Text>
                 </View>
                 <View style={styles.careerStatItem}>
-                  <Text style={[styles.careerStatVal, { color: c.text, fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].avgRank.toFixed(1)}
-                  </Text>
-                  <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Avg Rank</Text>
-                </View>
-                <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: '#C9A227', fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].careerPoints}
+                    {careerStats.careerPoints}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Career Points</Text>
                 </View>
@@ -462,16 +457,28 @@ function StandingsTab({
   const hasParticipation = !!seasonConfig?.participation_bonus;
   const showTooltipIcon = hasMultiRound || hasParticipation;
 
+  const hasEliminated = standings.some((p) => p.isCut);
+
   const renderStandingRow = useCallback(({ item: p, index: i }: { item: Standing; index: number }) => {
-    const isCut = i >= cutLineIndex;
-    const isAboveCut = i === cutLineIndex;
+    const isEliminated = p.isCut;
+    const isProjectedCut = !hasEliminated && i >= cutLineIndex;
+    const showCutLine = !hasEliminated && i === cutLineIndex;
+    const dimmed = isEliminated || isProjectedCut;
 
     return (
       <View>
-        {isAboveCut && (
+        {showCutLine && (
           <View style={styles.cutLine}>
             <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
             <Text style={[styles.cutLineText, { color: c.urgent }]}>PROJECTED CUT</Text>
+            <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
+          </View>
+        )}
+
+        {isEliminated && i === standings.findIndex((s) => s.isCut) && (
+          <View style={styles.cutLine}>
+            <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
+            <Text style={[styles.cutLineText, { color: c.urgent }]}>ELIMINATED</Text>
             <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
           </View>
         )}
@@ -482,7 +489,7 @@ function StandingsTab({
             styles.standingsRow,
             {
               borderBottomColor: c.border,
-              opacity: isCut ? 0.45 : 1,
+              opacity: dimmed ? 0.45 : 1,
               backgroundColor: isDark ? undefined : (i % 2 === 0 ? '#FFFFFF' : '#F8F7F5'),
             },
           ]}
@@ -531,7 +538,7 @@ function StandingsTab({
         </Pressable>
       </View>
     );
-  }, [c, cutLineIndex, completedWeeks, onPlayerTap]);
+  }, [c, cutLineIndex, completedWeeks, onPlayerTap, hasEliminated, standings]);
 
   const keyExtractor = useCallback((item: Standing) => item.playerId, []);
 
@@ -1034,6 +1041,7 @@ function SeasonDetailScreenInner() {
 
   const [realStandings, setRealStandings] = useState<Standing[]>([]);
   const [realWeeks, setRealWeeks] = useState<Week[]>([]);
+  const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
 
@@ -1050,6 +1058,15 @@ function SeasonDetailScreenInner() {
       }
       const weeksData = await seasonsService.getWeeks(seasonId);
 
+      // Fetch eliminated members
+      const { data: eliminatedMembers } = await supabase
+        .from('season_members')
+        .select('user_id')
+        .eq('season_id', seasonId)
+        .eq('eliminated', true);
+      const elimSet = new Set((eliminatedMembers ?? []).map((m: any) => m.user_id));
+      setEliminatedIds(elimSet);
+
       if (standingsData && standingsData.length > 0) {
         setRealStandings(standingsData.map((s: any, i: number) => ({
           playerId: s.user_id,
@@ -1063,7 +1080,7 @@ function SeasonDetailScreenInner() {
           eventsPlayed: s.weeks_played,
           bestFinish: s.best_finish,
           worstDrop: s.worst_drop ?? null,
-          isCut: false,
+          isCut: elimSet.has(s.user_id),
         })));
       }
       if (weeksData && weeksData.length > 0) {
@@ -1301,7 +1318,8 @@ function SeasonDetailScreenInner() {
       const weeksData = await seasonsService.getWeeks(seasonId);
       const weekRow = weeksData.find((w: any) => w.week_number === currentWeek);
       const submitted = (weekRow as any)?.season_scores?.length ?? 0;
-      const missing = standings.length - submitted;
+      const activePlayers = standings.filter((s) => !s.isCut).length;
+      const missing = activePlayers - submitted;
       Alert.alert(
         'Missing Scores',
         `${missing} player${missing !== 1 ? 's' : ''} haven't submitted. Advance anyway?`,
