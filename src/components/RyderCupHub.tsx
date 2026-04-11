@@ -32,6 +32,7 @@ import { tripsService } from '../services/trips.service';
 import { useAuth } from '../lib/auth';
 import type { RyderCupConfig, TripMemberWithUser } from '../lib/database.types';
 import { ErrorBoundary } from './ErrorBoundary';
+import { SeasonStatsSection } from './SeasonStatsSection';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -2250,6 +2251,14 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
               </View>
             </Pressable>
           ))}
+
+          {/* TEAM STATS */}
+          {teamsDrafted && sessions.some((s) => s.status !== 'not_started') && (
+            <View>
+              <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>TEAM STATS</Text>
+              <SeasonStatsSection seasonId={trip.id} userId={user?.id ?? 'self'} seasonType="ryder_cup" />
+            </View>
+          )}
 
           {/* QUICK ACTIONS */}
           <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>QUICK ACTIONS</Text>

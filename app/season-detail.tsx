@@ -36,6 +36,7 @@ import type { StrokePlayPlayer } from '../src/components/StrokePlayStandings';
 import { LeagueStandings, buildDemoLeagueData } from '../src/components/LeagueStandings';
 import type { LeaguePlayer } from '../src/components/LeagueStandings';
 import { WeeklyMatchupCard, buildDemoMatchup } from '../src/components/WeeklyMatchupCard';
+import { SeasonStatsSection, MatchPlayTaleOfTheTape } from '../src/components/SeasonStatsSection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -170,12 +171,13 @@ function ordinal(n: number): string {
 }
 
 // ─── Sub-tabs ─────────────────────────────────────────────────────────
-type Tab = 'standings' | 'schedule' | 'challenges';
+type Tab = 'standings' | 'schedule' | 'challenges' | 'stats';
 
 function TabBar({ tab, onSelect, colors: c }: { tab: Tab; onSelect: (t: Tab) => void; colors: any }) {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'standings', label: 'Standings' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'stats', label: 'Stats' },
     { key: 'challenges', label: 'Bonus' },
   ];
   return (
@@ -790,6 +792,14 @@ function PlayoffBracket({ standings, cutLineIndex, weeks }: { standings: Standin
           )}
         </View>
       </View>
+
+      {/* Matchup Preview — Tale of the Tape for the final */}
+      {semi1Winner && semi2Winner && (
+        <MatchPlayTaleOfTheTape
+          playerId={semi1Winner.playerId}
+          opponentId={semi2Winner.playerId}
+        />
+      )}
 
       {/* Eliminated section */}
       <View style={[styles.bracketSection, { backgroundColor: c.elevated, marginTop: 16, opacity: 0.5 }]}>
@@ -1441,6 +1451,12 @@ function SeasonDetailScreenInner() {
             config={strokePlayData.config}
             onChampionMoment={handleStrokeChampionMoment}
           />
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="stroke_play"
+          />
+          <View style={{ height: 24 }} />
         </ScrollView>
       ) : isLeague && leagueData ? (
         <ScrollView style={{ flex: 1 }}>
@@ -1487,6 +1503,12 @@ function SeasonDetailScreenInner() {
               });
             }}
           />
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="league"
+          />
+          <View style={{ height: 24 }} />
         </ScrollView>
       ) : (
         <>
@@ -1512,6 +1534,13 @@ function SeasonDetailScreenInner() {
           )}
 
           {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={null} />}
+          {tab === 'stats' && (
+            <SeasonStatsSection
+              seasonId={seasonId ?? 'demo'}
+              userId={user?.id ?? 'self'}
+              seasonType="fedex"
+            />
+          )}
           {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
 
           {/* Advance week */}

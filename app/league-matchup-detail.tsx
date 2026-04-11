@@ -8,6 +8,7 @@ import { GEO } from '../src/theme/fonts';
 import { greenHeaderGradient } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
+import { MatchupScoutingSection } from '../src/components/SeasonStatsSection';
 import { haptics } from '../src/lib/haptics';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -184,6 +185,9 @@ export default function LeagueMatchupDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Matchup Scouting */}
+        <MatchupScoutingSection opponentId={opponentId} />
 
         {/* Historical Matchups */}
         <View style={styles.section}>
