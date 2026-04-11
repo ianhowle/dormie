@@ -1287,7 +1287,8 @@ function SeasonDetailScreenInner() {
     const totalRounds = cfg?.total_rounds ?? 8;
     const dropWorst = cfg?.drop_worst ?? false;
     const dropCount = cfg?.drop_count ?? 0;
-    return buildDemoStrokePlayData(totalRounds, dropWorst, dropCount);
+    const scoringType = cfg?.scoring_type ?? 'gross';
+    return buildDemoStrokePlayData(totalRounds, dropWorst, dropCount, scoringType);
   }, [isStrokePlay, strokePlayConfig]);
 
   // Build league demo data

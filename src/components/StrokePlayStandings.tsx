@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -295,6 +295,15 @@ export function StrokePlayStandings({ players, config, onChampionMoment }: Props
     setExpandedId(expandedId === playerId ? null : playerId);
   }, [expandedId]);
 
+  // Trigger champion moment when season completes
+  const championFired = useRef(false);
+  useEffect(() => {
+    if (config.isSeasonComplete && sorted.length > 0 && onChampionMoment && !championFired.current) {
+      championFired.current = true;
+      onChampionMoment(sorted[0]);
+    }
+  }, [config.isSeasonComplete, sorted, onChampionMoment]);
+
   return (
     <View>
       {/* Progress bar */}
@@ -374,7 +383,7 @@ export function StrokePlayStandings({ players, config, onChampionMoment }: Props
 }
 
 // ─── Demo Data ───────────────────────────────────────────────────────
-export function buildDemoStrokePlayData(totalRounds: number, dropWorst: boolean, dropCount: number): { players: StrokePlayPlayer[]; config: StrokePlayConfig } {
+export function buildDemoStrokePlayData(totalRounds: number, dropWorst: boolean, dropCount: number, scoringType: 'net' | 'gross' | 'both' = 'gross'): { players: StrokePlayPlayer[]; config: StrokePlayConfig } {
   const courseNames = ['Pebble Beach', 'TPC Sawgrass', 'Pinehurst No. 2', 'Torrey Pines', 'Bethpage Black', 'Kiawah Ocean', 'Whistling Straits', 'Harbour Town'];
   const completedRounds = Math.min(6, totalRounds);
 
@@ -400,9 +409,13 @@ export function buildDemoStrokePlayData(totalRounds: number, dropWorst: boolean,
       isDropped: false,
     }));
 
-    // Mark worst round(s) as dropped
+    // Mark worst round(s) as dropped — use net scores when scoring type is net
     if (dropWorst && rounds.length > 0) {
-      const sorted = [...rounds].sort((a, b) => b.grossScore - a.grossScore);
+      const sorted = [...rounds].sort((a, b) => {
+        const scoreA = scoringType === 'net' && a.netScore !== null ? a.netScore : a.grossScore;
+        const scoreB = scoringType === 'net' && b.netScore !== null ? b.netScore : b.grossScore;
+        return scoreB - scoreA;
+      });
       for (let i = 0; i < Math.min(dropCount, sorted.length); i++) {
         const worstRound = rounds.find(r => r.roundNumber === sorted[i].roundNumber);
         if (worstRound) worstRound.isDropped = true;
@@ -410,7 +423,9 @@ export function buildDemoStrokePlayData(totalRounds: number, dropWorst: boolean,
     }
 
     const countingRounds = rounds.filter(r => !r.isDropped);
-    const totalStrokes = countingRounds.reduce((s, r) => s + r.grossScore, 0);
+    const totalStrokes = scoringType === 'net'
+      ? countingRounds.reduce((s, r) => s + (r.netScore ?? r.grossScore), 0)
+      : countingRounds.reduce((s, r) => s + r.grossScore, 0);
     const totalPar = countingRounds.reduce((s, r) => s + r.par, 0);
 
     return {
@@ -429,7 +444,7 @@ export function buildDemoStrokePlayData(totalRounds: number, dropWorst: boolean,
     players,
     config: {
       totalRounds,
-      scoringType: 'gross',
+      scoringType: scoringType === 'both' ? 'both' : scoringType,
       dropWorst,
       dropCount,
       isSeasonComplete: completedRounds >= totalRounds,
