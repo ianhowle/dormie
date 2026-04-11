@@ -412,3 +412,219 @@ export function calculateDnsAverage(
 
   return filledTotal;
 }
+
+// ─── Bracket Match Progression ──────────────────────────────────────
+
+/**
+ * Record a player's score for a bracket match.
+ * Sets the score on the correct player slot and updates status to in_progress.
+ * Returns the updated matches array.
+ */
+export function recordBracketScore(
+  matches: BracketMatch[],
+  matchId: string,
+  playerId: string,
+  score: number,
+): BracketMatch[] {
+  return matches.map((m) => {
+    if (m.id !== matchId) return m;
+    const updated = { ...m, status: 'in_progress' as BracketMatchStatus };
+    if (m.player1_id === playerId) {
+      updated.player1_score = score;
+    } else if (m.player2_id === playerId) {
+      updated.player2_score = score;
+    }
+    return updated;
+  });
+}
+
+/**
+ * Check if both players in a match have submitted scores.
+ */
+export function isBracketMatchReady(match: BracketMatch): boolean {
+  return (
+    match.player1_score != null &&
+    match.player2_score != null &&
+    match.player1_id != null &&
+    match.player2_id != null
+  );
+}
+
+/**
+ * Resolve a bracket match: determine the winner based on scoring method.
+ *
+ * For 'stableford' (Net Stableford): higher score wins (more points = better).
+ * For 'match_play': higher score wins (holes won).
+ * For 'stroke_play': lower score wins (fewer strokes = better).
+ *
+ * Returns the updated match with winner_id set and status = 'completed'.
+ */
+export function resolveBracketMatch(
+  match: BracketMatch,
+  scoringMethod: BracketScoringMethod,
+): BracketMatch {
+  if (!isBracketMatchReady(match)) return match;
+
+  const s1 = match.player1_score!;
+  const s2 = match.player2_score!;
+
+  let winnerId: string;
+  if (scoringMethod === 'stroke_play') {
+    // Lower is better for stroke play
+    winnerId = s1 <= s2 ? match.player1_id! : match.player2_id!;
+  } else {
+    // Higher is better for stableford and match_play (holes won)
+    winnerId = s1 >= s2 ? match.player1_id! : match.player2_id!;
+  }
+
+  return {
+    ...match,
+    winner_id: winnerId,
+    status: 'completed',
+  };
+}
+
+/**
+ * Advance a match winner to the next round of the bracket.
+ * The winner of match at position P in round R feeds into position ceil(P/2)
+ * in round R+1, filling player1 for odd positions and player2 for even.
+ *
+ * Returns the updated full matches array.
+ */
+export function advanceBracketWinner(
+  matches: BracketMatch[],
+  completedMatch: BracketMatch,
+): BracketMatch[] {
+  if (!completedMatch.winner_id || completedMatch.status !== 'completed') {
+    return matches;
+  }
+
+  const nextRound = completedMatch.round + 1;
+  const nextPosition = Math.ceil(completedMatch.position / 2);
+  const isPlayer1Slot = completedMatch.position % 2 === 1;
+
+  const winnerName = completedMatch.winner_id === completedMatch.player1_id
+    ? completedMatch.player1_name
+    : completedMatch.player2_name;
+  const winnerSeed = completedMatch.winner_id === completedMatch.player1_id
+    ? completedMatch.player1_seed
+    : completedMatch.player2_seed;
+
+  return matches.map((m) => {
+    if (m.round !== nextRound || m.position !== nextPosition) return m;
+    const updated = { ...m };
+    if (isPlayer1Slot) {
+      updated.player1_id = completedMatch.winner_id;
+      updated.player1_name = winnerName;
+      updated.player1_seed = winnerSeed;
+    } else {
+      updated.player2_id = completedMatch.winner_id;
+      updated.player2_name = winnerName;
+      updated.player2_seed = winnerSeed;
+    }
+    return updated;
+  });
+}
+
+/**
+ * Full bracket progression pipeline: record score, resolve if ready, advance winner.
+ * Returns { matches, resolvedMatch, isChampion }.
+ */
+export function processBracketRound(
+  matches: BracketMatch[],
+  matchId: string,
+  playerId: string,
+  score: number,
+  scoringMethod: BracketScoringMethod,
+  bracketSize: BracketSize,
+): { matches: BracketMatch[]; resolvedMatch: BracketMatch | null; isChampion: boolean } {
+  let updated = recordBracketScore(matches, matchId, playerId, score);
+
+  const match = updated.find((m) => m.id === matchId);
+  if (!match || !isBracketMatchReady(match)) {
+    return { matches: updated, resolvedMatch: null, isChampion: false };
+  }
+
+  const resolved = resolveBracketMatch(match, scoringMethod);
+  updated = updated.map((m) => (m.id === resolved.id ? resolved : m));
+
+  const totalRounds = getBracketRounds(bracketSize);
+  const isFinal = resolved.round === totalRounds;
+
+  if (!isFinal) {
+    updated = advanceBracketWinner(updated, resolved);
+  }
+
+  return { matches: updated, resolvedMatch: resolved, isChampion: isFinal };
+}
+
+/**
+ * Get the display status of a bracket match for UI.
+ */
+export function getBracketMatchStatus(match: BracketMatch): string {
+  if (match.status === 'completed') return 'Complete';
+  if (match.status === 'bye') return 'BYE';
+  if (match.player1_id == null || match.player2_id == null) return 'Awaiting Players';
+  if (match.player1_score != null && match.player2_score == null) return 'Waiting for Opponent';
+  if (match.player1_score == null && match.player2_score != null) return 'Waiting for Opponent';
+  if (match.status === 'in_progress') return 'In Progress';
+  return 'Awaiting Scores';
+}
+
+/**
+ * Find which match a player is currently in (their active/pending match).
+ */
+export function findPlayerCurrentMatch(
+  matches: BracketMatch[],
+  playerId: string,
+): BracketMatch | null {
+  // First, check for in_progress matches
+  const inProgress = matches.find(
+    (m) =>
+      m.status === 'in_progress' &&
+      (m.player1_id === playerId || m.player2_id === playerId),
+  );
+  if (inProgress) return inProgress;
+
+  // Then check for pending matches
+  const pending = matches.find(
+    (m) =>
+      m.status === 'pending' &&
+      (m.player1_id === playerId || m.player2_id === playerId),
+  );
+  return pending ?? null;
+}
+
+/**
+ * Check if the bracket is fully complete (all matches resolved).
+ */
+export function isBracketComplete(matches: BracketMatch[], bracketSize: BracketSize): boolean {
+  const totalRounds = getBracketRounds(bracketSize);
+  const finalMatch = matches.find((m) => m.round === totalRounds && m.position === 1);
+  return finalMatch?.status === 'completed' && finalMatch.winner_id != null;
+}
+
+/**
+ * Get the bracket champion (winner of the final match).
+ */
+export function getBracketChampion(
+  matches: BracketMatch[],
+  bracketSize: BracketSize,
+): { id: string; name: string; seed: number } | null {
+  const totalRounds = getBracketRounds(bracketSize);
+  const finalMatch = matches.find((m) => m.round === totalRounds && m.position === 1);
+  if (!finalMatch || finalMatch.status !== 'completed' || !finalMatch.winner_id) return null;
+
+  if (finalMatch.winner_id === finalMatch.player1_id) {
+    return {
+      id: finalMatch.player1_id!,
+      name: finalMatch.player1_name ?? 'Unknown',
+      seed: finalMatch.player1_seed ?? 0,
+    };
+  }
+  return {
+    id: finalMatch.player2_id!,
+    name: finalMatch.player2_name ?? 'Unknown',
+    seed: finalMatch.player2_seed ?? 0,
+  };
+}

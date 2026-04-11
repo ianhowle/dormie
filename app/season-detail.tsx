@@ -13,6 +13,7 @@ import {
   Modal,
   Alert,
   Share,
+  TextInput,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,8 +27,8 @@ import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
-import { getPlayoffCutLine, calculateWeeklyPoints, generateBracketMatches, getBracketRounds, getBracketRoundLabel } from '../src/data/seasons-detail';
-import type { MultiRoundConfig, ParticipationConfig, BracketConfig, BracketMatch, BracketSize } from '../src/data/seasons-detail';
+import { getPlayoffCutLine, calculateWeeklyPoints, generateBracketMatches, getBracketRounds, getBracketRoundLabel, processBracketRound, isBracketComplete, getBracketChampion, getBracketMatchStatus } from '../src/data/seasons-detail';
+import type { MultiRoundConfig, ParticipationConfig, BracketConfig, BracketMatch, BracketSize, BracketScoringMethod } from '../src/data/seasons-detail';
 import BracketView from '../src/components/BracketView';
 import { supabase } from '../src/lib/supabase';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
@@ -615,6 +616,104 @@ function StandingsTab({
   );
 }
 
+// ─── Bracket Match Score Card ──────────────────────────────────────────
+function BracketMatchScoreCard({
+  match,
+  onLogScore,
+  scoringMethod,
+}: {
+  match: BracketMatch;
+  onLogScore: (matchId: string, playerId: string, score: number) => void;
+  scoringMethod: BracketScoringMethod;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [p1Input, setP1Input] = useState('');
+  const [p2Input, setP2Input] = useState('');
+
+  const statusLabel = getBracketMatchStatus(match);
+  const scoringLabel = scoringMethod === 'stableford' ? 'Net Stableford Pts' : scoringMethod === 'stroke_play' ? 'Net Strokes' : 'Holes Won';
+
+  return (
+    <View style={{ backgroundColor: c.elevated, marginBottom: 12, padding: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: c.gold, letterSpacing: 1, fontFamily: GEO }}>
+          {statusLabel.toUpperCase()}
+        </Text>
+        <Text style={{ fontSize: 10, color: c.textMuted, letterSpacing: 0.5 }}>
+          {scoringLabel}
+        </Text>
+      </View>
+
+      {/* Player 1 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+        <Text style={{ fontSize: 12, color: c.gold, fontFamily: GEO, width: 18 }}>{match.player1_seed}</Text>
+        <Text style={{ fontSize: 14, color: c.text, flex: 1 }} numberOfLines={1}>{match.player1_name ?? 'TBD'}</Text>
+        {match.player1_score != null ? (
+          <Text style={{ fontSize: 16, fontWeight: '700', color: c.gold, fontFamily: GEO }}>{match.player1_score}</Text>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TextInput
+              style={{ width: 50, height: 30, backgroundColor: c.bg, color: c.text, textAlign: 'center', fontFamily: GEO, fontSize: 14 }}
+              keyboardType="numeric"
+              placeholder="—"
+              placeholderTextColor={c.textMuted}
+              value={p1Input}
+              onChangeText={setP1Input}
+            />
+            <Pressable
+              onPress={() => {
+                const score = parseInt(p1Input, 10);
+                if (!isNaN(score) && match.player1_id) {
+                  haptics.light();
+                  onLogScore(match.id, match.player1_id, score);
+                  setP1Input('');
+                }
+              }}
+              style={{ backgroundColor: c.gold, paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#000' }}>LOG</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* Player 2 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 12, color: c.gold, fontFamily: GEO, width: 18 }}>{match.player2_seed}</Text>
+        <Text style={{ fontSize: 14, color: c.text, flex: 1 }} numberOfLines={1}>{match.player2_name ?? 'TBD'}</Text>
+        {match.player2_score != null ? (
+          <Text style={{ fontSize: 16, fontWeight: '700', color: c.gold, fontFamily: GEO }}>{match.player2_score}</Text>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TextInput
+              style={{ width: 50, height: 30, backgroundColor: c.bg, color: c.text, textAlign: 'center', fontFamily: GEO, fontSize: 14 }}
+              keyboardType="numeric"
+              placeholder="—"
+              placeholderTextColor={c.textMuted}
+              value={p2Input}
+              onChangeText={setP2Input}
+            />
+            <Pressable
+              onPress={() => {
+                const score = parseInt(p2Input, 10);
+                if (!isNaN(score) && match.player2_id) {
+                  haptics.light();
+                  onLogScore(match.id, match.player2_id, score);
+                  setP2Input('');
+                }
+              }}
+              style={{ backgroundColor: c.gold, paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#000' }}>LOG</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Playoff Bracket ──────────────────────────────────────────────────
 function PlayoffBracket({ standings, cutLineIndex, weeks }: { standings: Standing[]; cutLineIndex: number; weeks: Week[] }) {
   const { theme } = useTheme();
@@ -1132,6 +1231,9 @@ function SeasonDetailScreenInner() {
   const [isBracket, setIsBracket] = useState(false);
   const [bracketConfig, setBracketConfig] = useState<Record<string, any> | null>(null);
   const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>([]);
+  const [showBracketChampionMoment, setShowBracketChampionMoment] = useState(false);
+  const [bracketChampionName, setBracketChampionName] = useState('');
+  const [bracketChampionDetail, setBracketChampionDetail] = useState('');
   const [fedexConfig, setFedexConfig] = useState<Record<string, any> | null>(null);
 
   // Load season config to detect special season types and FedEx settings
@@ -1208,6 +1310,62 @@ function SeasonDetailScreenInner() {
     setLeagueChampion(winner);
     setShowLeagueChampionMoment(true);
   }, []);
+
+  // ─── Bracket Score Logging ─────────────────────────────────────────
+  const handleLogBracketScore = useCallback(async (
+    matchId: string,
+    playerId: string,
+    score: number,
+  ) => {
+    if (!bracketConfig || !seasonId) return;
+
+    const scoringMethod = (bracketConfig.scoring_method ?? 'stableford') as BracketScoringMethod;
+    const bracketSize = (bracketConfig.bracket_size ?? 4) as BracketSize;
+
+    const { matches: updated, resolvedMatch, isChampion } = processBracketRound(
+      bracketMatches,
+      matchId,
+      playerId,
+      score,
+      scoringMethod,
+      bracketSize,
+    );
+
+    setBracketMatches(updated);
+
+    // Persist updated matches to local storage
+    try {
+      const localData = await AsyncStorage.getItem('dormie_local_seasons');
+      if (localData) {
+        const seasons = JSON.parse(localData);
+        const idx = seasons.findIndex((s: any) => s.id === seasonId);
+        if (idx >= 0) {
+          seasons[idx].config.bracket_matches = updated;
+          if (isChampion && resolvedMatch) {
+            const champion = getBracketChampion(updated, bracketSize);
+            if (champion) {
+              seasons[idx].config.champion = champion;
+              seasons[idx].status = 'completed';
+            }
+          }
+          await AsyncStorage.setItem('dormie_local_seasons', JSON.stringify(seasons));
+        }
+      }
+    } catch {}
+
+    // Show champion cinematic if final resolved
+    if (isChampion && resolvedMatch) {
+      const champion = getBracketChampion(updated, bracketSize);
+      if (champion) {
+        haptics.heavy();
+        setBracketChampionName(champion.name);
+        setBracketChampionDetail(`#${champion.seed} seed · Match Play Champion`);
+        setShowBracketChampionMoment(true);
+      }
+    } else if (resolvedMatch) {
+      haptics.success();
+    }
+  }, [bracketConfig, bracketMatches, seasonId]);
 
   // Check if matchup reveal should be shown (first visit)
   useEffect(() => {
@@ -1522,11 +1680,50 @@ function SeasonDetailScreenInner() {
             </View>
           </View>
           {bracketMatches.length > 0 ? (
-            <BracketView
-              matches={bracketMatches}
-              bracketSize={(bracketConfig.bracket_size ?? 8) as BracketSize}
-              isDoubleElimination={bracketConfig.format === 'double'}
-            />
+            <>
+              <BracketView
+                matches={bracketMatches}
+                bracketSize={(bracketConfig.bracket_size ?? 8) as BracketSize}
+                isDoubleElimination={bracketConfig.format === 'double'}
+              />
+              {/* Active matches — log score UI */}
+              {bracketMatches.filter((m) => m.status === 'pending' || m.status === 'in_progress').length > 0 && (
+                <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: c.gold, fontFamily: GEO, letterSpacing: 1, marginBottom: 12 }}>
+                    ACTIVE MATCHES
+                  </Text>
+                  {bracketMatches
+                    .filter((m) => (m.status === 'pending' || m.status === 'in_progress') && m.player1_id && m.player2_id)
+                    .map((match) => (
+                      <BracketMatchScoreCard
+                        key={match.id}
+                        match={match}
+                        onLogScore={handleLogBracketScore}
+                        scoringMethod={(bracketConfig.scoring_method ?? 'stableford') as BracketScoringMethod}
+                      />
+                    ))}
+                </View>
+              )}
+              {/* Champion banner */}
+              {isBracketComplete(bracketMatches, (bracketConfig.bracket_size ?? 4) as BracketSize) && (() => {
+                const champ = getBracketChampion(bracketMatches, (bracketConfig.bracket_size ?? 4) as BracketSize);
+                if (!champ) return null;
+                return (
+                  <View style={{ alignItems: 'center', paddingVertical: 20, marginHorizontal: 16, borderWidth: 1, borderColor: c.gold, marginTop: 16 }}>
+                    <Ionicons name="trophy" size={32} color={c.gold} />
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: c.gold, letterSpacing: 2, marginTop: 8, fontFamily: GEO }}>
+                      MATCH PLAY CHAMPION
+                    </Text>
+                    <Text style={{ fontSize: 22, fontWeight: '700', color: c.gold, fontFamily: GEO, marginTop: 4 }}>
+                      {champ.name}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+                      #{champ.seed} Seed
+                    </Text>
+                  </View>
+                );
+              })()}
+            </>
           ) : (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
               <Ionicons name="hourglass-outline" size={36} color={c.textMuted} style={{ marginBottom: 8 }} />
@@ -1543,6 +1740,15 @@ function SeasonDetailScreenInner() {
           <View style={{ height: 24 }} />
         </ScrollView>
       ) : null}
+
+      {/* Bracket Champion Moment */}
+      <DormieMoment
+        visible={showBracketChampionMoment}
+        type="BRACKET_CHAMPION"
+        playerName={bracketChampionName}
+        detail={bracketChampionDetail}
+        onDismiss={() => setShowBracketChampionMoment(false)}
+      />
 
       {/* Stroke play series — standalone standings (no tabs) */}
       {isStrokePlay && strokePlayData ? (

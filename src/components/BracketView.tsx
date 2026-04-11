@@ -7,7 +7,7 @@ import type {
   BracketMatch,
   BracketSize,
 } from '../data/seasons-detail';
-import { getBracketRounds, getBracketRoundLabel } from '../data/seasons-detail';
+import { getBracketRounds, getBracketRoundLabel, getBracketMatchStatus } from '../data/seasons-detail';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -119,11 +119,18 @@ function MatchCard({
       </View>
 
       {/* Status badge */}
-      {isInProgress && (
-        <View style={[styles.statusBadge, { backgroundColor: c.teal + '22' }]}>
-          <Text style={[styles.statusText, { color: c.teal }]}>IN PROGRESS</Text>
-        </View>
-      )}
+      {(() => {
+        const statusLabel = getBracketMatchStatus(match);
+        if (isCompleted || isBye) return null;
+        const color = statusLabel === 'In Progress' || statusLabel === 'Waiting for Opponent'
+          ? c.teal
+          : c.textMuted;
+        return (
+          <View style={[styles.statusBadge, { backgroundColor: color + '22' }]}>
+            <Text style={[styles.statusText, { color }]}>{statusLabel.toUpperCase()}</Text>
+          </View>
+        );
+      })()}
     </View>
   );
 }
