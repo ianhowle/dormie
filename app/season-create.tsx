@@ -154,14 +154,21 @@ type Step = 'basics' | 'format' | 'rules' | 'majors' | 'members' | 'review'
   | 'rc_team_setup' | 'rc_match_format' | 'rc_members' | 'rc_review'
   | 'bracket_setup' | 'bracket_rules' | 'bracket_members' | 'bracket_review'
   | 'stroke_format' | 'stroke_policies' | 'stroke_members' | 'stroke_review'
-  | 'league_structure' | 'league_schedule' | 'league_scoring' | 'league_members' | 'league_review';
+  | 'league_structure' | 'league_schedule' | 'league_scoring' | 'league_members' | 'league_review'
+  | 'custom_structure' | 'custom_length' | 'custom_scoring' | 'custom_rules' | 'custom_bonuses';
+
+type CustomBaseFormat = 'individual' | 'teams' | 'h2h' | 'bracket';
+type CustomTeamFormation = 'auto_balance' | 'snake_draft' | 'captains_pick' | 'manual';
+type CustomTeamScoring = 'combined' | 'match_play' | 'best_x_of_y';
+type CustomSeedingMethod = 'handicap' | 'qualifying' | 'random';
+type CustomElimination = 'single' | 'double';
 
 const FEDEX_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 const RYDER_STEPS: Step[] = ['basics', 'rc_members', 'rc_team_setup', 'rc_match_format', 'rc_review'];
 const BRACKET_STEPS: Step[] = ['basics', 'bracket_setup', 'bracket_rules', 'bracket_members', 'bracket_review'];
 const STROKE_STEPS: Step[] = ['basics', 'stroke_format', 'stroke_policies', 'stroke_members', 'stroke_review'];
 const LEAGUE_STEPS: Step[] = ['basics', 'league_structure', 'league_schedule', 'league_scoring', 'league_members', 'league_review'];
-const CUSTOM_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
+const CUSTOM_STEPS: Step[] = ['basics', 'custom_structure', 'custom_length', 'custom_scoring', 'custom_rules', 'custom_bonuses', 'members', 'review'];
 
 function getStepsForType(type: SeasonType): Step[] {
   switch (type) {
@@ -198,6 +205,11 @@ const STEP_TITLES: Record<Step, string> = {
   league_scoring: 'Scoring & Playoffs',
   league_members: 'Members',
   league_review: 'Review',
+  custom_structure: 'Competition Structure',
+  custom_length: 'Season Length',
+  custom_scoring: 'Scoring',
+  custom_rules: 'Rules',
+  custom_bonuses: 'Bonuses',
 };
 
 // ─── Pill Selector ────────────────────────────────────────────────────
@@ -243,16 +255,21 @@ function BasicsStep({
   setName,
   seasonType,
   setSeasonType,
+  customDescription,
+  setCustomDescription,
 }: {
   name: string;
   setName: (v: string) => void;
   seasonType: SeasonType;
   setSeasonType: (v: SeasonType) => void;
+  customDescription?: string;
+  setCustomDescription?: (v: string) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
   const [nameFocused, setNameFocused] = useState(false);
+  const [descFocused, setDescFocused] = useState(false);
   const [expandedInfo, setExpandedInfo] = useState<SeasonType | null>(null);
 
   const SEASON_TYPES: { key: SeasonType; icon: React.ComponentProps<typeof Ionicons>['name']; label: string; desc: string; whatsThis: string }[] = [
@@ -270,12 +287,45 @@ function BasicsStep({
       <TextInput
         value={name}
         onChangeText={setName}
-        placeholder={seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : seasonType === 'stroke_series' ? 'Stroke Play Championship \u2014 Spring 2026' : seasonType === 'league' ? 'Dormie League \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
+        placeholder={seasonType === 'custom' ? 'Enter season name' : seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : seasonType === 'stroke_series' ? 'Stroke Play Championship \u2014 Spring 2026' : seasonType === 'league' ? 'Dormie League \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
         placeholderTextColor={c.textMuted}
         onFocus={() => setNameFocused(true)}
         onBlur={() => setNameFocused(false)}
         style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: nameFocused ? '#C9A227' : c.border }]}
       />
+
+      {seasonType === 'custom' && setCustomDescription && (
+        <>
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Season Description</Text>
+          <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 8 }]}>
+            Describe any special rules for your group
+          </Text>
+          <TextInput
+            value={customDescription ?? ''}
+            onChangeText={setCustomDescription}
+            placeholder="Optional rules, notes, or description..."
+            placeholderTextColor={c.textMuted}
+            multiline
+            maxLength={500}
+            onFocus={() => setDescFocused(true)}
+            onBlur={() => setDescFocused(false)}
+            style={[
+              styles.input,
+              {
+                backgroundColor: inputBg,
+                color: c.text,
+                borderColor: descFocused ? '#C9A227' : c.border,
+                minHeight: 80,
+                textAlignVertical: 'top',
+                paddingTop: 12,
+              },
+            ]}
+          />
+          <Text style={[styles.fieldDesc, { color: c.textMuted, marginTop: 4, textAlign: 'right' }]}>
+            {(customDescription ?? '').length}/500
+          </Text>
+        </>
+      )}
 
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Season Type</Text>
       <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
@@ -313,6 +363,346 @@ function BasicsStep({
           );
         })}
       </View>
+    </View>
+  );
+}
+
+// ─── Step: Custom Structure ──────────────────────────────────────────
+function CustomStructureStep({
+  baseFormat,
+  setBaseFormat,
+  teamCount,
+  setTeamCount,
+  teamFormation,
+  setTeamFormation,
+  teamScoring,
+  setTeamScoring,
+  bestX,
+  setBestX,
+  bestY,
+  setBestY,
+  divisions,
+  setDivisions,
+  divisionCount,
+  setDivisionCount,
+  crossDivision,
+  setCrossDivision,
+  cBracketSize,
+  setCBracketSize,
+  seeding,
+  setSeeding,
+  elimination,
+  setElimination,
+}: {
+  baseFormat: CustomBaseFormat;
+  setBaseFormat: (v: CustomBaseFormat) => void;
+  teamCount: 2 | 3 | 4;
+  setTeamCount: (v: 2 | 3 | 4) => void;
+  teamFormation: CustomTeamFormation;
+  setTeamFormation: (v: CustomTeamFormation) => void;
+  teamScoring: CustomTeamScoring;
+  setTeamScoring: (v: CustomTeamScoring) => void;
+  bestX: number;
+  setBestX: (v: number) => void;
+  bestY: number;
+  setBestY: (v: number) => void;
+  divisions: boolean;
+  setDivisions: (v: boolean) => void;
+  divisionCount: 2 | 3 | 4;
+  setDivisionCount: (v: 2 | 3 | 4) => void;
+  crossDivision: boolean;
+  setCrossDivision: (v: boolean) => void;
+  cBracketSize: 4 | 8 | 16 | 32;
+  setCBracketSize: (v: 4 | 8 | 16 | 32) => void;
+  seeding: CustomSeedingMethod;
+  setSeeding: (v: CustomSeedingMethod) => void;
+  elimination: CustomElimination;
+  setElimination: (v: CustomElimination) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const cardBgVal = theme.isDark ? c.elevated : c.cardBg;
+
+  const BASE_FORMATS: { key: CustomBaseFormat; icon: React.ComponentProps<typeof Ionicons>['name']; label: string; desc: string }[] = [
+    { key: 'individual', icon: 'trophy-outline', label: 'Individual', desc: 'Everyone vs the field' },
+    { key: 'teams', icon: 'people-outline', label: 'Teams', desc: '2-4 teams compete' },
+    { key: 'h2h', icon: 'swap-horizontal-outline', label: 'Head-to-Head', desc: 'Weekly 1v1 matchups with W/L record' },
+    { key: 'bracket', icon: 'git-merge-outline', label: 'Bracket', desc: 'Elimination tournament' },
+  ];
+
+  const TEAM_COUNTS: (2 | 3 | 4)[] = [2, 3, 4];
+
+  const TEAM_FORMATIONS: { key: CustomTeamFormation; label: string }[] = [
+    { key: 'auto_balance', label: 'Auto-balance by handicap' },
+    { key: 'snake_draft', label: 'Snake Draft' },
+    { key: 'captains_pick', label: "Captain's Pick" },
+    { key: 'manual', label: 'Manual assignment' },
+  ];
+
+  const TEAM_SCORINGS: { key: CustomTeamScoring; label: string }[] = [
+    { key: 'combined', label: 'Combined points (sum all players)' },
+    { key: 'match_play', label: 'Match play (team vs team matches)' },
+    { key: 'best_x_of_y', label: 'Best X of Y' },
+  ];
+
+  const BRACKET_SIZES: (4 | 8 | 16 | 32)[] = [4, 8, 16, 32];
+
+  const SEEDING_METHODS: { key: CustomSeedingMethod; label: string }[] = [
+    { key: 'handicap', label: 'By Handicap' },
+    { key: 'qualifying', label: 'Qualifying Round' },
+    { key: 'random', label: 'Random' },
+  ];
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Base Format */}
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Base Format</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        How does the competition work?
+      </Text>
+      <View style={{ gap: 8 }}>
+        {BASE_FORMATS.map((fmt) => {
+          const isSelected = baseFormat === fmt.key;
+          return (
+            <Pressable
+              key={fmt.key}
+              onPress={() => { haptics.light(); setBaseFormat(fmt.key); }}
+              style={[
+                styles.customFormatCard,
+                {
+                  backgroundColor: isSelected ? c.teal + '12' : cardBgVal,
+                  borderColor: isSelected ? c.teal : c.border,
+                  borderWidth: isSelected ? 2 : 1,
+                },
+              ]}
+            >
+              <Ionicons
+                name={fmt.icon}
+                size={24}
+                color={isSelected ? c.teal : c.textMuted}
+                style={{ marginRight: 12 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.customFormatLabel, { color: isSelected ? c.teal : c.text }]}>
+                  {fmt.label}
+                </Text>
+                <Text style={[styles.customFormatDesc, { color: c.textMuted }]}>
+                  {fmt.desc}
+                </Text>
+              </View>
+              {isSelected && (
+                <Ionicons name="checkmark-circle" size={22} color={c.teal} />
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Teams sub-options */}
+      {baseFormat === 'teams' && (
+        <View style={{ marginTop: 20 }}>
+          <Text style={[styles.fieldLabel, { color: c.text }]}>Number of Teams</Text>
+          <View style={styles.pillRow}>
+            {TEAM_COUNTS.map((n) => {
+              const active = teamCount === n;
+              return (
+                <Pressable
+                  key={n}
+                  onPress={() => { haptics.light(); setTeamCount(n); }}
+                  style={[styles.pill, { backgroundColor: active ? c.teal + '22' : c.elevated, borderColor: active ? c.teal : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>
+                    {n} teams
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Team Formation</Text>
+          {TEAM_FORMATIONS.map((f) => {
+            const active = teamFormation === f.key;
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => { haptics.light(); setTeamFormation(f.key); }}
+                style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+              >
+                <View style={[styles.customRadioOuter, { borderColor: active ? c.teal : c.textMuted }]}>
+                  {active && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+                </View>
+                <Text style={[styles.customRadioLabel, { color: active ? c.teal : c.text }]}>
+                  {f.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Team Scoring</Text>
+          {TEAM_SCORINGS.map((s) => {
+            const active = teamScoring === s.key;
+            return (
+              <Pressable
+                key={s.key}
+                onPress={() => { haptics.light(); setTeamScoring(s.key); }}
+                style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+              >
+                <View style={[styles.customRadioOuter, { borderColor: active ? c.teal : c.textMuted }]}>
+                  {active && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+                </View>
+                <Text style={[styles.customRadioLabel, { color: active ? c.teal : c.text }]}>
+                  {s.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {teamScoring === 'best_x_of_y' && (
+            <View style={[styles.bestXYRow, { backgroundColor: c.elevated }]}>
+              <Text style={[styles.bestXYLabel, { color: c.text }]}>Best</Text>
+              <View style={styles.stepperRow}>
+                <Pressable onPress={() => { haptics.light(); setBestX(Math.max(1, bestX - 1)); }} style={[styles.stepperBtn, { backgroundColor: c.surface ?? c.cardBg }]}>
+                  <Ionicons name="remove" size={16} color={c.textMuted} />
+                </Pressable>
+                <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{bestX}</Text>
+                <Pressable onPress={() => { haptics.light(); setBestX(Math.min(bestY - 1, bestX + 1)); }} style={[styles.stepperBtn, { backgroundColor: c.surface ?? c.cardBg }]}>
+                  <Ionicons name="add" size={16} color={c.textMuted} />
+                </Pressable>
+              </View>
+              <Text style={[styles.bestXYLabel, { color: c.text }]}>of</Text>
+              <View style={styles.stepperRow}>
+                <Pressable onPress={() => { haptics.light(); setBestY(Math.max(bestX + 1, bestY - 1)); }} style={[styles.stepperBtn, { backgroundColor: c.surface ?? c.cardBg }]}>
+                  <Ionicons name="remove" size={16} color={c.textMuted} />
+                </Pressable>
+                <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{bestY}</Text>
+                <Pressable onPress={() => { haptics.light(); setBestY(bestY + 1); }} style={[styles.stepperBtn, { backgroundColor: c.surface ?? c.cardBg }]}>
+                  <Ionicons name="add" size={16} color={c.textMuted} />
+                </Pressable>
+              </View>
+              <Text style={[styles.bestXYLabel, { color: c.textMuted }]}>scores</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Head-to-Head sub-options */}
+      {baseFormat === 'h2h' && (
+        <View style={{ marginTop: 20 }}>
+          <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border }]}>
+            <Ionicons name="information-circle-outline" size={18} color={c.teal} />
+            <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
+              Creates a fantasy football style league
+            </Text>
+          </View>
+
+          <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.ruleLabel, { color: c.text }]}>Enable Divisions</Text>
+            </View>
+            <Switch
+              value={divisions}
+              onValueChange={setDivisions}
+              trackColor={{ false: c.elevated, true: c.teal + '66' }}
+              thumbColor={divisions ? c.teal : c.textMuted}
+            />
+          </View>
+
+          {divisions && (
+            <>
+              <Text style={[styles.fieldLabel, { color: c.text, marginTop: 12 }]}>Number of Divisions</Text>
+              <View style={styles.pillRow}>
+                {([2, 3, 4] as const).map((n) => {
+                  const active = divisionCount === n;
+                  return (
+                    <Pressable
+                      key={n}
+                      onPress={() => { haptics.light(); setDivisionCount(n); }}
+                      style={[styles.pill, { backgroundColor: active ? c.teal + '22' : c.elevated, borderColor: active ? c.teal : 'transparent', borderWidth: 1 }]}
+                    >
+                      <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>
+                        {n}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.ruleLabel, { color: c.text }]}>Cross-Division Games</Text>
+                </View>
+                <Switch
+                  value={crossDivision}
+                  onValueChange={setCrossDivision}
+                  trackColor={{ false: c.elevated, true: c.teal + '66' }}
+                  thumbColor={crossDivision ? c.teal : c.textMuted}
+                />
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Bracket sub-options */}
+      {baseFormat === 'bracket' && (
+        <View style={{ marginTop: 20 }}>
+          <Text style={[styles.fieldLabel, { color: c.text }]}>Bracket Size</Text>
+          <View style={styles.pillRow}>
+            {BRACKET_SIZES.map((n) => {
+              const active = cBracketSize === n;
+              return (
+                <Pressable
+                  key={n}
+                  onPress={() => { haptics.light(); setCBracketSize(n); }}
+                  style={[styles.pill, { backgroundColor: active ? c.teal + '22' : c.elevated, borderColor: active ? c.teal : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>
+                    {n}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Seeding Method</Text>
+          {SEEDING_METHODS.map((s) => {
+            const active = seeding === s.key;
+            return (
+              <Pressable
+                key={s.key}
+                onPress={() => { haptics.light(); setSeeding(s.key); }}
+                style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+              >
+                <View style={[styles.customRadioOuter, { borderColor: active ? c.teal : c.textMuted }]}>
+                  {active && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+                </View>
+                <Text style={[styles.customRadioLabel, { color: active ? c.teal : c.text }]}>
+                  {s.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Format</Text>
+          {(['single', 'double'] as CustomElimination[]).map((e) => {
+            const active = elimination === e;
+            return (
+              <Pressable
+                key={e}
+                onPress={() => { haptics.light(); setElimination(e); }}
+                style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+              >
+                <View style={[styles.customRadioOuter, { borderColor: active ? c.teal : c.textMuted }]}>
+                  {active && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+                </View>
+                <Text style={[styles.customRadioLabel, { color: active ? c.teal : c.text }]}>
+                  {e === 'single' ? 'Single Elimination' : 'Double Elimination'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -3654,6 +4044,21 @@ export default function SeasonsScreen() {
   const [leaguePlayoffTeams, setLeaguePlayoffTeams] = useState<2 | 4 | 6 | 8>(4);
   const [leagueChampionshipFormat, setLeagueChampionshipFormat] = useState('same');
 
+  // State — Custom Season
+  const [customDescription, setCustomDescription] = useState('');
+  const [customBaseFormat, setCustomBaseFormat] = useState<CustomBaseFormat>('individual');
+  const [customTeamCount, setCustomTeamCount] = useState<2 | 3 | 4>(2);
+  const [customTeamFormation, setCustomTeamFormation] = useState<CustomTeamFormation>('auto_balance');
+  const [customTeamScoring, setCustomTeamScoring] = useState<CustomTeamScoring>('combined');
+  const [customBestX, setCustomBestX] = useState(2);
+  const [customBestY, setCustomBestY] = useState(4);
+  const [customDivisions, setCustomDivisions] = useState(false);
+  const [customDivisionCount, setCustomDivisionCount] = useState<2 | 3 | 4>(2);
+  const [customCrossDivision, setCustomCrossDivision] = useState(true);
+  const [customBracketSize, setCustomBracketSize] = useState<4 | 8 | 16 | 32>(8);
+  const [customSeeding, setCustomSeeding] = useState<CustomSeedingMethod>('handicap');
+  const [customElimination, setCustomElimination] = useState<CustomElimination>('single');
+
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
     const p = LENGTH_PRESETS.find((lp) => lp.key === preset)!;
@@ -3706,7 +4111,55 @@ export default function SeasonsScreen() {
 
   const buildSeasonConfig = useCallback(() => {
     const base: Record<string, any> = { season_type: seasonType };
-    if (seasonType === 'fedex' || seasonType === 'custom') {
+    if (seasonType === 'custom') {
+      const customStructure: Record<string, any> = {
+        base_format: customBaseFormat,
+      };
+      if (customBaseFormat === 'teams') {
+        Object.assign(customStructure, {
+          team_count: customTeamCount,
+          team_formation: customTeamFormation,
+          team_scoring: customTeamScoring,
+          best_x: customTeamScoring === 'best_x_of_y' ? customBestX : null,
+          best_y: customTeamScoring === 'best_x_of_y' ? customBestY : null,
+        });
+      } else if (customBaseFormat === 'h2h') {
+        Object.assign(customStructure, {
+          divisions_enabled: customDivisions,
+          division_count: customDivisions ? customDivisionCount : null,
+          cross_division: customDivisions ? customCrossDivision : null,
+        });
+      } else if (customBaseFormat === 'bracket') {
+        Object.assign(customStructure, {
+          bracket_size: customBracketSize,
+          seeding_method: customSeeding,
+          elimination: customElimination,
+        });
+      }
+      Object.assign(base, {
+        description: customDescription || null,
+        custom_structure: customStructure,
+        scoring_method: scoringMethod,
+        cut_percentage: cutEnabled ? cutValue : null,
+        drop_worst: dropWorst,
+        dns_averaging: dnsAveraging,
+        dns_min_rounds: dnsMinRounds,
+        dns_cap: dnsCap,
+        playoff_multiplier: playoffMultiplier,
+        championship_multiplier: champMultiplier,
+        length_preset: preset,
+        use_custom_cycle: useCustomCycle,
+        custom_cycle: useCustomCycle ? customCycle : null,
+        makeup_window_weeks: makeupWindowEnabled ? makeupWindowWeeks : null,
+        dns_safety_net: dnsSafetyNet,
+        dns_safety_max: dnsSafetyNet ? dnsSafetyMax : null,
+        multi_round_week: multiRoundWeek,
+        rounds_allowed_per_week: multiRoundWeek ? roundsAllowed : null,
+        best_rounds_count: multiRoundWeek ? bestRoundsCount : null,
+        participation_bonus: participationBonus,
+        participation_points: participationBonus ? participationPoints : null,
+      });
+    } else if (seasonType === 'fedex') {
       Object.assign(base, {
         scoring_method: scoringMethod,
         cut_percentage: cutEnabled ? cutValue : null,
@@ -3790,7 +4243,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -3901,7 +4354,33 @@ export default function SeasonsScreen() {
       {/* Step content */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {currentStep === 'basics' && (
-          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); }} />
+          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); }} customDescription={customDescription} setCustomDescription={setCustomDescription} />
+        )}
+        {currentStep === 'custom_structure' && (
+          <CustomStructureStep
+            baseFormat={customBaseFormat} setBaseFormat={setCustomBaseFormat}
+            teamCount={customTeamCount} setTeamCount={setCustomTeamCount}
+            teamFormation={customTeamFormation} setTeamFormation={setCustomTeamFormation}
+            teamScoring={customTeamScoring} setTeamScoring={setCustomTeamScoring}
+            bestX={customBestX} setBestX={setCustomBestX}
+            bestY={customBestY} setBestY={setCustomBestY}
+            divisions={customDivisions} setDivisions={setCustomDivisions}
+            divisionCount={customDivisionCount} setDivisionCount={setCustomDivisionCount}
+            crossDivision={customCrossDivision} setCrossDivision={setCustomCrossDivision}
+            cBracketSize={customBracketSize} setCBracketSize={setCustomBracketSize}
+            seeding={customSeeding} setSeeding={setCustomSeeding}
+            elimination={customElimination} setElimination={setCustomElimination}
+          />
+        )}
+        {(currentStep === 'custom_length' || currentStep === 'custom_scoring' || currentStep === 'custom_rules' || currentStep === 'custom_bonuses') && (
+          <View style={styles.stepContent}>
+            <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border }]}>
+              <Ionicons name="construct-outline" size={18} color={c.gold} />
+              <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
+                This step will be configured in the next update.
+              </Text>
+            </View>
+          </View>
         )}
         {currentStep === 'format' && (
           <FormatStep preset={preset} setPreset={setPreset} scoringMethod={scoringMethod} setScoringMethod={setScoringMethod} useCustomCycle={useCustomCycle} setUseCustomCycle={setUseCustomCycle} customCycle={customCycle} setCustomCycle={setCustomCycle} />
@@ -4279,4 +4758,15 @@ const styles = StyleSheet.create({
   rosterTitle: { fontSize: 13, fontWeight: '700', marginBottom: 8 },
   rosterPlayer: { fontSize: 13, marginBottom: 4 },
   rosterEmpty: { fontSize: 12, fontStyle: 'italic' },
+
+  // Custom structure
+  customFormatCard: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  customFormatLabel: { fontSize: 15, fontWeight: '700' },
+  customFormatDesc: { fontSize: 12, marginTop: 2 },
+  customRadioRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  customRadioOuter: { width: 20, height: 20, borderWidth: 2, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  customRadioInner: { width: 10, height: 10, borderRadius: 5 },
+  customRadioLabel: { fontSize: 14, fontWeight: '600' },
+  bestXYRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginTop: 8 },
+  bestXYLabel: { fontSize: 14, fontWeight: '600' },
 });
