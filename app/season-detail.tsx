@@ -525,7 +525,7 @@ function StandingsTab({
           </ScrollView>
 
           <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>
-            {completedWeeks.reduce((sum, _w, wi) => sum + (p.weekResults[wi] ?? 0), 0)}
+            {p.points}
           </Text>
         </Pressable>
       </View>
@@ -1102,8 +1102,9 @@ function SeasonDetailScreenInner() {
   const [leagueConfig, setLeagueConfig] = useState<any>(null);
   const [showLeagueChampionMoment, setShowLeagueChampionMoment] = useState(false);
   const [leagueChampion, setLeagueChampion] = useState<LeaguePlayer | null>(null);
+  const [fedexConfig, setFedexConfig] = useState<Record<string, any> | null>(null);
 
-  // Load season config to detect special season types
+  // Load season config to detect special season types and FedEx settings
   useEffect(() => {
     if (!seasonId) return;
     const loadConfig = async () => {
@@ -1118,6 +1119,10 @@ function SeasonDetailScreenInner() {
           } else if (season?.config?.season_type === 'league') {
             setIsLeague(true);
             setLeagueConfig(season.config.league_config);
+          }
+          // Always store the full config for FedEx settings (multi-round, participation, cut%)
+          if (season?.config) {
+            setFedexConfig(season.config);
           }
         }
       } catch {}
@@ -1190,7 +1195,8 @@ function SeasonDetailScreenInner() {
   const standings = realStandings;
   const weeks = realWeeks;
   const currentWeek = weeks.find((w) => !w.completed)?.number ?? weeks.length;
-  const cutLineIndex = Math.floor(standings.length * CUT_PERCENTAGE);
+  const configCutPct = fedexConfig?.cut_percentage ?? CUT_PERCENTAGE;
+  const cutLineIndex = Math.floor(standings.length * configCutPct);
   const isSeasonComplete = weeks.every((w) => w.completed);
   const currentWeekData = weeks.find((w) => w.number === currentWeek);
   const canAdvance = currentWeekData?.allScoresSubmitted && !isSeasonComplete;
@@ -1240,7 +1246,10 @@ function SeasonDetailScreenInner() {
 
         // 4. If this is a cut line week (playoff start), eliminate players below cut
         if (currentWeekData.isPlayoff) {
-          const cutSize = getPlayoffCutLine(standings.length, 67);
+          const cutPct = fedexConfig?.cut_percentage
+            ? Math.round(fedexConfig.cut_percentage * 100) as 25 | 33 | 50 | 67 | 75
+            : 67;
+          const cutSize = getPlayoffCutLine(standings.length, cutPct);
           const eliminated = standings.slice(cutSize);
           for (const player of eliminated) {
             await supabase
@@ -1295,7 +1304,7 @@ function SeasonDetailScreenInner() {
     } else {
       await doAdvance();
     }
-  }, [seasonId, currentWeek, currentWeekData, standings, weeks, advancing, refreshData]);
+  }, [seasonId, currentWeek, currentWeekData, standings, weeks, advancing, refreshData, fedexConfig]);
 
   // Show matchup reveal screen if enabled
   if (showReveal) {
@@ -1527,13 +1536,13 @@ function SeasonDetailScreenInner() {
                   weeks={weeks}
                   cutLineIndex={cutLineIndex}
                   onPlayerTap={handlePlayerTap}
-                  seasonConfig={null}
+                  seasonConfig={fedexConfig}
                 />
               </View>
             </ScrollView>
           )}
 
-          {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={null} />}
+          {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={fedexConfig} />}
           {tab === 'stats' && (
             <SeasonStatsSection
               seasonId={seasonId ?? 'demo'}
