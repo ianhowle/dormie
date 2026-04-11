@@ -1676,18 +1676,27 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
             });
 
             if (dayRounds.length > 0) {
-              let redScore = 0;
-              let blueScore = 0;
-              dayRounds.forEach((r: any) => {
-                const team = memberMap.get(r.user_id);
-                if (team === 'red') redScore += 1;
-                else if (team === 'blue') blueScore += 1;
-              });
-              // Normalize to match-play points (each round = portion of session)
+              // Group rounds by player and compare match results
+              const redRounds = dayRounds.filter((r: any) => memberMap.get(r.user_id) === 'red');
+              const blueRounds = dayRounds.filter((r: any) => memberMap.get(r.user_id) === 'blue');
               const matchCount = session.matchCount || 4;
-              session.redScore = Math.min(redScore / 2, matchCount);
-              session.blueScore = Math.min(blueScore / 2, matchCount);
-              session.status = dayRounds.length >= matchCount * 2 ? 'complete' : 'live';
+
+              // Pair rounds for match comparison using gross scores
+              const pairCount = Math.min(redRounds.length, blueRounds.length, matchCount);
+              let redPts = 0;
+              let bluePts = 0;
+              for (let pi = 0; pi < pairCount; pi++) {
+                const rGross = (redRounds[pi] as any).total_gross ?? 0;
+                const bGross = (blueRounds[pi] as any).total_gross ?? 0;
+                if (rGross > 0 && bGross > 0) {
+                  if (rGross < bGross) redPts += 1;
+                  else if (bGross < rGross) bluePts += 1;
+                  else { redPts += 0.5; bluePts += 0.5; }
+                }
+              }
+              session.redScore = redPts;
+              session.blueScore = bluePts;
+              session.status = pairCount >= matchCount ? 'complete' : (pairCount > 0 ? 'live' : 'not_started');
             }
           });
 
@@ -1751,7 +1760,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
 
   // ─── Match completion callback ────────────────────────────────────
   const handleMatchComplete = useCallback((matchId: string, winner: 'red' | 'blue' | 'halved', result: string) => {
-    // Update the match in state
+    // Update the match in state and then recompute session scores from the updated matches
     setMatches((prev) => {
       const updated = { ...prev };
       for (const sessionId of Object.keys(updated)) {
@@ -1767,33 +1776,29 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
           };
         });
       }
+
+      // Recompute session scores from the updated matches (avoids stale closure)
+      setSessions((prevSessions) => prevSessions.map((s) => {
+        const sessionMatchList = updated[s.id];
+        if (!sessionMatchList) return s;
+        const hasMatch = sessionMatchList.some((m) => m.id === matchId);
+        if (!hasMatch) return s;
+
+        const redPts = sessionMatchList.reduce((sum, m) => sum + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+        const bluePts = sessionMatchList.reduce((sum, m) => sum + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+        const allDone = sessionMatchList.every((m) => m.winner != null);
+
+        return {
+          ...s,
+          redScore: redPts,
+          blueScore: bluePts,
+          status: allDone ? 'complete' as SessionStatus : 'live' as SessionStatus,
+        };
+      }));
+
       return updated;
     });
-
-    // Update session scores
-    setSessions((prev) => prev.map((s) => {
-      const sessionMatchList = matches[s.id];
-      if (!sessionMatchList) return s;
-      const hasMatch = sessionMatchList.some((m) => m.id === matchId);
-      if (!hasMatch) return s;
-
-      // Recompute session scores
-      const updatedMatches = sessionMatchList.map((m) => {
-        if (m.id !== matchId) return m;
-        return { ...m, winner, redScore: winner === 'red' ? 1 : winner === 'halved' ? 0.5 : 0, blueScore: winner === 'blue' ? 1 : winner === 'halved' ? 0.5 : 0 };
-      });
-      const redPts = updatedMatches.reduce((sum, m) => sum + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
-      const bluePts = updatedMatches.reduce((sum, m) => sum + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
-      const allDone = updatedMatches.every((m) => m.winner != null);
-
-      return {
-        ...s,
-        redScore: redPts,
-        blueScore: bluePts,
-        status: allDone ? 'complete' as SessionStatus : 'live' as SessionStatus,
-      };
-    }));
-  }, [matches]);
+  }, []);
 
   // ─── Generate pairings slots for the active session ──────────────
   const buildPairingsForSession = useCallback((session: RCSession) => {

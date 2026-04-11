@@ -1529,7 +1529,7 @@ function SeasonDetailScreenInner() {
             {ryderCupConfig.sessions?.foursomes && (
               <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Foursomes (Alternate Shot)</Text>
             )}
-            {ryderCupConfig.sessions?.four_ball && (
+            {ryderCupConfig.sessions?.fourball && (
               <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Four-Ball (Best Ball)</Text>
             )}
             {ryderCupConfig.sessions?.singles && (

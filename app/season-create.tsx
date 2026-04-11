@@ -3317,11 +3317,11 @@ function RyderCupTeamSetupStep({
 }
 
 // ─── Ryder Cup: Match Format ────────────────────────────────────────
-type RCSessionType = 'foursomes' | 'four_ball' | 'singles';
+type RCSessionType = 'foursomes' | 'fourball' | 'singles';
 
 const RC_REMOTE_PLAY_HELP: Record<RCSessionType, string> = {
   foursomes: 'Remote play: Each teammate plays their own round. Combine both players\u2019 net Stableford points. Team with the higher combined total wins the match.',
-  four_ball: 'Remote play: Each teammate plays their own round. For each hole, take the better Stableford score between teammates. Team with the higher 18-hole best-ball total wins the match.',
+  fourball: 'Remote play: Each teammate plays their own round. For each hole, take the better Stableford score between teammates. Team with the higher 18-hole best-ball total wins the match.',
   singles: 'Remote play: Compare net Stableford totals. Higher score wins. For hole-by-hole drama, compare Stableford points per hole \u2014 most holes won takes the match.',
 };
 
@@ -3363,7 +3363,7 @@ function RyderCupMatchFormatStep({
 
   const SESSION_TYPES: { key: RCSessionType; label: string; desc: string }[] = [
     { key: 'foursomes', label: 'Foursomes (Alternate Shot)', desc: '2v2 — teams alternate shots on the same ball' },
-    { key: 'four_ball', label: 'Four-Ball (Best Ball)', desc: '2v2 — best individual ball on each hole counts' },
+    { key: 'fourball', label: 'Four-Ball (Best Ball)', desc: '2v2 — best individual ball on each hole counts' },
     { key: 'singles', label: 'Singles', desc: '1v1 match play head-to-head' },
   ];
 
@@ -3635,7 +3635,7 @@ function RyderCupReviewStep({
   const blueCaptainName = allPlayers.find((p) => p.id === teamBlueCaptain)?.name ?? 'TBD';
   const draftLabels: Record<DraftMethod, string> = { snake: 'Snake Draft', captains_pick: "Captain's Pick", auto_balance: 'Auto-Balance', random: 'Random' };
   const enabledSessions = (Object.keys(rcSessions) as RCSessionType[]).filter((k) => rcSessions[k]);
-  const sessionLabels: Record<RCSessionType, string> = { foursomes: 'Foursomes', four_ball: 'Four-Ball', singles: 'Singles' };
+  const sessionLabels: Record<RCSessionType, string> = { foursomes: 'Foursomes', fourball: 'Four-Ball', singles: 'Singles' };
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
@@ -5398,7 +5398,7 @@ export default function SeasonCreateScreen() {
   const [teamBlueCaptain, setTeamBlueCaptain] = useState<string | null>(null);
   const [draftMethod, setDraftMethod] = useState<DraftMethod>('snake');
   const [rcSessions, setRcSessions] = useState<Record<RCSessionType, boolean>>({
-    foursomes: true, four_ball: true, singles: true,
+    foursomes: true, fourball: true, singles: true,
   });
   const [rcNumDays, setRcNumDays] = useState(2);
   const [rcPointsPerMatch, setRcPointsPerMatch] = useState(1);
