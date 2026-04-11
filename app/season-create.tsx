@@ -44,7 +44,7 @@ const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 :
 const { width: SCREEN_W } = Dimensions.get('window');
 
 // ─── Types ────────────────────────────────────────────────────────────
-type SeasonType = 'fedex' | 'ryder' | 'bracket' | 'stroke_series' | 'custom';
+type SeasonType = 'fedex' | 'ryder' | 'bracket' | 'stroke_series' | 'league' | 'custom';
 type ScoringMethod = 'position' | 'stableford';
 
 type LengthPreset = {
@@ -153,12 +153,14 @@ const MOCK_FRIENDS: Friend[] = [
 type Step = 'basics' | 'format' | 'rules' | 'majors' | 'members' | 'review'
   | 'rc_team_setup' | 'rc_match_format' | 'rc_members' | 'rc_review'
   | 'bracket_setup' | 'bracket_rules' | 'bracket_members' | 'bracket_review'
-  | 'stroke_format' | 'stroke_policies' | 'stroke_members' | 'stroke_review';
+  | 'stroke_format' | 'stroke_policies' | 'stroke_members' | 'stroke_review'
+  | 'league_structure' | 'league_schedule' | 'league_members' | 'league_review';
 
 const FEDEX_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 const RYDER_STEPS: Step[] = ['basics', 'rc_members', 'rc_team_setup', 'rc_match_format', 'rc_review'];
 const BRACKET_STEPS: Step[] = ['basics', 'bracket_setup', 'bracket_rules', 'bracket_members', 'bracket_review'];
 const STROKE_STEPS: Step[] = ['basics', 'stroke_format', 'stroke_policies', 'stroke_members', 'stroke_review'];
+const LEAGUE_STEPS: Step[] = ['basics', 'league_structure', 'league_schedule', 'league_members', 'league_review'];
 const CUSTOM_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 
 function getStepsForType(type: SeasonType): Step[] {
@@ -166,6 +168,7 @@ function getStepsForType(type: SeasonType): Step[] {
     case 'ryder': return RYDER_STEPS;
     case 'bracket': return BRACKET_STEPS;
     case 'stroke_series': return STROKE_STEPS;
+    case 'league': return LEAGUE_STEPS;
     case 'custom': return CUSTOM_STEPS;
     default: return FEDEX_STEPS;
   }
@@ -190,6 +193,10 @@ const STEP_TITLES: Record<Step, string> = {
   stroke_policies: 'Round Policies',
   stroke_members: 'Members',
   stroke_review: 'Review',
+  league_structure: 'League Structure',
+  league_schedule: 'Schedule',
+  league_members: 'Members',
+  league_review: 'Review',
 };
 
 // ─── Pill Selector ────────────────────────────────────────────────────
@@ -252,6 +259,7 @@ function BasicsStep({
     { key: 'ryder', icon: 'people-outline', label: 'Ryder Cup', desc: 'Team competition (red vs blue)', whatsThis: 'Two teams compete in foursomes, four-ball, and singles matches. Captains draft players and set pairings.' },
     { key: 'bracket', icon: 'git-merge-outline', label: 'Match Play Bracket', desc: 'Single elimination tournament', whatsThis: 'Players face off head-to-head in a seeded bracket. Lose and you\'re out — last one standing wins.' },
     { key: 'stroke_series', icon: 'document-text-outline', label: 'Stroke Play Series', desc: 'Cumulative strokes, lowest total wins', whatsThis: 'A multi-round series where cumulative stroke totals determine the winner. Option to drop your worst round.' },
+    { key: 'league', icon: 'people-outline', label: 'League', desc: 'Weekly matchups, divisions, playoffs', whatsThis: 'Fantasy football style league with divisions and weekly head-to-head matchups. Play division rivals and cross-division opponents across the season.' },
     { key: 'custom', icon: 'settings-outline', label: 'Custom', desc: 'Build your own rules', whatsThis: 'Full control over format, scoring, and structure. Mix and match any combination of rules.' },
   ];
 
@@ -261,7 +269,7 @@ function BasicsStep({
       <TextInput
         value={name}
         onChangeText={setName}
-        placeholder={seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : seasonType === 'stroke_series' ? 'Stroke Play Championship \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
+        placeholder={seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : seasonType === 'stroke_series' ? 'Stroke Play Championship \u2014 Spring 2026' : seasonType === 'league' ? 'Dormie League \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
         placeholderTextColor={c.textMuted}
         onFocus={() => setNameFocused(true)}
         onBlur={() => setNameFocused(false)}
@@ -1306,7 +1314,7 @@ function ReviewStep({
   const presetData = LENGTH_PRESETS.find((p) => p.key === preset)!;
   const majors = weeks.filter((w) => w.isMajor);
   const members = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
-  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', custom: 'Custom' }[seasonType];
+  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', league: 'League', custom: 'Custom' }[seasonType];
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
@@ -2748,6 +2756,479 @@ function StrokeSeriesReviewStep({
   );
 }
 
+// ─── League: Step 2 — Structure & Divisions ─────────────────────────
+type LeagueDivisionGames = 'once' | 'twice';
+
+const DIVISION_DEFAULTS: Record<number, string[]> = {
+  2: ['East', 'West'],
+  3: ['East', 'West', 'South'],
+  4: ['East', 'West', 'North', 'South'],
+};
+
+function LeagueStructureStep({
+  leagueDivisions,
+  setLeagueDivisions,
+  leagueDivisionCount,
+  setLeagueDivisionCount,
+  leagueDivisionNames,
+  setLeagueDivisionNames,
+  leagueAutoBalance,
+  setLeagueAutoBalance,
+}: {
+  leagueDivisions: boolean;
+  setLeagueDivisions: (v: boolean) => void;
+  leagueDivisionCount: number;
+  setLeagueDivisionCount: (v: number) => void;
+  leagueDivisionNames: string[];
+  setLeagueDivisionNames: (v: string[]) => void;
+  leagueAutoBalance: boolean;
+  setLeagueAutoBalance: (v: boolean) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
+
+  const handleDivisionCountChange = (count: number) => {
+    haptics.light();
+    setLeagueDivisionCount(count);
+    const defaults = DIVISION_DEFAULTS[count] ?? [];
+    const newNames = [...defaults];
+    // Preserve custom names if they exist
+    for (let i = 0; i < Math.min(count, leagueDivisionNames.length); i++) {
+      if (leagueDivisionNames[i] && leagueDivisionNames[i] !== DIVISION_DEFAULTS[leagueDivisionCount]?.[i]) {
+        newNames[i] = leagueDivisionNames[i];
+      }
+    }
+    setLeagueDivisionNames(newNames);
+  };
+
+  const handleNameChange = (index: number, value: string) => {
+    const updated = [...leagueDivisionNames];
+    updated[index] = value;
+    setLeagueDivisionNames(updated);
+  };
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Number of Players info */}
+      <View style={[styles.explanationCard, { backgroundColor: c.gold + '12', borderColor: c.gold + '33' }]}>
+        <Ionicons name="information-circle" size={18} color={c.gold} />
+        <Text style={{ fontSize: 13, color: c.textMuted, flex: 1 }}>
+          Players are added in the Members step. Recommended: 8-16 players for best division balance.
+        </Text>
+      </View>
+
+      {/* Divisions toggle */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 8 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Enable Divisions</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Split players into divisions for balanced scheduling
+          </Text>
+        </View>
+        <Switch
+          value={leagueDivisions}
+          onValueChange={setLeagueDivisions}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={leagueDivisions ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {leagueDivisions ? (
+        <>
+          {/* Number of divisions */}
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Number of Divisions</Text>
+          <View style={styles.pillRow}>
+            {[2, 3, 4].map((count) => {
+              const isActive = leagueDivisionCount === count;
+              return (
+                <Pressable
+                  key={count}
+                  onPress={() => handleDivisionCountChange(count)}
+                  style={[styles.pill, { backgroundColor: isActive ? c.teal + '22' : c.elevated, borderColor: isActive ? c.teal : 'transparent', borderWidth: 1, paddingHorizontal: 20 }]}
+                >
+                  <Text style={[styles.pillText, { color: isActive ? c.teal : c.textMuted }]}>{count}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Division names */}
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Division Names</Text>
+          {leagueDivisionNames.slice(0, leagueDivisionCount).map((divName, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <View style={{ width: 28, height: 28, backgroundColor: c.teal + '22', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: c.teal, fontFamily: GEO }}>{i + 1}</Text>
+              </View>
+              <TextInput
+                value={divName}
+                onChangeText={(val) => handleNameChange(i, val)}
+                placeholder={`Division ${i + 1}`}
+                placeholderTextColor={c.textMuted}
+                style={[styles.input, { backgroundColor: inputBg, color: c.text, borderColor: c.border, flex: 1, paddingVertical: 10 }]}
+              />
+            </View>
+          ))}
+
+          {/* Auto-balance */}
+          <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 8 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.ruleLabel, { color: c.text }]}>Auto-Balance by Handicap</Text>
+              <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+                Distribute players evenly so divisions have similar skill levels
+              </Text>
+            </View>
+            <Switch
+              value={leagueAutoBalance}
+              onValueChange={setLeagueAutoBalance}
+              trackColor={{ false: c.elevated, true: c.teal + '66' }}
+              thumbColor={leagueAutoBalance ? c.teal : c.textMuted}
+            />
+          </View>
+
+          <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 8, fontStyle: 'italic' }}>
+            Players distributed evenly across divisions, balanced by handicap
+          </Text>
+        </>
+      ) : (
+        <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginTop: 12 }]}>
+          <Ionicons name="refresh" size={18} color={c.teal} />
+          <Text style={{ fontSize: 13, color: c.textMuted, flex: 1 }}>
+            Round-robin format — each player faces every other player over the season
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── League: Step 3 — Schedule ──────────────────────────────────────
+function LeagueScheduleStep({
+  leagueWeeks,
+  setLeagueWeeks,
+  leagueDivisions,
+  leagueDivisionCount,
+  leagueDivisionGames,
+  setLeagueDivisionGames,
+  leagueCrossDivision,
+  setLeagueCrossDivision,
+  leagueRivalryWeek,
+  setLeagueRivalryWeek,
+  leagueSchedulePreview,
+  setLeagueSchedulePreview,
+  selectedIds,
+  manualPlayers,
+  leagueDivisionNames,
+}: {
+  leagueWeeks: number;
+  setLeagueWeeks: (v: number) => void;
+  leagueDivisions: boolean;
+  leagueDivisionCount: number;
+  leagueDivisionGames: LeagueDivisionGames;
+  setLeagueDivisionGames: (v: LeagueDivisionGames) => void;
+  leagueCrossDivision: boolean;
+  setLeagueCrossDivision: (v: boolean) => void;
+  leagueRivalryWeek: boolean;
+  setLeagueRivalryWeek: (v: boolean) => void;
+  leagueSchedulePreview: { week: number; matchups: { a: string; b: string }[] }[];
+  setLeagueSchedulePreview: (v: { week: number; matchups: { a: string; b: string }[] }[]) => void;
+  selectedIds: string[];
+  manualPlayers: ManualPlayer[];
+  leagueDivisionNames: string[];
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const totalPlayers = selectedIds.length + manualPlayers.length + 1; // +1 for self
+  const playersPerDivision = leagueDivisions && leagueDivisionCount > 0
+    ? Math.ceil(totalPlayers / leagueDivisionCount) : totalPlayers;
+  const divisionOpponents = leagueDivisions ? playersPerDivision - 1 : totalPlayers - 1;
+  const divisionGamesNeeded = leagueDivisionGames === 'twice' ? divisionOpponents * 2 : divisionOpponents;
+  const gamesPerPlayer = leagueWeeks;
+
+  // Build a helper text about games
+  const scheduleHelper = leagueDivisions
+    ? `~${playersPerDivision} per division · ${divisionGamesNeeded} division game${divisionGamesNeeded !== 1 ? 's' : ''} · ${Math.max(0, gamesPerPlayer - divisionGamesNeeded)} cross-division`
+    : `${totalPlayers} players · Round-robin across ${leagueWeeks} weeks`;
+
+  // Generate schedule preview
+  const generatePreview = () => {
+    haptics.light();
+    const allNames = ['You', ...MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id)).map((f) => f.name.split(' ')[0]), ...manualPlayers.map((m) => m.name.split(' ')[0])];
+    const players = allNames.slice(0, Math.max(4, allNames.length));
+    const schedule: { week: number; matchups: { a: string; b: string }[] }[] = [];
+
+    // Simple round-robin generation
+    const n = players.length;
+    const isOdd = n % 2 !== 0;
+    const pool = [...players];
+    if (isOdd) pool.push('BYE');
+    const size = pool.length;
+
+    for (let wk = 0; wk < leagueWeeks; wk++) {
+      const round = wk % (size - 1);
+      const matchups: { a: string; b: string }[] = [];
+      // Rotate the array (keep first element fixed)
+      const rotated = [pool[0]];
+      for (let i = 1; i < size; i++) {
+        const idx = ((i - 1 + round) % (size - 1)) + 1;
+        rotated.push(pool[idx]);
+      }
+      for (let i = 0; i < size / 2; i++) {
+        const a = rotated[i];
+        const b = rotated[size - 1 - i];
+        if (a !== 'BYE' && b !== 'BYE') {
+          matchups.push({ a, b });
+        }
+      }
+      schedule.push({ week: wk + 1, matchups });
+    }
+    setLeagueSchedulePreview(schedule);
+  };
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Regular season length */}
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Regular Season Length</Text>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
+        Number of weeks of head-to-head matchups
+      </Text>
+      <View style={styles.stepperRow}>
+        <Pressable
+          onPress={() => { if (leagueWeeks > 6) { haptics.light(); setLeagueWeeks(leagueWeeks - 1); setLeagueSchedulePreview([]); } }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated, opacity: leagueWeeks <= 6 ? 0.4 : 1 }]}
+        >
+          <Ionicons name="remove" size={18} color={c.text} />
+        </Pressable>
+        <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{leagueWeeks}</Text>
+        <Text style={[styles.stepperUnit, { color: c.textMuted }]}>weeks</Text>
+        <Pressable
+          onPress={() => { if (leagueWeeks < 16) { haptics.light(); setLeagueWeeks(leagueWeeks + 1); setLeagueSchedulePreview([]); } }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated, opacity: leagueWeeks >= 16 ? 0.4 : 1 }]}
+        >
+          <Ionicons name="add" size={18} color={c.text} />
+        </Pressable>
+      </View>
+
+      <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 6 }}>
+        {scheduleHelper}
+      </Text>
+
+      {/* Matchup Rules — division mode only */}
+      {leagueDivisions && (
+        <>
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Matchup Rules</Text>
+
+          {/* Division games frequency */}
+          <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 8 }]}>Play division opponents</Text>
+          {(['once', 'twice'] as const).map((opt) => {
+            const isActive = leagueDivisionGames === opt;
+            const label = opt === 'once' ? 'Once' : 'Twice';
+            const desc = opt === 'once'
+              ? 'Face each division rival one time during the season'
+              : 'Home and away — play each division rival twice';
+            return (
+              <Pressable
+                key={opt}
+                onPress={() => { haptics.light(); setLeagueDivisionGames(opt); setLeagueSchedulePreview([]); }}
+                style={[styles.strokeRadioRow, { backgroundColor: isActive ? c.teal + '12' : c.elevated, borderColor: isActive ? c.teal : c.border, borderWidth: 1, marginBottom: 8 }]}
+              >
+                <View style={[styles.strokeRadioOuter, { borderColor: isActive ? c.teal : c.textMuted }]}>
+                  {isActive && <View style={[styles.strokeRadioInner, { backgroundColor: c.teal }]} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.strokeRadioLabel, { color: isActive ? c.text : c.textMuted }]}>{label}</Text>
+                  <Text style={[styles.strokeRadioDesc, { color: c.textMuted }]}>{desc}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+
+          {/* Cross-division games */}
+          <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 8 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.ruleLabel, { color: c.text }]}>Cross-Division Games</Text>
+              <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+                Cross-division games fill remaining weeks after division play
+              </Text>
+            </View>
+            <Switch
+              value={leagueCrossDivision}
+              onValueChange={(v) => { setLeagueCrossDivision(v); setLeagueSchedulePreview([]); }}
+              trackColor={{ false: c.elevated, true: c.teal + '66' }}
+              thumbColor={leagueCrossDivision ? c.teal : c.textMuted}
+            />
+          </View>
+        </>
+      )}
+
+      {/* Rivalry week */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: leagueDivisions ? 0 : 20 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Rivalry Week</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Commissioner assigns marquee matchups for one special week
+          </Text>
+        </View>
+        <Switch
+          value={leagueRivalryWeek}
+          onValueChange={setLeagueRivalryWeek}
+          trackColor={{ false: c.elevated, true: c.gold + '66' }}
+          thumbColor={leagueRivalryWeek ? c.gold : c.textMuted}
+        />
+      </View>
+
+      {/* Schedule Preview */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Schedule Preview</Text>
+      <Pressable
+        onPress={generatePreview}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: c.elevated, marginBottom: 12 }}
+      >
+        <Ionicons name={leagueSchedulePreview.length > 0 ? 'refresh' : 'calendar-outline'} size={18} color={c.teal} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: c.teal }}>
+          {leagueSchedulePreview.length > 0 ? 'Regenerate Schedule' : 'Generate Preview'}
+        </Text>
+      </Pressable>
+
+      {leagueSchedulePreview.length > 0 && (
+        <ScrollView style={{ maxHeight: 320 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+          {leagueSchedulePreview.map((wk) => (
+            <View key={wk.week} style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: c.gold, fontFamily: GEO, letterSpacing: 1 }}>
+                  WEEK {wk.week}
+                </Text>
+                {leagueRivalryWeek && wk.week === Math.ceil(leagueWeeks / 2) && (
+                  <View style={{ backgroundColor: c.gold + '22', paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: c.gold, letterSpacing: 1 }}>RIVALRY</Text>
+                  </View>
+                )}
+              </View>
+              {wk.matchups.map((m, mi) => (
+                <View
+                  key={mi}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, backgroundColor: c.elevated, marginBottom: 2 }}
+                >
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: c.text }}>{m.a}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: c.textMuted, marginHorizontal: 8 }}>vs</Text>
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: c.text, textAlign: 'right' }}>{m.b}</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+          <Text style={{ fontSize: 11, color: c.textMuted, fontStyle: 'italic', textAlign: 'center', marginTop: 4, marginBottom: 12 }}>
+            Commissioner can edit matchups before season starts
+          </Text>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// ─── League: Step 5 — Review ────────────────────────────────────────
+function LeagueReviewStep({
+  name,
+  leagueDivisions,
+  leagueDivisionCount,
+  leagueDivisionNames,
+  leagueAutoBalance,
+  leagueWeeks,
+  leagueDivisionGames,
+  leagueCrossDivision,
+  leagueRivalryWeek,
+  selectedIds,
+  manualPlayers,
+}: {
+  name: string;
+  leagueDivisions: boolean;
+  leagueDivisionCount: number;
+  leagueDivisionNames: string[];
+  leagueAutoBalance: boolean;
+  leagueWeeks: number;
+  leagueDivisionGames: LeagueDivisionGames;
+  leagueCrossDivision: boolean;
+  leagueRivalryWeek: boolean;
+  selectedIds: string[];
+  manualPlayers: ManualPlayer[];
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const totalPlayers = allPlayers.length + manualPlayers.length + 1;
+
+  return (
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      {/* Trophy header */}
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Ionicons name="people" size={40} color={c.gold} style={{ marginBottom: 8 }} />
+        <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>{name}</Text>
+        <Text style={{ fontSize: 14, color: c.textMuted, marginTop: 6 }}>League Season</Text>
+      </View>
+
+      {/* League Structure */}
+      <AccordionSection title="League Structure" icon="grid-outline" iconColor={c.teal} defaultOpen>
+        {leagueDivisions ? (
+          <>
+            <Text style={[styles.reviewVal, { color: c.text }]}>
+              {leagueDivisionCount} divisions: {leagueDivisionNames.slice(0, leagueDivisionCount).join(', ')}
+            </Text>
+            <Text style={[styles.reviewVal, { color: c.textMuted }]}>
+              {leagueAutoBalance ? 'Auto-balanced by handicap' : 'Manual division assignment'}
+            </Text>
+          </>
+        ) : (
+          <Text style={[styles.reviewVal, { color: c.text }]}>Single pool — round-robin</Text>
+        )}
+      </AccordionSection>
+
+      {/* Schedule */}
+      <AccordionSection title="Schedule" icon="calendar-outline" iconColor={c.gold} defaultOpen>
+        <Text style={[styles.reviewVal, { color: c.text }]}>{leagueWeeks} week regular season</Text>
+        {leagueDivisions && (
+          <>
+            <Text style={[styles.reviewVal, { color: c.text }]}>
+              Division opponents: {leagueDivisionGames === 'twice' ? 'Twice' : 'Once'}
+            </Text>
+            <Text style={[styles.reviewVal, { color: c.textMuted }]}>
+              Cross-division games: {leagueCrossDivision ? 'Yes' : 'No'}
+            </Text>
+          </>
+        )}
+        {leagueRivalryWeek && (
+          <Text style={[styles.reviewVal, { color: c.gold }]}>Rivalry Week enabled</Text>
+        )}
+      </AccordionSection>
+
+      {/* Members */}
+      <AccordionSection title={`Members (${totalPlayers})`} icon="people" iconColor={c.teal} defaultOpen>
+        <View style={styles.reviewAvatarRow}>
+          <View style={styles.reviewAvatarItem}>
+            <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
+              <Ionicons name="person" size={18} color={c.teal} />
+            </View>
+            <Text style={[styles.reviewAvatarName, { color: c.teal }]} numberOfLines={1}>You</Text>
+          </View>
+          {allPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <Avatar id={m.id} name={m.name} size={40} />
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+          {manualPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '22' }]}>
+                <Ionicons name="person-add" size={16} color={c.teal} />
+              </View>
+              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+            </View>
+          ))}
+        </View>
+      </AccordionSection>
+    </ScrollView>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────
 export default function SeasonsScreen() {
   const { theme } = useTheme();
@@ -2831,6 +3312,17 @@ export default function SeasonsScreen() {
   const [strokeDesignatedCourseId, setStrokeDesignatedCourseId] = useState<string | null>(null);
   const [strokeDesignatedCourseName, setStrokeDesignatedCourseName] = useState<string | null>(null);
 
+  // State — League
+  const [leagueDivisions, setLeagueDivisions] = useState(true);
+  const [leagueDivisionCount, setLeagueDivisionCount] = useState(2);
+  const [leagueDivisionNames, setLeagueDivisionNames] = useState<string[]>(['East', 'West']);
+  const [leagueAutoBalance, setLeagueAutoBalance] = useState(true);
+  const [leagueWeeks, setLeagueWeeks] = useState(10);
+  const [leagueDivisionGames, setLeagueDivisionGames] = useState<'once' | 'twice'>('once');
+  const [leagueCrossDivision, setLeagueCrossDivision] = useState(true);
+  const [leagueRivalryWeek, setLeagueRivalryWeek] = useState(false);
+  const [leagueSchedulePreview, setLeagueSchedulePreview] = useState<{ week: number; matchups: { a: string; b: string }[] }[]>([]);
+
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
     const p = LENGTH_PRESETS.find((lp) => lp.key === preset)!;
@@ -2862,15 +3354,22 @@ export default function SeasonsScreen() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basics') return name.trim().length >= 3;
-    if (currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'stroke_members') {
+    if (currentStep === 'members' || currentStep === 'rc_members' || currentStep === 'stroke_members' || currentStep === 'league_members') {
       return (selectedIds.length + manualPlayers.length) >= 4;
     }
     if (currentStep === 'bracket_members') {
       // For bracket, need at least 3 others (you + 3 = 4 minimum)
       return (selectedIds.length + manualPlayers.length) >= 3;
     }
+    if (currentStep === 'league_structure') {
+      // Divisions must have names if enabled
+      if (leagueDivisions) {
+        return leagueDivisionNames.slice(0, leagueDivisionCount).every((n) => n.trim().length > 0);
+      }
+      return true;
+    }
     return true;
-  }, [currentStep, name, selectedIds, manualPlayers]);
+  }, [currentStep, name, selectedIds, manualPlayers, leagueDivisions, leagueDivisionCount, leagueDivisionNames]);
 
   const [creating, setCreating] = useState(false);
 
@@ -2938,9 +3437,22 @@ export default function SeasonsScreen() {
           designated_course_id: strokeCourseRestriction === 'same' ? strokeDesignatedCourseId : null,
         },
       });
+    } else if (seasonType === 'league') {
+      Object.assign(base, {
+        league_config: {
+          divisions_enabled: leagueDivisions,
+          division_count: leagueDivisions ? leagueDivisionCount : null,
+          division_names: leagueDivisions ? leagueDivisionNames.slice(0, leagueDivisionCount) : null,
+          auto_balance_handicap: leagueDivisions ? leagueAutoBalance : null,
+          regular_season_weeks: leagueWeeks,
+          division_games: leagueDivisions ? leagueDivisionGames : null,
+          cross_division: leagueDivisions ? leagueCrossDivision : null,
+          rivalry_week: leagueRivalryWeek,
+        },
+      });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -2966,7 +3478,7 @@ export default function SeasonsScreen() {
         const created = await seasonsService.create(
           {
             name,
-            type: seasonType === 'bracket' || seasonType === 'stroke_series' ? 'custom' : seasonType as any,
+            type: seasonType === 'bracket' || seasonType === 'stroke_series' || seasonType === 'league' ? 'custom' : seasonType as any,
             creator_id: user.id,
             config,
             status: 'draft',
@@ -3185,6 +3697,43 @@ export default function SeasonsScreen() {
             strokeLimitRounds={strokeLimitRounds} strokeMaxRoundsPerWeek={strokeMaxRoundsPerWeek}
             strokeDropWorst={strokeDropWorst} strokeDropCount={strokeDropCount}
             strokeCourseRestriction={strokeCourseRestriction} strokeDesignatedCourseName={strokeDesignatedCourseName}
+            selectedIds={selectedIds} manualPlayers={manualPlayers}
+          />
+        )}
+        {/* League steps */}
+        {currentStep === 'league_structure' && (
+          <LeagueStructureStep
+            leagueDivisions={leagueDivisions} setLeagueDivisions={setLeagueDivisions}
+            leagueDivisionCount={leagueDivisionCount} setLeagueDivisionCount={setLeagueDivisionCount}
+            leagueDivisionNames={leagueDivisionNames} setLeagueDivisionNames={setLeagueDivisionNames}
+            leagueAutoBalance={leagueAutoBalance} setLeagueAutoBalance={setLeagueAutoBalance}
+          />
+        )}
+        {currentStep === 'league_schedule' && (
+          <LeagueScheduleStep
+            leagueWeeks={leagueWeeks} setLeagueWeeks={setLeagueWeeks}
+            leagueDivisions={leagueDivisions} leagueDivisionCount={leagueDivisionCount}
+            leagueDivisionGames={leagueDivisionGames} setLeagueDivisionGames={setLeagueDivisionGames}
+            leagueCrossDivision={leagueCrossDivision} setLeagueCrossDivision={setLeagueCrossDivision}
+            leagueRivalryWeek={leagueRivalryWeek} setLeagueRivalryWeek={setLeagueRivalryWeek}
+            leagueSchedulePreview={leagueSchedulePreview} setLeagueSchedulePreview={setLeagueSchedulePreview}
+            selectedIds={selectedIds} manualPlayers={manualPlayers}
+            leagueDivisionNames={leagueDivisionNames}
+          />
+        )}
+        {(currentStep === 'league_members') && (
+          <MembersStep
+            selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name}
+            manualPlayers={manualPlayers} setManualPlayers={setManualPlayers}
+          />
+        )}
+        {currentStep === 'league_review' && (
+          <LeagueReviewStep
+            name={name}
+            leagueDivisions={leagueDivisions} leagueDivisionCount={leagueDivisionCount}
+            leagueDivisionNames={leagueDivisionNames} leagueAutoBalance={leagueAutoBalance}
+            leagueWeeks={leagueWeeks} leagueDivisionGames={leagueDivisionGames}
+            leagueCrossDivision={leagueCrossDivision} leagueRivalryWeek={leagueRivalryWeek}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
           />
         )}
