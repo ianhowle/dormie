@@ -122,3 +122,65 @@ export function calculateStablefordPoints(score: number, par: number, handicapSt
   if (diff === -2) return 4;
   return 5; // double eagle or better
 }
+
+/**
+ * Calculate Modified Stableford points for a single hole.
+ * Uses an aggressive scale rewarding birdies/eagles and penalizing bogeys.
+ *
+ * Scale:
+ *   Albatross or better = +8
+ *   Eagle               = +5
+ *   Birdie              = +2
+ *   Par                 =  0
+ *   Bogey               = -1
+ *   Double bogey        = -3
+ *   Triple+             = -5
+ */
+export function calculateModifiedStablefordPoints(score: number, par: number, handicapStrokes: number): number {
+  const netScore = score - handicapStrokes;
+  const diff = netScore - par;
+  if (diff <= -3) return 8;  // Albatross or better
+  if (diff === -2) return 5; // Eagle
+  if (diff === -1) return 2; // Birdie
+  if (diff === 0) return 0;  // Par
+  if (diff === 1) return -1; // Bogey
+  if (diff === 2) return -3; // Double bogey
+  return -5;                 // Triple bogey or worse
+}
+
+/**
+ * Calculate Modified Stableford points for a full round.
+ */
+export function calculateModifiedStablefordFromRound(
+  holeScores: number[],
+  coursePars: number[],
+  handicapStrokesPerHole?: number[],
+): number {
+  const len = Math.min(holeScores.length, coursePars.length);
+  let total = 0;
+  for (let i = 0; i < len; i++) {
+    const hcpStrokes = handicapStrokesPerHole?.[i] ?? 0;
+    total += calculateModifiedStablefordPoints(holeScores[i], coursePars[i], hcpStrokes);
+  }
+  return total;
+}
+
+/**
+ * Select the best N holes from a set of Stableford points.
+ * Used for Best 9, Best 6, etc. scoring formats.
+ *
+ * @param holePoints  Array of per-hole Stableford points (length 9 or 18)
+ * @param bestCount   Number of best holes to select (e.g. 9)
+ * @returns           { total, selectedIndices } — sum and 0-based hole indices chosen
+ */
+export function calculateBestNHoles(
+  holePoints: number[],
+  bestCount: number,
+): { total: number; selectedIndices: number[] } {
+  const indexed = holePoints.map((pts, i) => ({ pts, idx: i }));
+  indexed.sort((a, b) => b.pts - a.pts);
+  const selected = indexed.slice(0, bestCount);
+  const total = selected.reduce((sum, s) => sum + s.pts, 0);
+  const selectedIndices = selected.map((s) => s.idx).sort((a, b) => a - b);
+  return { total, selectedIndices };
+}
