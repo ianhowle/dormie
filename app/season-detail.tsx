@@ -33,6 +33,9 @@ import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
 import { DormieMoment } from '../src/components/DormieMoment';
 import { StrokePlayStandings, buildDemoStrokePlayData } from '../src/components/StrokePlayStandings';
 import type { StrokePlayPlayer } from '../src/components/StrokePlayStandings';
+import { LeagueStandings, buildDemoLeagueData } from '../src/components/LeagueStandings';
+import type { LeaguePlayer } from '../src/components/LeagueStandings';
+import { WeeklyMatchupCard, buildDemoMatchup } from '../src/components/WeeklyMatchupCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -1085,8 +1088,12 @@ function SeasonDetailScreenInner() {
   const [strokePlayConfig, setStrokePlayConfig] = useState<any>(null);
   const [showStrokeChampionMoment, setShowStrokeChampionMoment] = useState(false);
   const [strokeChampion, setStrokeChampion] = useState<StrokePlayPlayer | null>(null);
+  const [isLeague, setIsLeague] = useState(false);
+  const [leagueConfig, setLeagueConfig] = useState<any>(null);
+  const [showLeagueChampionMoment, setShowLeagueChampionMoment] = useState(false);
+  const [leagueChampion, setLeagueChampion] = useState<LeaguePlayer | null>(null);
 
-  // Load season config to detect stroke play series
+  // Load season config to detect special season types
   useEffect(() => {
     if (!seasonId) return;
     const loadConfig = async () => {
@@ -1098,6 +1105,9 @@ function SeasonDetailScreenInner() {
           if (season?.config?.season_type === 'stroke_series') {
             setIsStrokePlay(true);
             setStrokePlayConfig(season.config.stroke_play_config);
+          } else if (season?.config?.season_type === 'league') {
+            setIsLeague(true);
+            setLeagueConfig(season.config.league_config);
           }
         }
       } catch {}
@@ -1115,9 +1125,25 @@ function SeasonDetailScreenInner() {
     return buildDemoStrokePlayData(totalRounds, dropWorst, dropCount);
   }, [isStrokePlay, strokePlayConfig]);
 
+  // Build league demo data
+  const leagueData = useMemo(() => {
+    if (!isLeague) return null;
+    return buildDemoLeagueData();
+  }, [isLeague]);
+
+  const demoMatchup = useMemo(() => {
+    if (!isLeague) return null;
+    return buildDemoMatchup();
+  }, [isLeague]);
+
   const handleStrokeChampionMoment = useCallback((winner: StrokePlayPlayer) => {
     setStrokeChampion(winner);
     setShowStrokeChampionMoment(true);
+  }, []);
+
+  const handleLeagueChampionMoment = useCallback((winner: LeaguePlayer) => {
+    setLeagueChampion(winner);
+    setShowLeagueChampionMoment(true);
   }, []);
 
   // Check if matchup reveal should be shown (first visit)
@@ -1283,7 +1309,7 @@ function SeasonDetailScreenInner() {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
           <Text style={[styles.headerTitle, { fontFamily: GEO }]}>
-            {isStrokePlay ? (params.name ?? 'Stroke Play Series') : 'FedEx Cup'}
+            {isStrokePlay ? (params.name ?? 'Stroke Play Series') : isLeague ? (params.name ?? 'Dormie League') : 'FedEx Cup'}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <Pressable
@@ -1344,6 +1370,14 @@ function SeasonDetailScreenInner() {
           </Text>
         )}
 
+        {/* League header summary */}
+        {isLeague && leagueData && (
+          <Text style={[styles.progressLabel, { color: '#FFFFFFAA', marginTop: 8 }]}>
+            Week {leagueData.config.currentWeek} of {leagueData.config.totalWeeks}
+            {leagueData.config.divisionsEnabled ? ` · ${leagueData.config.divisionNames.length} Divisions` : ''}
+          </Text>
+        )}
+
         {/* Leader card */}
         {isStrokePlay && strokePlayData ? (
           strokePlayData.players[0] && (
@@ -1362,6 +1396,21 @@ function SeasonDetailScreenInner() {
                     ? 'E'
                     : `${strokePlayData.players[0].totalStrokes - strokePlayData.players[0].totalPar}`
                 }
+              </Text>
+            </View>
+          )
+        ) : isLeague && leagueData ? (
+          leagueData.players[0] && (
+            <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar id={leagueData.players[0].playerId} name={leagueData.players[0].name} size={36} />
+                <View>
+                  <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{leagueData.players[0].name}</Text>
+                  <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>League Leader</Text>
+                </View>
+              </View>
+              <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
+                {leagueData.players[0].wins}-{leagueData.players[0].losses}
               </Text>
             </View>
           )
@@ -1391,6 +1440,52 @@ function SeasonDetailScreenInner() {
             players={strokePlayData.players}
             config={strokePlayData.config}
             onChampionMoment={handleStrokeChampionMoment}
+          />
+        </ScrollView>
+      ) : isLeague && leagueData ? (
+        <ScrollView style={{ flex: 1 }}>
+          {/* Weekly matchup card at top */}
+          {demoMatchup && (
+            <WeeklyMatchupCard
+              matchup={demoMatchup}
+              onPress={() => {
+                router.push({
+                  pathname: '/league-matchup-detail',
+                  params: {
+                    playerName: demoMatchup.playerName,
+                    playerId: demoMatchup.playerId,
+                    opponentName: demoMatchup.opponentName,
+                    opponentId: demoMatchup.opponentId,
+                    playerScore: demoMatchup.playerScore != null ? String(demoMatchup.playerScore) : '',
+                    opponentScore: demoMatchup.opponentScore != null ? String(demoMatchup.opponentScore) : '',
+                    week: String(demoMatchup.week),
+                    format: demoMatchup.format,
+                    state: demoMatchup.state,
+                  },
+                });
+              }}
+            />
+          )}
+          <LeagueStandings
+            players={leagueData.players}
+            config={leagueData.config}
+            onChampionMoment={handleLeagueChampionMoment}
+            onMatchupTap={(player, result) => {
+              router.push({
+                pathname: '/league-matchup-detail',
+                params: {
+                  playerName: player.name,
+                  playerId: player.playerId,
+                  opponentName: result.opponentName,
+                  opponentId: result.opponentId,
+                  playerScore: String(result.playerScore),
+                  opponentScore: String(result.opponentScore),
+                  week: String(result.week),
+                  format: leagueData.config.scoringFormat,
+                  state: 'complete',
+                },
+              });
+            }}
           />
         </ScrollView>
       ) : (
@@ -1457,6 +1552,18 @@ function SeasonDetailScreenInner() {
           : ''
         }
         onDismiss={() => setShowStrokeChampionMoment(false)}
+      />
+
+      {/* League Champion Cinematic Moment */}
+      <DormieMoment
+        visible={showLeagueChampionMoment}
+        type="LEAGUE_CHAMPION"
+        playerName={leagueChampion?.name ?? ''}
+        detail={leagueChampion
+          ? `${leagueChampion.wins}-${leagueChampion.losses}${leagueChampion.ties > 0 ? `-${leagueChampion.ties}` : ''} (.${Math.round(((leagueChampion.wins + leagueChampion.ties * 0.5) / (leagueChampion.wins + leagueChampion.losses + leagueChampion.ties)) * 1000)})`
+          : ''
+        }
+        onDismiss={() => setShowLeagueChampionMoment(false)}
       />
     </View>
   );

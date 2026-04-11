@@ -26,7 +26,8 @@ export type MomentType =
   | 'BBB_TRIPLE_CROWN'
   | 'CUP_CLINCHED'
   | 'BRACKET_CHAMPION'
-  | 'STROKE_PLAY_CHAMPION';
+  | 'STROKE_PLAY_CHAMPION'
+  | 'LEAGUE_CHAMPION';
 
 type MomentConfig = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -79,6 +80,11 @@ const MOMENT_CONFIG: Record<MomentType, MomentConfig> = {
     icon: 'trophy',
     label: 'STROKE PLAY CHAMPION',
     gradient: ['#1E4D2B', '#0A1F12'],
+  },
+  LEAGUE_CHAMPION: {
+    icon: 'trophy',
+    label: 'LEAGUE CHAMPION',
+    gradient: ['#1A2744', '#0A1020'],
   },
 };
 
