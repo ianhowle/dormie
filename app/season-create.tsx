@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -5583,7 +5583,7 @@ export default function SeasonsScreen() {
   const [editableWeeks, setEditableWeeks] = useState<WeekConfig[]>(weeks);
 
   // Sync when preset changes
-  useMemo(() => setEditableWeeks(weeks), [weeks]);
+  useEffect(() => setEditableWeeks(weeks), [weeks]);
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basics') return name.trim().length >= 3;
@@ -5785,6 +5785,15 @@ export default function SeasonsScreen() {
           multiplier: w.multiplier,
         }))
       : [];
+
+    // Store manual players in config so they persist even without user accounts
+    if (manualPlayers.length > 0) {
+      config.manual_players = manualPlayers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        handicap: p.handicap,
+      }));
+    }
 
     // 1. Try Supabase
     if (user) {

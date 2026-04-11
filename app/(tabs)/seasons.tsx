@@ -10,7 +10,7 @@ import {
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
@@ -235,6 +235,52 @@ function PastSeasonCard({ season }: { season: MockSeason }) {
   );
 }
 
+// ─── Real Season Card ────────────────────────────────────────────────
+function RealSeasonCard({ season }: { season: any }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const isDark = theme.isDark;
+  const router = useRouter();
+  const config = season.config ?? {};
+  const isCompleted = season.status === 'completed';
+  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', custom: 'Custom' }[season.type as string] ?? season.type;
+  const presetLabel = config.length_preset
+    ? { sprint: 'Sprint (6 wks)', standard: 'Standard (10 wks)', full: 'Full (15 wks)', marathon: 'Marathon (20 wks)' }[config.length_preset as string] ?? ''
+    : '';
+
+  return (
+    <Pressable
+      onPress={() => {
+        haptics.light();
+        router.push({ pathname: '/season-detail', params: { id: season.id, name: season.name } });
+      }}
+      style={({ pressed }) => [
+        isCompleted ? st.pastCard : st.activeCard,
+        { backgroundColor: c.cardBg, borderColor: c.border },
+        !isCompleted && { borderLeftColor: '#006747', borderLeftWidth: 3 },
+        isCompleted && { borderLeftColor: '#C9A227', borderLeftWidth: 3 },
+        isDark ? cardShadowDark : cardShadowLight,
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      {!isCompleted && <View style={[st.cardAccent, { backgroundColor: c.gold }]} />}
+      <View style={isCompleted ? st.pastLeft : st.cardBody}>
+        <View style={st.cardTopRow}>
+          <View style={[st.statusBadge, { backgroundColor: isCompleted ? '#C9A227' : season.status === 'draft' ? c.textMuted : '#006747' }]}>
+            <Text style={st.statusText}>{(season.status ?? 'active').toUpperCase()}</Text>
+          </View>
+          <Text style={[st.formatLabel, { color: c.textMuted, fontFamily: SANS }]}>{typeLabel}</Text>
+        </View>
+        <Text style={[isCompleted ? st.pastName : st.cardName, { color: c.text, fontFamily: GEO }]}>{season.name}</Text>
+        {presetLabel ? (
+          <Text style={[st.pastMeta, { color: c.textMuted, fontFamily: SANS }]}>{presetLabel}</Text>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-forward" size={isCompleted ? 16 : 18} color={c.textMuted} style={isCompleted ? { alignSelf: 'center' } : st.cardChevron} />
+    </Pressable>
+  );
+}
+
 // ─── Main Screen ─────────────────────────────────────────────────────
 export default function SeasonsTab() {
   const { theme } = useTheme();
@@ -248,13 +294,23 @@ export default function SeasonsTab() {
   const [showDemoData, setShowDemoData] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  useEffect(() => {
+  const navigation = useNavigation();
+
+  const loadSeasons = useCallback(() => {
     if (!user) return;
     seasonsService.getByUser(user.id).then((s) => {
       setRealSeasons(s);
       setDataLoaded(true);
     }).catch(() => setDataLoaded(true));
   }, [user]);
+
+  useEffect(() => { loadSeasons(); }, [loadSeasons]);
+
+  // Re-fetch when tab gains focus (e.g. after creating a season)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', loadSeasons);
+    return unsubscribe;
+  }, [navigation, loadSeasons]);
 
   const hasRealSeasons = realSeasons.length > 0;
 
@@ -310,27 +366,55 @@ export default function SeasonsTab() {
           )}
           {showDemoData && !hasRealSeasons && <DemoBanner />}
 
-          {/* Active Seasons */}
-          {(hasRealSeasons || showDemoData) && (MOCK_ACTIVE_SEASONS.length > 0 || showDemoData) && (
+          {/* Real Seasons from Supabase */}
+          {hasRealSeasons && (() => {
+            const active = realSeasons.filter((s: any) => s.status === 'active' || s.status === 'draft' || s.status === 'playoffs');
+            const completed = realSeasons.filter((s: any) => s.status === 'completed');
+            return (
+              <>
+                {active.length > 0 && (
+                  <>
+                    <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO }]}>ACTIVE</Text>
+                    <GoldDivider style={{ marginBottom: 12 }} />
+                    {active.map((s: any) => (
+                      <RealSeasonCard key={s.id} season={s} />
+                    ))}
+                  </>
+                )}
+                {completed.length > 0 && (
+                  <>
+                    <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO, marginTop: 24 }]}>
+                      COMPLETED
+                    </Text>
+                    <GoldDivider style={{ marginBottom: 12 }} />
+                    {completed.map((s: any) => (
+                      <RealSeasonCard key={s.id} season={s} />
+                    ))}
+                  </>
+                )}
+              </>
+            );
+          })()}
+
+          {/* Demo data when no real seasons */}
+          {showDemoData && !hasRealSeasons && (
             <>
               <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO }]}>ACTIVE</Text>
               <GoldDivider style={{ marginBottom: 12 }} />
               {MOCK_ACTIVE_SEASONS.map((s) => (
                 <ActiveSeasonCard key={s.id} season={s} />
               ))}
-            </>
-          )}
-
-          {/* Past Seasons */}
-          {(hasRealSeasons || showDemoData) && MOCK_PAST_SEASONS.length > 0 && (
-            <>
-              <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO, marginTop: 24 }]}>
-                COMPLETED
-              </Text>
-              <GoldDivider style={{ marginBottom: 12 }} />
-              {MOCK_PAST_SEASONS.map((s) => (
-                <PastSeasonCard key={s.id} season={s} />
-              ))}
+              {MOCK_PAST_SEASONS.length > 0 && (
+                <>
+                  <Text style={[st.sectionLabel, { color: c.gold, fontFamily: GEO, marginTop: 24 }]}>
+                    COMPLETED
+                  </Text>
+                  <GoldDivider style={{ marginBottom: 12 }} />
+                  {MOCK_PAST_SEASONS.map((s) => (
+                    <PastSeasonCard key={s.id} season={s} />
+                  ))}
+                </>
+              )}
             </>
           )}
 
