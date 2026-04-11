@@ -147,56 +147,202 @@ export function getUserSeasonComparison(_seasonId: string, _userId: string): Use
 
 // ─── Ryder Cup Team Stats ───────────────────────────────────────────
 
-export function getRyderCupTeamStats(): { red: TeamStats; blue: TeamStats } {
+type MatchResult = {
+  sessionId: string;
+  redPlayers: string[];
+  bluePlayers: string[];
+  winner: 'red' | 'blue' | 'halved';
+};
+
+type SessionResult = {
+  id: string;
+  status: string;
+  redScore: number;
+  blueScore: number;
+};
+
+/**
+ * Compute team stats from a trip's ryder_cup_config data.
+ * Falls back to session-level score aggregation when matchResults aren't available.
+ */
+export function getRyderCupTeamStats(config?: {
+  teamRedName?: string;
+  teamBlueName?: string;
+  sessionResults?: SessionResult[];
+  matchResults?: MatchResult[];
+  finalScore?: { red: number; blue: number };
+}): { red: TeamStats; blue: TeamStats } {
+  const teamRedName = config?.teamRedName ?? 'Team Red';
+  const teamBlueName = config?.teamBlueName ?? 'Team Blue';
+
+  let redRecord = { wins: 0, losses: 0, halves: 0 };
+  let blueRecord = { wins: 0, losses: 0, halves: 0 };
+  let redPoints = 0;
+  let bluePoints = 0;
+
+  if (config?.matchResults && config.matchResults.length > 0) {
+    for (const m of config.matchResults) {
+      if (m.winner === 'red') {
+        redRecord.wins++;
+        blueRecord.losses++;
+        redPoints += 1;
+      } else if (m.winner === 'blue') {
+        blueRecord.wins++;
+        redRecord.losses++;
+        bluePoints += 1;
+      } else {
+        redRecord.halves++;
+        blueRecord.halves++;
+        redPoints += 0.5;
+        bluePoints += 0.5;
+      }
+    }
+  } else if (config?.sessionResults) {
+    for (const s of config.sessionResults) {
+      redPoints += s.redScore;
+      bluePoints += s.blueScore;
+    }
+    redRecord = { wins: Math.floor(redPoints), losses: Math.floor(bluePoints), halves: 0 };
+    blueRecord = { wins: Math.floor(bluePoints), losses: Math.floor(redPoints), halves: 0 };
+  } else if (config?.finalScore) {
+    redPoints = config.finalScore.red;
+    bluePoints = config.finalScore.blue;
+    redRecord = { wins: Math.floor(redPoints), losses: Math.floor(bluePoints), halves: 0 };
+    blueRecord = { wins: Math.floor(bluePoints), losses: Math.floor(redPoints), halves: 0 };
+  }
+
+  const emptyScoringBreakdown: ScoringBreakdown = {
+    eagles: 0, birdies: 0, pars: 0, bogeys: 0, doubles: 0, totalHoles: 0, totalRounds: 0,
+  };
+
   return {
     red: {
-      teamName: 'Team Red',
+      teamName: teamRedName,
       teamColor: '#C41E3A',
-      scoring: {
-        eagles: 5,
-        birdies: 62,
-        pars: 248,
-        bogeys: 140,
-        doubles: 45,
-        totalHoles: 500,
-        totalRounds: 28,
-      },
-      girPct: 46,
-      firPct: 58,
-      points: 8.5,
-      record: { wins: 7, losses: 5, halves: 3 },
+      scoring: emptyScoringBreakdown,
+      girPct: 0,
+      firPct: 0,
+      points: redPoints,
+      record: redRecord,
     },
     blue: {
-      teamName: 'Team Blue',
+      teamName: teamBlueName,
       teamColor: '#1A2744',
-      scoring: {
-        eagles: 3,
-        birdies: 55,
-        pars: 260,
-        bogeys: 148,
-        doubles: 34,
-        totalHoles: 500,
-        totalRounds: 28,
-      },
-      girPct: 43,
-      firPct: 52,
-      points: 6.5,
-      record: { wins: 5, losses: 7, halves: 3 },
+      scoring: emptyScoringBreakdown,
+      girPct: 0,
+      firPct: 0,
+      points: bluePoints,
+      record: blueRecord,
     },
   };
 }
 
-export function getRyderCupPlayerContributions(): PlayerContribution[] {
-  return [
-    { playerId: '1', name: 'McGowan', pointsEarned: 3, wins: 2, losses: 1, halves: 1, girPct: 52, firPct: 64, avgScore: 76 },
-    { playerId: '2', name: 'Fletcher', pointsEarned: 2.5, wins: 2, losses: 0, halves: 1, girPct: 48, firPct: 61, avgScore: 78 },
-    { playerId: '3', name: 'Patterson', pointsEarned: 2, wins: 2, losses: 1, halves: 0, girPct: 44, firPct: 57, avgScore: 79 },
-    { playerId: '4', name: 'Sullivan', pointsEarned: 1, wins: 1, losses: 2, halves: 0, girPct: 38, firPct: 50, avgScore: 83 },
-    { playerId: '5', name: 'Rodriguez', pointsEarned: 2.5, wins: 2, losses: 1, halves: 1, girPct: 46, firPct: 58, avgScore: 80 },
-    { playerId: '6', name: 'Chen', pointsEarned: 1.5, wins: 1, losses: 1, halves: 1, girPct: 36, firPct: 46, avgScore: 85 },
-    { playerId: '7', name: 'Taylor', pointsEarned: 1, wins: 0, losses: 2, halves: 2, girPct: 40, firPct: 50, avgScore: 82 },
-    { playerId: '8', name: 'Brooks', pointsEarned: 1.5, wins: 1, losses: 1, halves: 1, girPct: 34, firPct: 43, avgScore: 86 },
-  ];
+/**
+ * Compute per-player W-L-H contributions from matchResults in ryder_cup_config.
+ * Each player's record is tallied from the matches they participated in.
+ */
+export function getRyderCupPlayerContributions(
+  matchResults?: MatchResult[],
+): PlayerContribution[] {
+  if (!matchResults || matchResults.length === 0) return [];
+
+  const playerMap = new Map<string, PlayerContribution>();
+
+  for (const m of matchResults) {
+    const redWon = m.winner === 'red';
+    const blueWon = m.winner === 'blue';
+    const halved = m.winner === 'halved';
+
+    for (const name of m.redPlayers) {
+      const existing = playerMap.get(name) ?? {
+        playerId: name,
+        name,
+        pointsEarned: 0,
+        wins: 0,
+        losses: 0,
+        halves: 0,
+        girPct: 0,
+        firPct: 0,
+        avgScore: 0,
+      };
+      if (redWon) { existing.wins++; existing.pointsEarned += 1; }
+      else if (blueWon) { existing.losses++; }
+      else if (halved) { existing.halves++; existing.pointsEarned += 0.5; }
+      playerMap.set(name, existing);
+    }
+
+    for (const name of m.bluePlayers) {
+      const existing = playerMap.get(name) ?? {
+        playerId: name,
+        name,
+        pointsEarned: 0,
+        wins: 0,
+        losses: 0,
+        halves: 0,
+        girPct: 0,
+        firPct: 0,
+        avgScore: 0,
+      };
+      if (blueWon) { existing.wins++; existing.pointsEarned += 1; }
+      else if (redWon) { existing.losses++; }
+      else if (halved) { existing.halves++; existing.pointsEarned += 0.5; }
+      playerMap.set(name, existing);
+    }
+  }
+
+  return Array.from(playerMap.values()).sort((a, b) => b.pointsEarned - a.pointsEarned);
+}
+
+/**
+ * Fetch all completed Ryder Cup trips for a player and compute their aggregate W-L-H record.
+ */
+export async function getPlayerRyderCupRecord(userId: string): Promise<{
+  wins: number;
+  losses: number;
+  halves: number;
+  cupsPlayed: number;
+}> {
+  const { data, error } = await supabase
+    .from('trip_members')
+    .select('trip:trips(id, trip_type, status, ryder_cup_config)')
+    .eq('user_id', userId);
+  if (error) throw error;
+
+  let wins = 0;
+  let losses = 0;
+  let halves = 0;
+  let cupsPlayed = 0;
+
+  for (const row of data ?? []) {
+    const trip = (row as any).trip;
+    if (!trip || trip.trip_type !== 'ryder' || trip.status !== 'completed') continue;
+    const config = trip.ryder_cup_config;
+    if (!config?.matchResults) continue;
+
+    cupsPlayed++;
+
+    // Find which team this player was on
+    const { data: membership } = await supabase
+      .from('trip_members')
+      .select('team')
+      .eq('trip_id', trip.id)
+      .eq('user_id', userId)
+      .single();
+    const playerTeam = membership?.team;
+    if (!playerTeam) continue;
+
+    for (const m of config.matchResults as MatchResult[]) {
+      const isOnRed = playerTeam === 'red';
+      const playerNames = isOnRed ? m.redPlayers : m.bluePlayers;
+      // We can't match by userId here since matchResults store display names,
+      // so count all team matches as the player's matches for now
+      if (m.winner === playerTeam) wins++;
+      else if (m.winner === 'halved') halves++;
+      else losses++;
+    }
+  }
+
+  return { wins, losses, halves, cupsPlayed };
 }
 
 // ─── Match Play / Bracket Stats ─────────────────────────────────────

@@ -1900,13 +1900,27 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
         setMomentDetail(`${winnerPts % 1 === 0 ? winnerPts : winnerPts.toFixed(1)} - ${loserPts % 1 === 0 ? loserPts : loserPts.toFixed(1)}`);
       }
       setMomentVisible(true);
-      // Persist completion to Supabase
+      // Persist completion to Supabase (include match results for W-L-H stats)
+      const allMatchResults: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[] = [];
+      for (const sessionId of Object.keys(matches)) {
+        for (const m of matches[sessionId]) {
+          if (m.winner) {
+            allMatchResults.push({
+              sessionId,
+              redPlayers: m.redPlayers,
+              bluePlayers: m.bluePlayers,
+              winner: m.winner,
+            });
+          }
+        }
+      }
       tripsService.update(trip.id, {
         status: 'completed',
         ryder_cup_config: {
           ...(rcConfig || { teamRedName: 'Team Red', teamBlueName: 'Team Blue', sessions: [], formation: 'captain' }),
           winner: cupWinner,
           finalScore: { red: redTotal, blue: blueTotal },
+          matchResults: allMatchResults,
         } as any,
       }).catch(() => {});
       // Auto-navigate to completion after moment dismisses
@@ -1973,7 +1987,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
                   ? { ...s, status: 'complete' as SessionStatus, redScore: redPts, blueScore: bluePts }
                   : s
               );
-              // Persist session results to ryder_cup_config
+              // Persist session results and match results to ryder_cup_config
               if (rcConfig) {
                 const sessionResults = updated.map((s) => ({
                   id: s.id,
@@ -1981,10 +1995,26 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
                   redScore: s.redScore ?? 0,
                   blueScore: s.blueScore ?? 0,
                 }));
+                // Build match results from all sessions
+                const matchResults: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[] = [];
+                for (const s of updated) {
+                  const sessionMatches = matches[s.id] ?? [];
+                  for (const m of sessionMatches) {
+                    if (m.winner) {
+                      matchResults.push({
+                        sessionId: s.id,
+                        redPlayers: m.redPlayers,
+                        bluePlayers: m.bluePlayers,
+                        winner: m.winner,
+                      });
+                    }
+                  }
+                }
                 tripsService.update(trip.id, {
                   ryder_cup_config: {
                     ...rcConfig,
                     sessionResults,
+                    matchResults,
                   } as any,
                 }).catch(() => {});
               }
@@ -2352,7 +2382,32 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
           {teamsDrafted && sessions.some((s) => s.status !== 'not_started') && (
             <View>
               <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>TEAM STATS</Text>
-              <SeasonStatsSection seasonId={trip.id} userId={user?.id ?? 'self'} seasonType="ryder_cup" />
+              <SeasonStatsSection
+                seasonId={trip.id}
+                userId={user?.id ?? 'self'}
+                seasonType="ryder_cup"
+                ryderCupConfig={{
+                  teamRedName: teamRedName,
+                  teamBlueName: teamBlueName,
+                  sessionResults: sessions.map((s) => ({
+                    id: s.id,
+                    status: s.status,
+                    redScore: s.redScore ?? 0,
+                    blueScore: s.blueScore ?? 0,
+                  })),
+                  matchResults: Object.entries(matches).flatMap(([sessionId, sessionMatches]) =>
+                    sessionMatches
+                      .filter((m) => m.winner != null)
+                      .map((m) => ({
+                        sessionId,
+                        redPlayers: m.redPlayers,
+                        bluePlayers: m.bluePlayers,
+                        winner: m.winner!,
+                      }))
+                  ),
+                  finalScore: rcConfig?.finalScore as { red: number; blue: number } | undefined,
+                }}
+              />
             </View>
           )}
 

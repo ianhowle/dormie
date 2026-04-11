@@ -43,15 +43,22 @@ type Props = {
   seasonId: string;
   userId: string;
   seasonType: SeasonStatsType;
+  ryderCupConfig?: {
+    teamRedName?: string;
+    teamBlueName?: string;
+    sessionResults?: { id: string; status: string; redScore: number; blueScore: number }[];
+    matchResults?: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[];
+    finalScore?: { red: number; blue: number };
+  };
 };
 
 // ─── Main Component ─────────────────────────────────────────────────
-export function SeasonStatsSection({ seasonId, userId, seasonType }: Props) {
+export function SeasonStatsSection({ seasonId, userId, seasonType, ryderCupConfig }: Props) {
   switch (seasonType) {
     case 'fedex':
       return <FedExStats seasonId={seasonId} userId={userId} />;
     case 'ryder_cup':
-      return <RyderCupStats />;
+      return <RyderCupStats config={ryderCupConfig} />;
     case 'stroke_play':
       return <StrokePlayStats seasonId={seasonId} userId={userId} />;
     case 'league':
@@ -181,13 +188,13 @@ function FedExStats({ seasonId, userId }: { seasonId: string; userId: string }) 
 // ═══════════════════════════════════════════════════════════════════════
 // RYDER CUP STATS
 // ═══════════════════════════════════════════════════════════════════════
-function RyderCupStats() {
+function RyderCupStats({ config }: { config?: Props['ryderCupConfig'] }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerContribution | null>(null);
 
-  const teamStats = useMemo(() => getRyderCupTeamStats(), []);
-  const contributions = useMemo(() => getRyderCupPlayerContributions(), []);
+  const teamStats = useMemo(() => getRyderCupTeamStats(config), [config]);
+  const contributions = useMemo(() => getRyderCupPlayerContributions(config?.matchResults), [config]);
 
   const redSegments: DonutSegment[] = useMemo(() => buildTeamSegments(teamStats.red), [teamStats]);
   const blueSegments: DonutSegment[] = useMemo(() => buildTeamSegments(teamStats.blue), [teamStats]);
@@ -258,6 +265,11 @@ function RyderCupStats() {
       {/* Individual Contributions */}
       <View style={styles.section}>
         <SectionHeader title="INDIVIDUAL CONTRIBUTIONS" />
+        {contributions.length === 0 && (
+          <Text style={[styles.emptyText, { color: c.textMuted }]}>
+            Match results will appear as sessions complete
+          </Text>
+        )}
         {contributions.map((p) => (
           <Pressable
             key={p.playerId}
@@ -654,6 +666,11 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 11,
     marginTop: 12,
+  },
+  emptyText: {
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 16,
   },
 
   // Nested donut row

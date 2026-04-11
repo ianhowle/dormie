@@ -110,6 +110,10 @@ export interface RyderCupConfig {
   firstToTarget?: number | null;
   nineHoleMatches?: boolean;
   sideGames?: string[];
+  winner?: 'red' | 'blue' | 'tied';
+  finalScore?: { red: number; blue: number };
+  sessionResults?: { id: string; status: string; redScore: number; blueScore: number }[];
+  matchResults?: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[];
 }
 
 export interface TripMember {
