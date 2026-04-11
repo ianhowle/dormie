@@ -175,6 +175,7 @@ export interface SeasonMember {
   season_id: string;
   user_id: string;
   team: string | null;
+  eliminated: boolean;
 }
 
 export interface SeasonWeek {
@@ -185,6 +186,8 @@ export interface SeasonWeek {
   multiplier: number;
   is_playoff: boolean;
   is_championship: boolean;
+  completed: boolean;
+  all_scores_submitted: boolean;
   is_major: boolean;
   major_name: string | null;
   start_date: string | null;

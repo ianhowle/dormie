@@ -1114,23 +1114,32 @@ function SeasonDetailScreenInner() {
   // Load season config to detect special season types and FedEx settings
   useEffect(() => {
     if (!seasonId) return;
+    const applyConfig = (config: Record<string, any>) => {
+      if (config.season_type === 'stroke_series') {
+        setIsStrokePlay(true);
+        setStrokePlayConfig(config.stroke_play_config);
+      } else if (config.season_type === 'league') {
+        setIsLeague(true);
+        setLeagueConfig(config.league_config);
+      }
+      setFedexConfig(config);
+    };
     const loadConfig = async () => {
       try {
+        // Try AsyncStorage first (local seasons)
         const localData = await AsyncStorage.getItem('dormie_local_seasons');
         if (localData) {
           const seasons = JSON.parse(localData);
           const season = seasons.find((s: any) => s.id === seasonId);
-          if (season?.config?.season_type === 'stroke_series') {
-            setIsStrokePlay(true);
-            setStrokePlayConfig(season.config.stroke_play_config);
-          } else if (season?.config?.season_type === 'league') {
-            setIsLeague(true);
-            setLeagueConfig(season.config.league_config);
-          }
-          // Always store the full config for FedEx settings (multi-round, participation, cut%)
           if (season?.config) {
-            setFedexConfig(season.config);
+            applyConfig(season.config);
+            return;
           }
+        }
+        // Fall back to Supabase for cloud-created seasons
+        const seasonData = await seasonsService.getById(seasonId);
+        if (seasonData?.config && typeof seasonData.config === 'object') {
+          applyConfig(seasonData.config as Record<string, any>);
         }
       } catch {}
     };
@@ -1231,10 +1240,8 @@ function SeasonDetailScreenInner() {
         const weekRow = weeksData.find((w: any) => w.week_number === currentWeek);
         if (!weekRow) return;
 
-        // 2. Apply multipliers: update scores for playoff/championship weeks
-        const multiplier = currentWeekData.isPlayoff || currentWeekData.isChampionship
-          ? currentWeekData.multiplier
-          : 1;
+        // 2. Apply multipliers for any week with multiplier > 1 (playoff, championship, major)
+        const multiplier = currentWeekData.multiplier ?? 1;
         if (multiplier > 1 && weekRow.season_scores) {
           for (const score of (weekRow as any).season_scores) {
             const newPoints = Math.round(score.points * multiplier);
@@ -1248,39 +1255,34 @@ function SeasonDetailScreenInner() {
         // 3. Mark current week as completed
         await supabase
           .from('season_weeks')
-          .update({ status: 'completed' })
+          .update({ completed: true, all_scores_submitted: true })
           .eq('id', weekRow.id);
 
-        // 4. If this is a cut line week (playoff start), eliminate players below cut
-        if (currentWeekData.isPlayoff) {
-          const cutPct = fedexConfig?.cut_percentage
-            ? Math.round(fedexConfig.cut_percentage * 100) as 25 | 33 | 50 | 67 | 75
-            : 67;
-          const cutSize = getPlayoffCutLine(standings.length, cutPct);
-          const eliminated = standings.slice(cutSize);
-          for (const player of eliminated) {
-            await supabase
-              .from('season_members')
-              .update({ eliminated: true })
-              .eq('season_id', seasonId)
-              .eq('user_id', player.playerId);
-          }
-        }
-
-        // 5. Determine next week or complete the season
+        // 4. Determine next week or complete the season
         const nextWeek = weeks.find((w) => w.number === currentWeek + 1);
         if (!nextWeek || currentWeekData.isChampionship) {
           // Season complete
           await seasonsService.update(seasonId, { status: 'completed' });
           setShowChampionCeremony(true);
         } else {
-          // Move to the next week — update season status if entering playoffs
-          const updates: any = {};
-          if (nextWeek.isPlayoff) {
-            updates.status = 'playoffs';
-          }
-          if (Object.keys(updates).length > 0) {
-            await seasonsService.update(seasonId, updates);
+          // Move to the next week — apply cut and update status if entering playoffs
+          const isEnteringPlayoffs = !currentWeekData.isPlayoff && !currentWeekData.isChampionship
+            && (nextWeek.isPlayoff || nextWeek.isChampionship);
+          if (isEnteringPlayoffs) {
+            // Apply cut line: eliminate players below the cut threshold
+            const cutPct = fedexConfig?.cut_percentage
+              ? Math.round(fedexConfig.cut_percentage * 100) as 25 | 33 | 50 | 67 | 75
+              : 67;
+            const cutSize = getPlayoffCutLine(standings.length, cutPct);
+            const eliminatedPlayers = standings.slice(cutSize);
+            for (const player of eliminatedPlayers) {
+              await supabase
+                .from('season_members')
+                .update({ eliminated: true })
+                .eq('season_id', seasonId)
+                .eq('user_id', player.playerId);
+            }
+            await seasonsService.update(seasonId, { status: 'playoffs' });
           }
         }
 
