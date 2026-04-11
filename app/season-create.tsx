@@ -3319,6 +3319,12 @@ function RyderCupTeamSetupStep({
 // ─── Ryder Cup: Match Format ────────────────────────────────────────
 type RCSessionType = 'foursomes' | 'four_ball' | 'singles';
 
+const RC_REMOTE_PLAY_HELP: Record<RCSessionType, string> = {
+  foursomes: 'Remote play: Each teammate plays their own round. Combine both players\u2019 net Stableford points. Team with the higher combined total wins the match.',
+  four_ball: 'Remote play: Each teammate plays their own round. For each hole, take the better Stableford score between teammates. Team with the higher 18-hole best-ball total wins the match.',
+  singles: 'Remote play: Compare net Stableford totals. Higher score wins. For hole-by-hole drama, compare Stableford points per hole \u2014 most holes won takes the match.',
+};
+
 function RyderCupMatchFormatStep({
   rcSessions,
   setRcSessions,
@@ -3380,22 +3386,31 @@ function RyderCupMatchFormatStep({
       </Text>
 
       {SESSION_TYPES.map((st) => (
-        <Pressable
-          key={st.key}
-          onPress={() => toggleSession(st.key)}
-          style={[styles.ruleRow, { borderBottomColor: c.border }]}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.ruleLabel, { color: rcSessions[st.key] ? c.teal : c.text }]}>{st.label}</Text>
-            <Text style={[styles.ruleDesc, { color: c.textMuted }]}>{st.desc}</Text>
-          </View>
-          <Switch
-            value={rcSessions[st.key]}
-            onValueChange={() => toggleSession(st.key)}
-            trackColor={{ false: c.elevated, true: c.teal + '66' }}
-            thumbColor={rcSessions[st.key] ? c.teal : c.textMuted}
-          />
-        </Pressable>
+        <View key={st.key}>
+          <Pressable
+            onPress={() => toggleSession(st.key)}
+            style={[styles.ruleRow, { borderBottomColor: c.border }]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.ruleLabel, { color: rcSessions[st.key] ? c.teal : c.text }]}>{st.label}</Text>
+              <Text style={[styles.ruleDesc, { color: c.textMuted }]}>{st.desc}</Text>
+            </View>
+            <Switch
+              value={rcSessions[st.key]}
+              onValueChange={() => toggleSession(st.key)}
+              trackColor={{ false: c.elevated, true: c.teal + '66' }}
+              thumbColor={rcSessions[st.key] ? c.teal : c.textMuted}
+            />
+          </Pressable>
+          {rcSessions[st.key] && RC_REMOTE_PLAY_HELP[st.key] && (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: c.teal + '08' }}>
+              <Ionicons name="globe-outline" size={14} color={c.teal} style={{ marginTop: 2 }} />
+              <Text style={{ fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 17 }}>
+                {RC_REMOTE_PLAY_HELP[st.key]}
+              </Text>
+            </View>
+          )}
+        </View>
       ))}
 
       <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Number of Days</Text>
@@ -5394,6 +5409,26 @@ export default function SeasonCreateScreen() {
   const [rcDayCourses, setRcDayCourses] = useState<Record<number, RCDayCourse>>({});
   const [rcRevealEnabled, setRcRevealEnabled] = useState(true);
 
+  // Computed auto-balanced rosters for Ryder Cup team preview
+  const { rcTeamRedRoster, rcTeamBlueRoster } = useMemo(() => {
+    if (draftMethod !== 'auto_balance') return { rcTeamRedRoster: [] as string[], rcTeamBlueRoster: [] as string[] };
+    const allPlayers = friends.filter((f) => selectedIds.includes(f.id));
+    if (allPlayers.length < 2) return { rcTeamRedRoster: [] as string[], rcTeamBlueRoster: [] as string[] };
+    const sorted = [...allPlayers].sort((a, b) => a.handicap - b.handicap);
+    const red: string[] = [];
+    const blue: string[] = [];
+    sorted.forEach((p, i) => {
+      const round = Math.floor(i / 2);
+      const isSecond = i % 2 === 1;
+      if ((round % 2 === 0) === !isSecond) {
+        red.push(p.id);
+      } else {
+        blue.push(p.id);
+      }
+    });
+    return { rcTeamRedRoster: red, rcTeamBlueRoster: blue };
+  }, [draftMethod, selectedIds, friends]);
+
   // State — Match Play Bracket
   const [bracketSize, setBracketSize] = useState<BracketSize>(8);
   const [seedingMethod, setSeedingMethod] = useState<SeedingMethod>('handicap');
@@ -6091,7 +6126,7 @@ export default function SeasonCreateScreen() {
             teamRedCaptain={teamRedCaptain} setTeamRedCaptain={setTeamRedCaptain}
             teamBlueCaptain={teamBlueCaptain} setTeamBlueCaptain={setTeamBlueCaptain}
             draftMethod={draftMethod} setDraftMethod={setDraftMethod}
-            teamRedRoster={[]} teamBlueRoster={[]} selectedIds={selectedIds}
+            teamRedRoster={rcTeamRedRoster} teamBlueRoster={rcTeamBlueRoster} selectedIds={selectedIds}
             friends={friends}
           />
         )}

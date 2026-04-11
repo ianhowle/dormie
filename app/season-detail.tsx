@@ -1126,6 +1126,8 @@ function SeasonDetailScreenInner() {
   const [leagueConfig, setLeagueConfig] = useState<any>(null);
   const [showLeagueChampionMoment, setShowLeagueChampionMoment] = useState(false);
   const [leagueChampion, setLeagueChampion] = useState<LeaguePlayer | null>(null);
+  const [isRyderCup, setIsRyderCup] = useState(false);
+  const [ryderCupConfig, setRyderCupConfig] = useState<Record<string, any> | null>(null);
   const [fedexConfig, setFedexConfig] = useState<Record<string, any> | null>(null);
 
   // Load season config to detect special season types and FedEx settings
@@ -1138,6 +1140,9 @@ function SeasonDetailScreenInner() {
       } else if (config.season_type === 'league') {
         setIsLeague(true);
         setLeagueConfig(config.league_config);
+      } else if (config.season_type === 'ryder') {
+        setIsRyderCup(true);
+        setRyderCupConfig(config);
       }
       setFedexConfig(config);
     };
@@ -1493,6 +1498,55 @@ function SeasonDetailScreenInner() {
             seasonType="stroke_play"
           />
           <View style={{ height: 24 }} />
+        </ScrollView>
+      ) : isRyderCup && ryderCupConfig ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+          {/* Team rosters side-by-side */}
+          <View style={{ flexDirection: 'row', gap: 12, padding: 16 }}>
+            <View style={{ flex: 1, backgroundColor: '#C41E3A0C', borderWidth: 1, borderColor: '#C41E3A33', padding: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#C41E3A', fontFamily: GEO, marginBottom: 8 }}>
+                {ryderCupConfig.team_red_name || 'Team Red'}
+              </Text>
+              {ryderCupConfig.team_red_captain && (
+                <Text style={{ fontSize: 12, color: c.textMuted, marginBottom: 6 }}>Captain assigned</Text>
+              )}
+              <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic' }}>Roster to be drafted</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: '#4682B40C', borderWidth: 1, borderColor: '#4682B433', padding: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#4682B4', fontFamily: GEO, marginBottom: 8 }}>
+                {ryderCupConfig.team_blue_name || 'Team Blue'}
+              </Text>
+              {ryderCupConfig.team_blue_captain && (
+                <Text style={{ fontSize: 12, color: c.textMuted, marginBottom: 6 }}>Captain assigned</Text>
+              )}
+              <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic' }}>Roster to be drafted</Text>
+            </View>
+          </View>
+
+          {/* Match format summary */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: c.gold, fontFamily: GEO, marginBottom: 8 }}>MATCH FORMAT</Text>
+            {ryderCupConfig.sessions?.foursomes && (
+              <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Foursomes (Alternate Shot)</Text>
+            )}
+            {ryderCupConfig.sessions?.four_ball && (
+              <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Four-Ball (Best Ball)</Text>
+            )}
+            {ryderCupConfig.sessions?.singles && (
+              <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Singles</Text>
+            )}
+            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
+              {ryderCupConfig.num_days ?? 1} day{(ryderCupConfig.num_days ?? 1) > 1 ? 's' : ''} of competition
+            </Text>
+            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+              Win Condition: {ryderCupConfig.win_condition === 'most_points' ? 'Most Points' : `First to ${ryderCupConfig.first_to_target}`}
+            </Text>
+          </View>
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="fedex"
+          />
         </ScrollView>
       ) : isLeague && leagueData ? (
         <ScrollView style={{ flex: 1 }}>
