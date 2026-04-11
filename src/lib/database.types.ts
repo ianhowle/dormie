@@ -105,6 +105,11 @@ export interface RyderCupConfig {
   teamBlueName: string;
   sessions: Json[];
   formation: string;
+  teamSize?: number;
+  winCondition?: 'most_points' | 'first_to';
+  firstToTarget?: number | null;
+  nineHoleMatches?: boolean;
+  sideGames?: string[];
 }
 
 export interface TripMember {
