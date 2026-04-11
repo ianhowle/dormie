@@ -27,6 +27,7 @@ import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
+import { friendsService } from '../src/services/friends.service';
 import { haptics } from '../src/lib/haptics';
 import { useToast } from '../src/components/Toast';
 import { BracketPreview } from '../src/components/BracketView';
@@ -119,7 +120,7 @@ const ALL_FORMATS = [
   'scramble', 'chapman',
 ];
 
-const POINTS_TABLE = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
+const POINTS_TABLE = [25, 20, 16, 12, 10, 8, 6, 4, 2, 1];
 
 const CUT_OPTIONS: CutOption[] = [
   { label: '25%', value: 0.25 },
@@ -1840,6 +1841,7 @@ function CustomReviewStep({
   majorWeeks, majorWeekNumbers, majorNames, majorMultiplier,
   rivalryTracking,
   selectedIds, manualPlayers,
+  friends,
   onSaveTemplate,
 }: {
   name: string;
@@ -1860,11 +1862,12 @@ function CustomReviewStep({
   majorWeeks: boolean; majorWeekNumbers: number[]; majorNames: string[]; majorMultiplier: number;
   rivalryTracking: boolean;
   selectedIds: string[]; manualPlayers: ManualPlayer[];
+  friends: Friend[];
   onSaveTemplate: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const members = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const members = friends.filter((f) => selectedIds.includes(f.id));
 
   const BASE_FORMAT_LABELS: Record<CustomBaseFormat, string> = {
     individual: 'Individual', teams: 'Teams', h2h: 'Head-to-Head', bracket: 'Bracket',
@@ -2695,6 +2698,7 @@ function MembersStep({
   manualPlayers,
   setManualPlayers,
   bracketSize: memberBracketSize,
+  friends,
 }: {
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
@@ -2702,6 +2706,7 @@ function MembersStep({
   manualPlayers: ManualPlayer[];
   setManualPlayers: (p: ManualPlayer[]) => void;
   bracketSize?: BracketSize;
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -2845,7 +2850,7 @@ function MembersStep({
       ))}
 
       {/* Friends list */}
-      {MOCK_FRIENDS.map((f) => {
+      {friends.map((f) => {
         const selected = selectedIds.includes(f.id);
         return (
           <Pressable
@@ -2970,6 +2975,7 @@ function ReviewStep({
   weeks,
   selectedIds,
   manualPlayers,
+  friends,
   cutEnabled,
   cutValue,
   dropWorst,
@@ -2992,6 +2998,7 @@ function ReviewStep({
   weeks: WeekConfig[];
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
+  friends: Friend[];
   cutEnabled: boolean;
   cutValue: number;
   dropWorst: boolean;
@@ -3012,7 +3019,7 @@ function ReviewStep({
 
   const presetData = LENGTH_PRESETS.find((p) => p.key === preset)!;
   const majors = weeks.filter((w) => w.isMajor);
-  const members = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const members = friends.filter((f) => selectedIds.includes(f.id));
   const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', league: 'League', custom: 'Custom' }[seasonType];
 
   return (
@@ -3146,6 +3153,7 @@ function RyderCupTeamSetupStep({
   teamRedRoster,
   teamBlueRoster,
   selectedIds,
+  friends,
 }: {
   teamRedName: string;
   setTeamRedName: (v: string) => void;
@@ -3160,12 +3168,13 @@ function RyderCupTeamSetupStep({
   teamRedRoster: string[];
   teamBlueRoster: string[];
   selectedIds: string[];
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const inputBg = theme.isDark ? c.elevated : '#FFFFFF';
 
-  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const allPlayers = friends.filter((f) => selectedIds.includes(f.id));
 
   const DRAFT_METHODS: { key: DraftMethod; label: string; desc: string }[] = [
     { key: 'snake', label: 'Snake Draft', desc: 'Captains alternate picks (1-2-2-1)' },
@@ -3582,6 +3591,7 @@ function RyderCupReviewStep({
   setRcRevealEnabled,
   selectedIds,
   manualPlayers,
+  friends,
 }: {
   name: string;
   teamRedName: string;
@@ -3600,11 +3610,12 @@ function RyderCupReviewStep({
   setRcRevealEnabled: (v: boolean) => void;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const allPlayers = friends.filter((f) => selectedIds.includes(f.id));
   const redCaptainName = allPlayers.find((p) => p.id === teamRedCaptain)?.name ?? 'TBD';
   const blueCaptainName = allPlayers.find((p) => p.id === teamBlueCaptain)?.name ?? 'TBD';
   const draftLabels: Record<DraftMethod, string> = { snake: 'Snake Draft', captains_pick: "Captain's Pick", auto_balance: 'Auto-Balance', random: 'Random' };
@@ -3968,6 +3979,7 @@ function BracketReviewStep({
   roundDeadlineDays,
   selectedIds,
   manualPlayers,
+  friends,
 }: {
   name: string;
   bracketSize: BracketSize;
@@ -3979,11 +3991,12 @@ function BracketReviewStep({
   roundDeadlineDays: number;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const allPlayers = friends.filter((f) => selectedIds.includes(f.id));
   const totalPlayerCount = allPlayers.length + manualPlayers.length + 1;
   const seedLabels: Record<SeedingMethod, string> = { handicap: 'By Handicap', qualifying: 'Qualifying Round', random: 'Random' };
   const hcpLabels: Record<HandicapStrokes, string> = { full: 'Full 100%', reduced: 'Reduced 80%', none: 'None (Gross)' };
@@ -4349,6 +4362,7 @@ function StrokeSeriesReviewStep({
   strokeDesignatedCourseName,
   selectedIds,
   manualPlayers,
+  friends,
 }: {
   name: string;
   strokeRounds: number;
@@ -4362,11 +4376,12 @@ function StrokeSeriesReviewStep({
   strokeDesignatedCourseName: string | null;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const allPlayers = friends.filter((f) => selectedIds.includes(f.id));
   const scoringLabels: Record<StrokeScoringType, string> = { gross: 'Gross Strokes', net: 'Net Strokes', both: 'Gross + Net' };
   const tiebreakerLabels: Record<StrokeTiebreaker, string> = {
     scorecard: 'Scorecard Playoff',
@@ -4618,6 +4633,7 @@ function LeagueScheduleStep({
   selectedIds,
   manualPlayers,
   leagueDivisionNames,
+  friends,
 }: {
   leagueWeeks: number;
   setLeagueWeeks: (v: number) => void;
@@ -4634,6 +4650,7 @@ function LeagueScheduleStep({
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
   leagueDivisionNames: string[];
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -4653,7 +4670,7 @@ function LeagueScheduleStep({
   // Generate schedule preview
   const generatePreview = () => {
     haptics.light();
-    const allNames = ['You', ...MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id)).map((f) => f.name.split(' ')[0]), ...manualPlayers.map((m) => m.name.split(' ')[0])];
+    const allNames = ['You', ...friends.filter((f) => selectedIds.includes(f.id)).map((f) => f.name.split(' ')[0]), ...manualPlayers.map((m) => m.name.split(' ')[0])];
     const players = allNames.slice(0, Math.max(4, allNames.length));
     const schedule: { week: number; matchups: { a: string; b: string }[] }[] = [];
 
@@ -5120,6 +5137,7 @@ function LeagueReviewStep({
   leagueChampionshipFormat,
   selectedIds,
   manualPlayers,
+  friends,
 }: {
   name: string;
   leagueDivisions: boolean;
@@ -5139,11 +5157,12 @@ function LeagueReviewStep({
   leagueChampionshipFormat: string;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
+  friends: Friend[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
+  const allPlayers = friends.filter((f) => selectedIds.includes(f.id));
   const totalPlayers = allPlayers.length + manualPlayers.length + 1;
 
   const winLabels: Record<LeagueWinDetermination, string> = {
@@ -5296,7 +5315,7 @@ const BUILT_IN_TEMPLATES: { key: string; label: string; desc: string; icon: Reac
 ];
 
 // ─── Main Screen ──────────────────────────────────────────────────────
-export default function SeasonsScreen() {
+export default function SeasonCreateScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -5313,6 +5332,24 @@ export default function SeasonsScreen() {
   const [name, setName] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manualPlayers, setManualPlayers] = useState<ManualPlayer[]>([]);
+  const [friends, setFriends] = useState<Friend[]>(MOCK_FRIENDS);
+
+  // Fetch real friends from Supabase, fall back to mock data
+  useEffect(() => {
+    if (!user) return;
+    friendsService.getActiveFriends(user.id).then((friendships) => {
+      if (friendships.length > 0) {
+        setFriends(friendships.map((f) => ({
+          id: f.friend.id,
+          name: f.friend.name,
+          handicap: f.friend.handicap_index,
+          avatarColor: f.friend.avatar_color,
+        })));
+      }
+    }).catch(() => {
+      // Keep MOCK_FRIENDS as fallback
+    });
+  }, [user]);
 
   // State — FedEx / Custom
   const [preset, setPreset] = useState('standard');
@@ -5795,13 +5832,23 @@ export default function SeasonsScreen() {
       }));
     }
 
+    // Preserve original season type in config so 'bracket', 'stroke_series', 'league'
+    // aren't lost when mapped to 'custom' for the DB schema constraint
+    const dbType: 'fedex' | 'ryder' | 'custom' =
+      seasonType === 'bracket' || seasonType === 'stroke_series' || seasonType === 'league'
+        ? 'custom'
+        : seasonType as 'fedex' | 'ryder' | 'custom';
+    if (dbType === 'custom' && seasonType !== 'custom') {
+      config.season_subtype = seasonType;
+    }
+
     // 1. Try Supabase
     if (user) {
       try {
         const created = await seasonsService.create(
           {
             name,
-            type: seasonType === 'bracket' || seasonType === 'stroke_series' || seasonType === 'league' ? 'custom' : seasonType as any,
+            type: dbType,
             creator_id: user.id,
             config,
             status: 'draft',
@@ -5817,20 +5864,21 @@ export default function SeasonsScreen() {
     }
 
     // 2. AsyncStorage fallback if Supabase didn't work
+    // Use the same schema as Supabase so local seasons can sync later.
+    // Extra fields (weeks, member_ids) are stored in config to match the DB shape.
     if (!newSeasonId) {
       try {
         const localId = `local_season_${Date.now()}`;
+        config._local_weeks = weeksPayload;
+        config._local_member_ids = selectedIds;
         const localSeason = {
           id: localId,
           name,
-          type: seasonType,
+          type: dbType,
           config,
           status: 'draft',
           creator_id: user?.id ?? 'local',
           created_at: new Date().toISOString(),
-          weeks: weeksPayload,
-          member_ids: selectedIds,
-          manual_players: manualPlayers,
         };
         const existing = await AsyncStorage.getItem('dormie_local_seasons');
         const seasons = existing ? JSON.parse(existing) : [];
@@ -5992,12 +6040,14 @@ export default function SeasonsScreen() {
             selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name}
             manualPlayers={manualPlayers} setManualPlayers={setManualPlayers}
             bracketSize={currentStep === 'bracket_members' ? bracketSize : undefined}
+            friends={friends}
           />
         )}
         {currentStep === 'review' && seasonType !== 'custom' && (
           <ReviewStep
             name={name} seasonType={seasonType} preset={preset} scoringMethod={scoringMethod}
             weeks={editableWeeks} selectedIds={selectedIds} manualPlayers={manualPlayers}
+            friends={friends}
             cutEnabled={cutEnabled} cutValue={cutValue} dropWorst={dropWorst}
             playoffMultiplier={playoffMultiplier} champMultiplier={champMultiplier}
             makeupWindowEnabled={makeupWindowEnabled} makeupWindowWeeks={makeupWindowWeeks}
@@ -6029,6 +6079,7 @@ export default function SeasonsScreen() {
             majorNames={customMajorNames} majorMultiplier={customMajorMultiplier}
             rivalryTracking={customRivalryTracking}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
+            friends={friends}
             onSaveTemplate={() => setShowSaveTemplateModal(true)}
           />
         )}
@@ -6041,6 +6092,7 @@ export default function SeasonsScreen() {
             teamBlueCaptain={teamBlueCaptain} setTeamBlueCaptain={setTeamBlueCaptain}
             draftMethod={draftMethod} setDraftMethod={setDraftMethod}
             teamRedRoster={[]} teamBlueRoster={[]} selectedIds={selectedIds}
+            friends={friends}
           />
         )}
         {currentStep === 'rc_match_format' && (
@@ -6065,6 +6117,7 @@ export default function SeasonsScreen() {
             rcDayCourses={rcDayCourses}
             rcRevealEnabled={rcRevealEnabled} setRcRevealEnabled={setRcRevealEnabled}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
+            friends={friends}
           />
         )}
         {/* Match Play Bracket steps */}
@@ -6090,6 +6143,7 @@ export default function SeasonsScreen() {
             bracketMatchLength={bracketMatchLength} bracketHandicap={bracketHandicap}
             bracketScoringMethod={bracketScoringMethod} roundDeadlineDays={roundDeadlineDays}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
+            friends={friends}
           />
         )}
         {/* Stroke Play Series steps */}
@@ -6119,6 +6173,7 @@ export default function SeasonsScreen() {
             strokeDropWorst={strokeDropWorst} strokeDropCount={strokeDropCount}
             strokeCourseRestriction={strokeCourseRestriction} strokeDesignatedCourseName={strokeDesignatedCourseName}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
+            friends={friends}
           />
         )}
         {/* League steps */}
@@ -6140,6 +6195,7 @@ export default function SeasonsScreen() {
             leagueSchedulePreview={leagueSchedulePreview} setLeagueSchedulePreview={setLeagueSchedulePreview}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
             leagueDivisionNames={leagueDivisionNames}
+            friends={friends}
           />
         )}
         {currentStep === 'league_scoring' && (
@@ -6159,6 +6215,7 @@ export default function SeasonsScreen() {
           <MembersStep
             selectedIds={selectedIds} setSelectedIds={setSelectedIds} seasonName={name}
             manualPlayers={manualPlayers} setManualPlayers={setManualPlayers}
+            friends={friends}
           />
         )}
         {currentStep === 'league_review' && (
@@ -6173,6 +6230,7 @@ export default function SeasonsScreen() {
             leagueMarginThreshold={leagueMarginThreshold} leaguePlayoffTeams={leaguePlayoffTeams}
             leagueChampionshipFormat={leagueChampionshipFormat}
             selectedIds={selectedIds} manualPlayers={manualPlayers}
+            friends={friends}
           />
         )}
       </ScrollView>
