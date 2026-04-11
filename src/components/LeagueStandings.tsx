@@ -438,6 +438,61 @@ export function LeagueStandings({ players, config, onChampionMoment, onMatchupTa
 }
 
 // ─── Demo Data ───────────────────────────────────────────────────────
+// ─── Build from Config ──────────────────────────────────────────────
+const AVATAR_COLORS = ['#006747', '#C9A227', '#1E4D2B', '#C41E3A', '#006747', '#C9A227', '#1E4D2B', '#C41E3A'];
+
+export function buildLeagueDataFromConfig(leagueConfig: any): { players: LeaguePlayer[]; config: LeagueConfig } {
+  const players: { id: string; name: string; handicap: number }[] = leagueConfig.players ?? [];
+  const divAssignments: Record<string, { id: string; name: string }[]> | null = leagueConfig.division_assignments ?? null;
+  const divNames: string[] = leagueConfig.division_names ?? [];
+  const totalWeeks = leagueConfig.regular_season_weeks ?? 10;
+
+  // Determine which division each player belongs to
+  const playerDivision: Record<string, string> = {};
+  if (divAssignments) {
+    for (const [divName, divPlayers] of Object.entries(divAssignments)) {
+      for (const p of divPlayers) {
+        playerDivision[p.id] = divName;
+      }
+    }
+  }
+
+  // Players start with 0-0 record since no rounds have been logged yet
+  const leaguePlayers: LeaguePlayer[] = players.map((p, i) => ({
+    playerId: p.id,
+    name: p.name,
+    handicap: p.handicap,
+    avatarColor: AVATAR_COLORS[i % AVATAR_COLORS.length],
+    division: playerDivision[p.id] ?? null,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+    pointsFor: 0,
+    pointsAgainst: 0,
+    streakType: 'W' as const,
+    streakCount: 0,
+    clinched: false,
+    eliminated: false,
+    isDivisionLeader: false,
+    isWildCard: false,
+    results: [],
+  }));
+
+  return {
+    players: leaguePlayers,
+    config: {
+      divisionsEnabled: leagueConfig.divisions_enabled ?? false,
+      divisionNames: divNames,
+      playoffTeams: leagueConfig.playoff_teams ?? 4,
+      totalWeeks,
+      currentWeek: 1,
+      scoringFormat: leagueConfig.scoring_format ?? 'stableford',
+      isSeasonComplete: false,
+      isPlayoffs: false,
+    },
+  };
+}
+
 const DEMO_NAMES = ['McGowan', 'Fletcher', 'Patterson', 'Sullivan', 'Rodriguez', 'Chen', 'Taylor', 'Brooks'];
 const DEMO_COLORS = ['#006747', '#C9A227', '#1E4D2B', '#C41E3A', '#006747', '#C9A227', '#1E4D2B', '#C41E3A'];
 const DEMO_HCPS = [8, 12, 6, 15, 10, 18, 14, 20];

@@ -36,7 +36,7 @@ import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
 import { DormieMoment } from '../src/components/DormieMoment';
 import { StrokePlayStandings, buildDemoStrokePlayData } from '../src/components/StrokePlayStandings';
 import type { StrokePlayPlayer } from '../src/components/StrokePlayStandings';
-import { LeagueStandings, buildDemoLeagueData } from '../src/components/LeagueStandings';
+import { LeagueStandings, buildDemoLeagueData, buildLeagueDataFromConfig } from '../src/components/LeagueStandings';
 import type { LeaguePlayer } from '../src/components/LeagueStandings';
 import { WeeklyMatchupCard, buildDemoMatchup } from '../src/components/WeeklyMatchupCard';
 import { SeasonStatsSection, MatchPlayTaleOfTheTape } from '../src/components/SeasonStatsSection';
@@ -1240,13 +1240,13 @@ function SeasonDetailScreenInner() {
   useEffect(() => {
     if (!seasonId) return;
     const applyConfig = (config: Record<string, any>) => {
-      if (config.season_type === 'stroke_series') {
+      if (config.season_type === 'stroke_series' || config.season_subtype === 'stroke_series') {
         setIsStrokePlay(true);
         setStrokePlayConfig(config.stroke_play_config);
-      } else if (config.season_type === 'league') {
+      } else if (config.season_type === 'league' || config.season_subtype === 'league') {
         setIsLeague(true);
         setLeagueConfig(config.league_config);
-      } else if (config.season_type === 'ryder') {
+      } else if (config.season_type === 'ryder' || config.season_subtype === 'ryder') {
         setIsRyderCup(true);
         setRyderCupConfig(config);
       } else if (config.season_type === 'bracket' || config.season_subtype === 'bracket') {
@@ -1291,11 +1291,14 @@ function SeasonDetailScreenInner() {
     return buildDemoStrokePlayData(totalRounds, dropWorst, dropCount, scoringType);
   }, [isStrokePlay, strokePlayConfig]);
 
-  // Build league demo data
+  // Build league data from config, fall back to demo data
   const leagueData = useMemo(() => {
     if (!isLeague) return null;
+    if (leagueConfig && leagueConfig.players && leagueConfig.schedule) {
+      return buildLeagueDataFromConfig(leagueConfig);
+    }
     return buildDemoLeagueData();
-  }, [isLeague]);
+  }, [isLeague, leagueConfig]);
 
   const demoMatchup = useMemo(() => {
     if (!isLeague) return null;

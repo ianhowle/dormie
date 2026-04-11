@@ -5856,17 +5856,18 @@ export default function SeasonCreateScreen() {
     const config = buildSeasonConfig();
 
     // Build weeks for FedEx/Custom types
-    const weeksPayload = (seasonType === 'fedex' || seasonType === 'custom')
-      ? editableWeeks.map((w) => ({
-          week_number: w.number,
-          format: w.format,
-          is_major: w.isMajor,
-          major_name: w.majorName || null,
-          is_playoff: w.isPlayoff,
-          is_championship: w.isChampionship,
-          multiplier: w.multiplier,
-        }))
-      : [];
+    const weeksPayload: { week_number: number; format: string; is_major: boolean; major_name: string | null; is_playoff: boolean; is_championship: boolean; multiplier: number }[] =
+      (seasonType === 'fedex' || seasonType === 'custom')
+        ? editableWeeks.map((w) => ({
+            week_number: w.number,
+            format: w.format,
+            is_major: w.isMajor,
+            major_name: w.majorName || null,
+            is_playoff: w.isPlayoff,
+            is_championship: w.isChampionship,
+            multiplier: w.multiplier,
+          }))
+        : [];
 
     // Store manual players in config so they persist even without user accounts
     if (manualPlayers.length > 0) {
@@ -5885,6 +5886,90 @@ export default function SeasonCreateScreen() {
         : seasonType as 'fedex' | 'ryder' | 'custom';
     if (dbType === 'custom' && seasonType !== 'custom') {
       config.season_subtype = seasonType;
+    }
+
+    // Generate league schedule at creation time
+    if (seasonType === 'league') {
+      const allLeaguePlayers: { id: string; name: string; handicap: number }[] = [];
+      allLeaguePlayers.push({ id: user?.id ?? 'local', name: 'You', handicap: 0 });
+      const selectedFriends = friends.filter((f) => selectedIds.includes(f.id));
+      for (const f of selectedFriends) {
+        allLeaguePlayers.push({ id: f.id, name: f.name, handicap: f.handicap });
+      }
+      for (const m of manualPlayers) {
+        allLeaguePlayers.push({ id: m.id, name: m.name, handicap: m.handicap ?? 99 });
+      }
+
+      // Auto-balance: distribute players across divisions by handicap (snake draft style)
+      if (leagueDivisions && leagueAutoBalance) {
+        const sorted = [...allLeaguePlayers].sort((a, b) => a.handicap - b.handicap);
+        const divisionAssignments: Record<string, { id: string; name: string; handicap: number }[]> = {};
+        const divNames = leagueDivisionNames.slice(0, leagueDivisionCount);
+        divNames.forEach((d) => { divisionAssignments[d] = []; });
+        // Snake draft: round 1 forward, round 2 reverse, etc.
+        sorted.forEach((p, i) => {
+          const round = Math.floor(i / leagueDivisionCount);
+          const pos = i % leagueDivisionCount;
+          const divIdx = round % 2 === 0 ? pos : leagueDivisionCount - 1 - pos;
+          divisionAssignments[divNames[divIdx]].push(p);
+        });
+        config.league_config.division_assignments = divisionAssignments;
+      } else if (leagueDivisions) {
+        // Even distribution without handicap balancing
+        const divNames = leagueDivisionNames.slice(0, leagueDivisionCount);
+        const divisionAssignments: Record<string, { id: string; name: string; handicap: number }[]> = {};
+        divNames.forEach((d) => { divisionAssignments[d] = []; });
+        allLeaguePlayers.forEach((p, i) => {
+          divisionAssignments[divNames[i % leagueDivisionCount]].push(p);
+        });
+        config.league_config.division_assignments = divisionAssignments;
+      }
+
+      // Generate round-robin schedule
+      const n = allLeaguePlayers.length;
+      const pool = [...allLeaguePlayers];
+      const isOdd = n % 2 !== 0;
+      if (isOdd) pool.push({ id: 'BYE', name: 'BYE', handicap: 0 });
+      const size = pool.length;
+      const schedule: { week: number; matchups: { a: string; b: string; aName: string; bName: string; isDivision: boolean }[] }[] = [];
+
+      for (let wk = 0; wk < leagueWeeks; wk++) {
+        const round = wk % (size - 1);
+        const matchups: { a: string; b: string; aName: string; bName: string; isDivision: boolean }[] = [];
+        const rotated = [pool[0]];
+        for (let i = 1; i < size; i++) {
+          const idx = ((i - 1 + round) % (size - 1)) + 1;
+          rotated.push(pool[idx]);
+        }
+        for (let i = 0; i < size / 2; i++) {
+          const a = rotated[i];
+          const b = rotated[size - 1 - i];
+          if (a.id !== 'BYE' && b.id !== 'BYE') {
+            const isDivision = leagueDivisions && config.league_config.division_assignments
+              ? Object.values(config.league_config.division_assignments as Record<string, { id: string }[]>).some(
+                  (divPlayers) => divPlayers.some((dp) => dp.id === a.id) && divPlayers.some((dp) => dp.id === b.id)
+                )
+              : false;
+            matchups.push({ a: a.id, b: b.id, aName: a.name, bName: b.name, isDivision });
+          }
+        }
+        schedule.push({ week: wk + 1, matchups });
+      }
+      config.league_config.schedule = schedule;
+      config.league_config.players = allLeaguePlayers;
+
+      // Build week rows for league
+      for (let wk = 1; wk <= leagueWeeks; wk++) {
+        weeksPayload.push({
+          week_number: wk,
+          format: leagueSameFormatAllSeason ? leagueScoringFormat : 'commissioner_pick',
+          is_major: false,
+          major_name: null,
+          is_playoff: false,
+          is_championship: false,
+          multiplier: 1,
+        });
+      }
     }
 
     // Generate bracket matches at creation time for bracket seasons
@@ -5974,7 +6059,7 @@ export default function SeasonCreateScreen() {
     setCreating(false);
     showToast({ message: 'Season created', type: 'gold', icon: 'trophy' });
     router.replace({ pathname: '/season-detail', params: { id: newSeasonId } });
-  }, [name, seasonType, user, editableWeeks, selectedIds, manualPlayers, buildSeasonConfig, router, showToast, friends, bracketSize, seedingMethod]);
+  }, [name, seasonType, user, editableWeeks, selectedIds, manualPlayers, buildSeasonConfig, router, showToast, friends, bracketSize, seedingMethod, leagueDivisions, leagueAutoBalance, leagueDivisionNames, leagueDivisionCount, leagueWeeks, leagueSameFormatAllSeason, leagueScoringFormat]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
