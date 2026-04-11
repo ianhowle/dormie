@@ -30,6 +30,9 @@ import { getPlayoffCutLine } from '../src/data/seasons-detail';
 import { supabase } from '../src/lib/supabase';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
+import { DormieMoment } from '../src/components/DormieMoment';
+import { StrokePlayStandings, buildDemoStrokePlayData } from '../src/components/StrokePlayStandings';
+import type { StrokePlayPlayer } from '../src/components/StrokePlayStandings';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -1078,6 +1081,44 @@ function SeasonDetailScreenInner() {
   const [showChampionCeremony, setShowChampionCeremony] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [revealChecked, setRevealChecked] = useState(false);
+  const [isStrokePlay, setIsStrokePlay] = useState(false);
+  const [strokePlayConfig, setStrokePlayConfig] = useState<any>(null);
+  const [showStrokeChampionMoment, setShowStrokeChampionMoment] = useState(false);
+  const [strokeChampion, setStrokeChampion] = useState<StrokePlayPlayer | null>(null);
+
+  // Load season config to detect stroke play series
+  useEffect(() => {
+    if (!seasonId) return;
+    const loadConfig = async () => {
+      try {
+        const localData = await AsyncStorage.getItem('dormie_local_seasons');
+        if (localData) {
+          const seasons = JSON.parse(localData);
+          const season = seasons.find((s: any) => s.id === seasonId);
+          if (season?.config?.season_type === 'stroke_series') {
+            setIsStrokePlay(true);
+            setStrokePlayConfig(season.config.stroke_play_config);
+          }
+        }
+      } catch {}
+    };
+    loadConfig();
+  }, [seasonId]);
+
+  // Build stroke play demo data when in stroke play mode
+  const strokePlayData = useMemo(() => {
+    if (!isStrokePlay) return null;
+    const cfg = strokePlayConfig;
+    const totalRounds = cfg?.total_rounds ?? 8;
+    const dropWorst = cfg?.drop_worst ?? false;
+    const dropCount = cfg?.drop_count ?? 0;
+    return buildDemoStrokePlayData(totalRounds, dropWorst, dropCount);
+  }, [isStrokePlay, strokePlayConfig]);
+
+  const handleStrokeChampionMoment = useCallback((winner: StrokePlayPlayer) => {
+    setStrokeChampion(winner);
+    setShowStrokeChampionMoment(true);
+  }, []);
 
   // Check if matchup reveal should be shown (first visit)
   useEffect(() => {
@@ -1241,7 +1282,9 @@ function SeasonDetailScreenInner() {
           <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
-          <Text style={[styles.headerTitle, { fontFamily: GEO }]}>FedEx Cup</Text>
+          <Text style={[styles.headerTitle, { fontFamily: GEO }]}>
+            {isStrokePlay ? (params.name ?? 'Stroke Play Series') : 'FedEx Cup'}
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <Pressable
               onPress={() => {
@@ -1264,82 +1307,130 @@ function SeasonDetailScreenInner() {
           </View>
         </View>
 
-        {/* Progress dots */}
-        <View style={styles.progressRow}>
-          {weeks.map((w) => {
-            const badge = getWeekBadge(w);
-            return (
-              <View
-                key={w.number}
-                style={[
-                  styles.progressDot,
-                  {
-                    backgroundColor: w.completed ? c.gold : w.number === currentWeek ? c.teal : '#FFFFFF33',
-                    width: badge ? 10 : 6,
-                    height: badge ? 10 : 6,
-                  },
-                ]}
-              />
-            );
-          })}
-        </View>
-        <Text style={[styles.progressLabel, { color: '#FFFFFFAA' }]}>
-          Week {currentWeek} of {weeks.length}
-          {currentWeekData?.isMajor ? ` — ${currentWeekData.majorName}` : ''}
-        </Text>
+        {/* Progress dots — FedEx only */}
+        {!isStrokePlay && (
+          <>
+            <View style={styles.progressRow}>
+              {weeks.map((w) => {
+                const badge = getWeekBadge(w);
+                return (
+                  <View
+                    key={w.number}
+                    style={[
+                      styles.progressDot,
+                      {
+                        backgroundColor: w.completed ? c.gold : w.number === currentWeek ? c.teal : '#FFFFFF33',
+                        width: badge ? 10 : 6,
+                        height: badge ? 10 : 6,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            <Text style={[styles.progressLabel, { color: '#FFFFFFAA' }]}>
+              Week {currentWeek} of {weeks.length}
+              {currentWeekData?.isMajor ? ` — ${currentWeekData.majorName}` : ''}
+            </Text>
+          </>
+        )}
+
+        {/* Stroke play header summary */}
+        {isStrokePlay && strokePlayData && (
+          <Text style={[styles.progressLabel, { color: '#FFFFFFAA', marginTop: 8 }]}>
+            {strokePlayConfig?.scoring_type === 'net' ? 'Net' : 'Gross'} Stroke Play
+            {' · '}{strokePlayConfig?.total_rounds ?? 8} Rounds
+            {strokePlayConfig?.drop_worst ? ` · Drop ${strokePlayConfig?.drop_count ?? 1}` : ''}
+          </Text>
+        )}
 
         {/* Leader card */}
-        {standings[0] && (
-          <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Avatar id={standings[0].playerId} name={standings[0].name} size={36} />
-              <View>
-                <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{standings[0].name}</Text>
-                <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Season Leader</Text>
+        {isStrokePlay && strokePlayData ? (
+          strokePlayData.players[0] && (
+            <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar id={strokePlayData.players[0].playerId} name={strokePlayData.players[0].name} size={36} />
+                <View>
+                  <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{strokePlayData.players[0].name}</Text>
+                  <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Series Leader</Text>
+                </View>
               </View>
+              <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
+                {strokePlayData.players[0].totalStrokes > strokePlayData.players[0].totalPar
+                  ? `+${strokePlayData.players[0].totalStrokes - strokePlayData.players[0].totalPar}`
+                  : strokePlayData.players[0].totalStrokes === strokePlayData.players[0].totalPar
+                    ? 'E'
+                    : `${strokePlayData.players[0].totalStrokes - strokePlayData.players[0].totalPar}`
+                }
+              </Text>
             </View>
-            <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
-              {standings[0].points} pts
-            </Text>
-          </View>
+          )
+        ) : (
+          standings[0] && (
+            <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar id={standings[0].playerId} name={standings[0].name} size={36} />
+                <View>
+                  <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{standings[0].name}</Text>
+                  <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Season Leader</Text>
+                </View>
+              </View>
+              <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
+                {standings[0].points} pts
+              </Text>
+            </View>
+          )
         )}
       </LinearGradient>
       <GoldDivider />
 
-      <TabBar tab={tab} onSelect={setTab} colors={c} />
-
-      {tab === 'standings' && standings.length === 0 && !loading && (
-        <View style={{ alignItems: 'center', padding: 32 }}>
-          <Text style={{ color: c.textMuted, fontSize: 14, textAlign: 'center' }}>No scores submitted yet</Text>
-        </View>
-      )}
-      {tab === 'standings' && standings.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ minWidth: SCREEN_W }}>
-            <StandingsTab
-              standings={standings}
-              weeks={weeks}
-              cutLineIndex={cutLineIndex}
-              onPlayerTap={handlePlayerTap}
-              seasonConfig={null}
-            />
-          </View>
+      {/* Stroke play series — standalone standings (no tabs) */}
+      {isStrokePlay && strokePlayData ? (
+        <ScrollView style={{ flex: 1 }}>
+          <StrokePlayStandings
+            players={strokePlayData.players}
+            config={strokePlayData.config}
+            onChampionMoment={handleStrokeChampionMoment}
+          />
         </ScrollView>
-      )}
+      ) : (
+        <>
+          <TabBar tab={tab} onSelect={setTab} colors={c} />
 
-      {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={null} />}
-      {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
+          {tab === 'standings' && standings.length === 0 && !loading && (
+            <View style={{ alignItems: 'center', padding: 32 }}>
+              <Text style={{ color: c.textMuted, fontSize: 14, textAlign: 'center' }}>No scores submitted yet</Text>
+            </View>
+          )}
+          {tab === 'standings' && standings.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ minWidth: SCREEN_W }}>
+                <StandingsTab
+                  standings={standings}
+                  weeks={weeks}
+                  cutLineIndex={cutLineIndex}
+                  onPlayerTap={handlePlayerTap}
+                  seasonConfig={null}
+                />
+              </View>
+            </ScrollView>
+          )}
 
-      {/* Advance week */}
-      {canAdvance && (
-        <View style={styles.advanceContainer}>
-          <Pressable onPress={() => { haptics.light(); handleAdvanceWeek(); }} style={[styles.advanceBtn, { backgroundColor: c.gold }]}>
-            <Text style={[styles.advanceBtnText, { fontFamily: GEO }]}>
-              {currentWeek === weeks.length ? 'Complete Season' : `Advance to Week ${currentWeek + 1}`}
-            </Text>
-            <Ionicons name="arrow-forward" size={18} color="#000000" />
-          </Pressable>
-        </View>
+          {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={null} />}
+          {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
+
+          {/* Advance week */}
+          {canAdvance && (
+            <View style={styles.advanceContainer}>
+              <Pressable onPress={() => { haptics.light(); handleAdvanceWeek(); }} style={[styles.advanceBtn, { backgroundColor: c.gold }]}>
+                <Text style={[styles.advanceBtnText, { fontFamily: GEO }]}>
+                  {currentWeek === weeks.length ? 'Complete Season' : `Advance to Week ${currentWeek + 1}`}
+                </Text>
+                <Ionicons name="arrow-forward" size={18} color="#000000" />
+              </Pressable>
+            </View>
+          )}
+        </>
       )}
 
       <PlayerStatsModal
@@ -1354,6 +1445,18 @@ function SeasonDetailScreenInner() {
         champion={standings[0]}
         topThree={standings.slice(0, 3)}
         onDismiss={() => setShowChampionCeremony(false)}
+      />
+
+      {/* Stroke Play Champion Cinematic Moment */}
+      <DormieMoment
+        visible={showStrokeChampionMoment}
+        type="STROKE_PLAY_CHAMPION"
+        playerName={strokeChampion?.name ?? ''}
+        detail={strokeChampion
+          ? `${strokeChampion.totalStrokes} total strokes across ${strokeChampion.rounds.length} rounds`
+          : ''
+        }
+        onDismiss={() => setShowStrokeChampionMoment(false)}
       />
     </View>
   );
