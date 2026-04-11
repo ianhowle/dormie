@@ -707,6 +707,587 @@ function CustomStructureStep({
   );
 }
 
+// ─── Step: Custom Length ──────────────────────────────────────────────
+function CustomLengthStep({
+  regularWeeks, setRegularWeeks,
+  playoffsEnabled, setPlayoffsEnabled,
+  playoffWeeks, setPlayoffWeeks,
+  qualificationType, setQualificationType,
+  qualificationValue, setQualificationValue,
+  playoffMultiplier, setPlayoffMultiplier,
+  championshipEnabled, setChampionshipEnabled,
+  championshipMultiplier, setChampionshipMultiplier,
+  championshipFormat, setChampionshipFormat,
+  hasH2hDivisions,
+}: {
+  regularWeeks: number;
+  setRegularWeeks: (v: number) => void;
+  playoffsEnabled: boolean;
+  setPlayoffsEnabled: (v: boolean) => void;
+  playoffWeeks: number;
+  setPlayoffWeeks: (v: number) => void;
+  qualificationType: 'top_pct' | 'top_x' | 'division_winners';
+  setQualificationType: (v: 'top_pct' | 'top_x' | 'division_winners') => void;
+  qualificationValue: number;
+  setQualificationValue: (v: number) => void;
+  playoffMultiplier: number;
+  setPlayoffMultiplier: (v: number) => void;
+  championshipEnabled: boolean;
+  setChampionshipEnabled: (v: boolean) => void;
+  championshipMultiplier: number;
+  setChampionshipMultiplier: (v: number) => void;
+  championshipFormat: string;
+  setChampionshipFormat: (v: string) => void;
+  hasH2hDivisions: boolean;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const PLAYOFF_MULTIPLIERS = [1, 1.5, 2, 2.5, 3];
+  const CHAMP_MULTIPLIERS = [1, 2, 3, 4, 5];
+
+  const QUAL_TYPES: { key: 'top_pct' | 'top_x' | 'division_winners'; label: string; desc: string; showIf: boolean }[] = [
+    { key: 'top_pct', label: 'Top Percentage', desc: 'Top X% of standings qualify', showIf: true },
+    { key: 'top_x', label: 'Top X Players', desc: 'Fixed number of qualifiers', showIf: true },
+    { key: 'division_winners', label: 'Division Winners + Wild Cards', desc: 'Each division winner plus wild card spots', showIf: hasH2hDivisions },
+  ];
+
+  const champWeeks = championshipEnabled ? 1 : 0;
+  const playoffTotal = playoffsEnabled ? playoffWeeks : 0;
+  const totalWeeks = regularWeeks + playoffTotal + champWeeks;
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Regular Season */}
+      <Text style={[styles.fieldLabel, { color: c.text }]}>Regular Season Weeks</Text>
+      <View style={[styles.stepperRow, { marginBottom: 4 }]}>
+        <Pressable
+          onPress={() => { haptics.light(); setRegularWeeks(Math.max(1, regularWeeks - 1)); }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+        >
+          <Ionicons name="remove" size={16} color={c.textMuted} />
+        </Pressable>
+        <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{regularWeeks}</Text>
+        <Pressable
+          onPress={() => { haptics.light(); setRegularWeeks(Math.min(52, regularWeeks + 1)); }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+        >
+          <Ionicons name="add" size={16} color={c.textMuted} />
+        </Pressable>
+      </View>
+      <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 16 }]}>
+        {regularWeeks} week{regularWeeks !== 1 ? 's' : ''} of regular season play
+      </Text>
+
+      {/* Playoffs */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Enable Playoffs</Text>
+        </View>
+        <Switch
+          value={playoffsEnabled}
+          onValueChange={setPlayoffsEnabled}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={playoffsEnabled ? c.teal : c.textMuted}
+        />
+      </View>
+
+      {playoffsEnabled && (
+        <View style={{ marginTop: 12 }}>
+          <Text style={[styles.fieldLabel, { color: c.text }]}>Playoff Weeks</Text>
+          <View style={[styles.stepperRow, { marginBottom: 12 }]}>
+            <Pressable
+              onPress={() => { haptics.light(); setPlayoffWeeks(Math.max(1, playoffWeeks - 1)); }}
+              style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+            >
+              <Ionicons name="remove" size={16} color={c.textMuted} />
+            </Pressable>
+            <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{playoffWeeks}</Text>
+            <Pressable
+              onPress={() => { haptics.light(); setPlayoffWeeks(Math.min(6, playoffWeeks + 1)); }}
+              style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+            >
+              <Ionicons name="add" size={16} color={c.textMuted} />
+            </Pressable>
+          </View>
+
+          <Text style={[styles.fieldLabel, { color: c.text }]}>Qualification</Text>
+          {QUAL_TYPES.filter((q) => q.showIf).map((q) => {
+            const active = qualificationType === q.key;
+            return (
+              <Pressable
+                key={q.key}
+                onPress={() => { haptics.light(); setQualificationType(q.key); }}
+                style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+              >
+                <View style={[styles.customRadioOuter, { borderColor: active ? c.teal : c.textMuted }]}>
+                  {active && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.customRadioLabel, { color: active ? c.teal : c.text }]}>
+                    {q.label}
+                  </Text>
+                  <Text style={[styles.fieldDesc, { color: c.textMuted, marginTop: 2 }]}>{q.desc}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+
+          {qualificationType === 'top_pct' && (
+            <View style={{ marginTop: 8, marginBottom: 12 }}>
+              <View style={styles.stepperRow}>
+                <Pressable
+                  onPress={() => { haptics.light(); setQualificationValue(Math.max(25, qualificationValue - 5)); }}
+                  style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+                >
+                  <Ionicons name="remove" size={16} color={c.textMuted} />
+                </Pressable>
+                <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{qualificationValue}%</Text>
+                <Pressable
+                  onPress={() => { haptics.light(); setQualificationValue(Math.min(75, qualificationValue + 5)); }}
+                  style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+                >
+                  <Ionicons name="add" size={16} color={c.textMuted} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {qualificationType === 'top_x' && (
+            <View style={{ marginTop: 8, marginBottom: 12 }}>
+              <View style={styles.stepperRow}>
+                <Pressable
+                  onPress={() => { haptics.light(); setQualificationValue(Math.max(2, qualificationValue - 1)); }}
+                  style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+                >
+                  <Ionicons name="remove" size={16} color={c.textMuted} />
+                </Pressable>
+                <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO }]}>{qualificationValue}</Text>
+                <Pressable
+                  onPress={() => { haptics.light(); setQualificationValue(Math.min(16, qualificationValue + 1)); }}
+                  style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+                >
+                  <Ionicons name="add" size={16} color={c.textMuted} />
+                </Pressable>
+                <Text style={[styles.fieldDesc, { color: c.textMuted }]}>players</Text>
+              </View>
+            </View>
+          )}
+
+          <Text style={[styles.fieldLabel, { color: c.text, marginTop: 8 }]}>Playoff Multiplier</Text>
+          <View style={styles.pillRow}>
+            {PLAYOFF_MULTIPLIERS.map((m) => {
+              const active = playoffMultiplier === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => { haptics.light(); setPlayoffMultiplier(m); }}
+                  style={[styles.pill, { backgroundColor: active ? c.teal + '22' : c.elevated, borderColor: active ? c.teal : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>{m}x</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Championship */}
+      {playoffsEnabled && (
+        <>
+          <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 8 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.ruleLabel, { color: c.text }]}>Separate Championship Round</Text>
+            </View>
+            <Switch
+              value={championshipEnabled}
+              onValueChange={setChampionshipEnabled}
+              trackColor={{ false: c.elevated, true: c.gold + '66' }}
+              thumbColor={championshipEnabled ? c.gold : c.textMuted}
+            />
+          </View>
+
+          {championshipEnabled && (
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.fieldLabel, { color: c.text }]}>Championship Multiplier</Text>
+              <View style={styles.pillRow}>
+                {CHAMP_MULTIPLIERS.map((m) => {
+                  const active = championshipMultiplier === m;
+                  return (
+                    <Pressable
+                      key={m}
+                      onPress={() => { haptics.light(); setChampionshipMultiplier(m); }}
+                      style={[styles.pill, { backgroundColor: active ? c.gold + '22' : c.elevated, borderColor: active ? c.gold : 'transparent', borderWidth: 1 }]}
+                    >
+                      <Text style={[styles.pillText, { color: active ? c.gold : c.textMuted }]}>{m}x</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: c.text, marginTop: 16 }]}>Championship Format</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable
+                    onPress={() => { haptics.light(); setChampionshipFormat('same'); }}
+                    style={[styles.pill, { backgroundColor: championshipFormat === 'same' ? c.gold + '22' : c.elevated, borderColor: championshipFormat === 'same' ? c.gold : 'transparent', borderWidth: 1 }]}
+                  >
+                    <Text style={[styles.pillText, { color: championshipFormat === 'same' ? c.gold : c.textMuted }]}>Same as season</Text>
+                  </Pressable>
+                  {ALL_FORMATS.map((fmt) => {
+                    const active = championshipFormat === fmt;
+                    return (
+                      <Pressable
+                        key={fmt}
+                        onPress={() => { haptics.light(); setChampionshipFormat(fmt); }}
+                        style={[styles.pill, { backgroundColor: active ? c.gold + '22' : c.elevated, borderColor: active ? c.gold : 'transparent', borderWidth: 1 }]}
+                      >
+                        <Text style={[styles.pillText, { color: active ? c.gold : c.textMuted }]}>{FORMAT_LABELS[fmt]}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+        </>
+      )}
+
+      {/* Total weeks summary */}
+      <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginTop: 16 }]}>
+        <Ionicons name="calendar-outline" size={18} color={c.gold} />
+        <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
+          Total: {regularWeeks} regular{playoffsEnabled ? ` + ${playoffWeeks} playoff` : ''}{championshipEnabled && playoffsEnabled ? ' + 1 championship' : ''} = <Text style={{ color: c.gold, fontFamily: GEO, fontWeight: '700' }}>{totalWeeks} weeks</Text>
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Step: Custom Scoring ────────────────────────────────────────────
+const CUSTOM_FORMAT_DESCRIPTIONS: Record<string, string> = {
+  stableford: 'Points for pars, birdies, eagles — no blow-up holes',
+  modified_stableford: 'Aggressive scoring: big rewards for birdies, penalties for bogeys',
+  stroke_net: 'Total strokes adjusted for handicap',
+  stroke_gross: 'Raw total strokes, no handicap adjustment',
+  quota: 'Beat your personal quota based on handicap',
+  best9: 'Best 9-hole score counts each round',
+  match_play: 'Win individual holes against opponents',
+  nassau: 'Front 9, Back 9, and Overall — three bets in one',
+  skins: 'Win holes outright; ties carry over',
+  best_ball: 'Team format: best score on each hole counts',
+  scramble: 'Team format: everyone plays from the best shot',
+  chapman: 'Pairs alternate after both tee off',
+};
+
+const DEFAULT_POINTS_SCALE = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1, 0, 0];
+const LARGE_POINTS_SCALE = [100, 85, 75, 65, 55, 50, 45, 40, 35, 30, 25, 20];
+
+function CustomScoringStep({
+  scoringMethod, setScoringMethod,
+  useDefaultScale, setUseDefaultScale,
+  pointsScale, setPointsScale,
+  largeScale, setLargeScale,
+  formatMode, setFormatMode,
+  singleFormat, setSingleFormat,
+  formatAssignments, setFormatAssignments,
+  regularWeeks,
+}: {
+  scoringMethod: 'position' | 'stableford_accum' | 'strokes' | 'wins_losses' | 'match_points';
+  setScoringMethod: (v: 'position' | 'stableford_accum' | 'strokes' | 'wins_losses' | 'match_points') => void;
+  useDefaultScale: boolean;
+  setUseDefaultScale: (v: boolean) => void;
+  pointsScale: number[];
+  setPointsScale: (v: number[]) => void;
+  largeScale: boolean;
+  setLargeScale: (v: boolean) => void;
+  formatMode: 'same' | 'rotating' | 'random' | 'commissioner';
+  setFormatMode: (v: 'same' | 'rotating' | 'random' | 'commissioner') => void;
+  singleFormat: string;
+  setSingleFormat: (v: string) => void;
+  formatAssignments: string[];
+  setFormatAssignments: (v: string[]) => void;
+  regularWeeks: number;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const cardBgVal = theme.isDark ? c.elevated : c.cardBg;
+
+  const SCORING_METHODS: { key: typeof scoringMethod; icon: React.ComponentProps<typeof Ionicons>['name']; label: string; desc: string }[] = [
+    { key: 'position', icon: 'podium-outline', label: 'Points (Position-Based)', desc: 'Earn points based on weekly finish' },
+    { key: 'stableford_accum', icon: 'trending-up-outline', label: 'Points (Stableford Accumulation)', desc: 'Raw Stableford points add up' },
+    { key: 'strokes', icon: 'golf-outline', label: 'Strokes (Cumulative)', desc: 'Lowest total strokes wins' },
+    { key: 'wins_losses', icon: 'swap-horizontal-outline', label: 'Wins / Losses', desc: 'Head-to-head record determines standings' },
+    { key: 'match_points', icon: 'flag-outline', label: 'Match Points', desc: 'Ryder Cup style team scoring' },
+  ];
+
+  const FORMAT_MODES: { key: typeof formatMode; label: string; desc: string }[] = [
+    { key: 'same', label: 'Same format all season', desc: '' },
+    { key: 'rotating', label: 'Rotating formats', desc: 'Assign format per week' },
+    { key: 'random', label: 'Random each week', desc: 'System randomly assigns before each week' },
+    { key: 'commissioner', label: "Commissioner's choice", desc: 'Pick format before each week starts' },
+  ];
+
+  // Initialize format assignments when switching to rotating mode
+  const handleFormatModeChange = (mode: typeof formatMode) => {
+    setFormatMode(mode);
+    if (mode === 'rotating' && formatAssignments.length < regularWeeks) {
+      const arr = Array.from({ length: regularWeeks }, (_, i) =>
+        formatAssignments[i] || ALL_FORMATS[i % ALL_FORMATS.length]
+      );
+      setFormatAssignments(arr);
+    }
+  };
+
+  const previewScale = largeScale ? LARGE_POINTS_SCALE : DEFAULT_POINTS_SCALE;
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Primary Scoring Method */}
+      <Text style={[styles.fieldLabel, { color: c.text }]}>How are standings determined?</Text>
+      <View style={{ gap: 8 }}>
+        {SCORING_METHODS.map((m) => {
+          const isSelected = scoringMethod === m.key;
+          return (
+            <Pressable
+              key={m.key}
+              onPress={() => { haptics.light(); setScoringMethod(m.key); }}
+              style={[
+                styles.customFormatCard,
+                {
+                  backgroundColor: isSelected ? c.teal + '12' : cardBgVal,
+                  borderColor: isSelected ? c.teal : c.border,
+                  borderWidth: isSelected ? 2 : 1,
+                },
+              ]}
+            >
+              <Ionicons
+                name={m.icon}
+                size={24}
+                color={isSelected ? c.teal : c.textMuted}
+                style={{ marginRight: 12 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.customFormatLabel, { color: isSelected ? c.teal : c.text }]}>
+                  {m.label}
+                </Text>
+                <Text style={[styles.customFormatDesc, { color: c.textMuted }]}>
+                  {m.desc}
+                </Text>
+              </View>
+              {isSelected && (
+                <Ionicons name="checkmark-circle" size={22} color={c.teal} />
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Points Scale (only for position-based) */}
+      {scoringMethod === 'position' && (
+        <View style={{ marginTop: 20 }}>
+          <Text style={[styles.fieldLabel, { color: c.text }]}>Points Scale</Text>
+
+          <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.ruleLabel, { color: c.text }]}>Use Default Scale</Text>
+            </View>
+            <Switch
+              value={useDefaultScale}
+              onValueChange={(v) => {
+                setUseDefaultScale(v);
+                if (v) setPointsScale(largeScale ? [...LARGE_POINTS_SCALE] : [...DEFAULT_POINTS_SCALE]);
+              }}
+              trackColor={{ false: c.elevated, true: c.teal + '66' }}
+              thumbColor={useDefaultScale ? c.teal : c.textMuted}
+            />
+          </View>
+
+          {useDefaultScale && (
+            <>
+              <View style={[styles.pointsPreview, { backgroundColor: c.elevated, marginTop: 8 }]}>
+                <Text style={[styles.pointsPreviewTitle, { color: c.textMuted }]}>POINTS PREVIEW</Text>
+                <View style={styles.pointsRow}>
+                  {previewScale.slice(0, 5).map((pts, i) => (
+                    <View key={i} style={styles.pointsCell}>
+                      <Text style={[styles.pointsPos, { color: c.textMuted }]}>{i + 1}{i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'}</Text>
+                      <Text style={[styles.pointsVal, { color: c.gold, fontFamily: GEO }]}>{pts}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={[styles.fieldDesc, { color: c.textMuted, textAlign: 'center', marginTop: 8 }]}>
+                  Scales with player count
+                </Text>
+              </View>
+
+              <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.ruleLabel, { color: c.text }]}>Use Large Scale (100-point)</Text>
+                </View>
+                <Switch
+                  value={largeScale}
+                  onValueChange={(v) => {
+                    setLargeScale(v);
+                    setPointsScale(v ? [...LARGE_POINTS_SCALE] : [...DEFAULT_POINTS_SCALE]);
+                  }}
+                  trackColor={{ false: c.elevated, true: c.teal + '66' }}
+                  thumbColor={largeScale ? c.teal : c.textMuted}
+                />
+              </View>
+            </>
+          )}
+
+          {!useDefaultScale && (
+            <View style={{ marginTop: 8 }}>
+              {pointsScale.map((pts, i) => (
+                <View key={i} style={[styles.customPointsInputRow, { borderBottomColor: c.border }]}>
+                  <Text style={[styles.customPointsPos, { color: c.textMuted }]}>
+                    {i + 1}{i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'}
+                  </Text>
+                  <View style={styles.stepperRow}>
+                    <Pressable
+                      onPress={() => {
+                        haptics.light();
+                        const updated = [...pointsScale];
+                        updated[i] = Math.max(0, updated[i] - 1);
+                        setPointsScale(updated);
+                      }}
+                      style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+                    >
+                      <Ionicons name="remove" size={14} color={c.textMuted} />
+                    </Pressable>
+                    <Text style={[styles.stepperVal, { color: c.gold, fontFamily: GEO, fontSize: 16, minWidth: 24 }]}>{pts}</Text>
+                    <Pressable
+                      onPress={() => {
+                        haptics.light();
+                        const updated = [...pointsScale];
+                        updated[i] = updated[i] + 1;
+                        setPointsScale(updated);
+                      }}
+                      style={[styles.stepperBtn, { backgroundColor: c.elevated }]}
+                    >
+                      <Ionicons name="add" size={14} color={c.textMuted} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Weekly Format */}
+      <View style={{ marginTop: 20 }}>
+        <Text style={[styles.fieldLabel, { color: c.text }]}>Scoring Format Each Week</Text>
+        {FORMAT_MODES.map((fm) => {
+          const active = formatMode === fm.key;
+          return (
+            <Pressable
+              key={fm.key}
+              onPress={() => { haptics.light(); handleFormatModeChange(fm.key); }}
+              style={[styles.customRadioRow, { borderBottomColor: c.border }]}
+            >
+              <View style={[styles.customRadioOuter, { borderColor: active ? c.teal : c.textMuted }]}>
+                {active && <View style={[styles.customRadioInner, { backgroundColor: c.teal }]} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.customRadioLabel, { color: active ? c.teal : c.text }]}>
+                  {fm.label}
+                </Text>
+                {fm.desc ? (
+                  <Text style={[styles.fieldDesc, { color: c.textMuted, marginTop: 2 }]}>{fm.desc}</Text>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
+
+        {/* Format picker for "same format" */}
+        {formatMode === 'same' && (
+          <View style={{ marginTop: 12 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+                {ALL_FORMATS.map((fmt) => {
+                  const active = singleFormat === fmt;
+                  return (
+                    <Pressable
+                      key={fmt}
+                      onPress={() => { haptics.light(); setSingleFormat(fmt); }}
+                      style={[styles.pill, { backgroundColor: active ? c.teal + '22' : c.elevated, borderColor: active ? c.teal : 'transparent', borderWidth: 1 }]}
+                    >
+                      <Text style={[styles.pillText, { color: active ? c.teal : c.textMuted }]}>{FORMAT_LABELS[fmt]}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+            {singleFormat && (
+              <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginTop: 8 }]}>
+                <Ionicons name="information-circle-outline" size={16} color={c.teal} />
+                <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
+                  {CUSTOM_FORMAT_DESCRIPTIONS[singleFormat] || FORMAT_LABELS[singleFormat]}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Week-by-week assignment for "rotating" */}
+        {formatMode === 'rotating' && (
+          <View style={{ marginTop: 12 }}>
+            {formatAssignments.slice(0, regularWeeks).map((fmt, i) => (
+              <View key={i} style={[styles.customWeekAssignRow, { borderBottomColor: c.border }]}>
+                <Text style={[styles.customWeekNum, { color: c.textMuted, fontFamily: GEO }]}>Wk {i + 1}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    {ALL_FORMATS.map((f) => {
+                      const active = fmt === f;
+                      return (
+                        <Pressable
+                          key={f}
+                          onPress={() => {
+                            haptics.light();
+                            const updated = [...formatAssignments];
+                            updated[i] = f;
+                            setFormatAssignments(updated);
+                          }}
+                          style={[styles.pill, { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: active ? c.teal + '22' : c.elevated, borderColor: active ? c.teal : 'transparent', borderWidth: 1 }]}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: active ? c.teal : c.textMuted }}>{FORMAT_LABELS[f]}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Helper for random */}
+        {formatMode === 'random' && (
+          <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginTop: 8 }]}>
+            <Ionicons name="shuffle-outline" size={16} color={c.teal} />
+            <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
+              System randomly assigns a format before each week
+            </Text>
+          </View>
+        )}
+
+        {/* Helper for commissioner */}
+        {formatMode === 'commissioner' && (
+          <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border, marginTop: 8 }]}>
+            <Ionicons name="shield-outline" size={16} color={c.gold} />
+            <Text style={{ flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 18 }}>
+              Pick format before each week starts
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Step: Format ─────────────────────────────────────────────────────
 function FormatStep({
   preset,
@@ -4059,6 +4640,26 @@ export default function SeasonsScreen() {
   const [customSeeding, setCustomSeeding] = useState<CustomSeedingMethod>('handicap');
   const [customElimination, setCustomElimination] = useState<CustomElimination>('single');
 
+  // State — Custom Length
+  const [customRegularWeeks, setCustomRegularWeeks] = useState(10);
+  const [customPlayoffsEnabled, setCustomPlayoffsEnabled] = useState(true);
+  const [customPlayoffWeeks, setCustomPlayoffWeeks] = useState(2);
+  const [customQualificationType, setCustomQualificationType] = useState<'top_pct' | 'top_x' | 'division_winners'>('top_pct');
+  const [customQualificationValue, setCustomQualificationValue] = useState(50);
+  const [customPlayoffMultiplier, setCustomPlayoffMultiplier] = useState<number>(2);
+  const [customChampionshipEnabled, setCustomChampionshipEnabled] = useState(true);
+  const [customChampionshipMultiplier, setCustomChampionshipMultiplier] = useState<number>(3);
+  const [customChampionshipFormat, setCustomChampionshipFormat] = useState<string>('same');
+
+  // State — Custom Scoring
+  const [customScoringMethod, setCustomScoringMethod] = useState<'position' | 'stableford_accum' | 'strokes' | 'wins_losses' | 'match_points'>('position');
+  const [customUseDefaultScale, setCustomUseDefaultScale] = useState(true);
+  const [customPointsScale, setCustomPointsScale] = useState<number[]>([15, 12, 10, 8, 6, 5, 4, 3, 2, 1, 0, 0]);
+  const [customLargeScale, setCustomLargeScale] = useState(false);
+  const [customFormatMode, setCustomFormatMode] = useState<'same' | 'rotating' | 'random' | 'commissioner'>('same');
+  const [customSingleFormat, setCustomSingleFormat] = useState('stableford');
+  const [customFormatAssignments, setCustomFormatAssignments] = useState<string[]>([]);
+
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
     const p = LENGTH_PRESETS.find((lp) => lp.key === preset)!;
@@ -4139,25 +4740,26 @@ export default function SeasonsScreen() {
       Object.assign(base, {
         description: customDescription || null,
         custom_structure: customStructure,
-        scoring_method: scoringMethod,
-        cut_percentage: cutEnabled ? cutValue : null,
-        drop_worst: dropWorst,
-        dns_averaging: dnsAveraging,
-        dns_min_rounds: dnsMinRounds,
-        dns_cap: dnsCap,
-        playoff_multiplier: playoffMultiplier,
-        championship_multiplier: champMultiplier,
-        length_preset: preset,
-        use_custom_cycle: useCustomCycle,
-        custom_cycle: useCustomCycle ? customCycle : null,
-        makeup_window_weeks: makeupWindowEnabled ? makeupWindowWeeks : null,
-        dns_safety_net: dnsSafetyNet,
-        dns_safety_max: dnsSafetyNet ? dnsSafetyMax : null,
-        multi_round_week: multiRoundWeek,
-        rounds_allowed_per_week: multiRoundWeek ? roundsAllowed : null,
-        best_rounds_count: multiRoundWeek ? bestRoundsCount : null,
-        participation_bonus: participationBonus,
-        participation_points: participationBonus ? participationPoints : null,
+        custom_length: {
+          regular_weeks: customRegularWeeks,
+          playoffs_enabled: customPlayoffsEnabled,
+          playoff_weeks: customPlayoffsEnabled ? customPlayoffWeeks : 0,
+          qualification_type: customPlayoffsEnabled ? customQualificationType : null,
+          qualification_value: customPlayoffsEnabled ? customQualificationValue : null,
+          playoff_multiplier: customPlayoffsEnabled ? customPlayoffMultiplier : null,
+          championship_enabled: customPlayoffsEnabled ? customChampionshipEnabled : false,
+          championship_multiplier: customPlayoffsEnabled && customChampionshipEnabled ? customChampionshipMultiplier : null,
+          championship_format: customPlayoffsEnabled && customChampionshipEnabled ? (customChampionshipFormat === 'same' ? null : customChampionshipFormat) : null,
+        },
+        custom_scoring: {
+          scoring_method: customScoringMethod,
+          use_default_scale: customScoringMethod === 'position' ? customUseDefaultScale : null,
+          points_scale: customScoringMethod === 'position' ? customPointsScale : null,
+          large_scale: customScoringMethod === 'position' ? customLargeScale : null,
+          format_mode: customFormatMode,
+          single_format: customFormatMode === 'same' ? customSingleFormat : null,
+          format_assignments: customFormatMode === 'rotating' ? customFormatAssignments.slice(0, customRegularWeeks) : null,
+        },
       });
     } else if (seasonType === 'fedex') {
       Object.assign(base, {
@@ -4243,7 +4845,7 @@ export default function SeasonsScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -4372,7 +4974,33 @@ export default function SeasonsScreen() {
             elimination={customElimination} setElimination={setCustomElimination}
           />
         )}
-        {(currentStep === 'custom_length' || currentStep === 'custom_scoring' || currentStep === 'custom_rules' || currentStep === 'custom_bonuses') && (
+        {currentStep === 'custom_length' && (
+          <CustomLengthStep
+            regularWeeks={customRegularWeeks} setRegularWeeks={setCustomRegularWeeks}
+            playoffsEnabled={customPlayoffsEnabled} setPlayoffsEnabled={setCustomPlayoffsEnabled}
+            playoffWeeks={customPlayoffWeeks} setPlayoffWeeks={setCustomPlayoffWeeks}
+            qualificationType={customQualificationType} setQualificationType={setCustomQualificationType}
+            qualificationValue={customQualificationValue} setQualificationValue={setCustomQualificationValue}
+            playoffMultiplier={customPlayoffMultiplier} setPlayoffMultiplier={setCustomPlayoffMultiplier}
+            championshipEnabled={customChampionshipEnabled} setChampionshipEnabled={setCustomChampionshipEnabled}
+            championshipMultiplier={customChampionshipMultiplier} setChampionshipMultiplier={setCustomChampionshipMultiplier}
+            championshipFormat={customChampionshipFormat} setChampionshipFormat={setCustomChampionshipFormat}
+            hasH2hDivisions={customBaseFormat === 'h2h' && customDivisions}
+          />
+        )}
+        {currentStep === 'custom_scoring' && (
+          <CustomScoringStep
+            scoringMethod={customScoringMethod} setScoringMethod={setCustomScoringMethod}
+            useDefaultScale={customUseDefaultScale} setUseDefaultScale={setCustomUseDefaultScale}
+            pointsScale={customPointsScale} setPointsScale={setCustomPointsScale}
+            largeScale={customLargeScale} setLargeScale={setCustomLargeScale}
+            formatMode={customFormatMode} setFormatMode={setCustomFormatMode}
+            singleFormat={customSingleFormat} setSingleFormat={setCustomSingleFormat}
+            formatAssignments={customFormatAssignments} setFormatAssignments={setCustomFormatAssignments}
+            regularWeeks={customRegularWeeks}
+          />
+        )}
+        {(currentStep === 'custom_rules' || currentStep === 'custom_bonuses') && (
           <View style={styles.stepContent}>
             <View style={[styles.explanationCard, { backgroundColor: c.elevated, borderColor: c.border }]}>
               <Ionicons name="construct-outline" size={18} color={c.gold} />
@@ -4769,4 +5397,10 @@ const styles = StyleSheet.create({
   customRadioLabel: { fontSize: 14, fontWeight: '600' },
   bestXYRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginTop: 8 },
   bestXYLabel: { fontSize: 14, fontWeight: '600' },
+
+  // Custom scoring
+  customPointsInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  customPointsPos: { fontSize: 14, fontWeight: '600', width: 40 },
+  customWeekAssignRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  customWeekNum: { fontSize: 13, fontWeight: '700', width: 40 },
 });
