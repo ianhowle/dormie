@@ -153,12 +153,12 @@ const MOCK_FRIENDS: Friend[] = [
 type Step = 'basics' | 'format' | 'rules' | 'majors' | 'members' | 'review'
   | 'rc_team_setup' | 'rc_match_format' | 'rc_members' | 'rc_review'
   | 'bracket_setup' | 'bracket_rules' | 'bracket_members' | 'bracket_review'
-  | 'stroke_setup' | 'stroke_members' | 'stroke_review';
+  | 'stroke_format' | 'stroke_policies' | 'stroke_members' | 'stroke_review';
 
 const FEDEX_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 const RYDER_STEPS: Step[] = ['basics', 'rc_members', 'rc_team_setup', 'rc_match_format', 'rc_review'];
 const BRACKET_STEPS: Step[] = ['basics', 'bracket_setup', 'bracket_rules', 'bracket_members', 'bracket_review'];
-const STROKE_STEPS: Step[] = ['basics', 'stroke_setup', 'stroke_members', 'stroke_review'];
+const STROKE_STEPS: Step[] = ['basics', 'stroke_format', 'stroke_policies', 'stroke_members', 'stroke_review'];
 const CUSTOM_STEPS: Step[] = ['basics', 'format', 'rules', 'majors', 'members', 'review'];
 
 function getStepsForType(type: SeasonType): Step[] {
@@ -186,7 +186,8 @@ const STEP_TITLES: Record<Step, string> = {
   bracket_rules: 'Match Rules',
   bracket_members: 'Members',
   bracket_review: 'Review',
-  stroke_setup: 'Series Setup',
+  stroke_format: 'Format & Length',
+  stroke_policies: 'Round Policies',
   stroke_members: 'Members',
   stroke_review: 'Review',
 };
@@ -260,7 +261,7 @@ function BasicsStep({
       <TextInput
         value={name}
         onChangeText={setName}
-        placeholder={seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
+        placeholder={seasonType === 'bracket' ? 'Match Play Championship \u2014 Spring 2026' : seasonType === 'stroke_series' ? 'Stroke Play Championship \u2014 Spring 2026' : 'e.g., 2026 FedEx Cup'}
         placeholderTextColor={c.textMuted}
         onFocus={() => setNameFocused(true)}
         onBlur={() => setNameFocused(false)}
@@ -2368,65 +2369,190 @@ function BracketReviewStep({
   );
 }
 
-// ─── Stroke Play Series: Series Setup ───────────────────────────────
+// ─── Stroke Play Series types ────────────────────────────────────────
 type StrokeScoringType = 'gross' | 'net' | 'both';
+type StrokeTiebreaker = 'scorecard' | 'most_recent' | 'co_champions';
+type StrokeCourseRestriction = 'any' | 'same' | 'rotating';
 
-function StrokeSeriesSetupStep({
+// ─── Stroke Play Series: Step 2 — Format & Length ───────────────────
+function StrokeFormatStep({
   strokeRounds,
   setStrokeRounds,
   strokeScoring,
   setStrokeScoring,
-  strokeDropWorst,
-  setStrokeDropWorst,
+  strokeTiebreaker,
+  setStrokeTiebreaker,
 }: {
   strokeRounds: number;
   setStrokeRounds: (v: number) => void;
   strokeScoring: StrokeScoringType;
   setStrokeScoring: (v: StrokeScoringType) => void;
-  strokeDropWorst: boolean;
-  setStrokeDropWorst: (v: boolean) => void;
+  strokeTiebreaker: StrokeTiebreaker;
+  setStrokeTiebreaker: (v: StrokeTiebreaker) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const ROUND_OPTIONS = [4, 6, 8, 10];
+  const TIEBREAKER_OPTIONS: { key: StrokeTiebreaker; label: string; desc: string }[] = [
+    { key: 'scorecard', label: 'Scorecard Playoff', desc: 'Compare back 9, then back 6, then back 3, then 18th hole' },
+    { key: 'most_recent', label: 'Most Recent Round', desc: 'Lower score in the final round wins' },
+    { key: 'co_champions', label: 'Co-Champions', desc: 'No tiebreaker — share the title' },
+  ];
 
   return (
     <View style={styles.stepContent}>
+      {/* Season Length */}
       <Text style={[styles.fieldLabel, { color: c.text }]}>Number of Rounds</Text>
       <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 10 }]}>
-        Total rounds in the series.
+        Total rounds in the series. Players accumulate strokes across all rounds.
       </Text>
-      <View style={styles.pillRow}>
-        {ROUND_OPTIONS.map((n) => (
-          <Pressable
-            key={n}
-            onPress={() => { haptics.light(); setStrokeRounds(n); }}
-            style={[styles.pill, {
-              backgroundColor: strokeRounds === n ? c.teal + '22' : c.elevated,
-              borderColor: strokeRounds === n ? c.teal : 'transparent',
-              borderWidth: 1,
-            }]}
-          >
-            <Text style={[styles.pillText, { color: strokeRounds === n ? c.teal : c.textMuted, fontFamily: GEO }]}>{n}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.stepperRow}>
+        <Pressable
+          onPress={() => { if (strokeRounds > 4) { haptics.light(); setStrokeRounds(strokeRounds - 1); } }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated, opacity: strokeRounds <= 4 ? 0.4 : 1 }]}
+        >
+          <Ionicons name="remove" size={18} color={c.text} />
+        </Pressable>
+        <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{strokeRounds}</Text>
+        <Text style={[styles.stepperUnit, { color: c.textMuted }]}>rounds</Text>
+        <Pressable
+          onPress={() => { if (strokeRounds < 20) { haptics.light(); setStrokeRounds(strokeRounds + 1); } }}
+          style={[styles.stepperBtn, { backgroundColor: c.elevated, opacity: strokeRounds >= 20 ? 0.4 : 1 }]}
+        >
+          <Ionicons name="add" size={18} color={c.text} />
+        </Pressable>
       </View>
 
-      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 20 }]}>Scoring</Text>
-      <PillRow
-        options={['gross', 'net', 'both'] as StrokeScoringType[]}
-        selected={strokeScoring}
-        onSelect={setStrokeScoring}
-        labels={{ gross: 'Gross', net: 'Net', both: 'Both' }}
-        colors={c}
-      />
+      {/* Scoring Type */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Scoring Type</Text>
+      {(['net', 'gross'] as const).map((opt) => {
+        const isActive = strokeScoring === opt;
+        const label = opt === 'net' ? 'Net Strokes' : 'Gross Strokes';
+        const desc = opt === 'net'
+          ? 'Handicap-adjusted scores — levels the playing field'
+          : 'Raw scores, no handicap adjustment';
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => { haptics.light(); setStrokeScoring(opt); }}
+            style={[styles.strokeRadioRow, { backgroundColor: isActive ? c.teal + '12' : c.elevated, borderColor: isActive ? c.teal : c.border, borderWidth: 1, marginBottom: 8 }]}
+          >
+            <View style={[styles.strokeRadioOuter, { borderColor: isActive ? c.teal : c.textMuted }]}>
+              {isActive && <View style={[styles.strokeRadioInner, { backgroundColor: c.teal }]} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.strokeRadioLabel, { color: isActive ? c.text : c.textMuted }]}>{label}</Text>
+              <Text style={[styles.strokeRadioDesc, { color: c.textMuted }]}>{desc}</Text>
+            </View>
+          </Pressable>
+        );
+      })}
 
-      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 16 }]}>
+      {/* Tiebreaker */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Tiebreaker</Text>
+      {TIEBREAKER_OPTIONS.map((opt) => {
+        const isActive = strokeTiebreaker === opt.key;
+        return (
+          <Pressable
+            key={opt.key}
+            onPress={() => { haptics.light(); setStrokeTiebreaker(opt.key); }}
+            style={[styles.strokeRadioRow, { backgroundColor: isActive ? c.gold + '12' : c.elevated, borderColor: isActive ? c.gold : c.border, borderWidth: 1, marginBottom: 8 }]}
+          >
+            <View style={[styles.strokeRadioOuter, { borderColor: isActive ? c.gold : c.textMuted }]}>
+              {isActive && <View style={[styles.strokeRadioInner, { backgroundColor: c.gold }]} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.strokeRadioLabel, { color: isActive ? c.text : c.textMuted }]}>{opt.label}</Text>
+              <Text style={[styles.strokeRadioDesc, { color: c.textMuted }]}>{opt.desc}</Text>
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Stroke Play Series: Step 3 — Round Policies ────────────────────
+function StrokePoliciesStep({
+  strokeLimitRounds,
+  setStrokeLimitRounds,
+  strokeMaxRoundsPerWeek,
+  setStrokeMaxRoundsPerWeek,
+  strokeDropWorst,
+  setStrokeDropWorst,
+  strokeDropCount,
+  setStrokeDropCount,
+  strokeCourseRestriction,
+  setStrokeCourseRestriction,
+  strokeDesignatedCourseId,
+  setStrokeDesignatedCourseId,
+  strokeDesignatedCourseName,
+  setStrokeDesignatedCourseName,
+}: {
+  strokeLimitRounds: boolean;
+  setStrokeLimitRounds: (v: boolean) => void;
+  strokeMaxRoundsPerWeek: number;
+  setStrokeMaxRoundsPerWeek: (v: number) => void;
+  strokeDropWorst: boolean;
+  setStrokeDropWorst: (v: boolean) => void;
+  strokeDropCount: number;
+  setStrokeDropCount: (v: number) => void;
+  strokeCourseRestriction: StrokeCourseRestriction;
+  setStrokeCourseRestriction: (v: StrokeCourseRestriction) => void;
+  strokeDesignatedCourseId: string | null;
+  setStrokeDesignatedCourseId: (v: string | null) => void;
+  strokeDesignatedCourseName: string | null;
+  setStrokeDesignatedCourseName: (v: string | null) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const COURSE_OPTIONS: { key: StrokeCourseRestriction; label: string; desc: string }[] = [
+    { key: 'any', label: 'Any Course', desc: 'Players can play any course each round' },
+    { key: 'same', label: 'Same Course', desc: 'All rounds played at one designated course' },
+    { key: 'rotating', label: 'Rotating Courses', desc: 'Commissioner assigns a course per round' },
+  ];
+
+  return (
+    <View style={styles.stepContent}>
+      {/* Rounds Per Week */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.ruleLabel, { color: c.text }]}>Limit Rounds Per Week</Text>
+          <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
+            Prevents grinding multiple rounds in one week
+          </Text>
+        </View>
+        <Switch
+          value={strokeLimitRounds}
+          onValueChange={setStrokeLimitRounds}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={strokeLimitRounds ? c.teal : c.textMuted}
+        />
+      </View>
+      {strokeLimitRounds && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Max rounds per week</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setStrokeMaxRoundsPerWeek(Math.max(1, strokeMaxRoundsPerWeek - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={strokeMaxRoundsPerWeek <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{strokeMaxRoundsPerWeek}</Text>
+              <Pressable onPress={() => { haptics.light(); setStrokeMaxRoundsPerWeek(Math.min(3, strokeMaxRoundsPerWeek + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={strokeMaxRoundsPerWeek >= 3 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Drop Worst Round */}
+      <View style={[styles.ruleRow, { borderBottomColor: c.border, marginTop: 8 }]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.ruleLabel, { color: c.text }]}>Drop Worst Round</Text>
           <Text style={[styles.ruleDesc, { color: c.textMuted }]}>
-            Your worst round score won't count toward the total
+            Your worst round(s) won't count toward total
           </Text>
         </View>
         <Switch
@@ -2436,23 +2562,97 @@ function StrokeSeriesSetupStep({
           thumbColor={strokeDropWorst ? c.teal : c.textMuted}
         />
       </View>
+      {strokeDropWorst && (
+        <View style={[styles.dnsOptions, { backgroundColor: c.elevated }]}>
+          <View style={styles.dnsRow}>
+            <Text style={[styles.dnsLabel, { color: c.textMuted }]}>Rounds to drop</Text>
+            <View style={styles.stepperRow}>
+              <Pressable onPress={() => { haptics.light(); setStrokeDropCount(Math.max(1, strokeDropCount - 1)); }}>
+                <Ionicons name="remove-circle-outline" size={24} color={strokeDropCount <= 1 ? c.border : c.textMuted} />
+              </Pressable>
+              <Text style={[styles.stepperVal, { color: c.text, fontFamily: GEO }]}>{strokeDropCount}</Text>
+              <Pressable onPress={() => { haptics.light(); setStrokeDropCount(Math.min(3, strokeDropCount + 1)); }}>
+                <Ionicons name="add-circle-outline" size={24} color={strokeDropCount >= 3 ? c.border : c.teal} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Course Restrictions */}
+      <Text style={[styles.fieldLabel, { color: c.text, marginTop: 24 }]}>Course Restrictions</Text>
+      {COURSE_OPTIONS.map((opt) => {
+        const isActive = strokeCourseRestriction === opt.key;
+        return (
+          <Pressable
+            key={opt.key}
+            onPress={() => { haptics.light(); setStrokeCourseRestriction(opt.key); }}
+            style={[styles.strokeRadioRow, { backgroundColor: isActive ? c.teal + '12' : c.elevated, borderColor: isActive ? c.teal : c.border, borderWidth: 1, marginBottom: 8 }]}
+          >
+            <View style={[styles.strokeRadioOuter, { borderColor: isActive ? c.teal : c.textMuted }]}>
+              {isActive && <View style={[styles.strokeRadioInner, { backgroundColor: c.teal }]} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.strokeRadioLabel, { color: isActive ? c.text : c.textMuted }]}>{opt.label}</Text>
+              <Text style={[styles.strokeRadioDesc, { color: c.textMuted }]}>{opt.desc}</Text>
+            </View>
+          </Pressable>
+        );
+      })}
+
+      {/* Designated course selector for "same" restriction */}
+      {strokeCourseRestriction === 'same' && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={[styles.fieldDesc, { color: c.textMuted, marginBottom: 8 }]}>Select course</Text>
+          <View style={styles.pillRow}>
+            {SUGGESTED_COURSES_FLAT.map((course) => {
+              const isActive = strokeDesignatedCourseId === course.id;
+              return (
+                <Pressable
+                  key={course.id}
+                  onPress={() => {
+                    haptics.light();
+                    setStrokeDesignatedCourseId(course.id);
+                    setStrokeDesignatedCourseName(course.name);
+                  }}
+                  style={[styles.pill, { backgroundColor: isActive ? c.teal + '22' : c.elevated, borderColor: isActive ? c.teal : 'transparent', borderWidth: 1 }]}
+                >
+                  <Text style={[styles.pillText, { color: isActive ? c.teal : c.textMuted }]}>{course.name}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
-// ─── Stroke Play Series: Review ─────────────────────────────────────
+// ─── Stroke Play Series: Step 5 — Review ────────────────────────────
 function StrokeSeriesReviewStep({
   name,
   strokeRounds,
   strokeScoring,
+  strokeTiebreaker,
+  strokeLimitRounds,
+  strokeMaxRoundsPerWeek,
   strokeDropWorst,
+  strokeDropCount,
+  strokeCourseRestriction,
+  strokeDesignatedCourseName,
   selectedIds,
   manualPlayers,
 }: {
   name: string;
   strokeRounds: number;
   strokeScoring: StrokeScoringType;
+  strokeTiebreaker: StrokeTiebreaker;
+  strokeLimitRounds: boolean;
+  strokeMaxRoundsPerWeek: number;
   strokeDropWorst: boolean;
+  strokeDropCount: number;
+  strokeCourseRestriction: StrokeCourseRestriction;
+  strokeDesignatedCourseName: string | null;
   selectedIds: string[];
   manualPlayers: ManualPlayer[];
 }) {
@@ -2460,22 +2660,57 @@ function StrokeSeriesReviewStep({
   const c = theme.colors;
 
   const allPlayers = MOCK_FRIENDS.filter((f) => selectedIds.includes(f.id));
-  const scoringLabels: Record<StrokeScoringType, string> = { gross: 'Gross', net: 'Net', both: 'Gross + Net' };
+  const scoringLabels: Record<StrokeScoringType, string> = { gross: 'Gross Strokes', net: 'Net Strokes', both: 'Gross + Net' };
+  const tiebreakerLabels: Record<StrokeTiebreaker, string> = {
+    scorecard: 'Scorecard Playoff',
+    most_recent: 'Most Recent Round',
+    co_champions: 'Co-Champions',
+  };
+  const courseLabels: Record<StrokeCourseRestriction, string> = {
+    any: 'Any Course',
+    same: 'Same Course Each Round',
+    rotating: 'Rotating Courses',
+  };
+
+  const totalPlayers = allPlayers.length + manualPlayers.length + 1;
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      {/* Trophy header */}
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Ionicons name="trophy" size={40} color={c.gold} style={{ marginBottom: 8 }} />
         <Text style={{ fontSize: 28, fontWeight: '700', color: c.gold, fontFamily: GEO, textAlign: 'center' }}>{name}</Text>
-        <Text style={{ fontSize: 16, color: c.textMuted, marginTop: 6 }}>Stroke Play Series</Text>
+        <Text style={{ fontSize: 14, color: c.textMuted, marginTop: 6 }}>Stroke Play Series</Text>
       </View>
 
-      <AccordionSection title="Series Setup" icon="document-text-outline" iconColor={c.teal} defaultOpen>
+      {/* Season Summary */}
+      <AccordionSection title="Season Summary" icon="document-text-outline" iconColor={c.teal} defaultOpen>
         <Text style={[styles.reviewVal, { color: c.text }]}>{strokeRounds} rounds</Text>
-        <Text style={[styles.reviewVal, { color: c.textMuted }]}>Scoring: {scoringLabels[strokeScoring]}</Text>
-        {strokeDropWorst && <Text style={[styles.reviewVal, { color: c.textMuted }]}>Drop worst round enabled</Text>}
+        <Text style={[styles.reviewVal, { color: c.text }]}>{scoringLabels[strokeScoring]}</Text>
+        <Text style={[styles.reviewVal, { color: c.textMuted }]}>Tiebreaker: {tiebreakerLabels[strokeTiebreaker]}</Text>
       </AccordionSection>
 
-      <AccordionSection title={`Members (${allPlayers.length + manualPlayers.length + 1})`} icon="people" iconColor={c.teal} defaultOpen>
+      {/* Policies */}
+      <AccordionSection title="Policies" icon="settings-outline" iconColor={c.gold} defaultOpen>
+        {strokeLimitRounds && (
+          <Text style={[styles.reviewVal, { color: c.text }]}>Max {strokeMaxRoundsPerWeek} round{strokeMaxRoundsPerWeek > 1 ? 's' : ''} per week</Text>
+        )}
+        {!strokeLimitRounds && (
+          <Text style={[styles.reviewVal, { color: c.textMuted }]}>No weekly round limit</Text>
+        )}
+        {strokeDropWorst ? (
+          <Text style={[styles.reviewVal, { color: c.text }]}>Drop worst {strokeDropCount} round{strokeDropCount > 1 ? 's' : ''}</Text>
+        ) : (
+          <Text style={[styles.reviewVal, { color: c.textMuted }]}>All rounds count</Text>
+        )}
+        <Text style={[styles.reviewVal, { color: c.text }]}>
+          {courseLabels[strokeCourseRestriction]}
+          {strokeCourseRestriction === 'same' && strokeDesignatedCourseName ? ` — ${strokeDesignatedCourseName}` : ''}
+        </Text>
+      </AccordionSection>
+
+      {/* Members */}
+      <AccordionSection title={`Members (${totalPlayers})`} icon="people" iconColor={c.teal} defaultOpen>
         <View style={styles.reviewAvatarRow}>
           <View style={styles.reviewAvatarItem}>
             <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '33' }]}>
@@ -2486,7 +2721,25 @@ function StrokeSeriesReviewStep({
           {allPlayers.map((m) => (
             <View key={m.id} style={styles.reviewAvatarItem}>
               <Avatar id={m.id} name={m.name} size={40} />
-              <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+                {strokeScoring === 'net' && (
+                  <Text style={{ fontSize: 9, color: c.textMuted, marginTop: 1 }}>HCP {m.handicap}</Text>
+                )}
+              </View>
+            </View>
+          ))}
+          {manualPlayers.map((m) => (
+            <View key={m.id} style={styles.reviewAvatarItem}>
+              <View style={[styles.reviewAvatarCircle, { backgroundColor: c.teal + '22' }]}>
+                <Ionicons name="person-add" size={16} color={c.teal} />
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[styles.reviewAvatarName, { color: c.text }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+                {strokeScoring === 'net' && m.handicap !== null && (
+                  <Text style={{ fontSize: 9, color: c.textMuted, marginTop: 1 }}>HCP {m.handicap}</Text>
+                )}
+              </View>
             </View>
           ))}
         </View>
@@ -2567,9 +2820,16 @@ export default function SeasonsScreen() {
   const [roundDeadlineDays, setRoundDeadlineDays] = useState(7);
 
   // State — Stroke Play Series
-  const [strokeRounds, setStrokeRounds] = useState(6);
+  const [strokeRounds, setStrokeRounds] = useState(8);
   const [strokeScoring, setStrokeScoring] = useState<StrokeScoringType>('net');
+  const [strokeTiebreaker, setStrokeTiebreaker] = useState<StrokeTiebreaker>('scorecard');
+  const [strokeLimitRounds, setStrokeLimitRounds] = useState(false);
+  const [strokeMaxRoundsPerWeek, setStrokeMaxRoundsPerWeek] = useState(1);
   const [strokeDropWorst, setStrokeDropWorst] = useState(false);
+  const [strokeDropCount, setStrokeDropCount] = useState(1);
+  const [strokeCourseRestriction, setStrokeCourseRestriction] = useState<StrokeCourseRestriction>('any');
+  const [strokeDesignatedCourseId, setStrokeDesignatedCourseId] = useState<string | null>(null);
+  const [strokeDesignatedCourseName, setStrokeDesignatedCourseName] = useState<string | null>(null);
 
   // Auto-generate weeks from preset
   const weeks = useMemo<WeekConfig[]>(() => {
@@ -2666,13 +2926,21 @@ export default function SeasonsScreen() {
       });
     } else if (seasonType === 'stroke_series') {
       Object.assign(base, {
-        num_rounds: strokeRounds,
-        scoring: strokeScoring,
-        drop_worst: strokeDropWorst,
+        stroke_play_config: {
+          scoring_type: strokeScoring,
+          total_rounds: strokeRounds,
+          tiebreaker: strokeTiebreaker,
+          limit_rounds_per_week: strokeLimitRounds,
+          max_rounds_per_week: strokeLimitRounds ? strokeMaxRoundsPerWeek : null,
+          drop_worst: strokeDropWorst,
+          drop_count: strokeDropWorst ? strokeDropCount : null,
+          course_restriction: strokeCourseRestriction,
+          designated_course_id: strokeCourseRestriction === 'same' ? strokeDesignatedCourseId : null,
+        },
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints]);
+  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -2892,17 +3160,32 @@ export default function SeasonsScreen() {
           />
         )}
         {/* Stroke Play Series steps */}
-        {currentStep === 'stroke_setup' && (
-          <StrokeSeriesSetupStep
+        {currentStep === 'stroke_format' && (
+          <StrokeFormatStep
             strokeRounds={strokeRounds} setStrokeRounds={setStrokeRounds}
             strokeScoring={strokeScoring} setStrokeScoring={setStrokeScoring}
+            strokeTiebreaker={strokeTiebreaker} setStrokeTiebreaker={setStrokeTiebreaker}
+          />
+        )}
+        {currentStep === 'stroke_policies' && (
+          <StrokePoliciesStep
+            strokeLimitRounds={strokeLimitRounds} setStrokeLimitRounds={setStrokeLimitRounds}
+            strokeMaxRoundsPerWeek={strokeMaxRoundsPerWeek} setStrokeMaxRoundsPerWeek={setStrokeMaxRoundsPerWeek}
             strokeDropWorst={strokeDropWorst} setStrokeDropWorst={setStrokeDropWorst}
+            strokeDropCount={strokeDropCount} setStrokeDropCount={setStrokeDropCount}
+            strokeCourseRestriction={strokeCourseRestriction} setStrokeCourseRestriction={setStrokeCourseRestriction}
+            strokeDesignatedCourseId={strokeDesignatedCourseId} setStrokeDesignatedCourseId={setStrokeDesignatedCourseId}
+            strokeDesignatedCourseName={strokeDesignatedCourseName} setStrokeDesignatedCourseName={setStrokeDesignatedCourseName}
           />
         )}
         {currentStep === 'stroke_review' && (
           <StrokeSeriesReviewStep
             name={name} strokeRounds={strokeRounds} strokeScoring={strokeScoring}
-            strokeDropWorst={strokeDropWorst} selectedIds={selectedIds} manualPlayers={manualPlayers}
+            strokeTiebreaker={strokeTiebreaker}
+            strokeLimitRounds={strokeLimitRounds} strokeMaxRoundsPerWeek={strokeMaxRoundsPerWeek}
+            strokeDropWorst={strokeDropWorst} strokeDropCount={strokeDropCount}
+            strokeCourseRestriction={strokeCourseRestriction} strokeDesignatedCourseName={strokeDesignatedCourseName}
+            selectedIds={selectedIds} manualPlayers={manualPlayers}
           />
         )}
       </ScrollView>
@@ -3075,6 +3358,13 @@ const styles = StyleSheet.create({
   bracketHelperText: { flex: 1, fontSize: 12, lineHeight: 18 },
   stepperBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   stepperUnit: { fontSize: 14, marginLeft: -4 },
+
+  // Stroke Play radio buttons
+  strokeRadioRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  strokeRadioOuter: { width: 20, height: 20, borderWidth: 2, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  strokeRadioInner: { width: 10, height: 10, borderRadius: 5 },
+  strokeRadioLabel: { fontSize: 15, fontWeight: '600' },
+  strokeRadioDesc: { fontSize: 12, marginTop: 2 },
 
   // Ryder Cup
   teamColorDot: { width: 10, height: 10, marginBottom: 6 },
