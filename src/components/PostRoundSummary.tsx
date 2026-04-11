@@ -24,6 +24,7 @@ import GoldDivider from './GoldDivider';
 import { Avatar } from './Avatar';
 import { SCORE_COLORS, scoreColor, formatToPar as fmtToPar, scoreName } from '../lib/scoring-utils';
 import { ErrorBoundary } from './ErrorBoundary';
+import { RoundStatsCard } from './RoundStatsCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -659,6 +660,10 @@ function PostRoundSummaryInner({ players, sideGames, onSaveRound, onClose }: Pos
             <GoldDivider style={{ marginVertical: 8, marginHorizontal: 16 }} />
           </>
         )}
+
+        {/* Round statistics card with donut charts */}
+        <RoundStatsCard holes={player.holes ?? []} />
+        <GoldDivider style={{ marginVertical: 8, marginHorizontal: 16 }} />
 
         {/* Side games */}
         <SideGameResults sideGames={sideGames} colors={c} />
