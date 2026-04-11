@@ -4022,20 +4022,30 @@ function BracketReviewStep({
 
   // Generate preview bracket matches
   const previewPlayers = useMemo(() => {
-    const players: { id: string; name: string; seed: number }[] = [];
-    // "You" is always seed 1 in preview
-    players.push({ id: 'you', name: 'You', seed: 1 });
-    let seedNum = 2;
+    // Gather all known players with handicaps
+    const poolWithHandicap: { id: string; name: string; handicap: number }[] = [];
     for (const p of allPlayers) {
-      if (seedNum > bracketSize) break;
-      players.push({ id: p.id, name: p.name.split(' ')[0], seed: seedNum++ });
+      poolWithHandicap.push({ id: p.id, name: p.name.split(' ')[0], handicap: p.handicap });
     }
     for (const p of manualPlayers) {
+      poolWithHandicap.push({ id: p.id, name: p.name, handicap: p.handicap ?? 99 });
+    }
+
+    // Sort by handicap (lowest first) when seeding by handicap
+    if (seedingMethod === 'handicap') {
+      poolWithHandicap.sort((a, b) => a.handicap - b.handicap);
+    }
+
+    const players: { id: string; name: string; seed: number }[] = [];
+    // "You" is seed 1 in preview (creator's handicap isn't available here)
+    players.push({ id: 'you', name: 'You', seed: 1 });
+    let seedNum = 2;
+    for (const p of poolWithHandicap) {
       if (seedNum > bracketSize) break;
       players.push({ id: p.id, name: p.name, seed: seedNum++ });
     }
     return players;
-  }, [allPlayers, manualPlayers, bracketSize]);
+  }, [allPlayers, manualPlayers, bracketSize, seedingMethod]);
 
   const previewMatches = useMemo(
     () => generateBracketMatches(bracketSize, previewPlayers),
@@ -5877,6 +5887,39 @@ export default function SeasonCreateScreen() {
       config.season_subtype = seasonType;
     }
 
+    // Generate bracket matches at creation time for bracket seasons
+    if (seasonType === 'bracket') {
+      const allBracketPlayers: { id: string; name: string; handicap: number }[] = [];
+      // Add creator
+      allBracketPlayers.push({ id: user?.id ?? 'local', name: 'You', handicap: 0 });
+      // Add selected friends
+      const selectedFriends = friends.filter((f) => selectedIds.includes(f.id));
+      for (const f of selectedFriends) {
+        allBracketPlayers.push({ id: f.id, name: f.name, handicap: f.handicap });
+      }
+      // Add manual players
+      for (const m of manualPlayers) {
+        allBracketPlayers.push({ id: m.id, name: m.name, handicap: m.handicap ?? 99 });
+      }
+      // Sort by handicap for seeding when method is 'handicap'
+      if (seedingMethod === 'handicap') {
+        allBracketPlayers.sort((a, b) => a.handicap - b.handicap);
+      } else if (seedingMethod === 'random') {
+        for (let i = allBracketPlayers.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allBracketPlayers[i], allBracketPlayers[j]] = [allBracketPlayers[j], allBracketPlayers[i]];
+        }
+      }
+      // Assign seeds
+      const seededPlayers = allBracketPlayers.map((p, i) => ({
+        id: p.id,
+        name: p.name,
+        seed: i + 1,
+      }));
+      config.bracket_matches = generateBracketMatches(bracketSize, seededPlayers);
+      config.bracket_players = seededPlayers;
+    }
+
     // 1. Try Supabase
     if (user) {
       try {
@@ -5931,7 +5974,7 @@ export default function SeasonCreateScreen() {
     setCreating(false);
     showToast({ message: 'Season created', type: 'gold', icon: 'trophy' });
     router.replace({ pathname: '/season-detail', params: { id: newSeasonId } });
-  }, [name, seasonType, user, editableWeeks, selectedIds, manualPlayers, buildSeasonConfig, router, showToast]);
+  }, [name, seasonType, user, editableWeeks, selectedIds, manualPlayers, buildSeasonConfig, router, showToast, friends, bracketSize, seedingMethod]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>

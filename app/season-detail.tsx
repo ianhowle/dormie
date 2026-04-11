@@ -26,8 +26,9 @@ import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
-import { getPlayoffCutLine, calculateWeeklyPoints } from '../src/data/seasons-detail';
-import type { MultiRoundConfig, ParticipationConfig } from '../src/data/seasons-detail';
+import { getPlayoffCutLine, calculateWeeklyPoints, generateBracketMatches, getBracketRounds, getBracketRoundLabel } from '../src/data/seasons-detail';
+import type { MultiRoundConfig, ParticipationConfig, BracketConfig, BracketMatch, BracketSize } from '../src/data/seasons-detail';
+import BracketView from '../src/components/BracketView';
 import { supabase } from '../src/lib/supabase';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
@@ -1128,6 +1129,9 @@ function SeasonDetailScreenInner() {
   const [leagueChampion, setLeagueChampion] = useState<LeaguePlayer | null>(null);
   const [isRyderCup, setIsRyderCup] = useState(false);
   const [ryderCupConfig, setRyderCupConfig] = useState<Record<string, any> | null>(null);
+  const [isBracket, setIsBracket] = useState(false);
+  const [bracketConfig, setBracketConfig] = useState<Record<string, any> | null>(null);
+  const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>([]);
   const [fedexConfig, setFedexConfig] = useState<Record<string, any> | null>(null);
 
   // Load season config to detect special season types and FedEx settings
@@ -1143,6 +1147,12 @@ function SeasonDetailScreenInner() {
       } else if (config.season_type === 'ryder') {
         setIsRyderCup(true);
         setRyderCupConfig(config);
+      } else if (config.season_type === 'bracket' || config.season_subtype === 'bracket') {
+        setIsBracket(true);
+        setBracketConfig(config);
+        if (config.bracket_matches) {
+          setBracketMatches(config.bracket_matches);
+        }
       }
       setFedexConfig(config);
     };
@@ -1360,7 +1370,7 @@ function SeasonDetailScreenInner() {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
           <Text style={[styles.headerTitle, { fontFamily: GEO }]}>
-            {isStrokePlay ? (params.name ?? 'Stroke Play Series') : isLeague ? (params.name ?? 'Dormie League') : 'FedEx Cup'}
+            {isBracket ? (params.name ?? 'Match Play Bracket') : isStrokePlay ? (params.name ?? 'Stroke Play Series') : isLeague ? (params.name ?? 'Dormie League') : 'FedEx Cup'}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <Pressable
@@ -1385,7 +1395,7 @@ function SeasonDetailScreenInner() {
         </View>
 
         {/* Progress dots — FedEx only */}
-        {!isStrokePlay && (
+        {!isStrokePlay && !isBracket && (
           <>
             <View style={styles.progressRow}>
               {weeks.map((w) => {
@@ -1483,6 +1493,56 @@ function SeasonDetailScreenInner() {
         )}
       </LinearGradient>
       <GoldDivider />
+
+      {/* Match Play Bracket — standalone bracket view */}
+      {isBracket && bracketConfig ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="git-merge-outline" size={20} color={c.gold} style={{ marginRight: 8 }} />
+              <Text style={{ fontSize: 18, fontWeight: '700', color: c.gold, fontFamily: GEO }}>
+                BRACKET
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>{bracketConfig.bracket_size ?? 8} Players</Text>
+              </View>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>{bracketConfig.format === 'single' ? 'Single Elimination' : 'Double Elimination'}</Text>
+              </View>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>{bracketConfig.match_length ?? '18'} Holes</Text>
+              </View>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>
+                  {bracketConfig.handicap_strokes === 'full' ? 'Full Handicap' : bracketConfig.handicap_strokes === 'reduced' ? '80% Handicap' : 'Gross'}
+                </Text>
+              </View>
+            </View>
+          </View>
+          {bracketMatches.length > 0 ? (
+            <BracketView
+              matches={bracketMatches}
+              bracketSize={(bracketConfig.bracket_size ?? 8) as BracketSize}
+              isDoubleElimination={bracketConfig.format === 'double'}
+            />
+          ) : (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <Ionicons name="hourglass-outline" size={36} color={c.textMuted} style={{ marginBottom: 8 }} />
+              <Text style={{ fontSize: 16, color: c.textMuted, textAlign: 'center' }}>
+                Bracket will be generated when the season starts
+              </Text>
+            </View>
+          )}
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="match_play"
+          />
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      ) : null}
 
       {/* Stroke play series — standalone standings (no tabs) */}
       {isStrokePlay && strokePlayData ? (

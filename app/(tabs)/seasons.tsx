@@ -243,7 +243,12 @@ function RealSeasonCard({ season }: { season: any }) {
   const router = useRouter();
   const config = season.config ?? {};
   const isCompleted = season.status === 'completed';
-  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', custom: 'Custom' }[season.type as string] ?? season.type;
+  const seasonSubtype = config.season_subtype ?? config.season_type;
+  const subtypeLabel = seasonSubtype === 'bracket' ? 'Match Play Bracket'
+    : seasonSubtype === 'stroke_series' ? 'Stroke Play Series'
+    : seasonSubtype === 'league' ? 'League'
+    : null;
+  const typeLabel = subtypeLabel ?? ({ fedex: 'FedEx Cup', ryder: 'Ryder Cup', custom: 'Custom' }[season.type as string] ?? season.type);
   const presetLabel = config.length_preset
     ? { sprint: 'Sprint (6 wks)', standard: 'Standard (10 wks)', full: 'Full (15 wks)', marathon: 'Marathon (20 wks)' }[config.length_preset as string] ?? ''
     : '';
