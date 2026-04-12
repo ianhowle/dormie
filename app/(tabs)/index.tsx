@@ -18,6 +18,8 @@ import { haptics } from '../../src/lib/haptics';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
+import { groupsService } from '../../src/services/groups.service';
+import type { Group } from '../../src/data/groups';
 import { GetStartedChecklist } from '../../src/components/GetStartedChecklist';
 import { HomeFeedEmpty } from '../../src/components/EmptyStates';
 import { CourseImage } from '../../src/components/CourseImage';
@@ -51,11 +53,19 @@ import {
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
 // ─── Mock data ──────────────────────────────────────────────────────
-const MOCK_GROUPS = [
-  { id: 'g1', name: 'The Dormie Boys', color: '#006747', memberCount: 8 },
-  { id: 'g2', name: 'Nashville Golf Club', color: '#C9A227', memberCount: 12 },
-  { id: 'g3', name: 'Work League', color: '#C41E3A', memberCount: 6 },
-];
+// Fallback used before groups have loaded or when the user isn't in any group.
+// Real groups come from groupsService.getUserGroups(user.id).
+const EMPTY_GROUP: Group = {
+  id: '__none__',
+  name: 'No Group',
+  initials: '—',
+  color: '#6B6560',
+  memberCount: 0,
+  members: [],
+  createdBy: '',
+  activeSeasonId: null,
+  createdAt: new Date(0).toISOString(),
+};
 
 // Season format types for adaptive standings display
 type SeasonFormat = 'fedex_cup' | 'ryder_cup' | 'match_play' | 'stroke_avg' | 'stableford';
@@ -205,11 +215,13 @@ function LogoMenu({
   onClose,
   activeGroupId,
   onGroupSelect,
+  groups,
 }: {
   visible: boolean;
   onClose: () => void;
   activeGroupId: string;
   onGroupSelect: (id: string) => void;
+  groups: Group[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -245,26 +257,35 @@ function LogoMenu({
         <View style={[st.menuGroupHeader, { borderTopWidth: 1, borderTopColor: c.border }]}>
           <Text style={[st.menuGroupLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
         </View>
-        {MOCK_GROUPS.map((group) => {
-          const isActive = group.id === activeGroupId;
-          return (
-            <Pressable
-              key={group.id}
-              onPress={() => { haptics.light(); onGroupSelect(group.id); onClose(); }}
-              style={({ pressed }) => [
-                st.menuItem,
-                isActive && { borderLeftWidth: 3, borderLeftColor: '#006747', backgroundColor: 'rgba(0,103,71,0.15)' },
-                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-              ]}
-            >
-              <View style={[st.menuGroupDot, { backgroundColor: group.color }]} />
-              <Text style={[st.menuItemText, { color: isActive ? '#006747' : c.text, flex: 1, fontFamily: SANS }]}>
-                {group.name}
-              </Text>
-              {isActive && <Ionicons name="checkmark" size={14} color="#006747" />}
-            </Pressable>
-          );
-        })}
+        {groups.length === 0 ? (
+          <View style={st.menuItem}>
+            <Ionicons name="people-outline" size={14} color={c.textMuted} />
+            <Text style={[st.menuItemText, { color: c.textMuted, flex: 1, fontFamily: SANS, fontStyle: 'italic' }]}>
+              No groups yet
+            </Text>
+          </View>
+        ) : (
+          groups.map((group) => {
+            const isActive = group.id === activeGroupId;
+            return (
+              <Pressable
+                key={group.id}
+                onPress={() => { haptics.light(); onGroupSelect(group.id); onClose(); }}
+                style={({ pressed }) => [
+                  st.menuItem,
+                  isActive && { borderLeftWidth: 3, borderLeftColor: '#006747', backgroundColor: 'rgba(0,103,71,0.15)' },
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <View style={[st.menuGroupDot, { backgroundColor: group.color }]} />
+                <Text style={[st.menuItemText, { color: isActive ? '#006747' : c.text, flex: 1, fontFamily: SANS }]}>
+                  {group.name}
+                </Text>
+                {isActive && <Ionicons name="checkmark" size={14} color="#006747" />}
+              </Pressable>
+            );
+          })
+        )}
       </View>
     </>
   );
@@ -713,21 +734,38 @@ function NextMatchupCard() {
 function MyGroupsSection({
   activeGroupId,
   onGroupSelect,
+  groups,
 }: {
   activeGroupId: string;
   onGroupSelect: (id: string) => void;
+  groups: Group[];
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
 
+  if (groups.length === 0) {
+    return (
+      <View style={st.groupsSection}>
+        <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
+        <GoldDivider style={{ marginBottom: 12 }} />
+        <View style={[st.emptyHint, { backgroundColor: isDark ? c.surface : '#F2F0ED' }]}>
+          <Ionicons name="people-outline" size={16} color={c.textMuted} />
+          <Text style={[st.emptyHintText, { color: c.textMuted, fontFamily: SANS }]}>
+            You're not in any groups yet. Create one to track standings with friends.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={st.groupsSection}>
       <Text style={[st.seasonLabel, { color: c.gold, fontFamily: GEO }]}>MY GROUPS</Text>
       <GoldDivider style={{ marginBottom: 12 }} />
-      {MOCK_GROUPS.map((group) => {
+      {groups.map((group) => {
         const isActive = group.id === activeGroupId;
-        const initial = group.name.charAt(0).toUpperCase();
+        const initial = group.initials?.[0]?.toUpperCase() ?? group.name.charAt(0).toUpperCase();
         return (
           <Pressable
             key={group.id}
@@ -1001,7 +1039,8 @@ export default function HomeScreen() {
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
   const [showMenu, setShowMenu] = useState(false);
   const [showDemoData, setShowDemoData] = useState(DEV_DEMO_MODE);
-  const [activeGroup, setActiveGroup] = useState(MOCK_GROUPS[0]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [activeGroup, setActiveGroup] = useState<Group>(EMPTY_GROUP);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -1085,25 +1124,33 @@ export default function HomeScreen() {
   }, []);
 
   const handleGroupSelect = useCallback((id: string) => {
-    const group = MOCK_GROUPS.find((g) => g.id === id);
+    const group = groups.find((g) => g.id === id);
     if (group) setActiveGroup(group);
-  }, []);
+  }, [groups]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
     // Refresh auth metadata so checklist picks up handicap/home_course changes
     refreshUser().catch(() => {});
     try {
-      const [rounds, requests, trips, seasons] = await Promise.all([
+      const [rounds, requests, trips, seasons, userGroups] = await Promise.all([
         roundsService.getByUser(user.id, 10).catch(() => [] as RoundWithCourse[]),
         friendsService.getPendingRequests(user.id).catch(() => [] as FriendshipWithUser[]),
         tripsService.getByUser(user.id).catch(() => []),
         import('../../src/services/seasons.service').then(m => m.seasonsService.getByUser(user.id)).catch(() => []),
+        groupsService.getUserGroups(user.id).catch(() => [] as Group[]),
       ]);
       setRealRounds(rounds);
       setPendingRequests(requests);
       setLastUpdated(new Date());
       setRealTrips(trips as any[]);
+      setGroups(userGroups);
+      // Select first group on initial load, or keep current selection if it's still in the list
+      setActiveGroup((prev) => {
+        if (userGroups.length === 0) return EMPTY_GROUP;
+        const stillThere = userGroups.find((g) => g.id === prev.id);
+        return stillThere ?? userGroups[0];
+      });
       // Load active friends + sent requests for checklist
       Promise.all([
         friendsService.getActiveFriends(user.id).catch(() => [] as FriendshipWithUser[]),
@@ -1277,6 +1324,7 @@ export default function HomeScreen() {
         onClose={() => setShowMenu(false)}
         activeGroupId={activeGroup.id}
         onGroupSelect={handleGroupSelect}
+        groups={groups}
       />
 
       <ScrollView
@@ -1474,6 +1522,7 @@ export default function HomeScreen() {
           <MyGroupsSection
             activeGroupId={activeGroup.id}
             onGroupSelect={handleGroupSelect}
+            groups={groups}
           />
 
           {/* Contextual nudges — shown after milestones */}
