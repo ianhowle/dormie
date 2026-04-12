@@ -62,6 +62,49 @@ export type WolfHoleState = {
   partnerId: string | null;
 };
 
+export type LowHighTieHandling = 'halve' | 'carryover' | 'no_point';
+
+export type LowHighHoleResult = {
+  lowBallWinner: 'team1' | 'team2' | 'halved';
+  highBallWinner: 'team1' | 'team2' | 'halved';
+  totalWinner?: 'team1' | 'team2' | 'halved';
+  birdieBonus?: boolean;
+};
+
+export type LowHighOptions = {
+  tieHandling: LowHighTieHandling;
+  birdieBonus: boolean;
+  includeTotal: boolean;
+};
+
+export type LowHighPoints = {
+  team1: number;
+  team2: number;
+  lowT1: number;
+  lowT2: number;
+  highT1: number;
+  highT2: number;
+  totalT1: number;
+  totalT2: number;
+  carryover: number;
+};
+
+export type SixSixSixScoringMethod = 'low_ball' | 'combined' | 'match_play';
+
+export type SixSixSixSegment = {
+  team1: [string, string];
+  team2: [string, string];
+  holeResults: Record<number, 'team1' | 'team2' | 'halved'>;
+  team1Wins: number;
+  team2Wins: number;
+  winner: 'team1' | 'team2' | 'halved' | null;
+};
+
+export type SixSixSixResult = {
+  segments: SixSixSixSegment[];
+  dots: Record<string, number>;
+};
+
 export type BBBHolePoints = {
   bingo: string | null; // playerId
   bango: string | null; // playerId

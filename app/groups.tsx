@@ -8,6 +8,9 @@ import { GEO } from '../src/theme/fonts';
 import { greenHeaderGradient, cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import GoldDivider from '../src/components/GoldDivider';
 import { MOCK_GROUPS, type Group } from '../src/data/groups';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../src/lib/auth';
+import { chatService } from '../src/services/chat.service';
 
 function Pinstripes() {
   const lines = Array.from({ length: 40 });
@@ -32,7 +35,7 @@ function Pinstripes() {
   );
 }
 
-function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
+function GroupCard({ group, onPress, unread = 0 }: { group: Group; onPress: () => void; unread?: number }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
@@ -50,6 +53,11 @@ function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
         <Text style={[gs.cardName, { color: c.text }]}>{group.name}</Text>
         <Text style={[gs.cardMembers, { color: c.textMuted }]}>{group.memberCount} members</Text>
       </View>
+      {unread > 0 && (
+        <View style={[gs.unreadBadge, { backgroundColor: c.urgent }]}>
+          <Text style={gs.unreadText}>{unread > 99 ? '99+' : unread}</Text>
+        </View>
+      )}
       <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
     </Pressable>
   );
@@ -61,6 +69,15 @@ export default function GroupsScreen() {
   const c = theme.colors;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!user) return;
+    chatService.getUnreadCountsByGroup(user.id, MOCK_GROUPS.map((g) => g.id))
+      .then(setUnreadMap)
+      .catch(() => {});
+  }, [user?.id]);
 
   return (
     <View style={[gs.screen, { backgroundColor: c.bg }]}>
@@ -93,7 +110,8 @@ export default function GroupsScreen() {
         renderItem={({ item }) => (
           <GroupCard
             group={item}
-            onPress={() => router.push({ pathname: '/group-detail', params: { groupId: item.id, groupName: item.name } })}
+            unread={unreadMap[item.id] ?? 0}
+            onPress={() => router.push({ pathname: '/chat/[groupId]', params: { groupId: item.id } })}
           />
         )}
         ListEmptyComponent={
@@ -158,6 +176,11 @@ const gs = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  unreadBadge: {
+    minWidth: 22, height: 22, paddingHorizontal: 6,
+    alignItems: 'center', justifyContent: 'center', marginRight: 6,
+  },
+  unreadText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   empty: {
     alignItems: 'center',
     paddingVertical: 48,

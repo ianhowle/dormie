@@ -13,6 +13,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import GoldDivider from './GoldDivider';
+import { shareDormieMoment } from './share/shareDormieMoment';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -25,6 +26,11 @@ export type MomentType =
   | 'BLIND_WOLF_WIN'
   | 'BBB_TRIPLE_CROWN'
   | 'CUP_CLINCHED'
+  | 'CLEAN_SWEEP'
+  | 'ROYAL_FLUSH'
+  | 'STRAIGHT_FLUSH'
+  | 'FOUR_OF_KIND'
+  | 'WORST_PUTTER'
   | 'BRACKET_CHAMPION'
   | 'STROKE_PLAY_CHAMPION'
   | 'LEAGUE_CHAMPION';
@@ -70,6 +76,31 @@ const MOMENT_CONFIG: Record<MomentType, MomentConfig> = {
     icon: 'trophy',
     label: 'CUP CLINCHED',
     gradient: ['#C9A227', '#1E4D2B'],
+  },
+  CLEAN_SWEEP: {
+    icon: 'sparkles',
+    label: 'CLEAN SWEEP',
+    gradient: ['#C9A227', '#7A5E15'],
+  },
+  ROYAL_FLUSH: {
+    icon: 'diamond',
+    label: 'ROYAL FLUSH',
+    gradient: ['#4B1D7A', '#1A0830'],
+  },
+  STRAIGHT_FLUSH: {
+    icon: 'sparkles',
+    label: 'STRAIGHT FLUSH',
+    gradient: ['#2A1A4A', '#0A0616'],
+  },
+  FOUR_OF_KIND: {
+    icon: 'grid',
+    label: 'FOUR OF A KIND',
+    gradient: ['#3A2A10', '#0A0800'],
+  },
+  WORST_PUTTER: {
+    icon: 'sad',
+    label: 'WORST PUTTER',
+    gradient: ['#C41E3A', '#1A0608'],
   },
   BRACKET_CHAMPION: {
     icon: 'trophy',
@@ -236,10 +267,21 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
           {/* Gold divider after detail */}
           <GoldDivider style={{ marginTop: 24, marginBottom: 16, width: SCREEN_W * 0.35 }} />
 
-          {/* Tap to continue */}
-          <Animated.Text style={[styles.tapText, { color: c.textMuted, opacity: tapOpacity }]}>
-            TAP TO CONTINUE
-          </Animated.Text>
+          {/* Share this moment */}
+          <Animated.View style={{ opacity: tapOpacity, flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                shareDormieMoment({ label: config.label, playerName, detail, icon: config.icon });
+              }}
+              hitSlop={10}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Ionicons name="share-outline" size={12} color={c.gold} />
+              <Text style={[styles.tapText, { color: c.gold }]}>SHARE</Text>
+            </Pressable>
+            <Text style={[styles.tapText, { color: c.textMuted }]}>TAP TO CONTINUE</Text>
+          </Animated.View>
         </View>
       </Pressable>
     </Modal>

@@ -46,7 +46,7 @@ const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 :
 const { width: SCREEN_W } = Dimensions.get('window');
 
 // ─── Types ────────────────────────────────────────────────────────────
-type SeasonType = 'fedex' | 'ryder' | 'bracket' | 'stroke_series' | 'league' | 'custom';
+type SeasonType = 'fedex' | 'ryder' | 'four_team_ryder' | 'bracket' | 'stroke_series' | 'league' | 'custom';
 type ScoringMethod = 'position' | 'stableford';
 
 type LengthPreset = {
@@ -183,6 +183,7 @@ const CUSTOM_STEPS: Step[] = ['basics', 'custom_structure', 'custom_length', 'cu
 function getStepsForType(type: SeasonType): Step[] {
   switch (type) {
     case 'ryder': return RYDER_STEPS;
+    case 'four_team_ryder': return RYDER_STEPS;
     case 'bracket': return BRACKET_STEPS;
     case 'stroke_series': return STROKE_STEPS;
     case 'league': return LEAGUE_STEPS;
@@ -289,6 +290,7 @@ function BasicsStep({
   const SEASON_TYPES: { key: SeasonType; icon: React.ComponentProps<typeof Ionicons>['name']; label: string; desc: string; whatsThis: string }[] = [
     { key: 'fedex', icon: 'trophy-outline', label: 'FedEx Cup', desc: 'Individual points race with playoffs', whatsThis: 'Players earn points each week based on finish position. Top players advance to playoffs with bonus multipliers.' },
     { key: 'ryder', icon: 'people-outline', label: 'Ryder Cup', desc: 'Team competition (red vs blue)', whatsThis: 'Two teams compete in foursomes, four-ball, and singles matches. Captains draft players and set pairings.' },
+    { key: 'four_team_ryder', icon: 'grid-outline', label: '4-Team Ryder', desc: 'Round-robin across four teams', whatsThis: 'Four teams play a round-robin of six matchups. Points accumulate across Four-Ball, Foursomes, and Singles. Team with the most points wins the Cup.' },
     { key: 'bracket', icon: 'git-merge-outline', label: 'Match Play Bracket', desc: 'Single elimination tournament', whatsThis: 'Players face off head-to-head in a seeded bracket. Lose and you\'re out — last one standing wins.' },
     { key: 'stroke_series', icon: 'document-text-outline', label: 'Stroke Play Series', desc: 'Cumulative strokes, lowest total wins', whatsThis: 'A multi-round series where cumulative stroke totals determine the winner. Option to drop your worst round.' },
     { key: 'league', icon: 'people-outline', label: 'League', desc: 'Weekly matchups, divisions, playoffs', whatsThis: 'Fantasy football style league with divisions and weekly head-to-head matchups. Play division rivals and cross-division opponents across the season.' },
@@ -3057,7 +3059,7 @@ function ReviewStep({
   const presetData = LENGTH_PRESETS.find((p) => p.key === preset)!;
   const majors = weeks.filter((w) => w.isMajor);
   const members = friends.filter((f) => selectedIds.includes(f.id));
-  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', league: 'League', custom: 'Custom' }[seasonType];
+  const typeLabel = { fedex: 'FedEx Cup', ryder: 'Ryder Cup', four_team_ryder: '4-Team Ryder', bracket: 'Match Play Bracket', stroke_series: 'Stroke Play Series', league: 'League', custom: 'Custom' }[seasonType];
 
   return (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>

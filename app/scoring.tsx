@@ -27,6 +27,9 @@ import { useScoringState } from '../src/scoring/useScoringState';
 
 // ─── Extracted sub-components ───────────────────────────────────────
 import { HoleHeader } from '../src/components/scoring/HoleHeader';
+import { LiveIndicator } from '../src/components/common/LiveIndicator';
+import { LiveScoreToast, type LiveScoreToastPayload } from '../src/components/scoring/LiveScoreToast';
+import { useRealtimeScores } from '../src/hooks/useRealtimeScores';
 import { PlayerScoreInput } from '../src/components/scoring/ScoreGrid';
 import { PlayerTabs } from '../src/components/scoring/PlayerTabs';
 import { HoleNavigator, NavButtons } from '../src/components/scoring/HoleNavigator';
@@ -47,7 +50,12 @@ import {
   BestBallSetupModal,
   HoleNotesModal,
   LiveLeaderboard,
+  LowHighSetupModal,
+  SixSixSixSetupModal,
 } from '../src/components/scoring/ScoringModals';
+import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
+import { SixSixSixBanner, SixSixSixSegmentTransition } from '../src/components/scoring/SixSixSixBanner';
+import { ThreePuttPokerTicker } from '../src/components/scoring/ThreePuttPokerTicker';
 
 function HoleResultBanner({ players, holeScores, holePar }: { players: PlayerConfig[]; holeScores: Map<string, HoleScore>; holePar: number }) {
   const { theme } = useTheme();
@@ -120,6 +128,8 @@ function ScoringScreenInner() {
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
+      <ScoringLiveLayer tripId={s.tripId} courseId={s.courseId} />
+
 
       {/* Offline banner */}
       {s.isOffline && (
@@ -230,6 +240,34 @@ function ScoringScreenInner() {
             <Ionicons name="chevron-forward" size={14} color={c.gold} />
           )}
         </Pressable>
+      )}
+
+      {/* 3-Putt Poker ticker */}
+      {s.isThreePuttPoker && (
+        <ThreePuttPokerTicker
+          players={s.players}
+          perPlayer={s.pokerPerPlayer}
+          pot={s.pokerPot}
+          worstPutterChipHolder={s.pokerWorstPutter}
+        />
+      )}
+
+      {/* 6-6-6 banner */}
+      {s.isSixSixSix && !s.showSixSetup && (
+        <SixSixSixBanner
+          segment={s.sixSixSixResult.segments[s.currentSixSegmentIdx]}
+          segmentIdx={s.currentSixSegmentIdx}
+          players={s.players}
+        />
+      )}
+
+      {/* Low Ball / High Ball banner */}
+      {s.isLowHigh && !s.showLowHighSetup && (
+        <LowHighBanner
+          holeResult={s.lowHighResults.get(s.currentHole.number)}
+          points={s.lowHighPoints}
+          includeTotal={s.lowHighOptions.includeTotal}
+        />
       )}
 
       {/* Best Ball team banner */}
@@ -509,6 +547,42 @@ function ScoringScreenInner() {
         onStart={() => s.setShowBestBallSetup(false)}
       />
 
+      <LowHighSetupModal
+        visible={s.showLowHighSetup && s.isLowHigh}
+        players={s.players}
+        teams={s.lowHighTeams}
+        options={s.lowHighOptions}
+        onMoveToTeam2={(pid) => s.setLowHighTeams((prev) => ({
+          team1: prev.team1.filter((id) => id !== pid),
+          team2: [...prev.team2, pid],
+        }))}
+        onMoveToTeam1={(pid) => s.setLowHighTeams((prev) => ({
+          team1: [...prev.team1, pid],
+          team2: prev.team2.filter((id) => id !== pid),
+        }))}
+        onChangeOptions={s.setLowHighOptions}
+        onStart={() => s.setShowLowHighSetup(false)}
+      />
+
+      <SixSixSixSetupModal
+        visible={s.showSixSetup && s.isSixSixSix}
+        players={s.players}
+        order={s.sixOrder}
+        scoringMethod={s.sixScoringMethod}
+        onReorder={s.setSixOrder}
+        onChangeMethod={s.setSixScoringMethod}
+        onStart={() => s.setShowSixSetup(false)}
+      />
+
+      <SixSixSixSegmentTransition
+        visible={s.sixSegmentBanner.visible}
+        segmentIdx={s.sixSegmentBanner.segmentIdx}
+        team1={s.sixPartnerships(s.sixSegmentBanner.segmentIdx).team1}
+        team2={s.sixPartnerships(s.sixSegmentBanner.segmentIdx).team2}
+        players={s.players}
+        onDismiss={() => s.setSixSegmentBanner({ visible: false, segmentIdx: 0 })}
+      />
+
       <HoleNotesModal
         visible={s.showNoteModal}
         holeNumber={s.currentHole.number}
@@ -586,5 +660,32 @@ export default function ScoringScreen() {
     <ErrorBoundary>
       <ScoringScreenInner />
     </ErrorBoundary>
+  );
+}
+
+function ScoringLiveLayer({ tripId, courseId }: { tripId: string | null; courseId: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [toast, setToast] = useState<LiveScoreToastPayload | null>(null);
+  const { isLive, events } = useRealtimeScores({
+    tripId: tripId ?? undefined,
+    courseId: courseId || undefined,
+    onEvent: (ev) => {
+      if (ev.type === 'INSERT' && ev.round) {
+        const gross = ev.round.gross_score;
+        setToast({
+          id: `${ev.round.id}-${Date.now()}`,
+          title: gross ? `Score posted: ${gross}` : 'Score posted',
+          detail: 'Leaderboard updating',
+          kind: 'score',
+        });
+      }
+    },
+  });
+  return (
+    <View style={{ paddingHorizontal: 16, paddingTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}>
+      <LiveIndicator live={isLive} />
+      <LiveScoreToast payload={toast} />
+    </View>
   );
 }

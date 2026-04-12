@@ -13,7 +13,8 @@ import { isGIR, pName } from '../../scoring/calculations';
 import { scoringStyles as st, postRoundStyles as ps } from './styles';
 import type {
   PlayerConfig, HoleData, HoleScore, CompetitionTab, LinkedSeason,
-  HammerState, HammerResult, WolfHoleState, BBBHolePoints,
+  HammerState, HammerResult, WolfHoleState, BBBHolePoints, LowHighOptions, LowHighTieHandling,
+  SixSixSixScoringMethod,
 } from '../../scoring/types';
 import type { PlayerHoleResult } from '../HoleTransitionBanner';
 
@@ -553,6 +554,259 @@ export function LiveLeaderboard({
             </ScrollView>
           );
         })()}
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Low Ball / High Ball Setup Modal ───────────────────────────────
+export function LowHighSetupModal({
+  visible,
+  players,
+  teams,
+  options,
+  onMoveToTeam2,
+  onMoveToTeam1,
+  onChangeOptions,
+  onStart,
+}: {
+  visible: boolean;
+  players: PlayerConfig[];
+  teams: { team1: string[]; team2: string[] };
+  options: LowHighOptions;
+  onMoveToTeam2: (pid: string) => void;
+  onMoveToTeam1: (pid: string) => void;
+  onChangeOptions: (updater: (prev: LowHighOptions) => LowHighOptions) => void;
+  onStart: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const tieOptions: { key: LowHighTieHandling; label: string }[] = [
+    { key: 'halve', label: 'Halve' },
+    { key: 'carryover', label: 'Carry' },
+    { key: 'no_point', label: 'No Pt' },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={st.modalOverlay}>
+        <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.gold, width: '92%' }]}>
+          <Text style={[st.modalTitle, { color: c.gold, fontFamily: GEO }]}>LOW BALL / HIGH BALL</Text>
+          <Text style={[st.modalText, { color: c.textMuted }]}>Tap a player to move between teams</Text>
+          <View style={st.bestBallSetupRow}>
+            <View style={st.bestBallColumn}>
+              <Text style={[st.bestBallColumnTitle, { color: c.teal }]}>Team 1</Text>
+              {teams.team1.map((pid) => {
+                const p = players.find((pl) => pl.id === pid);
+                if (!p) return null;
+                return (
+                  <Pressable
+                    key={pid}
+                    onPress={() => { if (teams.team1.length > 1) onMoveToTeam2(pid); }}
+                    style={[st.bestBallPlayerChip, { backgroundColor: `${c.teal}20`, borderColor: c.teal }]}
+                  >
+                    <Avatar id={p.id} size={22} name={p.name} />
+                    <Text style={[st.bestBallPlayerName, { color: c.text }]}>{p.id === '1' ? 'You' : p.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={st.bestBallColumn}>
+              <Text style={[st.bestBallColumnTitle, { color: c.gold }]}>Team 2</Text>
+              {teams.team2.map((pid) => {
+                const p = players.find((pl) => pl.id === pid);
+                if (!p) return null;
+                return (
+                  <Pressable
+                    key={pid}
+                    onPress={() => { if (teams.team2.length > 1) onMoveToTeam1(pid); }}
+                    style={[st.bestBallPlayerChip, { backgroundColor: `${c.gold}20`, borderColor: c.gold }]}
+                  >
+                    <Avatar id={p.id} size={22} name={p.name} />
+                    <Text style={[st.bestBallPlayerName, { color: c.text }]}>{p.id === '1' ? 'You' : p.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={{ marginTop: 16 }}>
+            <Text style={[st.modalText, { color: c.textMuted, fontSize: 11, letterSpacing: 1, marginBottom: 6 }]}>TIE HANDLING</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {tieOptions.map((t) => {
+                const active = options.tieHandling === t.key;
+                return (
+                  <Pressable
+                    key={t.key}
+                    onPress={() => onChangeOptions((prev) => ({ ...prev, tieHandling: t.key }))}
+                    style={{
+                      flex: 1, paddingVertical: 8, alignItems: 'center',
+                      borderWidth: 1, borderColor: active ? c.gold : c.border,
+                      backgroundColor: active ? `${c.gold}20` : 'transparent',
+                    }}
+                  >
+                    <Text style={{ color: active ? c.gold : c.textMuted, fontSize: 12, fontWeight: '600' }}>{t.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => onChangeOptions((prev) => ({ ...prev, birdieBonus: !prev.birdieBonus }))}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              marginTop: 12, padding: 10, borderWidth: 1, borderColor: c.border,
+            }}
+          >
+            <Text style={{ color: c.text, fontSize: 13 }}>Birdie Bonus (low ball ×2)</Text>
+            <View style={{
+              width: 18, height: 18, borderWidth: 1,
+              borderColor: options.birdieBonus ? c.gold : c.textMuted,
+              backgroundColor: options.birdieBonus ? c.gold : 'transparent',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              {options.birdieBonus && <Ionicons name="checkmark" size={12} color="#000" />}
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => onChangeOptions((prev) => ({ ...prev, includeTotal: !prev.includeTotal }))}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              marginTop: 8, padding: 10, borderWidth: 1, borderColor: c.border,
+            }}
+          >
+            <Text style={{ color: c.text, fontSize: 13 }}>Include Total (3 pts/hole)</Text>
+            <View style={{
+              width: 18, height: 18, borderWidth: 1,
+              borderColor: options.includeTotal ? c.gold : c.textMuted,
+              backgroundColor: options.includeTotal ? c.gold : 'transparent',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              {options.includeTotal && <Ionicons name="checkmark" size={12} color="#000" />}
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={onStart}
+            style={[st.modalBtn, { backgroundColor: c.gold, marginTop: 16, alignSelf: 'center' }]}
+          >
+            <Text style={[st.modalBtnText, { color: '#000' }]}>Start Round</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── 6-6-6 Setup Modal ──────────────────────────────────────────────
+export function SixSixSixSetupModal({
+  visible,
+  players,
+  order,
+  scoringMethod,
+  onReorder,
+  onChangeMethod,
+  onStart,
+}: {
+  visible: boolean;
+  players: PlayerConfig[];
+  order: string[];
+  scoringMethod: SixSixSixScoringMethod;
+  onReorder: (newOrder: string[]) => void;
+  onChangeMethod: (m: SixSixSixScoringMethod) => void;
+  onStart: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const methodOptions: { key: SixSixSixScoringMethod; label: string; detail: string }[] = [
+    { key: 'low_ball', label: 'Low Ball', detail: 'Best of two partners' },
+    { key: 'combined', label: 'Combined', detail: 'Sum of both partners' },
+    { key: 'match_play', label: 'Match Play', detail: 'Low + high both count' },
+  ];
+
+  const movePlayer = (idx: number, dir: -1 | 1) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= order.length) return;
+    const next = [...order];
+    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    onReorder(next);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={st.modalOverlay}>
+        <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.gold, width: '92%' }]}>
+          <Text style={[st.modalTitle, { color: c.gold, fontFamily: GEO }]}>6-6-6 SETUP</Text>
+          <Text style={[st.modalText, { color: c.textMuted }]}>Partners rotate every 6 holes — arrange your lineup</Text>
+
+          <View style={{ marginTop: 12 }}>
+            {order.map((pid, idx) => {
+              const p = players.find((pl) => pl.id === pid);
+              if (!p) return null;
+              const letter = ['A', 'B', 'C', 'D'][idx];
+              return (
+                <View key={pid} style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: c.border,
+                  marginBottom: 6, backgroundColor: c.elevated,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ color: c.gold, fontFamily: GEO, fontSize: 16, width: 18 }}>{letter}</Text>
+                    <Avatar id={p.id} size={24} name={p.name} />
+                    <Text style={{ color: c.text, fontSize: 14 }}>{p.id === '1' ? 'You' : p.name}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <Pressable
+                      onPress={() => movePlayer(idx, -1)}
+                      disabled={idx === 0}
+                      style={{ padding: 6, opacity: idx === 0 ? 0.3 : 1 }}
+                    >
+                      <Ionicons name="chevron-up" size={18} color={c.text} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => movePlayer(idx, 1)}
+                      disabled={idx === order.length - 1}
+                      style={{ padding: 6, opacity: idx === order.length - 1 ? 0.3 : 1 }}
+                    >
+                      <Ionicons name="chevron-down" size={18} color={c.text} />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          <Text style={[st.modalText, { color: c.textMuted, fontSize: 11, letterSpacing: 1, marginTop: 10, marginBottom: 6 }]}>
+            SCORING METHOD
+          </Text>
+          {methodOptions.map((m) => {
+            const active = scoringMethod === m.key;
+            return (
+              <Pressable
+                key={m.key}
+                onPress={() => onChangeMethod(m.key)}
+                style={{
+                  padding: 10, borderWidth: 1,
+                  borderColor: active ? c.gold : c.border,
+                  backgroundColor: active ? `${c.gold}18` : 'transparent',
+                  marginBottom: 6,
+                }}
+              >
+                <Text style={{ color: active ? c.gold : c.text, fontSize: 13, fontWeight: '600' }}>{m.label}</Text>
+                <Text style={{ color: c.textMuted, fontSize: 11, marginTop: 2 }}>{m.detail}</Text>
+              </Pressable>
+            );
+          })}
+
+          <Pressable
+            onPress={onStart}
+            style={[st.modalBtn, { backgroundColor: c.gold, marginTop: 12, alignSelf: 'center' }]}
+          >
+            <Text style={[st.modalBtnText, { color: '#000' }]}>Start Round</Text>
+          </Pressable>
+        </View>
       </View>
     </Modal>
   );

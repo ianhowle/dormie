@@ -11,7 +11,9 @@ export type ScoringFormat =
   | 'fourball'
   | 'greensomes'
   | 'pinehurst'
-  | 'wolf';
+  | 'wolf'
+  | 'low_high'
+  | 'sixsixsix';
 
 export type SideGame =
   | 'nassau'
@@ -29,7 +31,8 @@ export type SideGame =
   | 'poleys'
   | 'bark'
   | 'close_shave'
-  | 'hammer';
+  | 'hammer'
+  | 'three_putt_poker';
 
 export type TrackingLevel = 'basic' | 'standard' | 'detailed';
 export type RoundType = 'casual' | 'competitive' | 'matchup';
@@ -53,6 +56,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
   { key: 'wolf', label: 'Wolf', description: 'Rotating picker chooses partners or goes alone each hole' },
   { key: 'shamble', label: 'Shamble', description: 'Best drive, then everyone plays their own ball' },
   { key: 'fourball', label: 'Four-Ball', description: 'Two-person teams; best individual score counts' },
+  { key: 'low_high', label: 'Low Ball / High Ball', description: '2v2 teams; best and worst scores both count each hole' },
+  { key: 'sixsixsix', label: '6-6-6', description: 'Partners rotate every 6 holes — everyone plays with everyone' },
 ];
 
 // ─── Side games (ordered for pill display) ───────────────────────────
@@ -74,6 +79,7 @@ export const SIDE_GAMES: SideGameInfo[] = [
   { key: 'bark', label: 'Barkies' },
   { key: 'arnies', label: 'Arnies' },
   { key: 'close_shave', label: 'KP' },
+  { key: 'three_putt_poker', label: '3-Putt Poker' },
 ];
 
 // Legacy label maps (kept for compatibility)
@@ -91,6 +97,8 @@ export const FORMAT_LABELS: Record<ScoringFormat, string> = {
   greensomes: 'Greensomes',
   pinehurst: 'Pinehurst',
   wolf: 'Wolf',
+  low_high: 'Low Ball / High Ball',
+  sixsixsix: '6-6-6',
 };
 
 export const SIDE_GAME_LABELS: Record<SideGame, string> = {
@@ -110,6 +118,7 @@ export const SIDE_GAME_LABELS: Record<SideGame, string> = {
   bark: 'Bark',
   close_shave: 'Close Shave',
   hammer: 'Hammer',
+  three_putt_poker: '3-Putt Poker',
 };
 
 export function calculateStablefordPoints(score: number, par: number, handicapStrokes: number): number {

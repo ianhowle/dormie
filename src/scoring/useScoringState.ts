@@ -24,12 +24,14 @@ import { MOCK_UPCOMING_TRIPS } from '../data/trips';
 import type {
   LinkedSeason, CompetitionTab, PlayerConfig, HoleScore, HoleData,
   HammerState, HammerResult, WolfHoleState, BBBHolePoints,
-  ScoringEvent,
+  ScoringEvent, LowHighOptions, LowHighHoleResult, LowHighPoints,
+  SixSixSixScoringMethod, SixSixSixSegment, SixSixSixResult,
 } from './types';
 import {
   buildHoles, calcCourseHandicap, isGIR, SIDE_GAME_DISPLAY, pName,
 } from './calculations';
 import { checkDormieMoments as checkDormieMomentsUtil } from './moments';
+import { createShuffledDeck, evaluateBestHand, type Card as PokerCardT } from '../services/poker.service';
 import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as detectToastEventsUtil } from './sideGames';
 
 import type { SideGameEvent } from '../components/SideGameToast';
@@ -182,6 +184,35 @@ export function useScoringState() {
     team2: players.length >= 4 ? [players[2].id, players[3].id] : [],
   });
   const [showBestBallSetup, setShowBestBallSetup] = useState(isBestBall);
+
+  // Low Ball / High Ball 2v2
+  const isLowHigh = (formatLabel.toLowerCase().includes('low ball') || formatLabel.toLowerCase().includes('low/high') || formatLabel.toLowerCase().includes('low ball / high')) && players.length === 4;
+  const [lowHighTeams, setLowHighTeams] = useState<{ team1: string[]; team2: string[] }>({
+    team1: players.length >= 4 ? [players[0].id, players[1].id] : [],
+    team2: players.length >= 4 ? [players[2].id, players[3].id] : [],
+  });
+  const [lowHighOptions, setLowHighOptions] = useState<LowHighOptions>({
+    tieHandling: 'halve', birdieBonus: false, includeTotal: false,
+  });
+  const [showLowHighSetup, setShowLowHighSetup] = useState(isLowHigh);
+
+  // 6-6-6: rotating partners every 6 holes
+  const isSixSixSix = formatLabel.includes('6-6-6') && players.length === 4;
+  const [sixOrder, setSixOrder] = useState<string[]>(() => players.slice(0, 4).map((p) => p.id));
+  const [sixScoringMethod, setSixScoringMethod] = useState<SixSixSixScoringMethod>('low_ball');
+  const [showSixSetup, setShowSixSetup] = useState(isSixSixSix);
+  const [sixSegmentBanner, setSixSegmentBanner] = useState<{ visible: boolean; segmentIdx: number }>({ visible: false, segmentIdx: 0 });
+
+  // 3-Putt Poker state
+  const isThreePuttPoker = sideGameKeys.includes('three_putt_poker');
+  const [pokerDeck, setPokerDeck] = useState<PokerCardT[]>(() => createShuffledDeck());
+  const [pokerDeckIndex, setPokerDeckIndex] = useState(0);
+  const [pokerPerPlayer, setPokerPerPlayer] = useState<Record<string, { cards: PokerCardT[]; onePutts: number; threePutts: number; chipIns: number }>>({});
+  const [pokerPot, setPokerPot] = useState(0);
+  const [pokerWorstPutter, setPokerWorstPutter] = useState<string | null>(null);
+  const [pokerDealtHoles, setPokerDealtHoles] = useState<Set<string>>(new Set()); // "playerId-holeNumber"
+  const pokerAnte = 1;
+  const pokerThreePuttPenalty = 1;
 
   // Feature 6: Hole notes
   const [holeNotes, setHoleNotes] = useState<Map<number, string>>(new Map());
@@ -488,6 +519,21 @@ export function useScoringState() {
           return next;
         });
 
+        // BBB Triple Crown: same player earns bingo + bango + bongo on one hole
+        if (bingo && existing.bango && bongo && bingo === existing.bango && bingo === bongo) {
+          const triplePlayer = players.find((p) => p.id === bingo);
+          if (triplePlayer) {
+            haptics.heavy();
+            sounds.chime();
+            setDormieMoment({
+              visible: true,
+              type: 'BBB_TRIPLE_CROWN',
+              playerName: triplePlayer.id === '1' ? 'You' : triplePlayer.name,
+              detail: `Bingo · Bango · Bongo — Hole ${currentHole.number}`,
+            });
+          }
+        }
+
         // Trigger bango prompt for "closest to pin"
         setBangoHoleNumber(currentHole.number);
         setShowBangoPrompt(true);
@@ -527,6 +573,39 @@ export function useScoringState() {
       }
     }
 
+    // Low/High: Clean Sweep detection (both low and high to same team)
+    if (isLowHigh) {
+      const holeScores = allScores.get(currentHole.number);
+      if (holeScores) {
+        const t1 = lowHighTeams.team1.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        const t2 = lowHighTeams.team2.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        if (t1.length >= 2 && t2.length >= 2) {
+          const t1Low = Math.min(...t1), t1High = Math.max(...t1);
+          const t2Low = Math.min(...t2), t2High = Math.max(...t2);
+          const lowWin = t1Low < t2Low ? 'team1' : t2Low < t1Low ? 'team2' : 'halved';
+          const highWin = t1High < t2High ? 'team1' : t2High < t1High ? 'team2' : 'halved';
+          if (lowWin !== 'halved' && lowWin === highWin) {
+            haptics.heavy();
+            sounds.chime();
+            setDormieMoment({
+              visible: true,
+              type: 'CLEAN_SWEEP',
+              playerName: lowWin === 'team1' ? 'Team 1' : 'Team 2',
+              detail: `Top to bottom on Hole ${currentHole.number}`,
+            });
+          }
+        }
+      }
+    }
+
+    // 6-6-6: segment rotation banner after holes 6 and 12
+    if (isSixSixSix && (currentHole.number === 6 || currentHole.number === 12) && currentHoleIdx < holes.length - 1) {
+      const nextSeg = currentHole.number === 6 ? 1 : 2;
+      haptics.heavy();
+      sounds.chime();
+      setSixSegmentBanner({ visible: true, segmentIdx: nextSeg });
+    }
+
     // Item 33: Show hole transition banner
     showTransitionBanner(currentHole.number);
 
@@ -541,7 +620,7 @@ export function useScoringState() {
     } else if (currentHoleIdx < holes.length - 1) {
       setCurrentHoleIdx(currentHoleIdx + 1);
     }
-  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length]);
+  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length, isLowHigh, lowHighTeams, isSixSixSix]);
 
   const handlePuttDistSelect = useCallback((bucket: string) => {
     const playersWithPutts = players.filter((p) => {
@@ -627,6 +706,12 @@ export function useScoringState() {
           finalCourseId = null;
         }
       }
+      const wolfData = sideGameKeys.includes('wolf')
+        ? Array.from(wolfHoleDecisions.entries()).map(([hole, d]) => ({ hole, ...d }))
+        : null;
+      const bbbData = sideGameKeys.includes('bingo_bango_bongo')
+        ? Array.from(bbbHolePoints.entries()).map(([hole, pts]) => ({ hole, ...pts }))
+        : null;
       const savedRound = await roundsService.create({
         user_id: user.id,
         course_id: finalCourseId,
@@ -641,7 +726,9 @@ export function useScoringState() {
         course_source: 'golfapi',
         ...(tripId ? { trip_id: tripId } : {}),
         ...(linkedSeasons.length > 0 ? { season_week_id: linkedSeasons[0].seasonId } : {}),
-      });
+        ...(wolfData ? { wolf_data: wolfData } : {}),
+        ...(bbbData ? { bbb_data: bbbData } : {}),
+      } as any);
       if (linkedSeasons.length > 0) {
         const coursePars = holes.map((h) => h.par);
         for (const ls of linkedSeasons) {
@@ -712,6 +799,239 @@ export function useScoringState() {
     });
     return { team1: t1, team2: t2, team1Par: par1, team2Par: par2 };
   }, [allScores, holes, bestBallTeams, isBestBall]);
+
+  // Low Ball / High Ball per-hole results + points
+  const lowHighResults = useMemo(() => {
+    const map = new Map<number, LowHighHoleResult>();
+    if (!isLowHigh) return map;
+    holes.forEach((h) => {
+      const holeScores = allScores.get(h.number);
+      if (!holeScores) return;
+      const t1 = lowHighTeams.team1.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+      const t2 = lowHighTeams.team2.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+      if (t1.length < 2 || t2.length < 2) return;
+      const t1Low = Math.min(...t1), t1High = Math.max(...t1);
+      const t2Low = Math.min(...t2), t2High = Math.max(...t2);
+      const lowBallWinner: 'team1' | 'team2' | 'halved' =
+        t1Low < t2Low ? 'team1' : t2Low < t1Low ? 'team2' : 'halved';
+      const highBallWinner: 'team1' | 'team2' | 'halved' =
+        t1High < t2High ? 'team1' : t2High < t1High ? 'team2' : 'halved';
+      const result: LowHighHoleResult = { lowBallWinner, highBallWinner };
+      if (lowHighOptions.includeTotal) {
+        const t1Sum = t1.reduce((a, b) => a + b, 0);
+        const t2Sum = t2.reduce((a, b) => a + b, 0);
+        result.totalWinner = t1Sum < t2Sum ? 'team1' : t2Sum < t1Sum ? 'team2' : 'halved';
+      }
+      if (lowHighOptions.birdieBonus && lowBallWinner !== 'halved') {
+        const winnerLow = lowBallWinner === 'team1' ? t1Low : t2Low;
+        if (winnerLow < h.par) result.birdieBonus = true;
+      }
+      map.set(h.number, result);
+    });
+    return map;
+  }, [isLowHigh, allScores, holes, lowHighTeams, lowHighOptions]);
+
+  const lowHighPoints: LowHighPoints = useMemo(() => {
+    const acc = { team1: 0, team2: 0, lowT1: 0, lowT2: 0, highT1: 0, highT2: 0, totalT1: 0, totalT2: 0, carryover: 0 };
+    if (!isLowHigh) return acc;
+    let pendingLow = 0, pendingHigh = 0;
+    const award = (winner: 'team1' | 'team2' | 'halved', bucket: 'low' | 'high', pts: number) => {
+      if (winner === 'halved') {
+        if (lowHighOptions.tieHandling === 'halve') {
+          acc.team1 += pts / 2; acc.team2 += pts / 2;
+          if (bucket === 'low') { acc.lowT1 += pts / 2; acc.lowT2 += pts / 2; }
+          else { acc.highT1 += pts / 2; acc.highT2 += pts / 2; }
+        } else if (lowHighOptions.tieHandling === 'carryover') {
+          if (bucket === 'low') pendingLow += pts; else pendingHigh += pts;
+        }
+        return;
+      }
+      if (winner === 'team1') {
+        acc.team1 += pts;
+        if (bucket === 'low') acc.lowT1 += pts; else acc.highT1 += pts;
+      } else {
+        acc.team2 += pts;
+        if (bucket === 'low') acc.lowT2 += pts; else acc.highT2 += pts;
+      }
+    };
+    holes.forEach((h) => {
+      const r = lowHighResults.get(h.number);
+      if (!r) return;
+      const lowPts = (r.birdieBonus ? 2 : 1) + pendingLow;
+      if (r.lowBallWinner !== 'halved') {
+        award(r.lowBallWinner, 'low', lowPts);
+        pendingLow = 0;
+      } else {
+        award(r.lowBallWinner, 'low', r.birdieBonus ? 2 : 1);
+        if (lowHighOptions.tieHandling !== 'carryover') pendingLow = 0;
+      }
+
+      const highPts = 1 + pendingHigh;
+      if (r.highBallWinner !== 'halved') {
+        award(r.highBallWinner, 'high', highPts);
+        pendingHigh = 0;
+      } else {
+        award(r.highBallWinner, 'high', 1);
+        if (lowHighOptions.tieHandling !== 'carryover') pendingHigh = 0;
+      }
+
+      if (lowHighOptions.includeTotal && r.totalWinner) {
+        if (r.totalWinner === 'team1') { acc.team1 += 1; acc.totalT1 += 1; }
+        else if (r.totalWinner === 'team2') { acc.team2 += 1; acc.totalT2 += 1; }
+        else if (lowHighOptions.tieHandling === 'halve') {
+          acc.team1 += 0.5; acc.team2 += 0.5; acc.totalT1 += 0.5; acc.totalT2 += 0.5;
+        }
+      }
+    });
+    acc.carryover = pendingLow + pendingHigh;
+    return acc;
+  }, [isLowHigh, holes, lowHighResults, lowHighOptions]);
+
+  // 6-6-6: partnerships by segment
+  const sixPartnerships = useCallback((segmentIdx: number): { team1: [string, string]; team2: [string, string] } => {
+    const [A, B, C, D] = sixOrder;
+    if (segmentIdx === 0) return { team1: [A, B], team2: [C, D] };
+    if (segmentIdx === 1) return { team1: [A, C], team2: [B, D] };
+    return { team1: [A, D], team2: [B, C] };
+  }, [sixOrder]);
+
+  const currentSixSegmentIdx = useMemo(() => {
+    const holeNum = currentHole?.number ?? 1;
+    if (holeNum <= 6) return 0;
+    if (holeNum <= 12) return 1;
+    return 2;
+  }, [currentHole]);
+
+  const sixSixSixResult: SixSixSixResult = useMemo(() => {
+    const dots: Record<string, number> = {};
+    sixOrder.forEach((pid) => { dots[pid] = 0; });
+    const segments: SixSixSixSegment[] = [0, 1, 2].map((segIdx) => {
+      const { team1, team2 } = sixPartnerships(segIdx);
+      const holeResults: Record<number, 'team1' | 'team2' | 'halved'> = {};
+      let t1Wins = 0, t2Wins = 0;
+      const startHole = segIdx * 6 + 1;
+      const endHole = startHole + 5;
+      holes.forEach((h) => {
+        if (h.number < startHole || h.number > endHole) return;
+        const holeScores = allScores.get(h.number);
+        if (!holeScores) return;
+        const t1s = team1.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        const t2s = team2.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        if (t1s.length < 2 || t2s.length < 2) return;
+        let t1Val = 0, t2Val = 0;
+        if (sixScoringMethod === 'low_ball') {
+          t1Val = Math.min(...t1s); t2Val = Math.min(...t2s);
+        } else if (sixScoringMethod === 'combined') {
+          t1Val = t1s.reduce((a, b) => a + b, 0); t2Val = t2s.reduce((a, b) => a + b, 0);
+        } else {
+          // match_play: low + high both count; net points settle winner
+          const t1Low = Math.min(...t1s), t1High = Math.max(...t1s);
+          const t2Low = Math.min(...t2s), t2High = Math.max(...t2s);
+          let t1Pts = 0, t2Pts = 0;
+          if (t1Low < t2Low) t1Pts++; else if (t2Low < t1Low) t2Pts++;
+          if (t1High < t2High) t1Pts++; else if (t2High < t1High) t2Pts++;
+          t1Val = -t1Pts; t2Val = -t2Pts;
+        }
+        let winner: 'team1' | 'team2' | 'halved';
+        if (t1Val < t2Val) { winner = 'team1'; t1Wins++; team1.forEach((pid) => { dots[pid] = (dots[pid] ?? 0) + 1; }); }
+        else if (t2Val < t1Val) { winner = 'team2'; t2Wins++; team2.forEach((pid) => { dots[pid] = (dots[pid] ?? 0) + 1; }); }
+        else winner = 'halved';
+        holeResults[h.number] = winner;
+      });
+      let winner: 'team1' | 'team2' | 'halved' | null = null;
+      const scoredHoles = Object.keys(holeResults).length;
+      if (scoredHoles >= 6) {
+        winner = t1Wins > t2Wins ? 'team1' : t2Wins > t1Wins ? 'team2' : 'halved';
+      }
+      return { team1, team2, holeResults, team1Wins: t1Wins, team2Wins: t2Wins, winner };
+    });
+    return { segments, dots };
+  }, [sixOrder, holes, allScores, sixScoringMethod, sixPartnerships]);
+
+  // 3-Putt Poker: seed pot with ante
+  const anteSeededRef = useRef(false);
+  useEffect(() => {
+    if (!isThreePuttPoker || anteSeededRef.current) return;
+    anteSeededRef.current = true;
+    setPokerPot((p) => p + players.length * pokerAnte);
+  }, [isThreePuttPoker, players.length]);
+
+  // 3-Putt Poker: deal cards + update pot based on hole scores
+  useEffect(() => {
+    if (!isThreePuttPoker) return;
+    let deckIdx = pokerDeckIndex;
+    let deckUsed = false;
+    const nextPerPlayer = { ...pokerPerPlayer };
+    const nextDealt = new Set(pokerDealtHoles);
+    let potDelta = 0;
+    let newWorstPutter = pokerWorstPutter;
+    const dealtCards: PokerCardT[] = [];
+
+    holes.forEach((h) => {
+      const holeScores = allScores.get(h.number);
+      if (!holeScores) return;
+      players.forEach((p) => {
+        const key = `${p.id}-${h.number}`;
+        if (nextDealt.has(key)) return;
+        const s = holeScores.get(p.id);
+        if (!s) return;
+        nextDealt.add(key);
+        if (!nextPerPlayer[p.id]) {
+          nextPerPlayer[p.id] = { cards: [], onePutts: 0, threePutts: 0, chipIns: 0 };
+        }
+        const putts = s.putts;
+        const chipIn = putts === 0 && s.gross > 0; // holed out without putting
+        let cardsToDeal = 0;
+        if (chipIn) { cardsToDeal = 2; nextPerPlayer[p.id].chipIns++; }
+        else if (putts === 1) { cardsToDeal = 1; nextPerPlayer[p.id].onePutts++; }
+        if (putts >= 3) {
+          nextPerPlayer[p.id].threePutts++;
+          const extraPutts = putts - 2;
+          potDelta += extraPutts * pokerThreePuttPenalty;
+          newWorstPutter = p.id;
+        }
+        for (let i = 0; i < cardsToDeal; i++) {
+          if (deckIdx < pokerDeck.length) {
+            const card = pokerDeck[deckIdx++];
+            nextPerPlayer[p.id].cards = [...nextPerPlayer[p.id].cards, card];
+            dealtCards.push(card);
+            deckUsed = true;
+          }
+        }
+      });
+    });
+
+    if (deckUsed || potDelta !== 0 || newWorstPutter !== pokerWorstPutter) {
+      setPokerPerPlayer(nextPerPlayer);
+      setPokerDealtHoles(nextDealt);
+      if (deckUsed) setPokerDeckIndex(deckIdx);
+      if (potDelta !== 0) setPokerPot((p) => p + potDelta);
+      if (newWorstPutter !== pokerWorstPutter) setPokerWorstPutter(newWorstPutter);
+
+      // Cinematic moment detection for winning hands
+      Object.entries(nextPerPlayer).forEach(([pid, st]) => {
+        if (st.cards.length >= 5) {
+          const ev = evaluateBestHand(st.cards);
+          if (ev && (ev.rank === 'royal_flush' || ev.rank === 'straight_flush' || ev.rank === 'four_of_kind')) {
+            const player = players.find((p) => p.id === pid);
+            const momentType =
+              ev.rank === 'royal_flush' ? 'ROYAL_FLUSH' :
+              ev.rank === 'straight_flush' ? 'STRAIGHT_FLUSH' :
+              'FOUR_OF_KIND';
+            setDormieMoment((prev) => {
+              if (prev.visible) return prev;
+              return {
+                visible: true,
+                type: momentType as any,
+                playerName: player ? (player.id === '1' ? 'You' : player.name) : 'Player',
+                detail: ev.label,
+              };
+            });
+          }
+        }
+      });
+    }
+  }, [isThreePuttPoker, allScores, holes, players, pokerDeck, pokerDeckIndex, pokerPerPlayer, pokerDealtHoles, pokerWorstPutter]);
 
   // Feature 11: Leaderboard data
   const leaderboardData = useMemo(() => {
@@ -795,6 +1115,37 @@ export function useScoringState() {
     setBestBallTeams,
     showBestBallSetup,
     setShowBestBallSetup,
+
+    // Low Ball / High Ball
+    isLowHigh,
+    lowHighTeams,
+    setLowHighTeams,
+    lowHighOptions,
+    setLowHighOptions,
+    showLowHighSetup,
+    setShowLowHighSetup,
+    lowHighResults,
+    lowHighPoints,
+
+    // 6-6-6
+    isSixSixSix,
+    sixOrder,
+    setSixOrder,
+    sixScoringMethod,
+    setSixScoringMethod,
+    showSixSetup,
+    setShowSixSetup,
+    sixSegmentBanner,
+    setSixSegmentBanner,
+    currentSixSegmentIdx,
+    sixPartnerships,
+    sixSixSixResult,
+
+    // 3-Putt Poker
+    isThreePuttPoker,
+    pokerPerPlayer,
+    pokerPot,
+    pokerWorstPutter,
 
     // Hole notes
     holeNotes,

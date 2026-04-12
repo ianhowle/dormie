@@ -5,7 +5,8 @@ import { useTheme } from '../../theme/ThemeContext';
 import { GEO } from '../../theme/fonts';
 import { tickerShadowDark, tickerShadowLight } from '../../theme/colors';
 import type { PlayerConfig, HoleData, HoleScore, WolfHoleState, BBBHolePoints } from '../../scoring/types';
-import { pName, SIDE_GAME_DISPLAY, computeWolfPoints } from '../../scoring/calculations';
+import { pName, SIDE_GAME_DISPLAY } from '../../scoring/calculations';
+import { computeWolfTotals } from '../../scoring/wolfPoints';
 import { scoringStyles as st } from './styles';
 
 // ─── Running panels ─────────────────────────────────────────────────
@@ -200,9 +201,8 @@ export const RunningWolfPanel = memo(function RunningWolfPanel({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  // Only count holes up to and including currentHoleNumber
-  const holesUpToNow = holes.filter((h) => h.number <= currentHoleNumber);
-  const points = computeWolfPoints(players, holesUpToNow, allScores, wolfHoleDecisions);
+  const totals = computeWolfTotals(players, allScores, wolfHoleDecisions, currentHoleNumber);
+  const points = new Map<string, number>(Object.entries(totals));
 
   const wolfDecision = wolfHoleDecisions.get(currentHoleNumber);
   const wolfPlayer = wolfDecision ? players.find((p) => p.id === wolfDecision.wolfPlayerId) : null;

@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
 import { ToastProvider } from '../src/components/Toast';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { initSentry, setSentryUser, clearSentryUser, Sentry } from '../src/lib/sentry';
+import { initPushForUser } from '../src/services/pushNotification.service';
 
 initSentry();
 
@@ -30,6 +31,13 @@ function RootLayoutNav() {
       clearSentryUser();
     }
   }, [session]);
+
+  // Register for push notifications once authenticated
+  useEffect(() => {
+    if (session?.user?.id) {
+      initPushForUser(session.user.id).catch(() => {});
+    }
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (loading) return;
