@@ -1,0 +1,2495 @@
+{
+  "exportedAt": "2026-04-01T02:48:56.621Z",
+  "totalCourses": 150,
+  "stats": {
+    "totalFound": 150,
+    "totalImported": 150,
+    "totalFailed": 0,
+    "failedCourses": [],
+    "byQuality": {
+      "name_only": 150
+    },
+    "byState": {},
+    "bySource": {
+      "national": 150
+    }
+  },
+  "courses": [
+    {
+      "name": "TPC Sawgrass (Stadium)",
+      "city": "Ponte Vedra Beach",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:36:18.875Z"
+    },
+    {
+      "name": "Augusta National Golf Club",
+      "city": "Augusta",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "major"
+      ],
+      "importedAt": "2026-04-01T02:36:22.528Z"
+    },
+    {
+      "name": "Pebble Beach Golf Links",
+      "city": "Pebble Beach",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "major",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:36:26.517Z"
+    },
+    {
+      "name": "Torrey Pines South Course",
+      "city": "La Jolla",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "major",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:36:30.514Z"
+    },
+    {
+      "name": "TPC Scottsdale (Stadium)",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:36:34.513Z"
+    },
+    {
+      "name": "Riviera Country Club",
+      "city": "Pacific Palisades",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:36:38.541Z"
+    },
+    {
+      "name": "Muirfield Village Golf Club",
+      "city": "Dublin",
+      "state": "OH",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:36:42.508Z"
+    },
+    {
+      "name": "Harbour Town Golf Links",
+      "city": "Hilton Head Island",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:36:46.503Z"
+    },
+    {
+      "name": "Bay Hill Club & Lodge",
+      "city": "Orlando",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:36:50.546Z"
+    },
+    {
+      "name": "TPC Harding Park",
+      "city": "San Francisco",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:36:54.611Z"
+    },
+    {
+      "name": "Quail Hollow Club",
+      "city": "Charlotte",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "presidents_cup"
+      ],
+      "importedAt": "2026-04-01T02:36:58.517Z"
+    },
+    {
+      "name": "East Lake Golf Club",
+      "city": "Atlanta",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:37:02.528Z"
+    },
+    {
+      "name": "TPC Summerlin",
+      "city": "Las Vegas",
+      "state": "NV",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:06.507Z"
+    },
+    {
+      "name": "TPC River Highlands",
+      "city": "Cromwell",
+      "state": "CT",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:10.520Z"
+    },
+    {
+      "name": "TPC San Antonio (Oaks)",
+      "city": "San Antonio",
+      "state": "TX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:14.506Z"
+    },
+    {
+      "name": "TPC Twin Cities",
+      "city": "Blaine",
+      "state": "MN",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:18.575Z"
+    },
+    {
+      "name": "TPC Deere Run",
+      "city": "Silvis",
+      "state": "IL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:37:22.521Z"
+    },
+    {
+      "name": "Sedgefield Country Club",
+      "city": "Greensboro",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:26.528Z"
+    },
+    {
+      "name": "Colonial Country Club",
+      "city": "Fort Worth",
+      "state": "TX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:37:30.559Z"
+    },
+    {
+      "name": "Copperhead Course at Innisbrook",
+      "city": "Palm Harbor",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:37:34.651Z"
+    },
+    {
+      "name": "TPC Craig Ranch",
+      "city": "McKinney",
+      "state": "TX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:38.588Z"
+    },
+    {
+      "name": "TPC Southwind",
+      "city": "Memphis",
+      "state": "TN",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:42.607Z"
+    },
+    {
+      "name": "Waialae Country Club",
+      "city": "Honolulu",
+      "state": "HI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:46.560Z"
+    },
+    {
+      "name": "Silverado Resort (North)",
+      "city": "Napa",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:37:50.528Z"
+    },
+    {
+      "name": "The RSM Club (Seaside)",
+      "city": "St. Simons Island",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:54.618Z"
+    },
+    {
+      "name": "El Camaleón Golf Course",
+      "city": "Playa del Carmen",
+      "state": "MX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:37:58.573Z"
+    },
+    {
+      "name": "Congaree Golf Club",
+      "city": "Ridgeland",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:02.571Z"
+    },
+    {
+      "name": "Detroit Golf Club",
+      "city": "Detroit",
+      "state": "MI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:38:06.545Z"
+    },
+    {
+      "name": "TPC Louisiana",
+      "city": "Avondale",
+      "state": "LA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:38:10.600Z"
+    },
+    {
+      "name": "Caves Valley Golf Club",
+      "city": "Owings Mills",
+      "state": "MD",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "pga_tour",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:14.628Z"
+    },
+    {
+      "name": "Pinehurst No. 2",
+      "city": "Pinehurst",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:38:18.588Z"
+    },
+    {
+      "name": "Oakmont Country Club",
+      "city": "Oakmont",
+      "state": "PA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:22.606Z"
+    },
+    {
+      "name": "Shinnecock Hills Golf Club",
+      "city": "Southampton",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:26.681Z"
+    },
+    {
+      "name": "Winged Foot Golf Club (West)",
+      "city": "Mamaroneck",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:30.570Z"
+    },
+    {
+      "name": "Merion Golf Club (East)",
+      "city": "Ardmore",
+      "state": "PA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:34.726Z"
+    },
+    {
+      "name": "The Country Club",
+      "city": "Brookline",
+      "state": "MA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:38.597Z"
+    },
+    {
+      "name": "Olympic Club (Lake)",
+      "city": "San Francisco",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:42.570Z"
+    },
+    {
+      "name": "Congressional Country Club (Blue)",
+      "city": "Bethesda",
+      "state": "MD",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:38:46.593Z"
+    },
+    {
+      "name": "Bethpage Black",
+      "city": "Farmingdale",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:38:50.574Z"
+    },
+    {
+      "name": "Erin Hills",
+      "city": "Erin",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:38:54.585Z"
+    },
+    {
+      "name": "Chambers Bay",
+      "city": "University Place",
+      "state": "WA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:38:58.579Z"
+    },
+    {
+      "name": "Los Angeles Country Club (North)",
+      "city": "Los Angeles",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:02.639Z"
+    },
+    {
+      "name": "Southern Hills Country Club",
+      "city": "Tulsa",
+      "state": "OK",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:06.599Z"
+    },
+    {
+      "name": "Valhalla Golf Club",
+      "city": "Louisville",
+      "state": "KY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:10.580Z"
+    },
+    {
+      "name": "Kiawah Island Ocean Course",
+      "city": "Kiawah Island",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:39:14.585Z"
+    },
+    {
+      "name": "Baltusrol Golf Club (Lower)",
+      "city": "Springfield",
+      "state": "NJ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:18.642Z"
+    },
+    {
+      "name": "Bellerive Country Club",
+      "city": "St. Louis",
+      "state": "MO",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:22.640Z"
+    },
+    {
+      "name": "Oak Hill Country Club (East)",
+      "city": "Rochester",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:26.626Z"
+    },
+    {
+      "name": "Hazeltine National Golf Club",
+      "city": "Chaska",
+      "state": "MN",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:30.627Z"
+    },
+    {
+      "name": "Whistling Straits (Straits)",
+      "city": "Haven",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:39:34.590Z"
+    },
+    {
+      "name": "Medinah Country Club (No. 3)",
+      "city": "Medinah",
+      "state": "IL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "ryder_cup",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:39:38.607Z"
+    },
+    {
+      "name": "Harding Park Golf Course",
+      "city": "San Francisco",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "major",
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:39:42.663Z"
+    },
+    {
+      "name": "Marco Simone Golf & Country Club",
+      "city": "Rome",
+      "state": "IT",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup"
+      ],
+      "importedAt": "2026-04-01T02:39:46.635Z"
+    },
+    {
+      "name": "Le Golf National",
+      "city": "Paris",
+      "state": "FR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup"
+      ],
+      "importedAt": "2026-04-01T02:39:50.591Z"
+    },
+    {
+      "name": "Gleneagles (PGA Centenary)",
+      "city": "Perth",
+      "state": "UK",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:39:54.658Z"
+    },
+    {
+      "name": "Celtic Manor (Twenty Ten)",
+      "city": "Newport",
+      "state": "UK",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup"
+      ],
+      "importedAt": "2026-04-01T02:39:58.600Z"
+    },
+    {
+      "name": "The K Club (Palmer)",
+      "city": "Kildare",
+      "state": "IE",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup"
+      ],
+      "importedAt": "2026-04-01T02:40:02.655Z"
+    },
+    {
+      "name": "The Belfry (Brabazon)",
+      "city": "Sutton Coldfield",
+      "state": "UK",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup"
+      ],
+      "importedAt": "2026-04-01T02:40:06.626Z"
+    },
+    {
+      "name": "Valderrama Golf Club",
+      "city": "Sotogrande",
+      "state": "ES",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "ryder_cup"
+      ],
+      "importedAt": "2026-04-01T02:40:10.668Z"
+    },
+    {
+      "name": "Royal Melbourne Golf Club (Composite)",
+      "city": "Melbourne",
+      "state": "AU",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "presidents_cup"
+      ],
+      "importedAt": "2026-04-01T02:40:14.701Z"
+    },
+    {
+      "name": "Liberty National Golf Club",
+      "city": "Jersey City",
+      "state": "NJ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "presidents_cup",
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:40:18.698Z"
+    },
+    {
+      "name": "Jack Nicklaus Golf Club Korea",
+      "city": "Incheon",
+      "state": "KR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "presidents_cup"
+      ],
+      "importedAt": "2026-04-01T02:40:22.689Z"
+    },
+    {
+      "name": "Bandon Dunes",
+      "city": "Bandon",
+      "state": "OR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:26.690Z"
+    },
+    {
+      "name": "Pacific Dunes",
+      "city": "Bandon",
+      "state": "OR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:30.673Z"
+    },
+    {
+      "name": "Old Macdonald",
+      "city": "Bandon",
+      "state": "OR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:34.629Z"
+    },
+    {
+      "name": "Sheep Ranch",
+      "city": "Bandon",
+      "state": "OR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:38.609Z"
+    },
+    {
+      "name": "Bandon Trails",
+      "city": "Bandon",
+      "state": "OR",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:42.607Z"
+    },
+    {
+      "name": "Streamsong Red",
+      "city": "Bowling Green",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:46.645Z"
+    },
+    {
+      "name": "Streamsong Blue",
+      "city": "Bowling Green",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:50.719Z"
+    },
+    {
+      "name": "Streamsong Black",
+      "city": "Bowling Green",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:54.739Z"
+    },
+    {
+      "name": "Whistling Straits (Irish)",
+      "city": "Haven",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:40:58.636Z"
+    },
+    {
+      "name": "Arcadia Bluffs",
+      "city": "Arcadia",
+      "state": "MI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:02.828Z"
+    },
+    {
+      "name": "Sand Valley",
+      "city": "Nekoosa",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:06.629Z"
+    },
+    {
+      "name": "Mammoth Dunes",
+      "city": "Nekoosa",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:10.712Z"
+    },
+    {
+      "name": "Sedge Valley",
+      "city": "Nekoosa",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:14.645Z"
+    },
+    {
+      "name": "Cabot Cliffs",
+      "city": "Inverness",
+      "state": "NS",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:18.652Z"
+    },
+    {
+      "name": "Cabot Links",
+      "city": "Inverness",
+      "state": "NS",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:22.656Z"
+    },
+    {
+      "name": "Gamble Sands",
+      "city": "Brewster",
+      "state": "WA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:41:26.719Z"
+    },
+    {
+      "name": "Sweetens Cove",
+      "city": "South Pittsburg",
+      "state": "TN",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:30.707Z"
+    },
+    {
+      "name": "Tobacco Road",
+      "city": "Sanford",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:34.655Z"
+    },
+    {
+      "name": "Rustic Canyon Golf Course",
+      "city": "Moorpark",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:38.665Z"
+    },
+    {
+      "name": "We-Ko-Pa (Saguaro)",
+      "city": "Fort McDowell",
+      "state": "AZ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:42.716Z"
+    },
+    {
+      "name": "Barnbougle Dunes",
+      "city": "Bridport",
+      "state": "AU",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:46.712Z"
+    },
+    {
+      "name": "Pasatiempo Golf Club",
+      "city": "Santa Cruz",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:50.734Z"
+    },
+    {
+      "name": "Lawsonia Links",
+      "city": "Green Lake",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:54.675Z"
+    },
+    {
+      "name": "The Loop (Black)",
+      "city": "Roscommon",
+      "state": "MI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:41:58.679Z"
+    },
+    {
+      "name": "French Lick (Dye)",
+      "city": "French Lick",
+      "state": "IN",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:44:40.268Z"
+    },
+    {
+      "name": "Circling Raven Golf Club",
+      "city": "Worley",
+      "state": "ID",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:44:43.873Z"
+    },
+    {
+      "name": "TPC Danzante Bay",
+      "city": "Loreto",
+      "state": "MX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:44:47.842Z"
+    },
+    {
+      "name": "Coore Crenshaw Course at Cabot Citrus Farms",
+      "city": "Lecanto",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:44:51.786Z"
+    },
+    {
+      "name": "Pinehurst No. 4",
+      "city": "Pinehurst",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:44:55.857Z"
+    },
+    {
+      "name": "Pinehurst No. 8",
+      "city": "Pinehurst",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:44:59.839Z"
+    },
+    {
+      "name": "World Woods (Pine Barrens)",
+      "city": "Brooksville",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:45:03.895Z"
+    },
+    {
+      "name": "Cog Hill No. 4 (Dubsdread)",
+      "city": "Lemont",
+      "state": "IL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "public",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public"
+      ],
+      "importedAt": "2026-04-01T02:45:07.891Z"
+    },
+    {
+      "name": "The Lido at Sand Valley",
+      "city": "Nekoosa",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:45:11.891Z"
+    },
+    {
+      "name": "Cabot Highlands",
+      "city": "Dornoch",
+      "state": "UK",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_public",
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:45:15.802Z"
+    },
+    {
+      "name": "Pine Valley Golf Club",
+      "city": "Pine Valley",
+      "state": "NJ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:19.858Z"
+    },
+    {
+      "name": "Cypress Point Club",
+      "city": "Pebble Beach",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:23.949Z"
+    },
+    {
+      "name": "National Golf Links of America",
+      "city": "Southampton",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:27.867Z"
+    },
+    {
+      "name": "Chicago Golf Club",
+      "city": "Wheaton",
+      "state": "IL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:31.824Z"
+    },
+    {
+      "name": "Fishers Island Club",
+      "city": "Fishers Island",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:35.931Z"
+    },
+    {
+      "name": "Sand Hills Golf Club",
+      "city": "Mullen",
+      "state": "NE",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:39.859Z"
+    },
+    {
+      "name": "Crystal Downs Country Club",
+      "city": "Frankfort",
+      "state": "MI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:43.846Z"
+    },
+    {
+      "name": "Seminole Golf Club",
+      "city": "Juno Beach",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:47.912Z"
+    },
+    {
+      "name": "Garden City Golf Club",
+      "city": "Garden City",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:51.839Z"
+    },
+    {
+      "name": "Maidstone Club",
+      "city": "East Hampton",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:55.887Z"
+    },
+    {
+      "name": "San Francisco Golf Club",
+      "city": "San Francisco",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:45:59.868Z"
+    },
+    {
+      "name": "Friar's Head",
+      "city": "Baiting Hollow",
+      "state": "NY",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:03.885Z"
+    },
+    {
+      "name": "Somerset Hills Country Club",
+      "city": "Bernardsville",
+      "state": "NJ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:07.847Z"
+    },
+    {
+      "name": "Prairie Dunes Country Club",
+      "city": "Hutchinson",
+      "state": "KS",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:11.871Z"
+    },
+    {
+      "name": "Camargo Club",
+      "city": "Indian Hill",
+      "state": "OH",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:15.854Z"
+    },
+    {
+      "name": "Wade Hampton Golf Club",
+      "city": "Cashiers",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:19.887Z"
+    },
+    {
+      "name": "Calusa Pines Golf Club",
+      "city": "Naples",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:23.944Z"
+    },
+    {
+      "name": "Shoreacres",
+      "city": "Lake Bluff",
+      "state": "IL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:27.870Z"
+    },
+    {
+      "name": "Yeamans Hall Club",
+      "city": "Hanahan",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:31.863Z"
+    },
+    {
+      "name": "The Honors Course",
+      "city": "Ooltewah",
+      "state": "TN",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:35.860Z"
+    },
+    {
+      "name": "Brook Hollow Golf Club",
+      "city": "Dallas",
+      "state": "TX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:39.990Z"
+    },
+    {
+      "name": "Peachtree Golf Club",
+      "city": "Atlanta",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:43.924Z"
+    },
+    {
+      "name": "Newport Country Club",
+      "city": "Newport",
+      "state": "RI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:47.931Z"
+    },
+    {
+      "name": "Plainfield Country Club",
+      "city": "Edison",
+      "state": "NJ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:51.868Z"
+    },
+    {
+      "name": "Old Sandwich Golf Club",
+      "city": "Plymouth",
+      "state": "MA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:46:55.981Z"
+    },
+    {
+      "name": "Mountain Lake",
+      "city": "Lake Wales",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:04.597Z"
+    },
+    {
+      "name": "Nanea Golf Club",
+      "city": "Kailua-Kona",
+      "state": "HI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:08.509Z"
+    },
+    {
+      "name": "Flint Hills National Golf Club",
+      "city": "Andover",
+      "state": "KS",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:12.520Z"
+    },
+    {
+      "name": "Butler National Golf Club",
+      "city": "Oak Brook",
+      "state": "IL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:16.565Z"
+    },
+    {
+      "name": "Valley Club of Montecito",
+      "city": "Santa Barbara",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:20.518Z"
+    },
+    {
+      "name": "Milwaukee Country Club",
+      "city": "River Hills",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:24.626Z"
+    },
+    {
+      "name": "Bel-Air Country Club",
+      "city": "Los Angeles",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:28.605Z"
+    },
+    {
+      "name": "Olde Farm Golf Club",
+      "city": "Bristol",
+      "state": "VA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:32.598Z"
+    },
+    {
+      "name": "Mountaintop Golf & Lake Club",
+      "city": "Cashiers",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:36.527Z"
+    },
+    {
+      "name": "Querencia Golf Club",
+      "city": "San José del Cabo",
+      "state": "MX",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "private",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_private"
+      ],
+      "importedAt": "2026-04-01T02:47:40.550Z"
+    },
+    {
+      "name": "Kapalua (Plantation)",
+      "city": "Lahaina",
+      "state": "HI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort",
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:47:44.586Z"
+    },
+    {
+      "name": "Kiawah Island (Osprey Point)",
+      "city": "Kiawah Island",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:47:48.526Z"
+    },
+    {
+      "name": "Kiawah Island (Turtle Point)",
+      "city": "Kiawah Island",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:47:52.556Z"
+    },
+    {
+      "name": "TPC Sawgrass (Dye's Valley)",
+      "city": "Ponte Vedra Beach",
+      "state": "FL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:47:56.540Z"
+    },
+    {
+      "name": "Pinehurst No. 1",
+      "city": "Pinehurst",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:00.551Z"
+    },
+    {
+      "name": "Pinehurst No. 9",
+      "city": "Pinehurst",
+      "state": "NC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:04.583Z"
+    },
+    {
+      "name": "Spyglass Hill Golf Course",
+      "city": "Pebble Beach",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort",
+        "pga_tour"
+      ],
+      "importedAt": "2026-04-01T02:48:08.572Z"
+    },
+    {
+      "name": "The Links at Spanish Bay",
+      "city": "Pebble Beach",
+      "state": "CA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:12.557Z"
+    },
+    {
+      "name": "Kohler (Blackwolf Run River)",
+      "city": "Kohler",
+      "state": "WI",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:16.538Z"
+    },
+    {
+      "name": "Sea Island (Seaside)",
+      "city": "St. Simons Island",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:20.595Z"
+    },
+    {
+      "name": "Sea Island (Plantation)",
+      "city": "St. Simons Island",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:24.583Z"
+    },
+    {
+      "name": "Reynolds Lake Oconee (Great Waters)",
+      "city": "Greensboro",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:28.587Z"
+    },
+    {
+      "name": "Caledonia Golf & Fish Club",
+      "city": "Pawleys Island",
+      "state": "SC",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:32.604Z"
+    },
+    {
+      "name": "Barnsley Resort Golf Course",
+      "city": "Adairsville",
+      "state": "GA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:36.586Z"
+    },
+    {
+      "name": "Primland (Highland)",
+      "city": "Meadows of Dan",
+      "state": "VA",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:40.559Z"
+    },
+    {
+      "name": "Troon North (Monument)",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:44.569Z"
+    },
+    {
+      "name": "Troon North (Pinnacle)",
+      "city": "Scottsdale",
+      "state": "AZ",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:48.568Z"
+    },
+    {
+      "name": "Fallen Oak Golf Course",
+      "city": "Biloxi",
+      "state": "MS",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:52.589Z"
+    },
+    {
+      "name": "Ross Bridge Golf Resort",
+      "city": "Hoover",
+      "state": "AL",
+      "par": 72,
+      "holes": 18,
+      "teeBoxes": [],
+      "access": "resort",
+      "sourceUrl": "",
+      "dataQuality": "name_only",
+      "dataSource": "imported",
+      "nationalLists": [
+        "top_resort"
+      ],
+      "importedAt": "2026-04-01T02:48:56.618Z"
+    }
+  ]
+}
