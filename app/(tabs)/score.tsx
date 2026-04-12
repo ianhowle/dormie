@@ -1052,6 +1052,7 @@ export default function ScoreScreen() {
   };
   const seasonFormats = [...new Set(selectedSeasonData.map(getSeasonFormat))];
   const hasFormatConflict = seasonFormats.length > 1;
+  const hasVirtualSeason = selectedSeasonData.some((s) => (s.config as any)?.virtual === true);
 
   const isCustom = course?.id.startsWith('custom-');
   const hasApiTees = scorecard && scorecard.source !== 'none' && scorecard.teeBoxes.length > 0;
@@ -1324,6 +1325,16 @@ export default function ScoreScreen() {
           <View style={st.body}>
             {/* Course */}
             <SectionLabel title="COURSE" />
+            {hasVirtualSeason && (
+              <View style={{ backgroundColor: '#0F3E4A', borderLeftWidth: 3, borderLeftColor: '#38BDF8', padding: 12, marginBottom: 12 }}>
+                <Text style={{ color: '#7DD3FC', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 }}>
+                  VIRTUAL / ASYNC SEASON
+                </Text>
+                <Text style={{ color: '#E8E4DE', fontSize: 13, lineHeight: 18 }}>
+                  Pick any course below — slope and rating will be pulled automatically for fair handicap scoring.
+                </Text>
+              </View>
+            )}
             <CourseSearch selected={course} onSelect={setCourse} selectedTeeBox={selectedTeeBox} scorecard={scorecard} genderTees={genderTees} />
 
             {/* Loading shimmer while fetching tee data */}

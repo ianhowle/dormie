@@ -296,13 +296,14 @@ export function calculateNetScore(
 export async function recalculatePlayerHandicap(
   playerId: string,
 ): Promise<HandicapResult> {
-  // 1. Fetch recent rounds with course data
+  // 1. Fetch recent rounds with course data.
+  // For virtual/async rounds the course row may be absent, but slope/rating
+  // are denormalized onto the round itself — include those fields so those
+  // rounds still count toward the handicap.
   const { data: rounds, error: roundsErr } = await supabase
     .from('rounds')
-    .select('id, gross_score, hole_scores, played_at, course:courses(par, slope, rating, hole_data)')
+    .select('id, gross_score, hole_scores, played_at, course_slope, course_rating, course:courses(par, slope, rating, hole_data)')
     .eq('user_id', playerId)
-    .not('course.slope', 'is', null)
-    .not('course.rating', 'is', null)
     .order('played_at', { ascending: false })
     .limit(20);
 
@@ -316,11 +317,15 @@ export async function recalculatePlayerHandicap(
 
   for (const round of rounds) {
     const course = round.course as any;
-    if (!course?.slope || !course?.rating) continue;
-
-    const courseRating: number = course.rating;
-    const slopeRating: number = course.slope;
-    const par: number = course.par ?? 72;
+    // Prefer denormalized slope/rating on the round (always present for
+    // rounds logged with the virtual/async flow). Fall back to the joined
+    // Course row for legacy rounds.
+    const slopeRating: number | null =
+      (round as any).course_slope ?? course?.slope ?? null;
+    const courseRating: number | null =
+      (round as any).course_rating ?? course?.rating ?? null;
+    if (!slopeRating || !courseRating) continue;
+    const par: number = course?.par ?? 72;
 
     let adjustedGross = round.gross_score;
 

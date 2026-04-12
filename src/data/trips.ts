@@ -18,6 +18,11 @@ export type Trip = {
   gradient: [string, string];
   champion?: string; // only for completed
   competitionStarted?: boolean; // true when trip competition is live
+  ryderCupConfig?: {
+    teamRedName: string;
+    teamBlueName: string;
+    winner?: 'red' | 'blue' | 'tied';
+  };
 };
 
 export type TripMember = {
@@ -127,6 +132,27 @@ export const MOCK_COMPLETED_TRIPS: Trip[] = [
     roundsPlanned: 3,
     gradient: ['#2A4A6B', '#5B7FA5'],
     champion: 'Tommy Fleetwood',
+  },
+  {
+    id: 't4',
+    name: 'The Sullivan Cup',
+    destination: 'Gaylord Springs Golf Links',
+    city: 'Nashville',
+    state: 'TN',
+    startDate: '2025-06-13',
+    endDate: '2025-06-15',
+    status: 'completed',
+    inviteCode: 'SULLY',
+    isRyderCup: true,
+    createdBy: '1',
+    playerIds: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    roundsPlanned: 3,
+    gradient: ['#1565C0', '#B71C1C'],
+    ryderCupConfig: {
+      teamRedName: 'Team Red',
+      teamBlueName: 'Team Blue',
+      winner: 'red',
+    },
   },
 ];
 

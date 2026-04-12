@@ -310,15 +310,27 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
         </View>
       </View>
 
-      {/* Champion for completed */}
-      {trip.champion && (
+      {/* Champion / Ryder Cup winner for completed */}
+      {trip.isRyderCup && trip.ryderCupConfig?.winner ? (
+        <View style={[s.championRow, { borderColor: c.border }]}>
+          <Ionicons name="trophy" size={14} color={c.gold} />
+          <Text style={[s.championText, { color: c.gold, fontFamily: GEO }]}>
+            {trip.ryderCupConfig.winner === 'tied'
+              ? 'Tied'
+              : `${trip.ryderCupConfig.winner === 'red'
+                  ? trip.ryderCupConfig.teamRedName
+                  : trip.ryderCupConfig.teamBlueName
+                } Wins`}
+          </Text>
+        </View>
+      ) : trip.champion ? (
         <View style={[s.championRow, { borderColor: c.border }]}>
           <Ionicons name="trophy" size={14} color={c.gold} />
           <Text style={[s.championText, { color: c.gold, fontFamily: GEO }]}>
             {trip.champion}
           </Text>
         </View>
-      )}
+      ) : null}
     </Pressable>
   );
 }

@@ -13,6 +13,7 @@ import {
   Modal,
   Alert,
   Share,
+  TextInput,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,9 +27,22 @@ import GoldDivider from '../src/components/GoldDivider';
 import { useAuth } from '../src/lib/auth';
 import { seasonsService } from '../src/services/seasons.service';
 import { haptics } from '../src/lib/haptics';
-import { getPlayoffCutLine } from '../src/data/seasons-detail';
+import { getPlayoffCutLine, calculateWeeklyPoints, generateBracketMatches, getBracketRounds, getBracketRoundLabel, processBracketRound, isBracketComplete, getBracketChampion, getBracketMatchStatus } from '../src/data/seasons-detail';
+import type { MultiRoundConfig, ParticipationConfig, BracketConfig, BracketMatch, BracketSize, BracketScoringMethod } from '../src/data/seasons-detail';
+import BracketView from '../src/components/BracketView';
 import { supabase } from '../src/lib/supabase';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { MatchupReveal, DEMO_MATCHUPS } from '../src/components/MatchupReveal';
+import { DormieMoment } from '../src/components/DormieMoment';
+import { StrokePlayStandings, buildDemoStrokePlayData } from '../src/components/StrokePlayStandings';
+import type { StrokePlayPlayer } from '../src/components/StrokePlayStandings';
+import { LeagueStandings, buildDemoLeagueData, buildLeagueDataFromConfig } from '../src/components/LeagueStandings';
+import type { LeaguePlayer } from '../src/components/LeagueStandings';
+import { WeeklyMatchupCard, buildDemoMatchup } from '../src/components/WeeklyMatchupCard';
+import { SeasonStatsSection, MatchPlayTaleOfTheTape } from '../src/components/SeasonStatsSection';
+import { getCareerStats } from '../src/services/seasonStats.service';
+import type { CareerStats } from '../src/services/seasonStats.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -77,11 +91,11 @@ const POINTS_TABLE = [25, 20, 16, 12, 10, 8, 6, 4, 2, 1];
 
 
 const DEMO_STANDINGS: Standing[] = [
-  { playerId: '1', name: 'McGowan', handicap: 8, avatarColor: '#006747', points: 72, weekResults: [25, 16, 20, 12], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '2', name: 'Fletcher', handicap: 12, avatarColor: '#C9A227', points: 64, weekResults: [20, 25, 12, 8], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
-  { playerId: '3', name: 'Patterson', handicap: 6, avatarColor: '#1E4D2B', points: 56, weekResults: [16, 12, 25, 4], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
+  { playerId: '1', name: 'McGowan', handicap: 8, avatarColor: '#006747', points: 73, weekResults: [25, 16, 20, 12], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
+  { playerId: '2', name: 'Fletcher', handicap: 12, avatarColor: '#C9A227', points: 65, weekResults: [20, 25, 12, 8], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
+  { playerId: '3', name: 'Patterson', handicap: 6, avatarColor: '#1E4D2B', points: 57, weekResults: [16, 12, 25, 4], wins: 1, topFives: 3, eventsPlayed: 4, bestFinish: 1, worstDrop: null, isCut: false },
   { playerId: '4', name: 'Sullivan', handicap: 15, avatarColor: '#C41E3A', points: 44, weekResults: [12, 20, 10, 2], wins: 0, topFives: 2, eventsPlayed: 4, bestFinish: 2, worstDrop: null, isCut: false },
-  { playerId: '5', name: 'Rodriguez', handicap: 10, avatarColor: '#006747', points: 38, weekResults: [10, 8, 16, 6], wins: 0, topFives: 1, eventsPlayed: 4, bestFinish: 3, worstDrop: null, isCut: false },
+  { playerId: '5', name: 'Rodriguez', handicap: 10, avatarColor: '#006747', points: 40, weekResults: [10, 8, 16, 6], wins: 0, topFives: 1, eventsPlayed: 4, bestFinish: 3, worstDrop: null, isCut: false },
   { playerId: '6', name: 'Chen', handicap: 18, avatarColor: '#C9A227', points: 30, weekResults: [8, 10, 6, 6], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 4, worstDrop: null, isCut: false },
   { playerId: '7', name: 'Taylor', handicap: 14, avatarColor: '#1E4D2B', points: 22, weekResults: [6, 4, 8, 4], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 5, worstDrop: null, isCut: false },
   { playerId: '8', name: 'Brooks', handicap: 20, avatarColor: '#C41E3A', points: 14, weekResults: [4, 6, 2, 2], wins: 0, topFives: 0, eventsPlayed: 4, bestFinish: 6, worstDrop: null, isCut: false },
@@ -123,18 +137,11 @@ const MOCK_CHALLENGES: BonusChallenge[] = [
   { id: 'b3', label: 'Iron Man', emoji: '💪', description: 'Most consecutive weeks played', topThree: [{ name: 'Patterson', value: '6' }, { name: 'McGowan', value: '5' }, { name: 'Sullivan', value: '4' }] },
   { id: 'b4', label: 'Comeback Kid', emoji: '🔄', description: 'Biggest position gain in a single week', topThree: [{ name: 'Rodriguez', value: '+4' }, { name: 'Chen', value: '+3' }, { name: 'Sullivan', value: '+2' }] },
   { id: 'b5', label: 'Eagle Hunter', emoji: '🦅', description: 'Most eagles across all rounds', topThree: [{ name: 'McGowan', value: '4' }, { name: 'Fletcher', value: '3' }, { name: 'Patterson', value: '2' }] },
-  { id: 'b6', label: 'Consistency King', emoji: '📊', description: 'Lowest scoring variance (standard deviation)', topThree: [{ name: 'Sullivan', value: '2.1' }, { name: 'McGowan', value: '2.8' }, { name: 'Chen', value: '3.2' }] },
-  { id: 'b7', label: 'Streak Master', emoji: '🔥', description: 'Longest consecutive weeks with top-3 finish', topThree: [{ name: 'McGowan', value: '3' }, { name: 'Patterson', value: '2' }, { name: 'Fletcher', value: '2' }] },
-  { id: 'b8', label: 'Ace Race', emoji: '🎯', description: 'Most holes-in-one', topThree: [{ name: 'Patterson', value: '1' }, { name: 'Fletcher', value: '1' }, { name: 'McGowan', value: '0' }] },
+  { id: 'b6', label: 'Most Improved', emoji: '📈', description: 'Biggest handicap/scoring improvement during the season', topThree: [{ name: 'Chen', value: '-3.2' }, { name: 'Rodriguez', value: '-2.1' }, { name: 'Brooks', value: '-1.8' }] },
+  { id: 'b7', label: 'Clutch Player', emoji: '🎯', description: 'Best scoring average on holes 16-18 (the closing stretch)', topThree: [{ name: 'McGowan', value: '-0.8' }, { name: 'Patterson', value: '-0.5' }, { name: 'Fletcher', value: '-0.3' }] },
+  { id: 'b8', label: 'Consistency King', emoji: '📊', description: 'Lowest scoring variance (standard deviation)', topThree: [{ name: 'Sullivan', value: '2.1' }, { name: 'McGowan', value: '2.8' }, { name: 'Chen', value: '3.2' }] },
+  { id: 'b9', label: 'Streak Master', emoji: '🔥', description: 'Longest consecutive weeks with top-3 finish', topThree: [{ name: 'McGowan', value: '3' }, { name: 'Patterson', value: '2' }, { name: 'Fletcher', value: '2' }] },
 ];
-
-const MOCK_CAREER_STATS: Record<string, { seasonsPlayed: number; championships: number; playoffApps: number; bestFinish: number; avgRank: number; careerPoints: number }> = {
-  '1': { seasonsPlayed: 4, championships: 1, playoffApps: 3, bestFinish: 1, avgRank: 2.1, careerPoints: 312 },
-  '2': { seasonsPlayed: 4, championships: 1, playoffApps: 3, bestFinish: 1, avgRank: 2.8, careerPoints: 285 },
-  '3': { seasonsPlayed: 3, championships: 0, playoffApps: 2, bestFinish: 1, avgRank: 3.5, careerPoints: 198 },
-  '4': { seasonsPlayed: 4, championships: 0, playoffApps: 1, bestFinish: 2, avgRank: 4.2, careerPoints: 176 },
-  '5': { seasonsPlayed: 2, championships: 0, playoffApps: 0, bestFinish: 3, avgRank: 5.0, careerPoints: 84 },
-};
 
 const CUT_PERCENTAGE = 0.67;
 const FORMAT_LABELS: Record<string, string> = {
@@ -161,12 +168,13 @@ function ordinal(n: number): string {
 }
 
 // ─── Sub-tabs ─────────────────────────────────────────────────────────
-type Tab = 'standings' | 'schedule' | 'challenges';
+type Tab = 'standings' | 'schedule' | 'challenges' | 'stats';
 
 function TabBar({ tab, onSelect, colors: c }: { tab: Tab; onSelect: (t: Tab) => void; colors: any }) {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'standings', label: 'Standings' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'stats', label: 'Stats' },
     { key: 'challenges', label: 'Bonus' },
   ];
   return (
@@ -285,6 +293,13 @@ function PlayerStatsModal({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const [careerStats, setCareerStats] = useState<CareerStats | null>(null);
+
+  useEffect(() => {
+    if (!visible || !player) { setCareerStats(null); return; }
+    getCareerStats(player.playerId).then(setCareerStats).catch(() => setCareerStats(null));
+  }, [visible, player?.playerId]);
+
   if (!player) return null;
 
   const completedWeeks = weeks.filter((w) => w.completed);
@@ -374,44 +389,38 @@ function PlayerStatsModal({
             </View>
           )}
 
-          {/* Career Stats */}
-          {MOCK_CAREER_STATS[player.playerId] && (
+          {/* Career Stats — loaded from Supabase */}
+          {careerStats && (
             <View style={{ marginTop: 16 }}>
               <Text style={[styles.sectionTitle, { color: c.text }]}>Career Stats</Text>
               <View style={[styles.careerStatsGrid, { backgroundColor: c.elevated }]}>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: c.text, fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].seasonsPlayed}
+                    {careerStats.seasonsPlayed}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Seasons Played</Text>
                 </View>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: '#C9A227', fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].championships}
+                    {careerStats.championships}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Championships</Text>
                 </View>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: c.text, fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].playoffApps}
+                    {careerStats.playoffApps}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Playoff Apps</Text>
                 </View>
                 <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: '#006747', fontFamily: GEO }]}>
-                    {ordinal(MOCK_CAREER_STATS[player.playerId].bestFinish)}
+                    {ordinal(careerStats.bestFinish)}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Best Finish</Text>
                 </View>
                 <View style={styles.careerStatItem}>
-                  <Text style={[styles.careerStatVal, { color: c.text, fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].avgRank.toFixed(1)}
-                  </Text>
-                  <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Avg Rank</Text>
-                </View>
-                <View style={styles.careerStatItem}>
                   <Text style={[styles.careerStatVal, { color: '#C9A227', fontFamily: GEO }]}>
-                    {MOCK_CAREER_STATS[player.playerId].careerPoints}
+                    {careerStats.careerPoints}
                   </Text>
                   <Text style={[styles.careerStatLabel, { color: c.textMuted }]}>Career Points</Text>
                 </View>
@@ -432,27 +441,46 @@ function StandingsTab({
   weeks,
   cutLineIndex,
   onPlayerTap,
+  seasonConfig,
 }: {
   standings: Standing[];
   weeks: Week[];
   cutLineIndex: number;
   onPlayerTap: (p: Standing) => void;
+  seasonConfig?: Record<string, any> | null;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
   const completedWeeks = weeks.filter((w) => w.completed);
+  const [showScoringTooltip, setShowScoringTooltip] = useState(false);
+
+  const hasMultiRound = !!seasonConfig?.multi_round_week;
+  const hasParticipation = !!seasonConfig?.participation_bonus;
+  const showTooltipIcon = hasMultiRound || hasParticipation;
+
+  const hasEliminated = standings.some((p) => p.isCut);
 
   const renderStandingRow = useCallback(({ item: p, index: i }: { item: Standing; index: number }) => {
-    const isCut = i >= cutLineIndex;
-    const isAboveCut = i === cutLineIndex;
+    const isEliminated = p.isCut;
+    const isProjectedCut = !hasEliminated && i >= cutLineIndex;
+    const showCutLine = !hasEliminated && i === cutLineIndex;
+    const dimmed = isEliminated || isProjectedCut;
 
     return (
       <View>
-        {isAboveCut && (
+        {showCutLine && (
           <View style={styles.cutLine}>
             <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
             <Text style={[styles.cutLineText, { color: c.urgent }]}>PROJECTED CUT</Text>
+            <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
+          </View>
+        )}
+
+        {isEliminated && i === standings.findIndex((s) => s.isCut) && (
+          <View style={styles.cutLine}>
+            <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
+            <Text style={[styles.cutLineText, { color: c.urgent }]}>ELIMINATED</Text>
             <View style={[styles.cutLineDash, { backgroundColor: c.urgent }]} />
           </View>
         )}
@@ -463,7 +491,7 @@ function StandingsTab({
             styles.standingsRow,
             {
               borderBottomColor: c.border,
-              opacity: isCut ? 0.45 : 1,
+              opacity: dimmed ? 0.45 : 1,
               backgroundColor: isDark ? undefined : (i % 2 === 0 ? '#FFFFFF' : '#F8F7F5'),
             },
           ]}
@@ -506,11 +534,13 @@ function StandingsTab({
             })}
           </ScrollView>
 
-          <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>{p.points}</Text>
+          <Text style={[styles.srTotal, { color: c.gold, fontFamily: GEO }]}>
+            {p.points}
+          </Text>
         </Pressable>
       </View>
     );
-  }, [c, cutLineIndex, completedWeeks, onPlayerTap]);
+  }, [c, cutLineIndex, completedWeeks, onPlayerTap, hasEliminated, standings]);
 
   const keyExtractor = useCallback((item: Standing) => item.playerId, []);
 
@@ -534,8 +564,37 @@ function StandingsTab({
             );
           })}
         </ScrollView>
-        <Text style={[styles.shTotal, { color: isDark ? c.gold : '#FFFFFF', fontFamily: GEO }]}>PTS</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Text style={[styles.shTotal, { color: isDark ? c.gold : '#FFFFFF', fontFamily: GEO }]}>PTS</Text>
+          {showTooltipIcon && (
+            <Pressable onPress={() => { haptics.light(); setShowScoringTooltip(!showScoringTooltip); }} hitSlop={8}>
+              <Ionicons name="information-circle-outline" size={14} color={isDark ? c.gold + '88' : 'rgba(255,255,255,0.6)'} />
+            </Pressable>
+          )}
+        </View>
       </View>
+
+      {/* Scoring tooltip */}
+      {showScoringTooltip && (
+        <Pressable onPress={() => setShowScoringTooltip(false)} style={[styles.scoringTooltip, { backgroundColor: isDark ? c.elevated : '#FFFFFF', borderColor: c.gold + '44' }]}>
+          <Text style={[styles.scoringTooltipTitle, { color: c.gold, fontFamily: GEO }]}>SCORING RULES</Text>
+          <Text style={[styles.scoringTooltipLine, { color: c.text }]}>Position points (1st = 25, 2nd = 20, ...)</Text>
+          {hasMultiRound && (
+            <Text style={[styles.scoringTooltipLine, { color: c.text }]}>
+              Best {seasonConfig?.best_rounds_count ?? 1} of {seasonConfig?.rounds_allowed_per_week ?? 3} rounds count per week
+            </Text>
+          )}
+          {hasParticipation && (
+            <Text style={[styles.scoringTooltipLine, { color: c.text }]}>
+              +{seasonConfig?.participation_points ?? 50} participation bonus per week
+            </Text>
+          )}
+          <Text style={[styles.scoringTooltipLine, { color: c.text }]}>
+            Includes side game bonus points (if any)
+          </Text>
+          <Text style={[styles.scoringTooltipDismiss, { color: c.textMuted }]}>Tap to dismiss</Text>
+        </Pressable>
+      )}
 
       <FlatList
         data={standings}
@@ -550,17 +609,184 @@ function StandingsTab({
         removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={hasPlayoffs ? (
-          <PlayoffBracket standings={standings} cutLineIndex={cutLineIndex} />
+          <PlayoffBracket standings={standings} cutLineIndex={cutLineIndex} weeks={weeks} />
         ) : null}
       />
     </View>
   );
 }
 
-// ─── Playoff Bracket ──────────────────────────────────────────────────
-function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cutLineIndex: number }) {
+// ─── Bracket Match Score Card ──────────────────────────────────────────
+function BracketMatchScoreCard({
+  match,
+  onLogScore,
+  scoringMethod,
+}: {
+  match: BracketMatch;
+  onLogScore: (matchId: string, playerId: string, score: number) => void;
+  scoringMethod: BracketScoringMethod;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const [p1Input, setP1Input] = useState('');
+  const [p2Input, setP2Input] = useState('');
+
+  const statusLabel = getBracketMatchStatus(match);
+  const scoringLabel = scoringMethod === 'stableford' ? 'Net Stableford Pts' : scoringMethod === 'stroke_play' ? 'Net Strokes' : 'Holes Won';
+
+  return (
+    <View style={{ backgroundColor: c.elevated, marginBottom: 12, padding: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: c.gold, letterSpacing: 1, fontFamily: GEO }}>
+          {statusLabel.toUpperCase()}
+        </Text>
+        <Text style={{ fontSize: 10, color: c.textMuted, letterSpacing: 0.5 }}>
+          {scoringLabel}
+        </Text>
+      </View>
+
+      {/* Player 1 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+        <Text style={{ fontSize: 12, color: c.gold, fontFamily: GEO, width: 18 }}>{match.player1_seed}</Text>
+        <Text style={{ fontSize: 14, color: c.text, flex: 1 }} numberOfLines={1}>{match.player1_name ?? 'TBD'}</Text>
+        {match.player1_score != null ? (
+          <Text style={{ fontSize: 16, fontWeight: '700', color: c.gold, fontFamily: GEO }}>{match.player1_score}</Text>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TextInput
+              style={{ width: 50, height: 30, backgroundColor: c.bg, color: c.text, textAlign: 'center', fontFamily: GEO, fontSize: 14 }}
+              keyboardType="numeric"
+              placeholder="—"
+              placeholderTextColor={c.textMuted}
+              value={p1Input}
+              onChangeText={setP1Input}
+            />
+            <Pressable
+              onPress={() => {
+                const score = parseInt(p1Input, 10);
+                if (!isNaN(score) && match.player1_id) {
+                  haptics.light();
+                  onLogScore(match.id, match.player1_id, score);
+                  setP1Input('');
+                }
+              }}
+              style={{ backgroundColor: c.gold, paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#000' }}>LOG</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* Player 2 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 12, color: c.gold, fontFamily: GEO, width: 18 }}>{match.player2_seed}</Text>
+        <Text style={{ fontSize: 14, color: c.text, flex: 1 }} numberOfLines={1}>{match.player2_name ?? 'TBD'}</Text>
+        {match.player2_score != null ? (
+          <Text style={{ fontSize: 16, fontWeight: '700', color: c.gold, fontFamily: GEO }}>{match.player2_score}</Text>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TextInput
+              style={{ width: 50, height: 30, backgroundColor: c.bg, color: c.text, textAlign: 'center', fontFamily: GEO, fontSize: 14 }}
+              keyboardType="numeric"
+              placeholder="—"
+              placeholderTextColor={c.textMuted}
+              value={p2Input}
+              onChangeText={setP2Input}
+            />
+            <Pressable
+              onPress={() => {
+                const score = parseInt(p2Input, 10);
+                if (!isNaN(score) && match.player2_id) {
+                  haptics.light();
+                  onLogScore(match.id, match.player2_id, score);
+                  setP2Input('');
+                }
+              }}
+              style={{ backgroundColor: c.gold, paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#000' }}>LOG</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── Playoff Bracket ──────────────────────────────────────────────────
+function PlayoffBracket({ standings, cutLineIndex, weeks }: { standings: Standing[]; cutLineIndex: number; weeks: Week[] }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const regularWeeks = weeks.filter((w) => !w.isPlayoff && !w.isChampionship);
+  const allRegularComplete = regularWeeks.every((w) => w.completed);
+  const totalRegularWeeks = regularWeeks.length;
+  const cutPercent = Math.round((cutLineIndex / standings.length) * 100);
+
+  // During regular season, show preview skeleton
+  if (!allRegularComplete) {
+    return (
+      <View style={styles.bracketContainer}>
+        <Text style={[styles.bracketTitle, { color: c.textMuted, fontFamily: GEO }]}>PLAYOFF PREVIEW</Text>
+
+        <View style={styles.bracketVisual}>
+          {/* Semi-Finals Column — TBD skeleton */}
+          <View style={styles.bracketColumn}>
+            <Text style={[styles.bracketRoundLabel, { color: c.textMuted }]}>SEMI-FINALS</Text>
+            <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, opacity: 0.4 }]}>
+              <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>1</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+              <View style={styles.bracketMatchupRow}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>4</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+            </View>
+            <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, marginTop: 12, opacity: 0.4 }]}>
+              <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>2</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+              <View style={styles.bracketMatchupRow}>
+                <Text style={[styles.bracketSeed, { color: c.textMuted, fontFamily: GEO }]}>3</Text>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Bracket connector lines */}
+          <View style={styles.bracketConnectors}>
+            <View style={[styles.bracketLineTop, { borderColor: c.textMuted, opacity: 0.3 }]} />
+            <View style={[styles.bracketLineBottom, { borderColor: c.textMuted, opacity: 0.3 }]} />
+            <View style={[styles.bracketLineCenter, { backgroundColor: c.textMuted, opacity: 0.3 }]} />
+          </View>
+
+          {/* Finals Column — TBD skeleton */}
+          <View style={styles.bracketColumn}>
+            <Text style={[styles.bracketRoundLabel, { color: c.textMuted }]}>FINAL</Text>
+            <View style={[styles.bracketMatchup, { backgroundColor: c.elevated, borderWidth: 1, borderColor: c.textMuted + '33', opacity: 0.4 }]}>
+              <View style={[styles.bracketMatchupRow, { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+              <View style={styles.bracketMatchupRow}>
+                <Text style={[styles.bracketName, { color: c.textMuted }]}>TBD</Text>
+              </View>
+            </View>
+            <View style={[styles.bracketChampion, { borderColor: c.textMuted + '33', opacity: 0.4 }]}>
+              <Text style={[styles.bracketChampionName, { color: c.textMuted, fontFamily: GEO }]}>TBD</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={{ fontSize: 12, color: c.textMuted, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }}>
+          Top {cutPercent}% qualify for playoffs after Week {totalRegularWeeks}
+        </Text>
+      </View>
+    );
+  }
+
   const qualifiers = standings.slice(0, Math.min(cutLineIndex, 4));
   const eliminated = standings.slice(cutLineIndex);
 
@@ -675,6 +901,14 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
         </View>
       </View>
 
+      {/* Matchup Preview — Tale of the Tape for the final */}
+      {semi1Winner && semi2Winner && (
+        <MatchPlayTaleOfTheTape
+          playerId={semi1Winner.playerId}
+          opponentId={semi2Winner.playerId}
+        />
+      )}
+
       {/* Eliminated section */}
       <View style={[styles.bracketSection, { backgroundColor: c.elevated, marginTop: 16, opacity: 0.5 }]}>
         <Text style={[styles.bracketSectionLabel, { color: '#C41E3A' }]}>ELIMINATED</Text>
@@ -693,7 +927,7 @@ function PlayoffBracket({ standings, cutLineIndex }: { standings: Standing[]; cu
 }
 
 // ─── Schedule Tab ─────────────────────────────────────────────────────
-function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentWeek: number; seasonId: string }) {
+function ScheduleTab({ weeks, currentWeek, seasonId, seasonConfig }: { weeks: Week[]; currentWeek: number; seasonId: string; seasonConfig?: Record<string, any> | null }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -712,6 +946,15 @@ function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentW
         major_name: w.majorName ?? '',
         multiplier: String(w.multiplier),
         date_range: dateRange,
+        ...(seasonConfig?.multi_round_week ? {
+          multi_round: '1',
+          rounds_allowed: String(seasonConfig.rounds_allowed_per_week ?? 3),
+          best_rounds: String(seasonConfig.best_rounds_count ?? 1),
+        } : {}),
+        ...(seasonConfig?.participation_bonus ? {
+          participation_bonus: '1',
+          participation_points: String(seasonConfig.participation_points ?? 50),
+        } : {}),
       },
     });
   };
@@ -800,7 +1043,6 @@ function ScheduleTab({ weeks, currentWeek, seasonId }: { weeks: Week[]; currentW
 const MEDAL_COLORS = ['#C9A227', '#C0C0C0', '#CD7F32']; // gold, silver, bronze
 
 const SEASON_RECORDS = [
-  { label: 'Fastest Round', value: '3h 12m', player: 'Patterson', icon: 'timer-outline' as const },
   { label: 'Biggest Weekly Haul', value: '25 pts', player: 'McGowan (Wk 1)', icon: 'flame-outline' as const },
   { label: 'Most Weeks at #1', value: '3 weeks', player: 'McGowan', icon: 'medal-outline' as const },
 ];
@@ -899,16 +1141,32 @@ function SeasonDetailScreenInner() {
 
   const [realStandings, setRealStandings] = useState<Standing[]>([]);
   const [realWeeks, setRealWeeks] = useState<Week[]>([]);
+  const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
 
   const refreshData = useCallback(async () => {
     if (!seasonId) return;
     try {
-      const [standingsData, weeksData] = await Promise.all([
-        seasonsService.getStandings(seasonId),
-        seasonsService.getWeeks(seasonId),
-      ]);
+      // Use counting-aware standings that filter by is_counting and include participation bonus
+      let standingsData;
+      try {
+        standingsData = await seasonsService.getStandingsWithCounting(seasonId);
+      } catch {
+        // Fall back to RPC standings if client-side computation fails
+        standingsData = await seasonsService.getStandings(seasonId);
+      }
+      const weeksData = await seasonsService.getWeeks(seasonId);
+
+      // Fetch eliminated members
+      const { data: eliminatedMembers } = await supabase
+        .from('season_members')
+        .select('user_id')
+        .eq('season_id', seasonId)
+        .eq('eliminated', true);
+      const elimSet = new Set((eliminatedMembers ?? []).map((m: any) => m.user_id));
+      setEliminatedIds(elimSet);
+
       if (standingsData && standingsData.length > 0) {
         setRealStandings(standingsData.map((s: any, i: number) => ({
           playerId: s.user_id,
@@ -922,7 +1180,7 @@ function SeasonDetailScreenInner() {
           eventsPlayed: s.weeks_played,
           bestFinish: s.best_finish,
           worstDrop: s.worst_drop ?? null,
-          isCut: false,
+          isCut: elimSet.has(s.user_id),
         })));
       }
       if (weeksData && weeksData.length > 0) {
@@ -958,11 +1216,197 @@ function SeasonDetailScreenInner() {
   const [selectedPlayer, setSelectedPlayer] = useState<Standing | null>(null);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [showChampionCeremony, setShowChampionCeremony] = useState(false);
+  const [showReveal, setShowReveal] = useState(false);
+  const [revealChecked, setRevealChecked] = useState(false);
+  const [isStrokePlay, setIsStrokePlay] = useState(false);
+  const [strokePlayConfig, setStrokePlayConfig] = useState<any>(null);
+  const [showStrokeChampionMoment, setShowStrokeChampionMoment] = useState(false);
+  const [strokeChampion, setStrokeChampion] = useState<StrokePlayPlayer | null>(null);
+  const [isLeague, setIsLeague] = useState(false);
+  const [leagueConfig, setLeagueConfig] = useState<any>(null);
+  const [showLeagueChampionMoment, setShowLeagueChampionMoment] = useState(false);
+  const [leagueChampion, setLeagueChampion] = useState<LeaguePlayer | null>(null);
+  const [isRyderCup, setIsRyderCup] = useState(false);
+  const [ryderCupConfig, setRyderCupConfig] = useState<Record<string, any> | null>(null);
+  const [isBracket, setIsBracket] = useState(false);
+  const [bracketConfig, setBracketConfig] = useState<Record<string, any> | null>(null);
+  const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>([]);
+  const [showBracketChampionMoment, setShowBracketChampionMoment] = useState(false);
+  const [bracketChampionName, setBracketChampionName] = useState('');
+  const [bracketChampionDetail, setBracketChampionDetail] = useState('');
+  const [fedexConfig, setFedexConfig] = useState<Record<string, any> | null>(null);
+
+  // Load season config to detect special season types and FedEx settings
+  useEffect(() => {
+    if (!seasonId) return;
+    const applyConfig = (config: Record<string, any>) => {
+      if (config.season_type === 'stroke_series' || config.season_subtype === 'stroke_series') {
+        setIsStrokePlay(true);
+        setStrokePlayConfig(config.stroke_play_config);
+      } else if (config.season_type === 'league' || config.season_subtype === 'league') {
+        setIsLeague(true);
+        setLeagueConfig(config.league_config);
+      } else if (config.season_type === 'ryder' || config.season_subtype === 'ryder') {
+        setIsRyderCup(true);
+        setRyderCupConfig(config);
+      } else if (config.season_type === 'bracket' || config.season_subtype === 'bracket') {
+        setIsBracket(true);
+        setBracketConfig(config);
+        if (config.bracket_matches) {
+          setBracketMatches(config.bracket_matches);
+        }
+      }
+      setFedexConfig(config);
+    };
+    const loadConfig = async () => {
+      try {
+        // Try AsyncStorage first (local seasons)
+        const localData = await AsyncStorage.getItem('dormie_local_seasons');
+        if (localData) {
+          const seasons = JSON.parse(localData);
+          const season = seasons.find((s: any) => s.id === seasonId);
+          if (season?.config) {
+            applyConfig(season.config);
+            return;
+          }
+        }
+        // Fall back to Supabase for cloud-created seasons
+        const seasonData = await seasonsService.getById(seasonId);
+        if (seasonData?.config && typeof seasonData.config === 'object') {
+          applyConfig(seasonData.config as Record<string, any>);
+        }
+      } catch {}
+    };
+    loadConfig();
+  }, [seasonId]);
+
+  // Build stroke play demo data when in stroke play mode
+  const strokePlayData = useMemo(() => {
+    if (!isStrokePlay) return null;
+    const cfg = strokePlayConfig;
+    const totalRounds = cfg?.total_rounds ?? 8;
+    const dropWorst = cfg?.drop_worst ?? false;
+    const dropCount = cfg?.drop_count ?? 0;
+    const scoringType = cfg?.scoring_type ?? 'gross';
+    return buildDemoStrokePlayData(totalRounds, dropWorst, dropCount, scoringType);
+  }, [isStrokePlay, strokePlayConfig]);
+
+  // Build league data from config, fall back to demo data
+  const leagueData = useMemo(() => {
+    if (!isLeague) return null;
+    if (leagueConfig && leagueConfig.players && leagueConfig.schedule) {
+      return buildLeagueDataFromConfig(leagueConfig);
+    }
+    return buildDemoLeagueData();
+  }, [isLeague, leagueConfig]);
+
+  const demoMatchup = useMemo(() => {
+    if (!isLeague) return null;
+    return buildDemoMatchup();
+  }, [isLeague]);
+
+  const handleStrokeChampionMoment = useCallback((winner: StrokePlayPlayer) => {
+    setStrokeChampion(winner);
+    setShowStrokeChampionMoment(true);
+  }, []);
+
+  const handleLeagueChampionMoment = useCallback((winner: LeaguePlayer) => {
+    setLeagueChampion(winner);
+    setShowLeagueChampionMoment(true);
+  }, []);
+
+  // ─── Bracket Score Logging ─────────────────────────────────────────
+  const handleLogBracketScore = useCallback(async (
+    matchId: string,
+    playerId: string,
+    score: number,
+  ) => {
+    if (!bracketConfig || !seasonId) return;
+
+    const scoringMethod = (bracketConfig.scoring_method ?? 'stableford') as BracketScoringMethod;
+    const bracketSize = (bracketConfig.bracket_size ?? 4) as BracketSize;
+
+    const { matches: updated, resolvedMatch, isChampion } = processBracketRound(
+      bracketMatches,
+      matchId,
+      playerId,
+      score,
+      scoringMethod,
+      bracketSize,
+    );
+
+    setBracketMatches(updated);
+
+    // Persist updated matches to local storage
+    try {
+      const localData = await AsyncStorage.getItem('dormie_local_seasons');
+      if (localData) {
+        const seasons = JSON.parse(localData);
+        const idx = seasons.findIndex((s: any) => s.id === seasonId);
+        if (idx >= 0) {
+          seasons[idx].config.bracket_matches = updated;
+          if (isChampion && resolvedMatch) {
+            const champion = getBracketChampion(updated, bracketSize);
+            if (champion) {
+              seasons[idx].config.champion = champion;
+              seasons[idx].status = 'completed';
+            }
+          }
+          await AsyncStorage.setItem('dormie_local_seasons', JSON.stringify(seasons));
+        }
+      }
+    } catch {}
+
+    // Show champion cinematic if final resolved
+    if (isChampion && resolvedMatch) {
+      const champion = getBracketChampion(updated, bracketSize);
+      if (champion) {
+        haptics.heavy();
+        setBracketChampionName(champion.name);
+        setBracketChampionDetail(`#${champion.seed} seed · Match Play Champion`);
+        setShowBracketChampionMoment(true);
+      }
+    } else if (resolvedMatch) {
+      haptics.success();
+    }
+  }, [bracketConfig, bracketMatches, seasonId]);
+
+  // Check if matchup reveal should be shown (first visit)
+  useEffect(() => {
+    if (revealChecked || !seasonId) return;
+    const checkReveal = async () => {
+      try {
+        const key = `dormie_reveal_seen_${seasonId}`;
+        const seen = await AsyncStorage.getItem(key);
+        if (!seen) {
+          // Check if this season has reveal enabled (from config)
+          const localData = await AsyncStorage.getItem('dormie_local_seasons');
+          if (localData) {
+            const seasons = JSON.parse(localData);
+            const season = seasons.find((s: any) => s.id === seasonId);
+            if (season?.config?.reveal_enabled) {
+              setShowReveal(true);
+            }
+          }
+        }
+      } catch {}
+      setRevealChecked(true);
+    };
+    checkReveal();
+  }, [seasonId, revealChecked]);
+
+  const handleRevealComplete = useCallback(async () => {
+    setShowReveal(false);
+    try {
+      await AsyncStorage.setItem(`dormie_reveal_seen_${seasonId}`, 'true');
+    } catch {}
+  }, [seasonId]);
 
   const standings = realStandings;
   const weeks = realWeeks;
   const currentWeek = weeks.find((w) => !w.completed)?.number ?? weeks.length;
-  const cutLineIndex = Math.floor(standings.length * CUT_PERCENTAGE);
+  const configCutPct = fedexConfig?.cut_percentage ?? CUT_PERCENTAGE;
+  const cutLineIndex = Math.floor(standings.length * configCutPct);
   const isSeasonComplete = weeks.every((w) => w.completed);
   const currentWeekData = weeks.find((w) => w.number === currentWeek);
   const canAdvance = currentWeekData?.allScoresSubmitted && !isSeasonComplete;
@@ -990,10 +1434,8 @@ function SeasonDetailScreenInner() {
         const weekRow = weeksData.find((w: any) => w.week_number === currentWeek);
         if (!weekRow) return;
 
-        // 2. Apply multipliers: update scores for playoff/championship weeks
-        const multiplier = currentWeekData.isPlayoff || currentWeekData.isChampionship
-          ? currentWeekData.multiplier
-          : 1;
+        // 2. Apply multipliers for any week with multiplier > 1 (playoff, championship, major)
+        const multiplier = currentWeekData.multiplier ?? 1;
         if (multiplier > 1 && weekRow.season_scores) {
           for (const score of (weekRow as any).season_scores) {
             const newPoints = Math.round(score.points * multiplier);
@@ -1007,36 +1449,34 @@ function SeasonDetailScreenInner() {
         // 3. Mark current week as completed
         await supabase
           .from('season_weeks')
-          .update({ status: 'completed' })
+          .update({ completed: true, all_scores_submitted: true })
           .eq('id', weekRow.id);
 
-        // 4. If this is a cut line week (playoff start), eliminate players below cut
-        if (currentWeekData.isPlayoff) {
-          const cutSize = getPlayoffCutLine(standings.length, 67);
-          const eliminated = standings.slice(cutSize);
-          for (const player of eliminated) {
-            await supabase
-              .from('season_members')
-              .update({ eliminated: true })
-              .eq('season_id', seasonId)
-              .eq('user_id', player.playerId);
-          }
-        }
-
-        // 5. Determine next week or complete the season
+        // 4. Determine next week or complete the season
         const nextWeek = weeks.find((w) => w.number === currentWeek + 1);
         if (!nextWeek || currentWeekData.isChampionship) {
           // Season complete
           await seasonsService.update(seasonId, { status: 'completed' });
           setShowChampionCeremony(true);
         } else {
-          // Move to the next week — update season status if entering playoffs
-          const updates: any = {};
-          if (nextWeek.isPlayoff) {
-            updates.status = 'playoffs';
-          }
-          if (Object.keys(updates).length > 0) {
-            await seasonsService.update(seasonId, updates);
+          // Move to the next week — apply cut and update status if entering playoffs
+          const isEnteringPlayoffs = !currentWeekData.isPlayoff && !currentWeekData.isChampionship
+            && (nextWeek.isPlayoff || nextWeek.isChampionship);
+          if (isEnteringPlayoffs) {
+            // Apply cut line: eliminate players below the cut threshold
+            const cutPct = fedexConfig?.cut_percentage
+              ? Math.round(fedexConfig.cut_percentage * 100) as 25 | 33 | 50 | 67 | 75
+              : 67;
+            const cutSize = getPlayoffCutLine(standings.length, cutPct);
+            const eliminatedPlayers = standings.slice(cutSize);
+            for (const player of eliminatedPlayers) {
+              await supabase
+                .from('season_members')
+                .update({ eliminated: true })
+                .eq('season_id', seasonId)
+                .eq('user_id', player.playerId);
+            }
+            await seasonsService.update(seasonId, { status: 'playoffs' });
           }
         }
 
@@ -1055,7 +1495,8 @@ function SeasonDetailScreenInner() {
       const weeksData = await seasonsService.getWeeks(seasonId);
       const weekRow = weeksData.find((w: any) => w.week_number === currentWeek);
       const submitted = (weekRow as any)?.season_scores?.length ?? 0;
-      const missing = standings.length - submitted;
+      const activePlayers = standings.filter((s) => !s.isCut).length;
+      const missing = activePlayers - submitted;
       Alert.alert(
         'Missing Scores',
         `${missing} player${missing !== 1 ? 's' : ''} haven't submitted. Advance anyway?`,
@@ -1067,7 +1508,19 @@ function SeasonDetailScreenInner() {
     } else {
       await doAdvance();
     }
-  }, [seasonId, currentWeek, currentWeekData, standings, weeks, advancing, refreshData]);
+  }, [seasonId, currentWeek, currentWeekData, standings, weeks, advancing, refreshData, fedexConfig]);
+
+  // Show matchup reveal screen if enabled
+  if (showReveal) {
+    return (
+      <MatchupReveal
+        teamRedName="Team Red"
+        teamBlueName="Team Blue"
+        matchups={DEMO_MATCHUPS}
+        onComplete={handleRevealComplete}
+      />
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -1078,7 +1531,9 @@ function SeasonDetailScreenInner() {
           <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
-          <Text style={[styles.headerTitle, { fontFamily: GEO }]}>FedEx Cup</Text>
+          <Text style={[styles.headerTitle, { fontFamily: GEO }]}>
+            {isBracket ? (params.name ?? 'Match Play Bracket') : isStrokePlay ? (params.name ?? 'Stroke Play Series') : isLeague ? (params.name ?? 'Dormie League') : 'FedEx Cup'}
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <Pressable
               onPress={() => {
@@ -1101,81 +1556,365 @@ function SeasonDetailScreenInner() {
           </View>
         </View>
 
-        {/* Progress dots */}
-        <View style={styles.progressRow}>
-          {weeks.map((w) => {
-            const badge = getWeekBadge(w);
-            return (
-              <View
-                key={w.number}
-                style={[
-                  styles.progressDot,
-                  {
-                    backgroundColor: w.completed ? c.gold : w.number === currentWeek ? c.teal : '#FFFFFF33',
-                    width: badge ? 10 : 6,
-                    height: badge ? 10 : 6,
-                  },
-                ]}
-              />
-            );
-          })}
-        </View>
-        <Text style={[styles.progressLabel, { color: '#FFFFFFAA' }]}>
-          Week {currentWeek} of {weeks.length}
-          {currentWeekData?.isMajor ? ` — ${currentWeekData.majorName}` : ''}
-        </Text>
+        {/* Progress dots — FedEx only */}
+        {!isStrokePlay && !isBracket && (
+          <>
+            <View style={styles.progressRow}>
+              {weeks.map((w) => {
+                const badge = getWeekBadge(w);
+                return (
+                  <View
+                    key={w.number}
+                    style={[
+                      styles.progressDot,
+                      {
+                        backgroundColor: w.completed ? c.gold : w.number === currentWeek ? c.teal : '#FFFFFF33',
+                        width: badge ? 10 : 6,
+                        height: badge ? 10 : 6,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            <Text style={[styles.progressLabel, { color: '#FFFFFFAA' }]}>
+              Week {currentWeek} of {weeks.length}
+              {currentWeekData?.isMajor ? ` — ${currentWeekData.majorName}` : ''}
+            </Text>
+          </>
+        )}
+
+        {/* Stroke play header summary */}
+        {isStrokePlay && strokePlayData && (
+          <Text style={[styles.progressLabel, { color: '#FFFFFFAA', marginTop: 8 }]}>
+            {strokePlayConfig?.scoring_type === 'net' ? 'Net' : 'Gross'} Stroke Play
+            {' · '}{strokePlayConfig?.total_rounds ?? 8} Rounds
+            {strokePlayConfig?.drop_worst ? ` · Drop ${strokePlayConfig?.drop_count ?? 1}` : ''}
+          </Text>
+        )}
+
+        {/* League header summary */}
+        {isLeague && leagueData && (
+          <Text style={[styles.progressLabel, { color: '#FFFFFFAA', marginTop: 8 }]}>
+            Week {leagueData.config.currentWeek} of {leagueData.config.totalWeeks}
+            {leagueData.config.divisionsEnabled ? ` · ${leagueData.config.divisionNames.length} Divisions` : ''}
+          </Text>
+        )}
 
         {/* Leader card */}
-        {standings[0] && (
-          <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Avatar id={standings[0].playerId} name={standings[0].name} size={36} />
-              <View>
-                <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{standings[0].name}</Text>
-                <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Season Leader</Text>
+        {isStrokePlay && strokePlayData ? (
+          strokePlayData.players[0] && (
+            <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar id={strokePlayData.players[0].playerId} name={strokePlayData.players[0].name} size={36} />
+                <View>
+                  <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{strokePlayData.players[0].name}</Text>
+                  <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Series Leader</Text>
+                </View>
               </View>
+              <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
+                {strokePlayData.players[0].totalStrokes > strokePlayData.players[0].totalPar
+                  ? `+${strokePlayData.players[0].totalStrokes - strokePlayData.players[0].totalPar}`
+                  : strokePlayData.players[0].totalStrokes === strokePlayData.players[0].totalPar
+                    ? 'E'
+                    : `${strokePlayData.players[0].totalStrokes - strokePlayData.players[0].totalPar}`
+                }
+              </Text>
             </View>
-            <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
-              {standings[0].points} pts
-            </Text>
-          </View>
+          )
+        ) : isLeague && leagueData ? (
+          leagueData.players[0] && (
+            <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar id={leagueData.players[0].playerId} name={leagueData.players[0].name} size={36} />
+                <View>
+                  <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{leagueData.players[0].name}</Text>
+                  <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>League Leader</Text>
+                </View>
+              </View>
+              <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
+                {leagueData.players[0].wins}-{leagueData.players[0].losses}
+              </Text>
+            </View>
+          )
+        ) : (
+          standings[0] && (
+            <View style={[styles.leaderCard, { backgroundColor: '#FFFFFF12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar id={standings[0].playerId} name={standings[0].name} size={36} />
+                <View>
+                  <Text style={[styles.leaderName, { color: '#FFFFFF' }]}>{standings[0].name}</Text>
+                  <Text style={[styles.leaderSub, { color: '#FFFFFF99' }]}>Season Leader</Text>
+                </View>
+              </View>
+              <Text style={[styles.leaderPts, { color: c.gold, fontFamily: GEO }]}>
+                {standings[0].points} pts
+              </Text>
+            </View>
+          )
         )}
       </LinearGradient>
       <GoldDivider />
 
-      <TabBar tab={tab} onSelect={setTab} colors={c} />
-
-      {tab === 'standings' && standings.length === 0 && !loading && (
-        <View style={{ alignItems: 'center', padding: 32 }}>
-          <Text style={{ color: c.textMuted, fontSize: 14, textAlign: 'center' }}>No scores submitted yet</Text>
-        </View>
-      )}
-      {tab === 'standings' && standings.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ minWidth: SCREEN_W }}>
-            <StandingsTab
-              standings={standings}
-              weeks={weeks}
-              cutLineIndex={cutLineIndex}
-              onPlayerTap={handlePlayerTap}
-            />
+      {/* Match Play Bracket — standalone bracket view */}
+      {isBracket && bracketConfig ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="git-merge-outline" size={20} color={c.gold} style={{ marginRight: 8 }} />
+              <Text style={{ fontSize: 18, fontWeight: '700', color: c.gold, fontFamily: GEO }}>
+                BRACKET
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>{bracketConfig.bracket_size ?? 8} Players</Text>
+              </View>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>{bracketConfig.format === 'single' ? 'Single Elimination' : 'Double Elimination'}</Text>
+              </View>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>{bracketConfig.match_length ?? '18'} Holes</Text>
+              </View>
+              <View style={{ backgroundColor: c.elevated, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: c.textMuted }}>
+                  {bracketConfig.handicap_strokes === 'full' ? 'Full Handicap' : bracketConfig.handicap_strokes === 'reduced' ? '80% Handicap' : 'Gross'}
+                </Text>
+              </View>
+            </View>
           </View>
+          {bracketMatches.length > 0 ? (
+            <>
+              <BracketView
+                matches={bracketMatches}
+                bracketSize={(bracketConfig.bracket_size ?? 8) as BracketSize}
+                isDoubleElimination={bracketConfig.format === 'double'}
+              />
+              {/* Active matches — log score UI */}
+              {bracketMatches.filter((m) => m.status === 'pending' || m.status === 'in_progress').length > 0 && (
+                <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: c.gold, fontFamily: GEO, letterSpacing: 1, marginBottom: 12 }}>
+                    ACTIVE MATCHES
+                  </Text>
+                  {bracketMatches
+                    .filter((m) => (m.status === 'pending' || m.status === 'in_progress') && m.player1_id && m.player2_id)
+                    .map((match) => (
+                      <BracketMatchScoreCard
+                        key={match.id}
+                        match={match}
+                        onLogScore={handleLogBracketScore}
+                        scoringMethod={(bracketConfig.scoring_method ?? 'stableford') as BracketScoringMethod}
+                      />
+                    ))}
+                </View>
+              )}
+              {/* Champion banner */}
+              {isBracketComplete(bracketMatches, (bracketConfig.bracket_size ?? 4) as BracketSize) && (() => {
+                const champ = getBracketChampion(bracketMatches, (bracketConfig.bracket_size ?? 4) as BracketSize);
+                if (!champ) return null;
+                return (
+                  <View style={{ alignItems: 'center', paddingVertical: 20, marginHorizontal: 16, borderWidth: 1, borderColor: c.gold, marginTop: 16 }}>
+                    <Ionicons name="trophy" size={32} color={c.gold} />
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: c.gold, letterSpacing: 2, marginTop: 8, fontFamily: GEO }}>
+                      MATCH PLAY CHAMPION
+                    </Text>
+                    <Text style={{ fontSize: 22, fontWeight: '700', color: c.gold, fontFamily: GEO, marginTop: 4 }}>
+                      {champ.name}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+                      #{champ.seed} Seed
+                    </Text>
+                  </View>
+                );
+              })()}
+            </>
+          ) : (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <Ionicons name="hourglass-outline" size={36} color={c.textMuted} style={{ marginBottom: 8 }} />
+              <Text style={{ fontSize: 16, color: c.textMuted, textAlign: 'center' }}>
+                Bracket will be generated when the season starts
+              </Text>
+            </View>
+          )}
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="match_play"
+          />
+          <View style={{ height: 24 }} />
         </ScrollView>
-      )}
+      ) : null}
 
-      {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} />}
-      {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
+      {/* Bracket Champion Moment */}
+      <DormieMoment
+        visible={showBracketChampionMoment}
+        type="BRACKET_CHAMPION"
+        playerName={bracketChampionName}
+        detail={bracketChampionDetail}
+        onDismiss={() => setShowBracketChampionMoment(false)}
+      />
 
-      {/* Advance week */}
-      {canAdvance && (
-        <View style={styles.advanceContainer}>
-          <Pressable onPress={() => { haptics.light(); handleAdvanceWeek(); }} style={[styles.advanceBtn, { backgroundColor: c.gold }]}>
-            <Text style={[styles.advanceBtnText, { fontFamily: GEO }]}>
-              {currentWeek === weeks.length ? 'Complete Season' : `Advance to Week ${currentWeek + 1}`}
+      {/* Stroke play series — standalone standings (no tabs) */}
+      {isStrokePlay && strokePlayData ? (
+        <ScrollView style={{ flex: 1 }}>
+          <StrokePlayStandings
+            players={strokePlayData.players}
+            config={strokePlayData.config}
+            onChampionMoment={handleStrokeChampionMoment}
+          />
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="stroke_play"
+          />
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      ) : isRyderCup && ryderCupConfig ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+          {/* Team rosters side-by-side */}
+          <View style={{ flexDirection: 'row', gap: 12, padding: 16 }}>
+            <View style={{ flex: 1, backgroundColor: '#C41E3A0C', borderWidth: 1, borderColor: '#C41E3A33', padding: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#C41E3A', fontFamily: GEO, marginBottom: 8 }}>
+                {ryderCupConfig.team_red_name || 'Team Red'}
+              </Text>
+              {ryderCupConfig.team_red_captain && (
+                <Text style={{ fontSize: 12, color: c.textMuted, marginBottom: 6 }}>Captain assigned</Text>
+              )}
+              <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic' }}>Roster to be drafted</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: '#4682B40C', borderWidth: 1, borderColor: '#4682B433', padding: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#4682B4', fontFamily: GEO, marginBottom: 8 }}>
+                {ryderCupConfig.team_blue_name || 'Team Blue'}
+              </Text>
+              {ryderCupConfig.team_blue_captain && (
+                <Text style={{ fontSize: 12, color: c.textMuted, marginBottom: 6 }}>Captain assigned</Text>
+              )}
+              <Text style={{ fontSize: 12, color: c.textMuted, fontStyle: 'italic' }}>Roster to be drafted</Text>
+            </View>
+          </View>
+
+          {/* Match format summary */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: c.gold, fontFamily: GEO, marginBottom: 8 }}>MATCH FORMAT</Text>
+            {ryderCupConfig.sessions?.foursomes && (
+              <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Foursomes (Alternate Shot)</Text>
+            )}
+            {ryderCupConfig.sessions?.fourball && (
+              <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Four-Ball (Best Ball)</Text>
+            )}
+            {ryderCupConfig.sessions?.singles && (
+              <Text style={{ fontSize: 14, color: c.text, marginBottom: 4 }}>Singles</Text>
+            )}
+            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
+              {ryderCupConfig.num_days ?? 1} day{(ryderCupConfig.num_days ?? 1) > 1 ? 's' : ''} of competition
             </Text>
-            <Ionicons name="arrow-forward" size={18} color="#000000" />
-          </Pressable>
-        </View>
+            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+              Win Condition: {ryderCupConfig.win_condition === 'most_points' ? 'Most Points' : `First to ${ryderCupConfig.first_to_target}`}
+            </Text>
+          </View>
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="fedex"
+          />
+        </ScrollView>
+      ) : isLeague && leagueData ? (
+        <ScrollView style={{ flex: 1 }}>
+          {/* Weekly matchup card at top */}
+          {demoMatchup && (
+            <WeeklyMatchupCard
+              matchup={demoMatchup}
+              onPress={() => {
+                router.push({
+                  pathname: '/league-matchup-detail',
+                  params: {
+                    playerName: demoMatchup.playerName,
+                    playerId: demoMatchup.playerId,
+                    opponentName: demoMatchup.opponentName,
+                    opponentId: demoMatchup.opponentId,
+                    playerScore: demoMatchup.playerScore != null ? String(demoMatchup.playerScore) : '',
+                    opponentScore: demoMatchup.opponentScore != null ? String(demoMatchup.opponentScore) : '',
+                    week: String(demoMatchup.week),
+                    format: demoMatchup.format,
+                    state: demoMatchup.state,
+                  },
+                });
+              }}
+            />
+          )}
+          <LeagueStandings
+            players={leagueData.players}
+            config={leagueData.config}
+            onChampionMoment={handleLeagueChampionMoment}
+            onMatchupTap={(player, result) => {
+              router.push({
+                pathname: '/league-matchup-detail',
+                params: {
+                  playerName: player.name,
+                  playerId: player.playerId,
+                  opponentName: result.opponentName,
+                  opponentId: result.opponentId,
+                  playerScore: String(result.playerScore),
+                  opponentScore: String(result.opponentScore),
+                  week: String(result.week),
+                  format: leagueData.config.scoringFormat,
+                  state: 'complete',
+                },
+              });
+            }}
+          />
+          <SeasonStatsSection
+            seasonId={seasonId ?? 'demo'}
+            userId={user?.id ?? 'self'}
+            seasonType="league"
+          />
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      ) : (
+        <>
+          <TabBar tab={tab} onSelect={setTab} colors={c} />
+
+          {tab === 'standings' && standings.length === 0 && !loading && (
+            <View style={{ alignItems: 'center', padding: 32 }}>
+              <Text style={{ color: c.textMuted, fontSize: 14, textAlign: 'center' }}>No scores submitted yet</Text>
+            </View>
+          )}
+          {tab === 'standings' && standings.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ minWidth: SCREEN_W }}>
+                <StandingsTab
+                  standings={standings}
+                  weeks={weeks}
+                  cutLineIndex={cutLineIndex}
+                  onPlayerTap={handlePlayerTap}
+                  seasonConfig={fedexConfig}
+                />
+              </View>
+            </ScrollView>
+          )}
+
+          {tab === 'schedule' && <ScheduleTab weeks={weeks} currentWeek={currentWeek} seasonId={seasonId ?? ''} seasonConfig={fedexConfig} />}
+          {tab === 'stats' && (
+            <SeasonStatsSection
+              seasonId={seasonId ?? 'demo'}
+              userId={user?.id ?? 'self'}
+              seasonType="fedex"
+            />
+          )}
+          {tab === 'challenges' && <ChallengesTab challenges={MOCK_CHALLENGES} />}
+
+          {/* Advance week */}
+          {canAdvance && (
+            <View style={styles.advanceContainer}>
+              <Pressable onPress={() => { haptics.light(); handleAdvanceWeek(); }} style={[styles.advanceBtn, { backgroundColor: c.gold }]}>
+                <Text style={[styles.advanceBtnText, { fontFamily: GEO }]}>
+                  {currentWeek === weeks.length ? 'Complete Season' : `Advance to Week ${currentWeek + 1}`}
+                </Text>
+                <Ionicons name="arrow-forward" size={18} color="#000000" />
+              </Pressable>
+            </View>
+          )}
+        </>
       )}
 
       <PlayerStatsModal
@@ -1190,6 +1929,30 @@ function SeasonDetailScreenInner() {
         champion={standings[0]}
         topThree={standings.slice(0, 3)}
         onDismiss={() => setShowChampionCeremony(false)}
+      />
+
+      {/* Stroke Play Champion Cinematic Moment */}
+      <DormieMoment
+        visible={showStrokeChampionMoment}
+        type="STROKE_PLAY_CHAMPION"
+        playerName={strokeChampion?.name ?? ''}
+        detail={strokeChampion
+          ? `${strokeChampion.totalStrokes} total strokes across ${strokeChampion.rounds.length} rounds`
+          : ''
+        }
+        onDismiss={() => setShowStrokeChampionMoment(false)}
+      />
+
+      {/* League Champion Cinematic Moment */}
+      <DormieMoment
+        visible={showLeagueChampionMoment}
+        type="LEAGUE_CHAMPION"
+        playerName={leagueChampion?.name ?? ''}
+        detail={leagueChampion
+          ? `${leagueChampion.wins}-${leagueChampion.losses}${leagueChampion.ties > 0 ? `-${leagueChampion.ties}` : ''} (.${Math.round(((leagueChampion.wins + leagueChampion.ties * 0.5) / (leagueChampion.wins + leagueChampion.losses + leagueChampion.ties)) * 1000)})`
+          : ''
+        }
+        onDismiss={() => setShowLeagueChampionMoment(false)}
       />
     </View>
   );
@@ -1221,6 +1984,12 @@ const styles = StyleSheet.create({
   shWeek: { width: 38, alignItems: 'center' },
   shWeekText: { fontSize: 10, fontWeight: '700' },
   shTotal: { width: 42, textAlign: 'right', fontSize: 11, fontWeight: '700' },
+
+  // Scoring tooltip
+  scoringTooltip: { marginHorizontal: 8, padding: 12, borderWidth: 1, marginBottom: 4 },
+  scoringTooltipTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 6 },
+  scoringTooltipLine: { fontSize: 12, lineHeight: 18, marginBottom: 2 },
+  scoringTooltipDismiss: { fontSize: 10, marginTop: 6, textAlign: 'center', fontStyle: 'italic' },
 
   standingsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 4 },
   srRank: { width: 28, fontSize: 16, fontWeight: '700' },

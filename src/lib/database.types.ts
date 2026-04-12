@@ -61,7 +61,7 @@ export interface HoleData {
 export interface Round {
   id: string;
   user_id: string;
-  course_id: string;
+  course_id: string | null;
   gross_score: number;
   net_score: number | null;
   to_par: number;
@@ -71,6 +71,13 @@ export interface Round {
   season_week_id: string | null;
   played_at: string;
   created_at: string;
+  // Denormalized course info — populated for virtual/async rounds where
+  // course_id may be null, or when rounds are played on API-sourced courses
+  // that aren't persisted in our courses table yet.
+  course_name: string | null;
+  course_slope: number | null;
+  course_rating: number | null;
+  course_source: string | null;
 }
 
 export interface HoleScore {
@@ -105,6 +112,15 @@ export interface RyderCupConfig {
   teamBlueName: string;
   sessions: Json[];
   formation: string;
+  teamSize?: number;
+  winCondition?: 'most_points' | 'first_to';
+  firstToTarget?: number | null;
+  nineHoleMatches?: boolean;
+  sideGames?: string[];
+  winner?: 'red' | 'blue' | 'tied';
+  finalScore?: { red: number; blue: number };
+  sessionResults?: { id: string; status: string; redScore: number; blueScore: number }[];
+  matchResults?: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[];
 }
 
 export interface TripMember {
@@ -175,6 +191,7 @@ export interface SeasonMember {
   season_id: string;
   user_id: string;
   team: string | null;
+  eliminated: boolean;
 }
 
 export interface SeasonWeek {
@@ -185,6 +202,8 @@ export interface SeasonWeek {
   multiplier: number;
   is_playoff: boolean;
   is_championship: boolean;
+  completed: boolean;
+  all_scores_submitted: boolean;
   is_major: boolean;
   major_name: string | null;
   start_date: string | null;
@@ -197,6 +216,8 @@ export interface SeasonScore {
   user_id: string;
   round_id: string | null;
   points: number;
+  is_counting: boolean;
+  participation_bonus: number;
 }
 
 // ── Insert types (omit generated fields) ─────────────────────────────
@@ -210,8 +231,8 @@ export type FriendshipInsert = Pick<Friendship, 'user_id' | 'friend_id'> &
 export type CourseInsert = Pick<Course, 'name' | 'location'> &
   Partial<Omit<Course, 'id' | 'name' | 'location' | 'created_at'>>;
 
-export type RoundInsert = Pick<Round, 'user_id' | 'course_id' | 'gross_score'> &
-  Partial<Omit<Round, 'id' | 'user_id' | 'course_id' | 'gross_score' | 'to_par' | 'created_at'>>;
+export type RoundInsert = Pick<Round, 'user_id' | 'gross_score'> &
+  Partial<Omit<Round, 'id' | 'user_id' | 'gross_score' | 'to_par' | 'created_at'>>;
 
 export type TripInsert = Pick<Trip, 'name' | 'location' | 'start_date' | 'end_date' | 'organizer_id'> &
   Partial<Omit<Trip, 'id' | 'name' | 'location' | 'start_date' | 'end_date' | 'organizer_id' | 'invite_code' | 'created_at'>>;
@@ -237,7 +258,7 @@ export type SeasonWeekInsert = Pick<SeasonWeek, 'season_id' | 'week_number'> &
   Partial<Omit<SeasonWeek, 'id' | 'season_id' | 'week_number'>>;
 
 export type SeasonScoreInsert = Pick<SeasonScore, 'season_week_id' | 'user_id' | 'points'> &
-  Partial<Pick<SeasonScore, 'round_id'>>;
+  Partial<Pick<SeasonScore, 'round_id' | 'is_counting' | 'participation_bonus'>>;
 
 // ── Update types ─────────────────────────────────────────────────────
 

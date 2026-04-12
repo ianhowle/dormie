@@ -17,13 +17,16 @@ import { formatToPar as fmtToPar } from '../../lib/scoring-utils';
 import type {
   PlayerConfig, HoleData, HoleScore,
   PlayerTotals, WolfHoleState, BBBHolePoints,
-  SummaryTab,
+  SummaryTab, LinkedSeason, SeasonImpact, RyderCupImpact, HandicapImpact,
 } from '../../scoring/types';
+import { CompetitionImpactSection } from './CompetitionImpact';
+import { computeSeasonImpact, computeHandicapImpact } from '../../data/competitionImpact';
+import { competitionStyles as ci } from './styles';
 import {
   computePlayerTotals, isGIR, pName,
   buildSkinsResult, buildSnakeResult, buildGreeniesResult,
   buildNassauResult, buildDotsResult, buildGenericResult,
-  buildWolfResult, buildBBBResult,
+  buildWolfResult, buildBBBResult, computeWolfPoints,
   SIDE_GAME_DISPLAY,
 } from '../../scoring/calculations';
 import { scoringStyles as st, postRoundStyles as ps } from './styles';
@@ -532,44 +535,12 @@ function SettlementSection({
     }
 
     if (key === 'wolf' && wolfHoleDecisions) {
-      // $1 per point, net differences
-      const wolfPts = new Map<string, number>();
-      players.forEach((p) => wolfPts.set(p.id, 0));
-      holes.forEach((h) => {
-        const holeScores = allScores.get(h.number);
-        const decision = wolfHoleDecisions.get(h.number);
-        if (!holeScores || !decision || holeScores.size < players.length) return;
-        const wolfId = decision.wolfPlayerId;
-        if (decision.decision === 'lone' || decision.decision === 'blind') {
-          const wolfScore = holeScores.get(wolfId);
-          if (!wolfScore) return;
-          const others: number[] = [];
-          players.forEach((p) => { if (p.id !== wolfId) { const s = holeScores.get(p.id); if (s) others.push(s.gross); } });
-          const wolfWins = wolfScore.gross < Math.min(...others);
-          const isBlind = decision.decision === 'blind';
-          if (wolfWins) {
-            wolfPts.set(wolfId, (wolfPts.get(wolfId) ?? 0) + (isBlind ? 4 : 3));
-          } else {
-            players.forEach((p) => { if (p.id !== wolfId) wolfPts.set(p.id, (wolfPts.get(p.id) ?? 0) + (isBlind ? 2 : 1)); });
-          }
-        } else if (decision.decision === 'partner' && decision.partnerId) {
-          const teamIds = [wolfId, decision.partnerId];
-          const oppIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
-          let teamBest = Infinity, oppBest = Infinity;
-          teamIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < teamBest) teamBest = s.gross; });
-          oppIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < oppBest) oppBest = s.gross; });
-          if (teamBest < oppBest) teamIds.forEach((id) => wolfPts.set(id, (wolfPts.get(id) ?? 0) + 1));
-          else if (oppBest < teamBest) oppIds.forEach((id) => wolfPts.set(id, (wolfPts.get(id) ?? 0) + 1));
-        }
+      // $1 per point. Wolf points are already net-zero across the field,
+      // so a player's payout equals their points directly (no pairwise needed).
+      const wolfPts = computeWolfPoints(players, holes, allScores, wolfHoleDecisions);
+      players.forEach((p) => {
+        payouts.set(p.id, (payouts.get(p.id) ?? 0) + (wolfPts.get(p.id) ?? 0));
       });
-      // Pairwise settlement at $1 per point diff
-      for (let ii = 0; ii < players.length; ii++) {
-        for (let jj = ii + 1; jj < players.length; jj++) {
-          const diff = (wolfPts.get(players[ii].id) ?? 0) - (wolfPts.get(players[jj].id) ?? 0);
-          payouts.set(players[ii].id, (payouts.get(players[ii].id) ?? 0) + diff);
-          payouts.set(players[jj].id, (payouts.get(players[jj].id) ?? 0) - diff);
-        }
-      }
     }
 
     if (key === 'bingo_bango_bongo' && bbbHolePoints) {
@@ -659,12 +630,18 @@ function ShareCard({
   players,
   playerTotals,
   totalPar,
+  seasonImpact,
+  ryderCupImpact,
+  sideGameWins,
   onShare,
 }: {
   courseName: string;
   players: PlayerConfig[];
   playerTotals: PlayerTotals[];
   totalPar: number;
+  seasonImpact: SeasonImpact | null;
+  ryderCupImpact: RyderCupImpact | null;
+  sideGameWins?: { label: string; holeNumber?: number | null }[];
   onShare: () => void;
 }) {
   const { theme } = useTheme();
@@ -717,6 +694,32 @@ function ShareCard({
             </Text>
           </View>
         )}
+
+        {/* Competition impact lines on share card */}
+        {seasonImpact && (
+          <View style={ci.shareImpactRow}>
+            <Ionicons name="trophy" size={10} color="#C9A227" />
+            <Text style={ci.shareImpactText}>
+              {seasonImpact.seasonName}: +{seasonImpact.pointsEarned} pts → {ordinal(seasonImpact.currentRank)} place
+            </Text>
+          </View>
+        )}
+        {ryderCupImpact && (
+          <View style={ci.shareImpactRow}>
+            <Ionicons name="people" size={10} color="rgba(255,255,255,0.7)" />
+            <Text style={ci.shareImpactText}>
+              Ryder Cup: {ryderCupImpact.matchResult === 'win' ? `Beat ${ryderCupImpact.opponentName}` : ryderCupImpact.matchResult === 'halved' ? `Halved with ${ryderCupImpact.opponentName}` : `Lost to ${ryderCupImpact.opponentName}`}, {ryderCupImpact.teamName} {ryderCupImpact.teamScore > ryderCupImpact.opponentTeamScore ? 'leads' : 'trails'}
+            </Text>
+          </View>
+        )}
+        {sideGameWins && sideGameWins.length > 0 && (
+          <View style={ci.shareImpactRow}>
+            <Ionicons name="trophy" size={10} color="#C9A227" />
+            <Text style={ci.shareImpactText}>
+              {sideGameWins.map((w) => `${w.label} winner`).join(', ')}
+            </Text>
+          </View>
+        )}
       </LinearGradient>
 
       <Pressable onPress={onShare} style={({ pressed }) => [ps.shareBtn, { backgroundColor: c.elevated, borderColor: c.border }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
@@ -725,6 +728,12 @@ function ShareCard({
       </Pressable>
     </View>
   );
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 const PostRoundSummary = memo(function PostRoundSummary({
@@ -738,6 +747,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
   sideGameKeys,
   wolfHoleDecisions,
   bbbHolePoints,
+  linkedSeasons,
+  courseSlope,
+  courseRating,
   onDone,
 }: {
   players: PlayerConfig[];
@@ -750,6 +762,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
   sideGameKeys: string[];
   wolfHoleDecisions?: Map<number, WolfHoleState>;
   bbbHolePoints?: Map<number, BBBHolePoints>;
+  linkedSeasons?: LinkedSeason[];
+  courseSlope?: number;
+  courseRating?: number;
   onDone: () => void;
 }) {
   const { theme } = useTheme();
@@ -762,6 +777,27 @@ const PostRoundSummary = memo(function PostRoundSummary({
     [players, holes, allScores, handicapStrokes],
   );
   const sorted = useMemo(() => [...playerTotals].sort((a, b) => a.gross - b.gross), [playerTotals]);
+
+  // ─── Competition Impact computation ───────────────────────────────
+  const userId = '1'; // Current user ID convention
+  const userTotals = playerTotals.find((r) => r.player.id === userId);
+
+  const seasonImpact = useMemo<SeasonImpact | null>(() => {
+    if (!linkedSeasons || linkedSeasons.length === 0) return null;
+    return computeSeasonImpact(linkedSeasons[0], playerTotals, userId);
+  }, [linkedSeasons, playerTotals]);
+
+  const handicapImpact = useMemo<HandicapImpact>(() => {
+    const player = players.find((p) => p.id === userId) ?? players[0];
+    const gross = userTotals?.gross ?? 0;
+    return computeHandicapImpact(
+      player,
+      gross,
+      totalPar,
+      courseSlope ?? 113,
+      courseRating ?? totalPar,
+    );
+  }, [players, userTotals, totalPar, courseSlope, courseRating]);
 
   return (
     <View style={[ps.screen, { backgroundColor: c.bg }]}>
@@ -814,8 +850,35 @@ const PostRoundSummary = memo(function PostRoundSummary({
             })}
           </View>
 
-          {/* Tab bar */}
+          {/* Competition Impact */}
           <GoldDivider style={{ marginTop: 20 }} />
+          <CompetitionImpactSection
+            seasonImpact={seasonImpact}
+            ryderCupImpact={null}
+            handicapImpact={handicapImpact}
+          />
+
+          {/* Side Game Wins (from season weekly side games) */}
+          {linkedSeasons && linkedSeasons.length > 0 && linkedSeasons[0].sideGameWins && linkedSeasons[0].sideGameWins.length > 0 && (
+            <View style={ps.sideGameWinsSection}>
+              {linkedSeasons[0].sideGameWins.map((win, idx) => (
+                <View key={idx} style={[ps.sideGameWinRow, { backgroundColor: `${c.gold}12`, borderColor: `${c.gold}33` }]}>
+                  <Ionicons name="trophy" size={16} color={c.gold} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[ps.sideGameWinLabel, { color: c.gold, fontFamily: GEO }]}>
+                      Side Game: {win.label}{win.holeNumber ? ` (Hole ${win.holeNumber})` : ''}
+                    </Text>
+                    <Text style={[ps.sideGameWinPoints, { color: c.gold, fontFamily: GEO }]}>
+                      +{win.points} pts
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Tab bar */}
+          <GoldDivider style={{ marginTop: 10 }} />
           <SummaryTabBar tab={tab} onSelect={setTab} hasGames={sideGameKeys.length > 0} />
 
           {/* Tab content */}
@@ -859,6 +922,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
             players={players}
             playerTotals={playerTotals}
             totalPar={totalPar}
+            seasonImpact={seasonImpact}
+            ryderCupImpact={null}
+            sideGameWins={linkedSeasons?.[0]?.sideGameWins}
             onShare={() => Alert.alert('Share', 'Sharing will generate an image in production.')}
           />
 

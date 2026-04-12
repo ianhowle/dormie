@@ -32,6 +32,7 @@ import { tripsService } from '../services/trips.service';
 import { useAuth } from '../lib/auth';
 import type { RyderCupConfig, TripMemberWithUser } from '../lib/database.types';
 import { ErrorBoundary } from './ErrorBoundary';
+import { SeasonStatsSection } from './SeasonStatsSection';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -1536,11 +1537,15 @@ function RCMatchScoring({
 function RCCompletion({
   redTotal,
   blueTotal,
+  teamRedName,
+  teamBlueName,
   onDetails,
   onDone,
 }: {
   redTotal: number;
   blueTotal: number;
+  teamRedName: string;
+  teamBlueName: string;
   onDetails: () => void;
   onDone: () => void;
 }) {
@@ -1551,6 +1556,12 @@ function RCCompletion({
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 1200, useNativeDriver: true }).start();
   }, []);
+
+  const winnerLabel = winner === 'red'
+    ? teamRedName.toUpperCase()
+    : winner === 'blue'
+    ? teamBlueName.toUpperCase()
+    : 'CO-CHAMPIONS';
 
   return (
     <View style={cp.screen}>
@@ -1569,25 +1580,43 @@ function RCCompletion({
       />
       <Animated.View style={[cp.content, { opacity: fadeAnim }]}>
         <Text style={cp.trophy}>🏆</Text>
-        <Text style={[cp.champLabel, { fontFamily: GEO }]}>CHAMPIONS</Text>
+        <Text style={[cp.champLabel, { fontFamily: GEO }]}>
+          {winner === 'tied' ? 'CO-CHAMPIONS' : 'CHAMPIONS'}
+        </Text>
         <Text style={[cp.winnerName, { color: winnerColor, fontFamily: GEO }]}>
-          {winner === 'red' ? 'TEAM RED' : winner === 'blue' ? 'TEAM BLUE' : 'TIED'}
+          {winnerLabel}
         </Text>
 
         <GoldDivider style={{ marginBottom: 24, width: '60%' }} />
 
         <View style={cp.finalScoreRow}>
-          <Text style={[cp.finalNum, { color: RC_RED, fontFamily: GEO }]}>
-            {redTotal % 1 === 0 ? redTotal : redTotal.toFixed(1)}
-          </Text>
+          <View style={cp.finalTeamCol}>
+            <Text style={[cp.finalTeamLabel, { color: RC_RED }]}>{teamRedName}</Text>
+            <Text style={[cp.finalNum, { color: RC_RED, fontFamily: GEO }]}>
+              {redTotal % 1 === 0 ? redTotal : redTotal.toFixed(1)}
+            </Text>
+          </View>
           <View style={cp.finalDivider}>
             <View style={[cp.finalDivHalf, { backgroundColor: RC_RED }]} />
             <View style={[cp.finalDivHalf, { backgroundColor: RC_BLUE }]} />
           </View>
-          <Text style={[cp.finalNum, { color: RC_BLUE, fontFamily: GEO }]}>
-            {blueTotal % 1 === 0 ? blueTotal : blueTotal.toFixed(1)}
-          </Text>
+          <View style={cp.finalTeamCol}>
+            <Text style={[cp.finalTeamLabel, { color: RC_BLUE }]}>{teamBlueName}</Text>
+            <Text style={[cp.finalNum, { color: RC_BLUE, fontFamily: GEO }]}>
+              {blueTotal % 1 === 0 ? blueTotal : blueTotal.toFixed(1)}
+            </Text>
+          </View>
         </View>
+
+        {/* Losing team acknowledgment */}
+        {winner !== 'tied' && (
+          <Text style={cp.loserText}>
+            {winner === 'red' ? teamBlueName : teamRedName}: {winner === 'red'
+              ? (blueTotal % 1 === 0 ? blueTotal : blueTotal.toFixed(1))
+              : (redTotal % 1 === 0 ? redTotal : redTotal.toFixed(1))
+            } pts
+          </Text>
+        )}
 
         <View style={cp.btns}>
           <Pressable onPress={onDetails} style={cp.detailsBtn}>
@@ -1631,6 +1660,11 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
   const [sessions, setSessions] = useState<RCSession[]>([]);
   const [matches, setMatches] = useState<Record<string, RCMatch[]>>({});
 
+  // Ryder Cup config from Supabase (team names, win condition)
+  const [rcConfig, setRcConfig] = useState<RyderCupConfig | null>(null);
+  const teamRedName = rcConfig?.teamRedName || 'Team Red';
+  const teamBlueName = rcConfig?.teamBlueName || 'Team Blue';
+
   // Pairings state for CaptainsPairings
   const [pairings, setPairings] = useState<Pairing[]>([]);
 
@@ -1660,6 +1694,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
       // Build sessions from ryder_cup_config
       const tripData = await tripsService.getById(trip.id);
       const config = (tripData as any).ryder_cup_config as RyderCupConfig | null;
+      if (config) setRcConfig(config);
       if (config && config.sessions && (config.sessions as any[]).length > 0) {
         const builtSessions = buildSessionsFromConfig(config, tripCourses);
         if (builtSessions.length > 0) {
@@ -1675,18 +1710,27 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
             });
 
             if (dayRounds.length > 0) {
-              let redScore = 0;
-              let blueScore = 0;
-              dayRounds.forEach((r: any) => {
-                const team = memberMap.get(r.user_id);
-                if (team === 'red') redScore += 1;
-                else if (team === 'blue') blueScore += 1;
-              });
-              // Normalize to match-play points (each round = portion of session)
+              // Group rounds by player and compare match results
+              const redRounds = dayRounds.filter((r: any) => memberMap.get(r.user_id) === 'red');
+              const blueRounds = dayRounds.filter((r: any) => memberMap.get(r.user_id) === 'blue');
               const matchCount = session.matchCount || 4;
-              session.redScore = Math.min(redScore / 2, matchCount);
-              session.blueScore = Math.min(blueScore / 2, matchCount);
-              session.status = dayRounds.length >= matchCount * 2 ? 'complete' : 'live';
+
+              // Pair rounds for match comparison using gross scores
+              const pairCount = Math.min(redRounds.length, blueRounds.length, matchCount);
+              let redPts = 0;
+              let bluePts = 0;
+              for (let pi = 0; pi < pairCount; pi++) {
+                const rGross = (redRounds[pi] as any).total_gross ?? 0;
+                const bGross = (blueRounds[pi] as any).total_gross ?? 0;
+                if (rGross > 0 && bGross > 0) {
+                  if (rGross < bGross) redPts += 1;
+                  else if (bGross < rGross) bluePts += 1;
+                  else { redPts += 0.5; bluePts += 0.5; }
+                }
+              }
+              session.redScore = redPts;
+              session.blueScore = bluePts;
+              session.status = pairCount >= matchCount ? 'complete' : (pairCount > 0 ? 'live' : 'not_started');
             }
           });
 
@@ -1750,7 +1794,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
 
   // ─── Match completion callback ────────────────────────────────────
   const handleMatchComplete = useCallback((matchId: string, winner: 'red' | 'blue' | 'halved', result: string) => {
-    // Update the match in state
+    // Update the match in state and then recompute session scores from the updated matches
     setMatches((prev) => {
       const updated = { ...prev };
       for (const sessionId of Object.keys(updated)) {
@@ -1766,33 +1810,29 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
           };
         });
       }
+
+      // Recompute session scores from the updated matches (avoids stale closure)
+      setSessions((prevSessions) => prevSessions.map((s) => {
+        const sessionMatchList = updated[s.id];
+        if (!sessionMatchList) return s;
+        const hasMatch = sessionMatchList.some((m) => m.id === matchId);
+        if (!hasMatch) return s;
+
+        const redPts = sessionMatchList.reduce((sum, m) => sum + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+        const bluePts = sessionMatchList.reduce((sum, m) => sum + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
+        const allDone = sessionMatchList.every((m) => m.winner != null);
+
+        return {
+          ...s,
+          redScore: redPts,
+          blueScore: bluePts,
+          status: allDone ? 'complete' as SessionStatus : 'live' as SessionStatus,
+        };
+      }));
+
       return updated;
     });
-
-    // Update session scores
-    setSessions((prev) => prev.map((s) => {
-      const sessionMatchList = matches[s.id];
-      if (!sessionMatchList) return s;
-      const hasMatch = sessionMatchList.some((m) => m.id === matchId);
-      if (!hasMatch) return s;
-
-      // Recompute session scores
-      const updatedMatches = sessionMatchList.map((m) => {
-        if (m.id !== matchId) return m;
-        return { ...m, winner, redScore: winner === 'red' ? 1 : winner === 'halved' ? 0.5 : 0, blueScore: winner === 'blue' ? 1 : winner === 'halved' ? 0.5 : 0 };
-      });
-      const redPts = updatedMatches.reduce((sum, m) => sum + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
-      const bluePts = updatedMatches.reduce((sum, m) => sum + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
-      const allDone = updatedMatches.every((m) => m.winner != null);
-
-      return {
-        ...s,
-        redScore: redPts,
-        blueScore: bluePts,
-        status: allDone ? 'complete' as SessionStatus : 'live' as SessionStatus,
-      };
-    }));
-  }, [matches]);
+  }, []);
 
   // ─── Generate pairings slots for the active session ──────────────
   const buildPairingsForSession = useCallback((session: RCSession) => {
@@ -1820,27 +1860,76 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
   const redTotal = sessions.reduce((s, ss) => s + (ss.redScore ?? 0), 0);
   const blueTotal = sessions.reduce((s, ss) => s + (ss.blueScore ?? 0), 0);
   const totalPoints = sessions.reduce((s, ss) => s + ss.matchCount, 0);
-  const winThreshold = totalPoints / 2 + 0.5; // e.g., 14.5 for 28-match format
+  const winThreshold = rcConfig?.winCondition === 'first_to' && rcConfig.firstToTarget
+    ? rcConfig.firstToTarget
+    : totalPoints / 2 + 0.5; // e.g., 14.5 for 28-match format
   const allSessionsComplete = sessions.every((ss) => ss.status === 'complete');
 
-  // Cup winner detection
-  const cupWinner: 'red' | 'blue' | null = redTotal >= winThreshold ? 'red' : blueTotal >= winThreshold ? 'blue' : null;
+  // Cup winner detection — check first-to-X (can clinch mid-competition) or most-points (needs all sessions done)
+  const cupWinner: 'red' | 'blue' | 'tied' | null = (() => {
+    // First-to-X: team wins as soon as they reach the threshold (even before all sessions complete)
+    if (rcConfig?.winCondition === 'first_to') {
+      if (redTotal >= winThreshold) return 'red';
+      if (blueTotal >= winThreshold) return 'blue';
+      return null;
+    }
+    // Most Points: need all sessions complete, then check for tie
+    if (allSessionsComplete && sessions.length > 0) {
+      if (redTotal > blueTotal) return 'red';
+      if (blueTotal > redTotal) return 'blue';
+      return 'tied'; // Equal points = tied
+    }
+    // Still in progress — check if a team has already clinched mathematically
+    if (redTotal >= winThreshold) return 'red';
+    if (blueTotal >= winThreshold) return 'blue';
+    return null;
+  })();
   const [cupCelebrated, setCupCelebrated] = useState(false);
 
   useEffect(() => {
     if (cupWinner && !cupCelebrated) {
       setCupCelebrated(true);
       setMomentType('CUP_CLINCHED');
-      setMomentPlayer(cupWinner === 'red' ? 'Team Red' : 'Team Blue');
-      setMomentDetail(`${cupWinner === 'red' ? redTotal : blueTotal} - ${cupWinner === 'red' ? blueTotal : redTotal}`);
+      if (cupWinner === 'tied') {
+        setMomentPlayer('Tied');
+        setMomentDetail(`${redTotal % 1 === 0 ? redTotal : redTotal.toFixed(1)} - ${blueTotal % 1 === 0 ? blueTotal : blueTotal.toFixed(1)}`);
+      } else {
+        setMomentPlayer(cupWinner === 'red' ? teamRedName : teamBlueName);
+        const winnerPts = cupWinner === 'red' ? redTotal : blueTotal;
+        const loserPts = cupWinner === 'red' ? blueTotal : redTotal;
+        setMomentDetail(`${winnerPts % 1 === 0 ? winnerPts : winnerPts.toFixed(1)} - ${loserPts % 1 === 0 ? loserPts : loserPts.toFixed(1)}`);
+      }
       setMomentVisible(true);
+      // Persist completion to Supabase (include match results for W-L-H stats)
+      const allMatchResults: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[] = [];
+      for (const sessionId of Object.keys(matches)) {
+        for (const m of matches[sessionId]) {
+          if (m.winner) {
+            allMatchResults.push({
+              sessionId,
+              redPlayers: m.redPlayers,
+              bluePlayers: m.bluePlayers,
+              winner: m.winner,
+            });
+          }
+        }
+      }
+      tripsService.update(trip.id, {
+        status: 'completed',
+        ryder_cup_config: {
+          ...(rcConfig || { teamRedName: 'Team Red', teamBlueName: 'Team Blue', sessions: [], formation: 'captain' }),
+          winner: cupWinner,
+          finalScore: { red: redTotal, blue: blueTotal },
+          matchResults: allMatchResults,
+        } as any,
+      }).catch(() => {});
       // Auto-navigate to completion after moment dismisses
       setTimeout(() => {
         setMomentVisible(false);
         setSubView('completion');
       }, 5000);
     }
-  }, [cupWinner, cupCelebrated, redTotal, blueTotal]);
+  }, [cupWinner, cupCelebrated, redTotal, blueTotal, teamRedName, teamBlueName, rcConfig, trip.id]);
 
   // Sub-views
   if (subView === 'checklist') {
@@ -1892,11 +1981,45 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
             const sessionMatchList = matches[activeSession.id] ?? [];
             const redPts = sessionMatchList.reduce((s, m) => s + (m.winner === 'red' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
             const bluePts = sessionMatchList.reduce((s, m) => s + (m.winner === 'blue' ? 1 : m.winner === 'halved' ? 0.5 : 0), 0);
-            setSessions((prev) => prev.map((s) =>
-              s.id === activeSession.id
-                ? { ...s, status: 'complete' as SessionStatus, redScore: redPts, blueScore: bluePts }
-                : s
-            ));
+            setSessions((prev) => {
+              const updated = prev.map((s) =>
+                s.id === activeSession.id
+                  ? { ...s, status: 'complete' as SessionStatus, redScore: redPts, blueScore: bluePts }
+                  : s
+              );
+              // Persist session results and match results to ryder_cup_config
+              if (rcConfig) {
+                const sessionResults = updated.map((s) => ({
+                  id: s.id,
+                  status: s.status,
+                  redScore: s.redScore ?? 0,
+                  blueScore: s.blueScore ?? 0,
+                }));
+                // Build match results from all sessions
+                const matchResults: { sessionId: string; redPlayers: string[]; bluePlayers: string[]; winner: 'red' | 'blue' | 'halved' }[] = [];
+                for (const s of updated) {
+                  const sessionMatches = matches[s.id] ?? [];
+                  for (const m of sessionMatches) {
+                    if (m.winner) {
+                      matchResults.push({
+                        sessionId: s.id,
+                        redPlayers: m.redPlayers,
+                        bluePlayers: m.bluePlayers,
+                        winner: m.winner,
+                      });
+                    }
+                  }
+                }
+                tripsService.update(trip.id, {
+                  ryder_cup_config: {
+                    ...rcConfig,
+                    sessionResults,
+                    matchResults,
+                  } as any,
+                }).catch(() => {});
+              }
+              return updated;
+            });
           }
           setSubView('hub');
           setActiveSession(null);
@@ -1992,8 +2115,8 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
           <CaptainsPairings
             teamRed={redPlayers}
             teamBlue={bluePlayers}
-            teamRedName="Team Red"
-            teamBlueName="Team Blue"
+            teamRedName={teamRedName}
+            teamBlueName={teamBlueName}
             pairings={pairings}
             onPairingsChange={setPairings}
             isCaptain={isCaptain}
@@ -2021,6 +2144,8 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
       <RCCompletion
         redTotal={redTotal}
         blueTotal={blueTotal}
+        teamRedName={teamRedName}
+        teamBlueName={teamBlueName}
         onDetails={() => setSubView('hub')}
         onDone={() => router.back()}
       />
@@ -2092,7 +2217,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
             {/* Team Red */}
             <View style={h.teamBadge}>
               <View style={[h.teamBadgeDot, { backgroundColor: RC_RED }]} />
-              <Text style={[h.teamBadgeLabel, { fontFamily: GEO }]}>TEAM RED</Text>
+              <Text style={[h.teamBadgeLabel, { fontFamily: GEO }]}>{teamRedName.toUpperCase()}</Text>
             </View>
 
             {/* Score */}
@@ -2117,15 +2242,17 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
             {/* Team Blue */}
             <View style={h.teamBadge}>
               <View style={[h.teamBadgeDot, { backgroundColor: RC_BLUE }]} />
-              <Text style={[h.teamBadgeLabel, { fontFamily: GEO }]}>TEAM BLUE</Text>
+              <Text style={[h.teamBadgeLabel, { fontFamily: GEO }]}>{teamBlueName.toUpperCase()}</Text>
             </View>
           </View>
 
           {/* Win condition callout */}
           <View style={h.winCallout}>
             <Text style={h.winCalloutText}>
-              {cupWinner
-                ? `${cupWinner === 'red' ? 'TEAM RED' : 'TEAM BLUE'} WINS THE CUP!`
+              {cupWinner === 'tied'
+                ? `IT'S A TIE! ${redTotal % 1 === 0 ? redTotal : redTotal.toFixed(1)} - ${blueTotal % 1 === 0 ? blueTotal : blueTotal.toFixed(1)}`
+                : cupWinner
+                ? `${cupWinner === 'red' ? teamRedName.toUpperCase() : teamBlueName.toUpperCase()} WINS THE CUP!`
                 : `First to ${winThreshold % 1 === 0 ? winThreshold : winThreshold.toFixed(1)} points wins`
               }
             </Text>
@@ -2135,10 +2262,10 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
           {!cupWinner && redTotal + blueTotal > 0 && (
             <View style={h.pointsNeededRow}>
               <Text style={[h.pointsNeededText, { color: RC_RED }]}>
-                Red needs {Math.max(0, winThreshold - redTotal) % 1 === 0 ? Math.max(0, winThreshold - redTotal) : Math.max(0, winThreshold - redTotal).toFixed(1)}
+                {teamRedName} needs {Math.max(0, winThreshold - redTotal) % 1 === 0 ? Math.max(0, winThreshold - redTotal) : Math.max(0, winThreshold - redTotal).toFixed(1)}
               </Text>
               <Text style={[h.pointsNeededText, { color: RC_BLUE }]}>
-                Blue needs {Math.max(0, winThreshold - blueTotal) % 1 === 0 ? Math.max(0, winThreshold - blueTotal) : Math.max(0, winThreshold - blueTotal).toFixed(1)}
+                {teamBlueName} needs {Math.max(0, winThreshold - blueTotal) % 1 === 0 ? Math.max(0, winThreshold - blueTotal) : Math.max(0, winThreshold - blueTotal).toFixed(1)}
               </Text>
             </View>
           )}
@@ -2250,6 +2377,39 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
               </View>
             </Pressable>
           ))}
+
+          {/* TEAM STATS */}
+          {teamsDrafted && sessions.some((s) => s.status !== 'not_started') && (
+            <View>
+              <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>TEAM STATS</Text>
+              <SeasonStatsSection
+                seasonId={trip.id}
+                userId={user?.id ?? 'self'}
+                seasonType="ryder_cup"
+                ryderCupConfig={{
+                  teamRedName: teamRedName,
+                  teamBlueName: teamBlueName,
+                  sessionResults: sessions.map((s) => ({
+                    id: s.id,
+                    status: s.status,
+                    redScore: s.redScore ?? 0,
+                    blueScore: s.blueScore ?? 0,
+                  })),
+                  matchResults: Object.entries(matches).flatMap(([sessionId, sessionMatches]) =>
+                    sessionMatches
+                      .filter((m) => m.winner != null)
+                      .map((m) => ({
+                        sessionId,
+                        redPlayers: m.redPlayers,
+                        bluePlayers: m.bluePlayers,
+                        winner: m.winner!,
+                      }))
+                  ),
+                  finalScore: rcConfig?.finalScore as { red: number; blue: number } | undefined,
+                }}
+              />
+            </View>
+          )}
 
           {/* QUICK ACTIONS */}
           <Text style={[h.sectionLabel, { color: c.gold, fontFamily: GEO }]}>QUICK ACTIONS</Text>
@@ -3180,9 +3340,12 @@ const cp = StyleSheet.create({
     gap: 16,
     marginBottom: 48,
   },
+  finalTeamCol: { alignItems: 'center', gap: 4 },
+  finalTeamLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 2, opacity: 0.7 },
   finalNum: { fontSize: 48, fontWeight: '900', letterSpacing: -1 },
   finalDivider: { width: 4, height: 40, gap: 0 },
   finalDivHalf: { flex: 1, width: 4 },
+  loserText: { color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: '500', letterSpacing: 1, marginBottom: 16 },
   btns: { gap: 12, width: '100%' },
   detailsBtn: {
     borderWidth: 1,

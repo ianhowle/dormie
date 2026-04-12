@@ -30,7 +30,10 @@ export type MomentType =
   | 'ROYAL_FLUSH'
   | 'STRAIGHT_FLUSH'
   | 'FOUR_OF_KIND'
-  | 'WORST_PUTTER';
+  | 'WORST_PUTTER'
+  | 'BRACKET_CHAMPION'
+  | 'STROKE_PLAY_CHAMPION'
+  | 'LEAGUE_CHAMPION';
 
 type MomentConfig = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -98,6 +101,21 @@ const MOMENT_CONFIG: Record<MomentType, MomentConfig> = {
     icon: 'sad',
     label: 'WORST PUTTER',
     gradient: ['#C41E3A', '#1A0608'],
+  },
+  BRACKET_CHAMPION: {
+    icon: 'trophy',
+    label: 'MATCH PLAY CHAMPION',
+    gradient: ['#C9A227', '#2A2010'],
+  },
+  STROKE_PLAY_CHAMPION: {
+    icon: 'trophy',
+    label: 'STROKE PLAY CHAMPION',
+    gradient: ['#1E4D2B', '#0A1F12'],
+  },
+  LEAGUE_CHAMPION: {
+    icon: 'trophy',
+    label: 'LEAGUE CHAMPION',
+    gradient: ['#1A2744', '#0A1020'],
   },
 };
 

@@ -116,6 +116,9 @@ function ScoringScreenInner() {
           sideGameKeys={s.sideGameKeys}
           wolfHoleDecisions={s.wolfHoleDecisions}
           bbbHolePoints={s.bbbHolePoints}
+          linkedSeasons={s.linkedSeasons}
+          courseSlope={s.courseSlope}
+          courseRating={s.courseRating}
           onDone={s.handlePostRound}
         />
       </Suspense>

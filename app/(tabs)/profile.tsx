@@ -47,6 +47,8 @@ import {
   type ScoreDifferential,
   type IntegrityResult,
 } from '../../src/services/handicap.service';
+import { PlayerStatsTabs } from '../../src/components/PlayerStatsTabs';
+import { MOCK_PLAYER_STATS } from '../../src/data/playerStats';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -713,6 +715,15 @@ export default function ProfileScreen() {
           )}
 
           <GoldDivider style={{ marginTop: 24 }} />
+
+          {/* ─── PLAYER STATISTICS (tabbed) ──────────────────────── */}
+          {(realStats || showDemoData) && (
+            <>
+              <SectionLabel title="STATISTICS" />
+              <PlayerStatsTabs stats={MOCK_PLAYER_STATS} />
+              <GoldDivider style={{ marginTop: 24 }} />
+            </>
+          )}
 
           {/* ─── RECENT ROUNDS ────────────────────────────────────── */}
           <SectionLabel title="RECENT ROUNDS" />
