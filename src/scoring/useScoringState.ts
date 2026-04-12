@@ -518,6 +518,21 @@ export function useScoringState() {
           return next;
         });
 
+        // BBB Triple Crown: same player earns bingo + bango + bongo on one hole
+        if (bingo && existing.bango && bongo && bingo === existing.bango && bingo === bongo) {
+          const triplePlayer = players.find((p) => p.id === bingo);
+          if (triplePlayer) {
+            haptics.heavy();
+            sounds.chime();
+            setDormieMoment({
+              visible: true,
+              type: 'BBB_TRIPLE_CROWN',
+              playerName: triplePlayer.id === '1' ? 'You' : triplePlayer.name,
+              detail: `Bingo · Bango · Bongo — Hole ${currentHole.number}`,
+            });
+          }
+        }
+
         // Trigger bango prompt for "closest to pin"
         setBangoHoleNumber(currentHole.number);
         setShowBangoPrompt(true);
@@ -671,12 +686,20 @@ export function useScoringState() {
         const course = await coursesService.ensureCourse({ name: courseName, location: courseName });
         finalCourseId = course.id;
       }
+      const wolfData = sideGameKeys.includes('wolf')
+        ? Array.from(wolfHoleDecisions.entries()).map(([hole, d]) => ({ hole, ...d }))
+        : null;
+      const bbbData = sideGameKeys.includes('bingo_bango_bongo')
+        ? Array.from(bbbHolePoints.entries()).map(([hole, pts]) => ({ hole, ...pts }))
+        : null;
       const savedRound = await roundsService.create({
         user_id: user.id, course_id: finalCourseId, gross_score: grossTotal, net_score: netTotal,
         hole_scores: holeScores, source: 'app', played_at: new Date().toISOString(),
         ...(tripId ? { trip_id: tripId } : {}),
         ...(linkedSeasons.length > 0 ? { season_week_id: linkedSeasons[0].seasonId } : {}),
-      });
+        ...(wolfData ? { wolf_data: wolfData } : {}),
+        ...(bbbData ? { bbb_data: bbbData } : {}),
+      } as any);
       if (linkedSeasons.length > 0) {
         for (const ls of linkedSeasons) {
           try {
