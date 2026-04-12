@@ -2925,7 +2925,7 @@ function MembersStep({
       {/* Manual Player Modal */}
       <Modal visible={showManualModal} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setShowManualModal(false)}>
-          <Pressable style={[styles.modalContent, { backgroundColor: theme.isDark ? c.card : '#FFFFFF' }]} onPress={() => {}}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.isDark ? c.cardBg : '#FFFFFF' }]} onPress={() => {}}>
             <Text style={[styles.modalTitle, { color: c.text }]}>Add Manual Player</Text>
 
             <Text style={[styles.fieldLabel, { color: c.text }]}>Name</Text>
@@ -5675,7 +5675,7 @@ export default function SeasonCreateScreen() {
     } catch {}
     setShowSaveTemplateModal(false);
     setTemplateName('');
-    showToast('Template saved!');
+    showToast({ message: 'Template saved!', type: 'success', icon: 'checkmark-circle' });
   }, [templateName, savedTemplates, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments, customMultiRound, customRoundsAllowed, customBestCount, customParticipation, customParticipationPoints, customDropWorst, customDropCount, customMakeupWindow, customMakeupDays, customDnsPolicy, customHandicapMode, customSideGameMode, customSideGameToggles, customTrackAchievements, customAchievementBonus, customAchievementPoints, customMajorWeeks, customMajorWeekNumbers, customMajorNames, customMajorMultiplier, customRivalryTracking, showToast]);
 
   // Auto-generate weeks from preset
@@ -6105,7 +6105,7 @@ export default function SeasonCreateScreen() {
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
       {/* Header */}
-      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
+      <LinearGradient colors={greenHeaderGradient as unknown as readonly [string, string, ...string[]]} style={styles.header}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => { haptics.light(); step > 0 ? setStep(step - 1) : router.back(); }} hitSlop={12}>
             <Ionicons name={step > 0 ? 'arrow-back' : 'close'} size={24} color="#FFFFFF" />

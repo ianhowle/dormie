@@ -128,7 +128,9 @@ export default function SettingsScreen() {
               <View style={[s.toggleKnob, theme.isDark && s.toggleKnobOn]} />
             </View>
           </Pressable>
-          <SettingRow icon="notifications-outline" label="Notifications" value="Enabled" onPress={() => Alert.alert('Notifications', 'Notification preferences coming soon.')} />
+          <SettingRow icon="notifications-outline" label="Notifications" onPress={() => router.push('/notification-preferences')} />
+          <SettingRow icon="wallet-outline" label="Ledger" onPress={() => router.push('/ledger')} />
+          <SettingRow icon="newspaper-outline" label="Weekly Digest" onPress={() => router.push('/digest')} />
           <SettingRow icon="calculator-outline" label="Default Scoring" value="Gross" onPress={() => Alert.alert('Scoring', 'Default scoring format coming soon.')} />
 
           {/* About */}
