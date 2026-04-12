@@ -82,6 +82,22 @@ export type LowHighPoints = {
   carryover: number;
 };
 
+export type SixSixSixScoringMethod = 'low_ball' | 'combined' | 'match_play';
+
+export type SixSixSixSegment = {
+  team1: [string, string];
+  team2: [string, string];
+  holeResults: Record<number, 'team1' | 'team2' | 'halved'>;
+  team1Wins: number;
+  team2Wins: number;
+  winner: 'team1' | 'team2' | 'halved' | null;
+};
+
+export type SixSixSixResult = {
+  segments: SixSixSixSegment[];
+  dots: Record<string, number>;
+};
+
 export type BBBHolePoints = {
   bingo: string | null; // playerId
   bango: string | null; // playerId

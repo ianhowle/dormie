@@ -19,4 +19,6 @@ export { RoundContextBanner } from './RoundContextBanner';
 export { PostRoundSummary } from './PostRoundSummary';
 export { LowHighBanner } from './LowHighBanner';
 export { LowHighRecap } from './LowHighRecap';
+export { SixSixSixBanner, SixSixSixSegmentTransition } from './SixSixSixBanner';
+export { SixSixSixRecap } from './SixSixSixRecap';
 export { scoringStyles, postRoundStyles } from './styles';

@@ -24,6 +24,7 @@ import type {
   LinkedSeason, CompetitionTab, PlayerConfig, HoleScore, HoleData,
   HammerState, HammerResult, WolfHoleState, BBBHolePoints,
   ScoringEvent, LowHighOptions, LowHighHoleResult, LowHighPoints,
+  SixSixSixScoringMethod, SixSixSixSegment, SixSixSixResult,
 } from './types';
 import {
   buildHoles, calcCourseHandicap, isGIR, SIDE_GAME_DISPLAY, pName,
@@ -192,6 +193,13 @@ export function useScoringState() {
     tieHandling: 'halve', birdieBonus: false, includeTotal: false,
   });
   const [showLowHighSetup, setShowLowHighSetup] = useState(isLowHigh);
+
+  // 6-6-6: rotating partners every 6 holes
+  const isSixSixSix = formatLabel.includes('6-6-6') && players.length === 4;
+  const [sixOrder, setSixOrder] = useState<string[]>(() => players.slice(0, 4).map((p) => p.id));
+  const [sixScoringMethod, setSixScoringMethod] = useState<SixSixSixScoringMethod>('low_ball');
+  const [showSixSetup, setShowSixSetup] = useState(isSixSixSix);
+  const [sixSegmentBanner, setSixSegmentBanner] = useState<{ visible: boolean; segmentIdx: number }>({ visible: false, segmentIdx: 0 });
 
   // Feature 6: Hole notes
   const [holeNotes, setHoleNotes] = useState<Map<number, string>>(new Map());
@@ -562,6 +570,14 @@ export function useScoringState() {
       }
     }
 
+    // 6-6-6: segment rotation banner after holes 6 and 12
+    if (isSixSixSix && (currentHole.number === 6 || currentHole.number === 12) && currentHoleIdx < holes.length - 1) {
+      const nextSeg = currentHole.number === 6 ? 1 : 2;
+      haptics.heavy();
+      sounds.chime();
+      setSixSegmentBanner({ visible: true, segmentIdx: nextSeg });
+    }
+
     // Item 33: Show hole transition banner
     showTransitionBanner(currentHole.number);
 
@@ -576,7 +592,7 @@ export function useScoringState() {
     } else if (currentHoleIdx < holes.length - 1) {
       setCurrentHoleIdx(currentHoleIdx + 1);
     }
-  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length, isLowHigh, lowHighTeams]);
+  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length, isLowHigh, lowHighTeams, isSixSixSix]);
 
   const handlePuttDistSelect = useCallback((bucket: string) => {
     const playersWithPutts = players.filter((p) => {
@@ -804,6 +820,67 @@ export function useScoringState() {
     return acc;
   }, [isLowHigh, holes, lowHighResults, lowHighOptions]);
 
+  // 6-6-6: partnerships by segment
+  const sixPartnerships = useCallback((segmentIdx: number): { team1: [string, string]; team2: [string, string] } => {
+    const [A, B, C, D] = sixOrder;
+    if (segmentIdx === 0) return { team1: [A, B], team2: [C, D] };
+    if (segmentIdx === 1) return { team1: [A, C], team2: [B, D] };
+    return { team1: [A, D], team2: [B, C] };
+  }, [sixOrder]);
+
+  const currentSixSegmentIdx = useMemo(() => {
+    const holeNum = currentHole?.number ?? 1;
+    if (holeNum <= 6) return 0;
+    if (holeNum <= 12) return 1;
+    return 2;
+  }, [currentHole]);
+
+  const sixSixSixResult: SixSixSixResult = useMemo(() => {
+    const dots: Record<string, number> = {};
+    sixOrder.forEach((pid) => { dots[pid] = 0; });
+    const segments: SixSixSixSegment[] = [0, 1, 2].map((segIdx) => {
+      const { team1, team2 } = sixPartnerships(segIdx);
+      const holeResults: Record<number, 'team1' | 'team2' | 'halved'> = {};
+      let t1Wins = 0, t2Wins = 0;
+      const startHole = segIdx * 6 + 1;
+      const endHole = startHole + 5;
+      holes.forEach((h) => {
+        if (h.number < startHole || h.number > endHole) return;
+        const holeScores = allScores.get(h.number);
+        if (!holeScores) return;
+        const t1s = team1.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        const t2s = team2.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        if (t1s.length < 2 || t2s.length < 2) return;
+        let t1Val = 0, t2Val = 0;
+        if (sixScoringMethod === 'low_ball') {
+          t1Val = Math.min(...t1s); t2Val = Math.min(...t2s);
+        } else if (sixScoringMethod === 'combined') {
+          t1Val = t1s.reduce((a, b) => a + b, 0); t2Val = t2s.reduce((a, b) => a + b, 0);
+        } else {
+          // match_play: low + high both count; net points settle winner
+          const t1Low = Math.min(...t1s), t1High = Math.max(...t1s);
+          const t2Low = Math.min(...t2s), t2High = Math.max(...t2s);
+          let t1Pts = 0, t2Pts = 0;
+          if (t1Low < t2Low) t1Pts++; else if (t2Low < t1Low) t2Pts++;
+          if (t1High < t2High) t1Pts++; else if (t2High < t1High) t2Pts++;
+          t1Val = -t1Pts; t2Val = -t2Pts;
+        }
+        let winner: 'team1' | 'team2' | 'halved';
+        if (t1Val < t2Val) { winner = 'team1'; t1Wins++; team1.forEach((pid) => { dots[pid] = (dots[pid] ?? 0) + 1; }); }
+        else if (t2Val < t1Val) { winner = 'team2'; t2Wins++; team2.forEach((pid) => { dots[pid] = (dots[pid] ?? 0) + 1; }); }
+        else winner = 'halved';
+        holeResults[h.number] = winner;
+      });
+      let winner: 'team1' | 'team2' | 'halved' | null = null;
+      const scoredHoles = Object.keys(holeResults).length;
+      if (scoredHoles >= 6) {
+        winner = t1Wins > t2Wins ? 'team1' : t2Wins > t1Wins ? 'team2' : 'halved';
+      }
+      return { team1, team2, holeResults, team1Wins: t1Wins, team2Wins: t2Wins, winner };
+    });
+    return { segments, dots };
+  }, [sixOrder, holes, allScores, sixScoringMethod, sixPartnerships]);
+
   // Feature 11: Leaderboard data
   const leaderboardData = useMemo(() => {
     return players.map((p) => {
@@ -897,6 +974,20 @@ export function useScoringState() {
     setShowLowHighSetup,
     lowHighResults,
     lowHighPoints,
+
+    // 6-6-6
+    isSixSixSix,
+    sixOrder,
+    setSixOrder,
+    sixScoringMethod,
+    setSixScoringMethod,
+    showSixSetup,
+    setShowSixSetup,
+    sixSegmentBanner,
+    setSixSegmentBanner,
+    currentSixSegmentIdx,
+    sixPartnerships,
+    sixSixSixResult,
 
     // Hole notes
     holeNotes,

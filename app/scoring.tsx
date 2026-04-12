@@ -48,8 +48,10 @@ import {
   HoleNotesModal,
   LiveLeaderboard,
   LowHighSetupModal,
+  SixSixSixSetupModal,
 } from '../src/components/scoring/ScoringModals';
 import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
+import { SixSixSixBanner, SixSixSixSegmentTransition } from '../src/components/scoring/SixSixSixBanner';
 
 function HoleResultBanner({ players, holeScores, holePar }: { players: PlayerConfig[]; holeScores: Map<string, HoleScore>; holePar: number }) {
   const { theme } = useTheme();
@@ -229,6 +231,15 @@ function ScoringScreenInner() {
             <Ionicons name="chevron-forward" size={14} color={c.gold} />
           )}
         </Pressable>
+      )}
+
+      {/* 6-6-6 banner */}
+      {s.isSixSixSix && !s.showSixSetup && (
+        <SixSixSixBanner
+          segment={s.sixSixSixResult.segments[s.currentSixSegmentIdx]}
+          segmentIdx={s.currentSixSegmentIdx}
+          players={s.players}
+        />
       )}
 
       {/* Low Ball / High Ball banner */}
@@ -532,6 +543,25 @@ function ScoringScreenInner() {
         }))}
         onChangeOptions={s.setLowHighOptions}
         onStart={() => s.setShowLowHighSetup(false)}
+      />
+
+      <SixSixSixSetupModal
+        visible={s.showSixSetup && s.isSixSixSix}
+        players={s.players}
+        order={s.sixOrder}
+        scoringMethod={s.sixScoringMethod}
+        onReorder={s.setSixOrder}
+        onChangeMethod={s.setSixScoringMethod}
+        onStart={() => s.setShowSixSetup(false)}
+      />
+
+      <SixSixSixSegmentTransition
+        visible={s.sixSegmentBanner.visible}
+        segmentIdx={s.sixSegmentBanner.segmentIdx}
+        team1={s.sixPartnerships(s.sixSegmentBanner.segmentIdx).team1}
+        team2={s.sixPartnerships(s.sixSegmentBanner.segmentIdx).team2}
+        players={s.players}
+        onDismiss={() => s.setSixSegmentBanner({ visible: false, segmentIdx: 0 })}
       />
 
       <HoleNotesModal

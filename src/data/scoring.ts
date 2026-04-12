@@ -12,7 +12,8 @@ export type ScoringFormat =
   | 'greensomes'
   | 'pinehurst'
   | 'wolf'
-  | 'low_high';
+  | 'low_high'
+  | 'sixsixsix';
 
 export type SideGame =
   | 'nassau'
@@ -55,6 +56,7 @@ export const SCORING_FORMATS: FormatInfo[] = [
   { key: 'shamble', label: 'Shamble', description: 'Best drive, then everyone plays their own ball' },
   { key: 'fourball', label: 'Four-Ball', description: 'Two-person teams; best individual score counts' },
   { key: 'low_high', label: 'Low Ball / High Ball', description: '2v2 teams; best and worst scores both count each hole' },
+  { key: 'sixsixsix', label: '6-6-6', description: 'Partners rotate every 6 holes — everyone plays with everyone' },
 ];
 
 // ─── Side games (ordered for pill display) ───────────────────────────
@@ -94,6 +96,7 @@ export const FORMAT_LABELS: Record<ScoringFormat, string> = {
   pinehurst: 'Pinehurst',
   wolf: 'Wolf',
   low_high: 'Low Ball / High Ball',
+  sixsixsix: '6-6-6',
 };
 
 export const SIDE_GAME_LABELS: Record<SideGame, string> = {
