@@ -27,6 +27,9 @@ import { useScoringState } from '../src/scoring/useScoringState';
 
 // ─── Extracted sub-components ───────────────────────────────────────
 import { HoleHeader } from '../src/components/scoring/HoleHeader';
+import { LiveIndicator } from '../src/components/common/LiveIndicator';
+import { LiveScoreToast, type LiveScoreToastPayload } from '../src/components/scoring/LiveScoreToast';
+import { useRealtimeScores } from '../src/hooks/useRealtimeScores';
 import { PlayerScoreInput } from '../src/components/scoring/ScoreGrid';
 import { PlayerTabs } from '../src/components/scoring/PlayerTabs';
 import { HoleNavigator, NavButtons } from '../src/components/scoring/HoleNavigator';
@@ -122,6 +125,8 @@ function ScoringScreenInner() {
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
+      <ScoringLiveLayer tripId={s.tripId} courseId={s.courseId} />
+
 
       {/* Offline banner */}
       {s.isOffline && (
@@ -652,5 +657,32 @@ export default function ScoringScreen() {
     <ErrorBoundary>
       <ScoringScreenInner />
     </ErrorBoundary>
+  );
+}
+
+function ScoringLiveLayer({ tripId, courseId }: { tripId: string | null; courseId: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [toast, setToast] = useState<LiveScoreToastPayload | null>(null);
+  const { isLive, events } = useRealtimeScores({
+    tripId: tripId ?? undefined,
+    courseId: courseId || undefined,
+    onEvent: (ev) => {
+      if (ev.type === 'INSERT' && ev.round) {
+        const gross = ev.round.gross_score;
+        setToast({
+          id: `${ev.round.id}-${Date.now()}`,
+          title: gross ? `Score posted: ${gross}` : 'Score posted',
+          detail: 'Leaderboard updating',
+          kind: 'score',
+        });
+      }
+    },
+  });
+  return (
+    <View style={{ paddingHorizontal: 16, paddingTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}>
+      <LiveIndicator live={isLive} />
+      <LiveScoreToast payload={toast} />
+    </View>
   );
 }
