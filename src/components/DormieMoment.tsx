@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import type { RefObject } from 'react';
 import {
   View,
   Text,
@@ -14,6 +15,15 @@ import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import GoldDivider from './GoldDivider';
 import { shareDormieMoment } from './share/shareDormieMoment';
+import { DormieMomentCard } from './share/DormieMomentCard';
+import { captureAndShare } from '../services/shareCard.service';
+
+let ViewShot: any = null;
+try {
+  ViewShot = require('react-native-view-shot').default ?? require('react-native-view-shot').ViewShot;
+} catch {
+  ViewShot = null;
+}
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -195,6 +205,18 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
     onDismiss();
   }, [onDismiss]);
 
+  const shareCardRef = useRef<any>(null);
+  const handleShare = useCallback(async () => {
+    if (ViewShot && shareCardRef.current?.capture) {
+      await captureAndShare(shareCardRef as RefObject<{ capture?: () => Promise<string> } | null>, {
+        filename: `dormie-${config.label.toLowerCase().replace(/\s+/g, '-')}.png`,
+        dialogTitle: 'Share Dormie Moment',
+      });
+      return;
+    }
+    shareDormieMoment({ label: config.label, playerName, detail, icon: config.icon });
+  }, [config.label, config.icon, playerName, detail]);
+
   if (!visible) return null;
 
   const dividerInterp = dividerWidth.interpolate({
@@ -272,7 +294,7 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
             <Pressable
               onPress={(e) => {
                 e.stopPropagation?.();
-                shareDormieMoment({ label: config.label, playerName, detail, icon: config.icon });
+                handleShare();
               }}
               hitSlop={10}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4 }}
@@ -282,6 +304,21 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
             </Pressable>
             <Text style={[styles.tapText, { color: c.textMuted }]}>TAP TO CONTINUE</Text>
           </Animated.View>
+        </View>
+
+        {/* Offscreen premium share card for capture */}
+        <View pointerEvents="none" style={styles.offscreen}>
+          {ViewShot ? (
+            <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
+              <DormieMomentCard
+                momentLabel={config.label}
+                playerName={playerName}
+                detail={detail}
+                icon={config.icon}
+                aspect="square"
+              />
+            </ViewShot>
+          ) : null}
         </View>
       </Pressable>
     </Modal>
@@ -302,4 +339,5 @@ const styles = StyleSheet.create({
   cornerTR: { position: 'absolute', top: 60, right: 24, width: 28, height: 28, borderTopWidth: 2, borderRightWidth: 2 },
   cornerBL: { position: 'absolute', bottom: 60, left: 24, width: 28, height: 28, borderBottomWidth: 2, borderLeftWidth: 2 },
   cornerBR: { position: 'absolute', bottom: 60, right: 24, width: 28, height: 28, borderBottomWidth: 2, borderRightWidth: 2 },
+  offscreen: { position: 'absolute', left: -10000, top: -10000, opacity: 0 },
 });

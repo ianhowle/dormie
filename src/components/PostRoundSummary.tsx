@@ -25,6 +25,7 @@ import { Avatar } from './Avatar';
 import { SCORE_COLORS, scoreColor, formatToPar as fmtToPar, scoreName } from '../lib/scoring-utils';
 import { ErrorBoundary } from './ErrorBoundary';
 import { RoundStatsCard } from './RoundStatsCard';
+import { RoundRecapCard } from './share/RoundRecapCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -354,8 +355,7 @@ function ShareCardModal({
           <ShareCardContent
             player={player}
             toPar={toPar}
-            cardWidth={cardWidth}
-            cardHeight={cardHeight}
+            aspect={format === 'story' ? 'story' : 'square'}
             viewShotRef={viewShotRef}
           />
 
@@ -386,75 +386,38 @@ function ShareCardModal({
 function ShareCardContent({
   player,
   toPar,
-  cardWidth,
-  cardHeight,
+  aspect,
   viewShotRef,
 }: {
   player: PlayerRound;
   toPar: string;
-  cardWidth: number;
-  cardHeight: number;
+  aspect: 'story' | 'square';
   viewShotRef?: React.RefObject<ViewShot | null>;
 }) {
+  const diffToPar = player.grossScore - player.coursePar;
+  let eagles = 0, birdies = 0, pars = 0;
+  for (const h of player.holes) {
+    const d = h.gross - h.par;
+    if (d <= -2) eagles++;
+    else if (d === -1) birdies++;
+    else if (d === 0) pars++;
+  }
+  const highlights = [
+    { label: 'Eagles', value: String(eagles) },
+    { label: 'Birdies', value: String(birdies) },
+    { label: 'Pars', value: String(pars) },
+  ];
+
   const inner = (
-    <View style={[styles.shareCard, { width: cardWidth, height: Math.min(cardHeight, 500) }]}>
-      <LinearGradient
-        colors={['#1E4D2B', '#0A2614']}
-        style={StyleSheet.absoluteFill}
-      />
-      {/* Pinstripe texture */}
-      {Array.from({ length: 30 }).map((_, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            top: -100,
-            left: i * 16 - 50,
-            width: 1,
-            height: cardHeight + 200,
-            backgroundColor: '#FFFFFF',
-            opacity: 0.03,
-            transform: [{ rotate: '35deg' }],
-          }}
-        />
-      ))}
-
-      <View style={styles.shareCardInner}>
-        <Text style={styles.shareCardApp}>DORMIE</Text>
-        <Text style={[styles.shareCardScore, { fontFamily: GEO }]}>{player.grossScore}</Text>
-        <Text style={styles.shareCardToPar}>{toPar}</Text>
-        <Text style={styles.shareCardCourse}>{player.courseName}</Text>
-
-        {/* Mini hole strip */}
-        <View style={styles.shareHoleRow}>
-          {player.holes.slice(0, 9).map((h) => {
-            const color = scoreColor(h.gross, h.par);
-            return (
-              <View key={h.hole} style={styles.shareHoleCell}>
-                <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
-              </View>
-            );
-          })}
-        </View>
-        {player.holes.length > 9 && (
-          <View style={styles.shareHoleRow}>
-            {player.holes.slice(9, 18).map((h) => {
-              const color = scoreColor(h.gross, h.par);
-              return (
-                <View key={h.hole} style={styles.shareHoleCell}>
-                  <Text style={[styles.shareHoleCellVal, { color, fontFamily: GEO }]}>{h.gross}</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        <Text style={styles.shareCaption}>
-          Shot {player.grossScore} ({toPar}) at {player.courseName} today!{'\n'}
-          Tracked with @dormiegolf
-        </Text>
-      </View>
-    </View>
+    <RoundRecapCard
+      playerName={player.name}
+      courseName={player.courseName}
+      gross={player.grossScore}
+      toPar={diffToPar}
+      highlights={highlights}
+      date={new Date().toLocaleDateString()}
+      aspect={aspect}
+    />
   );
 
   if (viewShotRef) {
