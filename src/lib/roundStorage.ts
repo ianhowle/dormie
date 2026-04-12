@@ -124,6 +124,8 @@ export type OfflineRound = {
   userId: string;
   courseId: string;
   courseName: string;
+  courseSlope?: number;
+  courseRating?: number;
   grossScore: number;
   netScore: number | null;
   holeScores: { hole: number; gross: number; putts?: number; fir?: boolean }[];
@@ -190,13 +192,20 @@ export async function syncOfflineRounds(): Promise<{ synced: number; failed: num
 
   for (const round of rounds) {
     try {
-      let finalCourseId = round.courseId;
-      if (!finalCourseId) {
-        const course = await coursesService.ensureCourse({
-          name: round.courseName,
-          location: round.courseName,
-        });
-        finalCourseId = course.id;
+      let finalCourseId: string | null = round.courseId || null;
+      if (finalCourseId && finalCourseId.startsWith('custom-')) finalCourseId = null;
+      if (!finalCourseId && round.courseName) {
+        try {
+          const course = await coursesService.ensureCourse({
+            name: round.courseName,
+            location: round.courseName,
+            slope: round.courseSlope,
+            rating: round.courseRating,
+          });
+          finalCourseId = course.id;
+        } catch {
+          finalCourseId = null;
+        }
       }
 
       const savedRound = await roundsService.create({
@@ -207,6 +216,10 @@ export async function syncOfflineRounds(): Promise<{ synced: number; failed: num
         hole_scores: round.holeScores,
         source: 'app',
         played_at: round.playedAt,
+        course_name: round.courseName || null,
+        course_slope: round.courseSlope ?? null,
+        course_rating: round.courseRating ?? null,
+        course_source: 'golfapi',
         ...(round.tripId ? { trip_id: round.tripId } : {}),
         ...(round.seasonWeekId ? { season_week_id: round.seasonWeekId } : {}),
       });

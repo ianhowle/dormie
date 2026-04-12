@@ -265,6 +265,8 @@ function BasicsStep({
   setName,
   seasonType,
   setSeasonType,
+  isVirtual,
+  setIsVirtual,
   customDescription,
   setCustomDescription,
 }: {
@@ -272,6 +274,8 @@ function BasicsStep({
   setName: (v: string) => void;
   seasonType: SeasonType;
   setSeasonType: (v: SeasonType) => void;
+  isVirtual: boolean;
+  setIsVirtual: (v: boolean) => void;
   customDescription?: string;
   setCustomDescription?: (v: string) => void;
 }) {
@@ -372,6 +376,39 @@ function BasicsStep({
             </Pressable>
           );
         })}
+      </View>
+
+      {/* Virtual / Async toggle */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 14,
+          marginTop: 20,
+          backgroundColor: isVirtual ? c.teal + '12' : (theme.isDark ? c.elevated : c.cardBg),
+          borderColor: isVirtual ? c.teal : c.border,
+          borderWidth: 1,
+        }}
+      >
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="globe-outline" size={18} color={isVirtual ? c.teal : c.textMuted} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: isVirtual ? c.teal : c.text }}>
+              Virtual / Async Play
+            </Text>
+          </View>
+          <Text style={{ fontSize: 12, marginTop: 4, color: c.textMuted }}>
+            Members play on their own schedules at any course. Each round
+            prompts for a course picker and uses slope/rating from the
+            GolfCourseAPI for handicap calculation.
+          </Text>
+        </View>
+        <Switch
+          value={isVirtual}
+          onValueChange={(v) => { haptics.light(); setIsVirtual(v); }}
+          trackColor={{ false: c.elevated, true: c.teal + '66' }}
+          thumbColor={isVirtual ? c.teal : c.textMuted}
+        />
       </View>
     </View>
   );
@@ -5355,6 +5392,7 @@ export default function SeasonCreateScreen() {
 
   // State — shared
   const [name, setName] = useState('');
+  const [isVirtual, setIsVirtual] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manualPlayers, setManualPlayers] = useState<ManualPlayer[]>([]);
   const [friends, setFriends] = useState<Friend[]>(MOCK_FRIENDS);
@@ -5689,7 +5727,7 @@ export default function SeasonCreateScreen() {
   const [creating, setCreating] = useState(false);
 
   const buildSeasonConfig = useCallback(() => {
-    const base: Record<string, any> = { season_type: seasonType };
+    const base: Record<string, any> = { season_type: seasonType, virtual: isVirtual };
     if (seasonType === 'custom') {
       const customStructure: Record<string, any> = {
         base_format: customBaseFormat,
@@ -5848,7 +5886,7 @@ export default function SeasonCreateScreen() {
       });
     }
     return base;
-  }, [seasonType, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments, customMultiRound, customRoundsAllowed, customBestCount, customParticipation, customParticipationPoints, customDropWorst, customDropCount, customMakeupWindow, customMakeupDays, customDnsPolicy, customHandicapMode, customSideGameMode, customSideGameToggles, customTrackAchievements, customAchievementBonus, customAchievementPoints, customMajorWeeks, customMajorWeekNumbers, customMajorNames, customMajorMultiplier, customRivalryTracking]);
+  }, [seasonType, isVirtual, scoringMethod, cutEnabled, cutValue, dropWorst, dnsAveraging, dnsMinRounds, dnsCap, playoffMultiplier, champMultiplier, preset, useCustomCycle, customCycle, teamRedName, teamBlueName, teamRedCaptain, teamBlueCaptain, draftMethod, rcSessions, rcNumDays, rcPointsPerMatch, rcHalvedPoints, rcWinCondition, rcFirstToTarget, rcDayCourses, bracketSize, seedingMethod, bracketFormat, bracketMatchLength, bracketHandicap, bracketScoringMethod, roundDeadlineDays, strokeRounds, strokeScoring, strokeDropWorst, strokeTiebreaker, strokeLimitRounds, strokeMaxRoundsPerWeek, strokeDropCount, strokeCourseRestriction, strokeDesignatedCourseId, makeupWindowEnabled, makeupWindowWeeks, dnsSafetyNet, dnsSafetyMax, multiRoundWeek, roundsAllowed, bestRoundsCount, participationBonus, participationPoints, leagueDivisions, leagueDivisionCount, leagueDivisionNames, leagueAutoBalance, leagueWeeks, leagueDivisionGames, leagueCrossDivision, leagueRivalryWeek, leagueScoringFormat, leagueSameFormatAllSeason, leagueWinDetermination, leagueMarginBonus, leagueMarginThreshold, leaguePlayoffTeams, leagueChampionshipFormat, customDescription, customBaseFormat, customTeamCount, customTeamFormation, customTeamScoring, customBestX, customBestY, customDivisions, customDivisionCount, customCrossDivision, customBracketSize, customSeeding, customElimination, customRegularWeeks, customPlayoffsEnabled, customPlayoffWeeks, customQualificationType, customQualificationValue, customPlayoffMultiplier, customChampionshipEnabled, customChampionshipMultiplier, customChampionshipFormat, customScoringMethod, customUseDefaultScale, customPointsScale, customLargeScale, customFormatMode, customSingleFormat, customFormatAssignments, customMultiRound, customRoundsAllowed, customBestCount, customParticipation, customParticipationPoints, customDropWorst, customDropCount, customMakeupWindow, customMakeupDays, customDnsPolicy, customHandicapMode, customSideGameMode, customSideGameToggles, customTrackAchievements, customAchievementBonus, customAchievementPoints, customMajorWeeks, customMajorWeekNumbers, customMajorNames, customMajorMultiplier, customRivalryTracking]);
 
   const handleCreate = useCallback(async () => {
     setCreating(true);
@@ -6097,7 +6135,7 @@ export default function SeasonCreateScreen() {
       {/* Step content */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {currentStep === 'basics' && (
-          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); if (t === 'custom') { loadTemplates(); setShowTemplateModal(true); } }} customDescription={customDescription} setCustomDescription={setCustomDescription} />
+          <BasicsStep name={name} setName={setName} seasonType={seasonType} setSeasonType={(t) => { setSeasonType(t); setStep(0); if (t === 'custom') { loadTemplates(); setShowTemplateModal(true); } }} isVirtual={isVirtual} setIsVirtual={setIsVirtual} customDescription={customDescription} setCustomDescription={setCustomDescription} />
         )}
         {currentStep === 'custom_structure' && (
           <CustomStructureStep

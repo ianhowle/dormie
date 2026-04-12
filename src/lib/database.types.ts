@@ -61,7 +61,7 @@ export interface HoleData {
 export interface Round {
   id: string;
   user_id: string;
-  course_id: string;
+  course_id: string | null;
   gross_score: number;
   net_score: number | null;
   to_par: number;
@@ -71,6 +71,13 @@ export interface Round {
   season_week_id: string | null;
   played_at: string;
   created_at: string;
+  // Denormalized course info — populated for virtual/async rounds where
+  // course_id may be null, or when rounds are played on API-sourced courses
+  // that aren't persisted in our courses table yet.
+  course_name: string | null;
+  course_slope: number | null;
+  course_rating: number | null;
+  course_source: string | null;
 }
 
 export interface HoleScore {
@@ -224,8 +231,8 @@ export type FriendshipInsert = Pick<Friendship, 'user_id' | 'friend_id'> &
 export type CourseInsert = Pick<Course, 'name' | 'location'> &
   Partial<Omit<Course, 'id' | 'name' | 'location' | 'created_at'>>;
 
-export type RoundInsert = Pick<Round, 'user_id' | 'course_id' | 'gross_score'> &
-  Partial<Omit<Round, 'id' | 'user_id' | 'course_id' | 'gross_score' | 'to_par' | 'created_at'>>;
+export type RoundInsert = Pick<Round, 'user_id' | 'gross_score'> &
+  Partial<Omit<Round, 'id' | 'user_id' | 'gross_score' | 'to_par' | 'created_at'>>;
 
 export type TripInsert = Pick<Trip, 'name' | 'location' | 'start_date' | 'end_date' | 'organizer_id'> &
   Partial<Omit<Trip, 'id' | 'name' | 'location' | 'start_date' | 'end_date' | 'organizer_id' | 'invite_code' | 'created_at'>>;
