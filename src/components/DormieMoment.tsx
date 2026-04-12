@@ -13,6 +13,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { haptics } from '../lib/haptics';
 import { GEO } from '../theme/fonts';
 import GoldDivider from './GoldDivider';
+import { shareDormieMoment } from './share/shareDormieMoment';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -248,10 +249,21 @@ export function DormieMoment({ visible, type, playerName, detail, onDismiss }: D
           {/* Gold divider after detail */}
           <GoldDivider style={{ marginTop: 24, marginBottom: 16, width: SCREEN_W * 0.35 }} />
 
-          {/* Tap to continue */}
-          <Animated.Text style={[styles.tapText, { color: c.textMuted, opacity: tapOpacity }]}>
-            TAP TO CONTINUE
-          </Animated.Text>
+          {/* Share this moment */}
+          <Animated.View style={{ opacity: tapOpacity, flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                shareDormieMoment({ label: config.label, playerName, detail, icon: config.icon });
+              }}
+              hitSlop={10}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Ionicons name="share-outline" size={12} color={c.gold} />
+              <Text style={[styles.tapText, { color: c.gold }]}>SHARE</Text>
+            </Pressable>
+            <Text style={[styles.tapText, { color: c.textMuted }]}>TAP TO CONTINUE</Text>
+          </Animated.View>
         </View>
       </Pressable>
     </Modal>
