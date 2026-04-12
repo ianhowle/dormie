@@ -17,4 +17,6 @@ export { BBBPrompt } from './BBBPrompt';
 export { LogHoleTags } from './LogHoleTags';
 export { RoundContextBanner } from './RoundContextBanner';
 export { PostRoundSummary } from './PostRoundSummary';
+export { LowHighBanner } from './LowHighBanner';
+export { LowHighRecap } from './LowHighRecap';
 export { scoringStyles, postRoundStyles } from './styles';

@@ -23,7 +23,7 @@ import { MOCK_UPCOMING_TRIPS } from '../data/trips';
 import type {
   LinkedSeason, CompetitionTab, PlayerConfig, HoleScore, HoleData,
   HammerState, HammerResult, WolfHoleState, BBBHolePoints,
-  ScoringEvent,
+  ScoringEvent, LowHighOptions, LowHighHoleResult, LowHighPoints,
 } from './types';
 import {
   buildHoles, calcCourseHandicap, isGIR, SIDE_GAME_DISPLAY, pName,
@@ -181,6 +181,17 @@ export function useScoringState() {
     team2: players.length >= 4 ? [players[2].id, players[3].id] : [],
   });
   const [showBestBallSetup, setShowBestBallSetup] = useState(isBestBall);
+
+  // Low Ball / High Ball 2v2
+  const isLowHigh = (formatLabel.toLowerCase().includes('low ball') || formatLabel.toLowerCase().includes('low/high') || formatLabel.toLowerCase().includes('low ball / high')) && players.length === 4;
+  const [lowHighTeams, setLowHighTeams] = useState<{ team1: string[]; team2: string[] }>({
+    team1: players.length >= 4 ? [players[0].id, players[1].id] : [],
+    team2: players.length >= 4 ? [players[2].id, players[3].id] : [],
+  });
+  const [lowHighOptions, setLowHighOptions] = useState<LowHighOptions>({
+    tieHandling: 'halve', birdieBonus: false, includeTotal: false,
+  });
+  const [showLowHighSetup, setShowLowHighSetup] = useState(isLowHigh);
 
   // Feature 6: Hole notes
   const [holeNotes, setHoleNotes] = useState<Map<number, string>>(new Map());
@@ -526,6 +537,31 @@ export function useScoringState() {
       }
     }
 
+    // Low/High: Clean Sweep detection (both low and high to same team)
+    if (isLowHigh) {
+      const holeScores = allScores.get(currentHole.number);
+      if (holeScores) {
+        const t1 = lowHighTeams.team1.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        const t2 = lowHighTeams.team2.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+        if (t1.length >= 2 && t2.length >= 2) {
+          const t1Low = Math.min(...t1), t1High = Math.max(...t1);
+          const t2Low = Math.min(...t2), t2High = Math.max(...t2);
+          const lowWin = t1Low < t2Low ? 'team1' : t2Low < t1Low ? 'team2' : 'halved';
+          const highWin = t1High < t2High ? 'team1' : t2High < t1High ? 'team2' : 'halved';
+          if (lowWin !== 'halved' && lowWin === highWin) {
+            haptics.heavy();
+            sounds.chime();
+            setDormieMoment({
+              visible: true,
+              type: 'CLEAN_SWEEP',
+              playerName: lowWin === 'team1' ? 'Team 1' : 'Team 2',
+              detail: `Top to bottom on Hole ${currentHole.number}`,
+            });
+          }
+        }
+      }
+    }
+
     // Item 33: Show hole transition banner
     showTransitionBanner(currentHole.number);
 
@@ -540,7 +576,7 @@ export function useScoringState() {
     } else if (currentHoleIdx < holes.length - 1) {
       setCurrentHoleIdx(currentHoleIdx + 1);
     }
-  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length]);
+  }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length, isLowHigh, lowHighTeams]);
 
   const handlePuttDistSelect = useCallback((bucket: string) => {
     const playersWithPutts = players.filter((p) => {
@@ -681,6 +717,93 @@ export function useScoringState() {
     return { team1: t1, team2: t2, team1Par: par1, team2Par: par2 };
   }, [allScores, holes, bestBallTeams, isBestBall]);
 
+  // Low Ball / High Ball per-hole results + points
+  const lowHighResults = useMemo(() => {
+    const map = new Map<number, LowHighHoleResult>();
+    if (!isLowHigh) return map;
+    holes.forEach((h) => {
+      const holeScores = allScores.get(h.number);
+      if (!holeScores) return;
+      const t1 = lowHighTeams.team1.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+      const t2 = lowHighTeams.team2.map((pid) => holeScores.get(pid)?.gross).filter((v): v is number => typeof v === 'number');
+      if (t1.length < 2 || t2.length < 2) return;
+      const t1Low = Math.min(...t1), t1High = Math.max(...t1);
+      const t2Low = Math.min(...t2), t2High = Math.max(...t2);
+      const lowBallWinner: 'team1' | 'team2' | 'halved' =
+        t1Low < t2Low ? 'team1' : t2Low < t1Low ? 'team2' : 'halved';
+      const highBallWinner: 'team1' | 'team2' | 'halved' =
+        t1High < t2High ? 'team1' : t2High < t1High ? 'team2' : 'halved';
+      const result: LowHighHoleResult = { lowBallWinner, highBallWinner };
+      if (lowHighOptions.includeTotal) {
+        const t1Sum = t1.reduce((a, b) => a + b, 0);
+        const t2Sum = t2.reduce((a, b) => a + b, 0);
+        result.totalWinner = t1Sum < t2Sum ? 'team1' : t2Sum < t1Sum ? 'team2' : 'halved';
+      }
+      if (lowHighOptions.birdieBonus && lowBallWinner !== 'halved') {
+        const winnerLow = lowBallWinner === 'team1' ? t1Low : t2Low;
+        if (winnerLow < h.par) result.birdieBonus = true;
+      }
+      map.set(h.number, result);
+    });
+    return map;
+  }, [isLowHigh, allScores, holes, lowHighTeams, lowHighOptions]);
+
+  const lowHighPoints: LowHighPoints = useMemo(() => {
+    const acc = { team1: 0, team2: 0, lowT1: 0, lowT2: 0, highT1: 0, highT2: 0, totalT1: 0, totalT2: 0, carryover: 0 };
+    if (!isLowHigh) return acc;
+    let pendingLow = 0, pendingHigh = 0;
+    const award = (winner: 'team1' | 'team2' | 'halved', bucket: 'low' | 'high', pts: number) => {
+      if (winner === 'halved') {
+        if (lowHighOptions.tieHandling === 'halve') {
+          acc.team1 += pts / 2; acc.team2 += pts / 2;
+          if (bucket === 'low') { acc.lowT1 += pts / 2; acc.lowT2 += pts / 2; }
+          else { acc.highT1 += pts / 2; acc.highT2 += pts / 2; }
+        } else if (lowHighOptions.tieHandling === 'carryover') {
+          if (bucket === 'low') pendingLow += pts; else pendingHigh += pts;
+        }
+        return;
+      }
+      if (winner === 'team1') {
+        acc.team1 += pts;
+        if (bucket === 'low') acc.lowT1 += pts; else acc.highT1 += pts;
+      } else {
+        acc.team2 += pts;
+        if (bucket === 'low') acc.lowT2 += pts; else acc.highT2 += pts;
+      }
+    };
+    holes.forEach((h) => {
+      const r = lowHighResults.get(h.number);
+      if (!r) return;
+      const lowPts = (r.birdieBonus ? 2 : 1) + pendingLow;
+      if (r.lowBallWinner !== 'halved') {
+        award(r.lowBallWinner, 'low', lowPts);
+        pendingLow = 0;
+      } else {
+        award(r.lowBallWinner, 'low', r.birdieBonus ? 2 : 1);
+        if (lowHighOptions.tieHandling !== 'carryover') pendingLow = 0;
+      }
+
+      const highPts = 1 + pendingHigh;
+      if (r.highBallWinner !== 'halved') {
+        award(r.highBallWinner, 'high', highPts);
+        pendingHigh = 0;
+      } else {
+        award(r.highBallWinner, 'high', 1);
+        if (lowHighOptions.tieHandling !== 'carryover') pendingHigh = 0;
+      }
+
+      if (lowHighOptions.includeTotal && r.totalWinner) {
+        if (r.totalWinner === 'team1') { acc.team1 += 1; acc.totalT1 += 1; }
+        else if (r.totalWinner === 'team2') { acc.team2 += 1; acc.totalT2 += 1; }
+        else if (lowHighOptions.tieHandling === 'halve') {
+          acc.team1 += 0.5; acc.team2 += 0.5; acc.totalT1 += 0.5; acc.totalT2 += 0.5;
+        }
+      }
+    });
+    acc.carryover = pendingLow + pendingHigh;
+    return acc;
+  }, [isLowHigh, holes, lowHighResults, lowHighOptions]);
+
   // Feature 11: Leaderboard data
   const leaderboardData = useMemo(() => {
     return players.map((p) => {
@@ -763,6 +886,17 @@ export function useScoringState() {
     setBestBallTeams,
     showBestBallSetup,
     setShowBestBallSetup,
+
+    // Low Ball / High Ball
+    isLowHigh,
+    lowHighTeams,
+    setLowHighTeams,
+    lowHighOptions,
+    setLowHighOptions,
+    showLowHighSetup,
+    setShowLowHighSetup,
+    lowHighResults,
+    lowHighPoints,
 
     // Hole notes
     holeNotes,

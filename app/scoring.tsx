@@ -47,7 +47,9 @@ import {
   BestBallSetupModal,
   HoleNotesModal,
   LiveLeaderboard,
+  LowHighSetupModal,
 } from '../src/components/scoring/ScoringModals';
+import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
 
 function HoleResultBanner({ players, holeScores, holePar }: { players: PlayerConfig[]; holeScores: Map<string, HoleScore>; holePar: number }) {
   const { theme } = useTheme();
@@ -227,6 +229,15 @@ function ScoringScreenInner() {
             <Ionicons name="chevron-forward" size={14} color={c.gold} />
           )}
         </Pressable>
+      )}
+
+      {/* Low Ball / High Ball banner */}
+      {s.isLowHigh && !s.showLowHighSetup && (
+        <LowHighBanner
+          holeResult={s.lowHighResults.get(s.currentHole.number)}
+          points={s.lowHighPoints}
+          includeTotal={s.lowHighOptions.includeTotal}
+        />
       )}
 
       {/* Best Ball team banner */}
@@ -504,6 +515,23 @@ function ScoringScreenInner() {
           team2: prev.team2.filter((id) => id !== pid),
         }))}
         onStart={() => s.setShowBestBallSetup(false)}
+      />
+
+      <LowHighSetupModal
+        visible={s.showLowHighSetup && s.isLowHigh}
+        players={s.players}
+        teams={s.lowHighTeams}
+        options={s.lowHighOptions}
+        onMoveToTeam2={(pid) => s.setLowHighTeams((prev) => ({
+          team1: prev.team1.filter((id) => id !== pid),
+          team2: [...prev.team2, pid],
+        }))}
+        onMoveToTeam1={(pid) => s.setLowHighTeams((prev) => ({
+          team1: [...prev.team1, pid],
+          team2: prev.team2.filter((id) => id !== pid),
+        }))}
+        onChangeOptions={s.setLowHighOptions}
+        onStart={() => s.setShowLowHighSetup(false)}
       />
 
       <HoleNotesModal

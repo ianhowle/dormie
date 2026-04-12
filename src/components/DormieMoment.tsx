@@ -24,7 +24,8 @@ export type MomentType =
   | 'LONE_WOLF_VICTORY'
   | 'BLIND_WOLF_WIN'
   | 'BBB_TRIPLE_CROWN'
-  | 'CUP_CLINCHED';
+  | 'CUP_CLINCHED'
+  | 'CLEAN_SWEEP';
 
 type MomentConfig = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -67,6 +68,11 @@ const MOMENT_CONFIG: Record<MomentType, MomentConfig> = {
     icon: 'trophy',
     label: 'CUP CLINCHED',
     gradient: ['#C9A227', '#1E4D2B'],
+  },
+  CLEAN_SWEEP: {
+    icon: 'sparkles',
+    label: 'CLEAN SWEEP',
+    gradient: ['#C9A227', '#7A5E15'],
   },
 };
 
