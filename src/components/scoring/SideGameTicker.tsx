@@ -5,7 +5,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { GEO } from '../../theme/fonts';
 import { tickerShadowDark, tickerShadowLight } from '../../theme/colors';
 import type { PlayerConfig, HoleData, HoleScore, WolfHoleState, BBBHolePoints } from '../../scoring/types';
-import { pName, SIDE_GAME_DISPLAY } from '../../scoring/calculations';
+import { pName, SIDE_GAME_DISPLAY, computeWolfPoints } from '../../scoring/calculations';
 import { scoringStyles as st } from './styles';
 
 // ─── Running panels ─────────────────────────────────────────────────
@@ -200,36 +200,9 @@ export const RunningWolfPanel = memo(function RunningWolfPanel({
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const points = new Map<string, number>();
-  players.forEach((p) => points.set(p.id, 0));
-
-  holes.forEach((h) => {
-    if (h.number > currentHoleNumber) return;
-    const holeScores = allScores.get(h.number);
-    const decision = wolfHoleDecisions.get(h.number);
-    if (!holeScores || !decision || holeScores.size < players.length) return;
-    const wolfId = decision.wolfPlayerId;
-    if (decision.decision === 'lone' || decision.decision === 'blind') {
-      const ws = holeScores.get(wolfId);
-      if (!ws) return;
-      const others: number[] = [];
-      players.forEach((p) => { if (p.id !== wolfId) { const s = holeScores.get(p.id); if (s) others.push(s.gross); } });
-      const wolfWins = ws.gross < Math.min(...others);
-      if (wolfWins) {
-        points.set(wolfId, (points.get(wolfId) ?? 0) + (decision.decision === 'blind' ? 4 : 3));
-      } else {
-        players.forEach((p) => { if (p.id !== wolfId) points.set(p.id, (points.get(p.id) ?? 0) + (decision.decision === 'blind' ? 2 : 1)); });
-      }
-    } else if (decision.decision === 'partner' && decision.partnerId) {
-      const teamIds = [wolfId, decision.partnerId];
-      const oppIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
-      let teamBest = Infinity, oppBest = Infinity;
-      teamIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < teamBest) teamBest = s.gross; });
-      oppIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < oppBest) oppBest = s.gross; });
-      if (teamBest < oppBest) teamIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
-      else if (oppBest < teamBest) oppIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
-    }
-  });
+  // Only count holes up to and including currentHoleNumber
+  const holesUpToNow = holes.filter((h) => h.number <= currentHoleNumber);
+  const points = computeWolfPoints(players, holesUpToNow, allScores, wolfHoleDecisions);
 
   const wolfDecision = wolfHoleDecisions.get(currentHoleNumber);
   const wolfPlayer = wolfDecision ? players.find((p) => p.id === wolfDecision.wolfPlayerId) : null;

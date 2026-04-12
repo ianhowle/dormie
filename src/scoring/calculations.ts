@@ -270,69 +270,101 @@ export function buildGenericResult(label: string, players: PlayerConfig[]): Game
   };
 }
 
-export function buildWolfResult(
-  label: string, players: PlayerConfig[], holes: HoleData[],
+/**
+ * Single source of truth for Wolf points calculation.
+ *
+ * Scoring rules:
+ *  - Wolf + Partner win (team best-ball < opponents best): wolf +2, partner +2, each opponent -1
+ *  - Wolf + Partner lose: wolf -1, partner -1, each opponent +1
+ *  - Wolf + Partner tie: 0
+ *  - Lone Wolf win (strict, ties lose): wolf +3, each opponent -1
+ *  - Lone Wolf lose / tie: wolf -3, each opponent +1
+ *  - Blind Wolf: double Lone Wolf stakes (+6/-6 for wolf, ±2 for each opponent)
+ *
+ * Points always net to zero across the field for each hole.
+ */
+export function computeWolfPoints(
+  players: PlayerConfig[], holes: HoleData[],
   allScores: Map<number, Map<string, HoleScore>>,
   wolfHoleDecisions: Map<number, WolfHoleState>,
-): GameResult {
+): Map<string, number> {
   const points = new Map<string, number>();
   players.forEach((p) => points.set(p.id, 0));
+  const add = (id: string, v: number) => points.set(id, (points.get(id) ?? 0) + v);
 
-  holes.forEach((h, idx) => {
+  holes.forEach((h) => {
     const holeScores = allScores.get(h.number);
     const decision = wolfHoleDecisions.get(h.number);
     if (!holeScores || !decision || holeScores.size < players.length) return;
 
     const wolfId = decision.wolfPlayerId;
+    const wolfScore = holeScores.get(wolfId);
+    if (!wolfScore) return;
 
     if (decision.decision === 'lone' || decision.decision === 'blind') {
-      const wolfScore = holeScores.get(wolfId);
-      if (!wolfScore) return;
-      const othersScores: number[] = [];
+      const others: { id: string; gross: number }[] = [];
       players.forEach((p) => {
         if (p.id !== wolfId) {
           const s = holeScores.get(p.id);
-          if (s) othersScores.push(s.gross);
+          if (s) others.push({ id: p.id, gross: s.gross });
         }
       });
-      const bestOther = Math.min(...othersScores);
-      const wolfWins = wolfScore.gross < bestOther;
+      if (others.length === 0) return;
+
+      const bestOther = Math.min(...others.map((o) => o.gross));
+      const wolfWins = wolfScore.gross < bestOther; // strict; ties lose
       const isBlind = decision.decision === 'blind';
+      // Lone: wolf ±3, opponents ∓1. Blind: double (wolf ±6, opponents ∓2).
+      const wolfStake = isBlind ? 6 : 3;
+      const oppStake = isBlind ? 2 : 1;
 
       if (wolfWins) {
-        const wolfPts = isBlind ? 4 : 3;
-        points.set(wolfId, (points.get(wolfId) ?? 0) + wolfPts);
+        add(wolfId, wolfStake);
+        others.forEach((o) => add(o.id, -oppStake));
       } else {
-        const otherPts = isBlind ? 2 : 1;
-        players.forEach((p) => {
-          if (p.id !== wolfId) {
-            points.set(p.id, (points.get(p.id) ?? 0) + otherPts);
-          }
-        });
+        add(wolfId, -wolfStake);
+        others.forEach((o) => add(o.id, oppStake));
       }
     } else if (decision.decision === 'partner' && decision.partnerId) {
+      const partnerScore = holeScores.get(decision.partnerId);
+      if (!partnerScore) return;
+
       const teamIds = [wolfId, decision.partnerId];
       const opponentIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
+      if (opponentIds.length === 0) return;
 
-      let teamBest = Infinity;
-      teamIds.forEach((id) => {
-        const s = holeScores.get(id);
-        if (s && s.gross < teamBest) teamBest = s.gross;
-      });
+      const teamBest = Math.min(wolfScore.gross, partnerScore.gross);
       let oppBest = Infinity;
       opponentIds.forEach((id) => {
         const s = holeScores.get(id);
         if (s && s.gross < oppBest) oppBest = s.gross;
       });
+      if (oppBest === Infinity) return;
 
       if (teamBest < oppBest) {
-        teamIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
+        // Team win: wolf +2, partner +2, each opponent -1
+        add(wolfId, 2);
+        add(decision.partnerId, 2);
+        opponentIds.forEach((id) => add(id, -1));
       } else if (oppBest < teamBest) {
-        opponentIds.forEach((id) => points.set(id, (points.get(id) ?? 0) + 1));
+        // Team loss: wolf -1, partner -1, each opponent +1
+        add(wolfId, -1);
+        add(decision.partnerId, -1);
+        opponentIds.forEach((id) => add(id, 1));
       }
+      // Tie: no points change
     }
   });
 
+  return points;
+}
+
+export function buildWolfResult(
+  label: string, players: PlayerConfig[], holes: HoleData[],
+  allScores: Map<number, Map<string, HoleScore>>,
+  wolfHoleDecisions: Map<number, WolfHoleState>,
+): GameResult {
+  const points = computeWolfPoints(players, holes, allScores, wolfHoleDecisions);
   return {
     title: label,
     lines: players

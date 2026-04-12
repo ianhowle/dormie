@@ -26,7 +26,7 @@ import {
   computePlayerTotals, isGIR, pName,
   buildSkinsResult, buildSnakeResult, buildGreeniesResult,
   buildNassauResult, buildDotsResult, buildGenericResult,
-  buildWolfResult, buildBBBResult,
+  buildWolfResult, buildBBBResult, computeWolfPoints,
   SIDE_GAME_DISPLAY,
 } from '../../scoring/calculations';
 import { scoringStyles as st, postRoundStyles as ps } from './styles';
@@ -535,44 +535,12 @@ function SettlementSection({
     }
 
     if (key === 'wolf' && wolfHoleDecisions) {
-      // $1 per point, net differences
-      const wolfPts = new Map<string, number>();
-      players.forEach((p) => wolfPts.set(p.id, 0));
-      holes.forEach((h) => {
-        const holeScores = allScores.get(h.number);
-        const decision = wolfHoleDecisions.get(h.number);
-        if (!holeScores || !decision || holeScores.size < players.length) return;
-        const wolfId = decision.wolfPlayerId;
-        if (decision.decision === 'lone' || decision.decision === 'blind') {
-          const wolfScore = holeScores.get(wolfId);
-          if (!wolfScore) return;
-          const others: number[] = [];
-          players.forEach((p) => { if (p.id !== wolfId) { const s = holeScores.get(p.id); if (s) others.push(s.gross); } });
-          const wolfWins = wolfScore.gross < Math.min(...others);
-          const isBlind = decision.decision === 'blind';
-          if (wolfWins) {
-            wolfPts.set(wolfId, (wolfPts.get(wolfId) ?? 0) + (isBlind ? 4 : 3));
-          } else {
-            players.forEach((p) => { if (p.id !== wolfId) wolfPts.set(p.id, (wolfPts.get(p.id) ?? 0) + (isBlind ? 2 : 1)); });
-          }
-        } else if (decision.decision === 'partner' && decision.partnerId) {
-          const teamIds = [wolfId, decision.partnerId];
-          const oppIds = players.filter((p) => !teamIds.includes(p.id)).map((p) => p.id);
-          let teamBest = Infinity, oppBest = Infinity;
-          teamIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < teamBest) teamBest = s.gross; });
-          oppIds.forEach((id) => { const s = holeScores.get(id); if (s && s.gross < oppBest) oppBest = s.gross; });
-          if (teamBest < oppBest) teamIds.forEach((id) => wolfPts.set(id, (wolfPts.get(id) ?? 0) + 1));
-          else if (oppBest < teamBest) oppIds.forEach((id) => wolfPts.set(id, (wolfPts.get(id) ?? 0) + 1));
-        }
+      // $1 per point. Wolf points are already net-zero across the field,
+      // so a player's payout equals their points directly (no pairwise needed).
+      const wolfPts = computeWolfPoints(players, holes, allScores, wolfHoleDecisions);
+      players.forEach((p) => {
+        payouts.set(p.id, (payouts.get(p.id) ?? 0) + (wolfPts.get(p.id) ?? 0));
       });
-      // Pairwise settlement at $1 per point diff
-      for (let ii = 0; ii < players.length; ii++) {
-        for (let jj = ii + 1; jj < players.length; jj++) {
-          const diff = (wolfPts.get(players[ii].id) ?? 0) - (wolfPts.get(players[jj].id) ?? 0);
-          payouts.set(players[ii].id, (payouts.get(players[ii].id) ?? 0) + diff);
-          payouts.set(players[jj].id, (payouts.get(players[jj].id) ?? 0) - diff);
-        }
-      }
     }
 
     if (key === 'bingo_bango_bongo' && bbbHolePoints) {
