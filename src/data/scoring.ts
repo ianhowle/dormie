@@ -31,7 +31,8 @@ export type SideGame =
   | 'poleys'
   | 'bark'
   | 'close_shave'
-  | 'hammer';
+  | 'hammer'
+  | 'three_putt_poker';
 
 export type TrackingLevel = 'basic' | 'standard' | 'detailed';
 export type RoundType = 'casual' | 'competitive' | 'matchup';
@@ -78,6 +79,7 @@ export const SIDE_GAMES: SideGameInfo[] = [
   { key: 'bark', label: 'Barkies' },
   { key: 'arnies', label: 'Arnies' },
   { key: 'close_shave', label: 'KP' },
+  { key: 'three_putt_poker', label: '3-Putt Poker' },
 ];
 
 // Legacy label maps (kept for compatibility)
@@ -116,6 +118,7 @@ export const SIDE_GAME_LABELS: Record<SideGame, string> = {
   bark: 'Bark',
   close_shave: 'Close Shave',
   hammer: 'Hammer',
+  three_putt_poker: '3-Putt Poker',
 };
 
 export function calculateStablefordPoints(score: number, par: number, handicapStrokes: number): number {

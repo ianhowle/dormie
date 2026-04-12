@@ -52,6 +52,7 @@ import {
 } from '../src/components/scoring/ScoringModals';
 import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
 import { SixSixSixBanner, SixSixSixSegmentTransition } from '../src/components/scoring/SixSixSixBanner';
+import { ThreePuttPokerTicker } from '../src/components/scoring/ThreePuttPokerTicker';
 
 function HoleResultBanner({ players, holeScores, holePar }: { players: PlayerConfig[]; holeScores: Map<string, HoleScore>; holePar: number }) {
   const { theme } = useTheme();
@@ -231,6 +232,16 @@ function ScoringScreenInner() {
             <Ionicons name="chevron-forward" size={14} color={c.gold} />
           )}
         </Pressable>
+      )}
+
+      {/* 3-Putt Poker ticker */}
+      {s.isThreePuttPoker && (
+        <ThreePuttPokerTicker
+          players={s.players}
+          perPlayer={s.pokerPerPlayer}
+          pot={s.pokerPot}
+          worstPutterChipHolder={s.pokerWorstPutter}
+        />
       )}
 
       {/* 6-6-6 banner */}

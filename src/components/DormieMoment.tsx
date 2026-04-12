@@ -25,7 +25,11 @@ export type MomentType =
   | 'BLIND_WOLF_WIN'
   | 'BBB_TRIPLE_CROWN'
   | 'CUP_CLINCHED'
-  | 'CLEAN_SWEEP';
+  | 'CLEAN_SWEEP'
+  | 'ROYAL_FLUSH'
+  | 'STRAIGHT_FLUSH'
+  | 'FOUR_OF_KIND'
+  | 'WORST_PUTTER';
 
 type MomentConfig = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -73,6 +77,26 @@ const MOMENT_CONFIG: Record<MomentType, MomentConfig> = {
     icon: 'sparkles',
     label: 'CLEAN SWEEP',
     gradient: ['#C9A227', '#7A5E15'],
+  },
+  ROYAL_FLUSH: {
+    icon: 'diamond',
+    label: 'ROYAL FLUSH',
+    gradient: ['#4B1D7A', '#1A0830'],
+  },
+  STRAIGHT_FLUSH: {
+    icon: 'sparkles',
+    label: 'STRAIGHT FLUSH',
+    gradient: ['#2A1A4A', '#0A0616'],
+  },
+  FOUR_OF_KIND: {
+    icon: 'grid',
+    label: 'FOUR OF A KIND',
+    gradient: ['#3A2A10', '#0A0800'],
+  },
+  WORST_PUTTER: {
+    icon: 'sad',
+    label: 'WORST PUTTER',
+    gradient: ['#C41E3A', '#1A0608'],
   },
 };
 

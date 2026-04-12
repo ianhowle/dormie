@@ -30,6 +30,7 @@ import {
   buildHoles, calcCourseHandicap, isGIR, SIDE_GAME_DISPLAY, pName,
 } from './calculations';
 import { checkDormieMoments as checkDormieMomentsUtil } from './moments';
+import { createShuffledDeck, evaluateBestHand, type Card as PokerCardT } from '../services/poker.service';
 import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as detectToastEventsUtil } from './sideGames';
 
 import type { SideGameEvent } from '../components/SideGameToast';
@@ -200,6 +201,17 @@ export function useScoringState() {
   const [sixScoringMethod, setSixScoringMethod] = useState<SixSixSixScoringMethod>('low_ball');
   const [showSixSetup, setShowSixSetup] = useState(isSixSixSix);
   const [sixSegmentBanner, setSixSegmentBanner] = useState<{ visible: boolean; segmentIdx: number }>({ visible: false, segmentIdx: 0 });
+
+  // 3-Putt Poker state
+  const isThreePuttPoker = sideGameKeys.includes('three_putt_poker');
+  const [pokerDeck, setPokerDeck] = useState<PokerCardT[]>(() => createShuffledDeck());
+  const [pokerDeckIndex, setPokerDeckIndex] = useState(0);
+  const [pokerPerPlayer, setPokerPerPlayer] = useState<Record<string, { cards: PokerCardT[]; onePutts: number; threePutts: number; chipIns: number }>>({});
+  const [pokerPot, setPokerPot] = useState(0);
+  const [pokerWorstPutter, setPokerWorstPutter] = useState<string | null>(null);
+  const [pokerDealtHoles, setPokerDealtHoles] = useState<Set<string>>(new Set()); // "playerId-holeNumber"
+  const pokerAnte = 1;
+  const pokerThreePuttPenalty = 1;
 
   // Feature 6: Hole notes
   const [holeNotes, setHoleNotes] = useState<Map<number, string>>(new Map());
@@ -881,6 +893,91 @@ export function useScoringState() {
     return { segments, dots };
   }, [sixOrder, holes, allScores, sixScoringMethod, sixPartnerships]);
 
+  // 3-Putt Poker: seed pot with ante
+  const anteSeededRef = useRef(false);
+  useEffect(() => {
+    if (!isThreePuttPoker || anteSeededRef.current) return;
+    anteSeededRef.current = true;
+    setPokerPot((p) => p + players.length * pokerAnte);
+  }, [isThreePuttPoker, players.length]);
+
+  // 3-Putt Poker: deal cards + update pot based on hole scores
+  useEffect(() => {
+    if (!isThreePuttPoker) return;
+    let deckIdx = pokerDeckIndex;
+    let deckUsed = false;
+    const nextPerPlayer = { ...pokerPerPlayer };
+    const nextDealt = new Set(pokerDealtHoles);
+    let potDelta = 0;
+    let newWorstPutter = pokerWorstPutter;
+    const dealtCards: PokerCardT[] = [];
+
+    holes.forEach((h) => {
+      const holeScores = allScores.get(h.number);
+      if (!holeScores) return;
+      players.forEach((p) => {
+        const key = `${p.id}-${h.number}`;
+        if (nextDealt.has(key)) return;
+        const s = holeScores.get(p.id);
+        if (!s) return;
+        nextDealt.add(key);
+        if (!nextPerPlayer[p.id]) {
+          nextPerPlayer[p.id] = { cards: [], onePutts: 0, threePutts: 0, chipIns: 0 };
+        }
+        const putts = s.putts;
+        const chipIn = putts === 0 && s.gross > 0; // holed out without putting
+        let cardsToDeal = 0;
+        if (chipIn) { cardsToDeal = 2; nextPerPlayer[p.id].chipIns++; }
+        else if (putts === 1) { cardsToDeal = 1; nextPerPlayer[p.id].onePutts++; }
+        if (putts >= 3) {
+          nextPerPlayer[p.id].threePutts++;
+          const extraPutts = putts - 2;
+          potDelta += extraPutts * pokerThreePuttPenalty;
+          newWorstPutter = p.id;
+        }
+        for (let i = 0; i < cardsToDeal; i++) {
+          if (deckIdx < pokerDeck.length) {
+            const card = pokerDeck[deckIdx++];
+            nextPerPlayer[p.id].cards = [...nextPerPlayer[p.id].cards, card];
+            dealtCards.push(card);
+            deckUsed = true;
+          }
+        }
+      });
+    });
+
+    if (deckUsed || potDelta !== 0 || newWorstPutter !== pokerWorstPutter) {
+      setPokerPerPlayer(nextPerPlayer);
+      setPokerDealtHoles(nextDealt);
+      if (deckUsed) setPokerDeckIndex(deckIdx);
+      if (potDelta !== 0) setPokerPot((p) => p + potDelta);
+      if (newWorstPutter !== pokerWorstPutter) setPokerWorstPutter(newWorstPutter);
+
+      // Cinematic moment detection for winning hands
+      Object.entries(nextPerPlayer).forEach(([pid, st]) => {
+        if (st.cards.length >= 5) {
+          const ev = evaluateBestHand(st.cards);
+          if (ev && (ev.rank === 'royal_flush' || ev.rank === 'straight_flush' || ev.rank === 'four_of_kind')) {
+            const player = players.find((p) => p.id === pid);
+            const momentType =
+              ev.rank === 'royal_flush' ? 'ROYAL_FLUSH' :
+              ev.rank === 'straight_flush' ? 'STRAIGHT_FLUSH' :
+              'FOUR_OF_KIND';
+            setDormieMoment((prev) => {
+              if (prev.visible) return prev;
+              return {
+                visible: true,
+                type: momentType as any,
+                playerName: player ? (player.id === '1' ? 'You' : player.name) : 'Player',
+                detail: ev.label,
+              };
+            });
+          }
+        }
+      });
+    }
+  }, [isThreePuttPoker, allScores, holes, players, pokerDeck, pokerDeckIndex, pokerPerPlayer, pokerDealtHoles, pokerWorstPutter]);
+
   // Feature 11: Leaderboard data
   const leaderboardData = useMemo(() => {
     return players.map((p) => {
@@ -988,6 +1085,12 @@ export function useScoringState() {
     currentSixSegmentIdx,
     sixPartnerships,
     sixSixSixResult,
+
+    // 3-Putt Poker
+    isThreePuttPoker,
+    pokerPerPlayer,
+    pokerPot,
+    pokerWorstPutter,
 
     // Hole notes
     holeNotes,
