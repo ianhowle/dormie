@@ -120,6 +120,7 @@ function ScoringScreenInner() {
           courseSlope={s.courseSlope}
           courseRating={s.courseRating}
           onDone={s.handlePostRound}
+          onSettleUp={() => s.router.push('/ledger')}
         />
       </Suspense>
     );

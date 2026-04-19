@@ -755,6 +755,55 @@ export function useScoringState() {
           }
         }
       }
+      // Auto-settle side game wagers to the ledger
+      if (sideGameKeys.length > 0 && players.length >= 2) {
+        try {
+          const { ledgerService } = await import('../services/ledger.service');
+          if (sideGameKeys.includes('nassau')) {
+            const front = holes.filter((h) => h.number <= 9);
+            const back = holes.filter((h) => h.number > 9);
+            const segments = [front, back, holes];
+            for (const seg of segments) {
+              if (seg.length === 0) continue;
+              let best = Infinity;
+              let winnerId = '';
+              players.forEach((p) => {
+                let total = 0;
+                seg.forEach((h) => { const s = allScores.get(h.number)?.get(p.id); if (s) total += s.gross; });
+                if (total > 0 && total < best) { best = total; winnerId = p.id; }
+              });
+              if (winnerId) {
+                const losers = players.filter((p) => p.id !== winnerId).map((p) => ({ userId: p.id, amount: 5 }));
+                await ledgerService.autoSettleNassau({ roundId: savedRound.id, winners: [winnerId], losers });
+              }
+            }
+          }
+          if (sideGameKeys.includes('skins')) {
+            const skinWins = new Map<string, number>();
+            players.forEach((p) => skinWins.set(p.id, 0));
+            let carryover = 0;
+            holes.forEach((h) => {
+              const hs = allScores.get(h.number);
+              if (!hs || hs.size < players.length) { carryover++; return; }
+              let best = Infinity;
+              let winners: string[] = [];
+              hs.forEach((s, pid) => { if (s.gross < best) { best = s.gross; winners = [pid]; } else if (s.gross === best) winners.push(pid); });
+              if (winners.length === 1) { skinWins.set(winners[0], (skinWins.get(winners[0]) ?? 0) + 1 + carryover); carryover = 0; }
+              else carryover++;
+            });
+            const totalSkins = Array.from(skinWins.values()).reduce((a, b) => a + b, 0);
+            if (totalSkins > 0) {
+              const skinsWinners = Array.from(skinWins.entries()).filter(([, c]) => c > 0).map(([pid]) => pid);
+              const skinsLosers = players.filter((p) => !skinsWinners.includes(p.id)).map((p) => ({ userId: p.id, amount: totalSkins * 2 / (players.length - skinsWinners.length) }));
+              if (skinsLosers.length > 0) {
+                await ledgerService.autoSettleSkins({ roundId: savedRound.id, winners: skinsWinners, losers: skinsLosers });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[scoring] Ledger auto-settle failed', err);
+        }
+      }
       haptics.success();
       sounds.chime();
       showToast({ message: 'Round saved', type: 'success', icon: 'checkmark-circle' });

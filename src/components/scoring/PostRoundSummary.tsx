@@ -416,6 +416,7 @@ function SettlementSection({
   allScores,
   wolfHoleDecisions,
   bbbHolePoints,
+  onSettleUp,
 }: {
   sideGameKeys: string[];
   players: PlayerConfig[];
@@ -423,6 +424,7 @@ function SettlementSection({
   allScores: Map<number, Map<string, HoleScore>>;
   wolfHoleDecisions?: Map<number, WolfHoleState>;
   bbbHolePoints?: Map<number, BBBHolePoints>;
+  onSettleUp?: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -615,7 +617,7 @@ function SettlementSection({
           </>
         )}
         <Pressable
-          onPress={() => Alert.alert('Settle Up', 'Venmo / Cash settlement will be tracked here in production.')}
+          onPress={onSettleUp}
           style={({ pressed }) => [ps.settleUpBtn, { backgroundColor: c.teal }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
         >
           <Text style={ps.settleUpBtnText}>Settle Up</Text>
@@ -751,6 +753,7 @@ const PostRoundSummary = memo(function PostRoundSummary({
   courseSlope,
   courseRating,
   onDone,
+  onSettleUp,
 }: {
   players: PlayerConfig[];
   holes: HoleData[];
@@ -766,6 +769,7 @@ const PostRoundSummary = memo(function PostRoundSummary({
   courseSlope?: number;
   courseRating?: number;
   onDone: () => void;
+  onSettleUp?: () => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -913,6 +917,7 @@ const PostRoundSummary = memo(function PostRoundSummary({
               allScores={allScores}
               wolfHoleDecisions={wolfHoleDecisions}
               bbbHolePoints={bbbHolePoints}
+              onSettleUp={onSettleUp}
             />
           )}
 
