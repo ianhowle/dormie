@@ -741,7 +741,10 @@ export function useScoringState() {
               holeScores,
               coursePars,
             });
-          } catch {}
+          } catch (err) {
+            console.error('[scoring] Season write failed for season', ls.seasonId, err);
+            showToast({ message: `Season "${ls.seasonName}" scoring failed — your round is saved but may not appear in standings.`, type: 'error', icon: 'alert-circle' });
+          }
         }
       }
       haptics.success();
