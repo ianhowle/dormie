@@ -160,10 +160,12 @@ function HeaderBar({
   onLogoPress,
   showMenu,
   pendingCount,
+  demoActive,
 }: {
   onLogoPress: () => void;
   showMenu: boolean;
   pendingCount: number;
+  demoActive?: boolean;
 }) {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
@@ -182,7 +184,14 @@ function HeaderBar({
       </Pressable>
 
       {/* Centered DORMIE */}
-      <Text style={[st.headerDormie, { color: c.text, fontFamily: GEO }]}>DORMIE</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text style={[st.headerDormie, { color: c.text, fontFamily: GEO }]}>DORMIE</Text>
+        {demoActive && (
+          <View style={{ backgroundColor: '#C9A227', paddingHorizontal: 5, paddingVertical: 2 }}>
+            <Text style={{ color: '#141210', fontSize: 8, fontWeight: '800', letterSpacing: 1, fontFamily: GEO }}>DEMO</Text>
+          </View>
+        )}
+      </View>
 
       {/* Right side: friend badge + dark mode toggle + profile avatar */}
       <View style={st.headerRight}>
@@ -1318,6 +1327,7 @@ export default function HomeScreen() {
         onLogoPress={() => setShowMenu(!showMenu)}
         showMenu={showMenu}
         pendingCount={pendingRequests.length}
+        demoActive={showDemoData}
       />
       <LogoMenu
         visible={showMenu}
