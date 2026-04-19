@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { useTheme } from '../src/theme/ThemeContext';
 import { useAuth } from '../src/lib/auth';
 import { GEO } from '../src/theme/fonts';
 import { authService } from '../src/services/auth.service';
+import { groupsService } from '../src/services/groups.service';
+import type { Group } from '../src/data/groups';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -58,13 +60,6 @@ function SettingRow({
   );
 }
 
-// ─── Mock groups ─────────────────────────────────────────────────────
-const MOCK_GROUPS = [
-  { id: 'g1', name: 'Saturday Crew', members: 8 },
-  { id: 'g2', name: 'Work League', members: 12 },
-  { id: 'g3', name: 'College Buddies', members: 6 },
-];
-
 export default function SettingsScreen() {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
@@ -73,6 +68,18 @@ export default function SettingsScreen() {
 
   const userName = user?.user_metadata?.name ?? 'Golfer';
   const userEmail = user?.email ?? '';
+
+  const [groups, setGroups] = useState<Group[]>([]);
+
+  const loadGroups = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await groupsService.getUserGroups(user.id);
+      setGroups(data);
+    } catch {}
+  }, [user]);
+
+  useEffect(() => { loadGroups(); }, [loadGroups]);
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
@@ -97,15 +104,21 @@ export default function SettingsScreen() {
 
           {/* Groups */}
           <SectionLabel title="GROUPS" />
-          {MOCK_GROUPS.map((group) => (
-            <SettingRow
-              key={group.id}
-              icon="people-outline"
-              label={group.name}
-              value={`${group.members} members`}
-              onPress={() => Alert.alert(group.name, `Manage ${group.name} group settings.`)}
-            />
-          ))}
+          {groups.length === 0 ? (
+            <Text style={[s.emptyText, { color: c.textMuted }]}>
+              You're not in any groups yet. Create one to track standings with friends.
+            </Text>
+          ) : (
+            groups.map((group) => (
+              <SettingRow
+                key={group.id}
+                icon="people-outline"
+                label={group.name}
+                value={`${group.memberCount} member${group.memberCount === 1 ? '' : 's'}`}
+                onPress={() => Alert.alert(group.name, `Manage ${group.name} group settings.`)}
+              />
+            ))
+          )}
           <Pressable
             onPress={() => Alert.alert('Create Group', 'Group creation coming soon.')}
             style={[s.addGroupBtn, { borderColor: c.teal }]}
@@ -224,4 +237,5 @@ const s = StyleSheet.create({
     paddingVertical: 14,
   },
   signOutText: { fontSize: 14, fontWeight: '700' },
+  emptyText: { fontSize: 13, marginBottom: 10, lineHeight: 18 },
 });
