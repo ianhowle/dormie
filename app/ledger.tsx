@@ -33,29 +33,32 @@ export default function LedgerScreen() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const myEntries = await ledgerService.getEntriesForUser(user.id, { limit: 100 });
-    const peerIds = new Set<string>();
-    myEntries.forEach((e) => {
-      peerIds.add(e.from_user_id);
-      peerIds.add(e.to_user_id);
-    });
-    peerIds.add(user.id);
-    const allIds = Array.from(peerIds);
-    const [grpBalances, simp] = await Promise.all([
-      ledgerService.getGroupBalances(allIds),
-      ledgerService.getSimplifiedDebts(allIds),
-    ]);
-    setBalances(grpBalances);
-    setSimplified(simp);
-    setEntries(myEntries);
+    try {
+      const myEntries = await ledgerService.getEntriesForUser(user.id, { limit: 100 });
+      const peerIds = new Set<string>();
+      myEntries.forEach((e) => {
+        peerIds.add(e.from_user_id);
+        peerIds.add(e.to_user_id);
+      });
+      peerIds.add(user.id);
+      const allIds = Array.from(peerIds);
+      const [grpBalances, simp] = await Promise.all([
+        ledgerService.getGroupBalances(allIds),
+        ledgerService.getSimplifiedDebts(allIds),
+      ]);
+      setBalances(grpBalances);
+      setSimplified(simp);
+      setEntries(myEntries);
 
-    if (allIds.length > 0) {
-      const { data } = await supabase.from('users').select('id,name').in('id', allIds);
-      const map: Record<string, UserRow> = {};
-      (data ?? []).forEach((u: any) => { map[u.id] = { id: u.id, name: u.name }; });
-      setUsers(map);
+      if (allIds.length > 0) {
+        const { data } = await supabase.from('users').select('id,name').in('id', allIds);
+        const map: Record<string, UserRow> = {};
+        (data ?? []).forEach((u: any) => { map[u.id] = { id: u.id, name: u.name }; });
+        setUsers(map);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
