@@ -151,7 +151,7 @@ export function CourseImage({
   return (
     <View style={[styles.container, height != null && { height }, style]}>
       {/* Always render the gradient fallback underneath */}
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]}>
         <LinearGradient
           colors={fallbackGradient}
           start={{ x: 0, y: 0 }}
@@ -310,5 +310,6 @@ export function DestinationImage({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
+    position: 'relative',
   },
 });
