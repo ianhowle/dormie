@@ -295,6 +295,7 @@ export interface TripLeaderboardEntry {
   rounds_played: number;
   best_round: number;
   scoring_avg: number;
+  total_points: number;
 }
 
 export interface UserStats {

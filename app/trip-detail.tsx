@@ -1793,6 +1793,7 @@ type CompPlayer = {
   handicap: number;
   rounds: (number | null)[];
   total: number | null;
+  totalPoints: number;
 };
 
 // CompPlayer data is now fetched from tripsService.getLeaderboard()
@@ -1854,6 +1855,9 @@ function CompetitionView({
     }).catch(() => {});
   }, [trip.id]);
 
+  // Points-based format: RPC returns total_points > 0 for stableford/modified_stableford
+  const isPointsFormat = compPlayers.length > 0 && compPlayers.some((p) => p.totalPoints !== 0);
+
   useEffect(() => {
     tripsService.getLeaderboard(trip.id).then((entries) => {
       setCompPlayers(entries.map((e: any) => ({
@@ -1862,6 +1866,7 @@ function CompetitionView({
         handicap: e.handicap ?? 0,
         rounds: [],
         total: e.total_gross ?? null,
+        totalPoints: e.total_points ?? 0,
       })));
     }).catch(() => {});
   }, [trip.id]);
@@ -1870,11 +1875,15 @@ function CompetitionView({
   const currentDay = 2;
   const totalDays = trip.roundsPlanned ?? 3;
 
-  // Sort players
+  // Sort players — for points-based formats, trust server sort (DESC by points).
+  // For stroke play, sort by gross ASC or net ASC.
   const sortedPlayers = [...compPlayers].sort((a, b) => {
     if (a.total === null && b.total === null) return 0;
     if (a.total === null) return 1;
     if (b.total === null) return -1;
+    if (isPointsFormat) {
+      return b.totalPoints - a.totalPoints; // Higher points = better
+    }
     if (scoreMode === 'net') {
       const aNet = a.total - a.handicap * (a.rounds.filter((r) => r !== null).length);
       const bNet = b.total - b.handicap * (b.rounds.filter((r) => r !== null).length);
@@ -1885,6 +1894,7 @@ function CompetitionView({
 
   const getPlayerTotal = (p: CompPlayer) => {
     if (p.total === null) return '-';
+    if (isPointsFormat) return `${p.totalPoints} pts`;
     if (scoreMode === 'net') {
       const roundsPlayed = p.rounds.filter((r) => r !== null).length;
       return p.total - p.handicap * roundsPlayed;
@@ -1894,6 +1904,7 @@ function CompetitionView({
 
   const getToPar = (p: CompPlayer) => {
     if (p.total === null) return '';
+    if (isPointsFormat) return ''; // Points formats don't use to-par
     const roundsPlayed = p.rounds.filter((r) => r !== null).length;
     let total = p.total;
     if (scoreMode === 'net') total = p.total - p.handicap * roundsPlayed;
