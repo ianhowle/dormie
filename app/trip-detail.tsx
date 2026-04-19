@@ -2264,6 +2264,35 @@ function TripDetailScreenInner() {
   const [competitionMode, setCompetitionMode] = useState(false);
   const [chatLastActive, setChatLastActive] = useState<Date>(new Date());
 
+  // Trip members and courses for scoring bridge
+  const [tripMembers, setTripMembers] = useState<{ id: string; name: string; handicap: number }[]>([]);
+  const [tripCourseData, setTripCourseData] = useState<{ id: string; name: string; par: number; slope: number; rating: number } | null>(null);
+
+  useEffect(() => {
+    tripsService.getMembers(trip.id).then((members) => {
+      setTripMembers(members.map((m: any) => ({
+        id: m.user_id,
+        name: m.user?.name ?? 'Player',
+        handicap: m.user?.handicap_index ?? 0,
+      })));
+    }).catch(() => {});
+    tripsService.getCourses(trip.id).then((courses) => {
+      if (courses.length > 0) {
+        const first = courses[0] as any;
+        const course = first.course;
+        if (course) {
+          setTripCourseData({
+            id: course.id,
+            name: course.name,
+            par: course.par ?? 72,
+            slope: course.slope ?? 113,
+            rating: course.rating ?? 72,
+          });
+        }
+      }
+    }).catch(() => {});
+  }, [trip.id]);
+
   // Moments state
   const [realMoments, setRealMoments] = useState<TripMomentWithUser[]>([]);
   const [showAddMoment, setShowAddMoment] = useState(false);
@@ -2387,7 +2416,20 @@ function TripDetailScreenInner() {
       <CompetitionView
         trip={trip}
         courses={MOCK_COURSES}
-        onScoreHole={() => router.push({ pathname: '/scoring', params: { tripId: trip.id } })}
+        onScoreHole={() => {
+          const params: Record<string, string> = { tripId: trip.id };
+          if (tripCourseData) {
+            params.courseId = tripCourseData.id;
+            params.courseName = tripCourseData.name;
+            params.coursePar = String(tripCourseData.par);
+            params.courseSlope = String(tripCourseData.slope);
+            params.courseRating = String(tripCourseData.rating);
+          }
+          if (tripMembers.length > 0) {
+            params.players = JSON.stringify(tripMembers);
+          }
+          router.push({ pathname: '/scoring', params });
+        }}
         onQuickEntry={() => Alert.alert('Quick Entry', 'Enter total score for the round.')}
         onExit={() => setCompetitionMode(false)}
         onFinishTrip={handleFinishTrip}
