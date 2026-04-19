@@ -135,6 +135,8 @@ export type OfflineRound = {
   tripId?: string;
   seasonWeekId?: string;
   linkedSeasons?: any[];
+  /** Course pars per hole, needed for Stableford calculation during offline sync */
+  coursePars?: number[];
 };
 
 /** Queue a completed round for later sync. */
@@ -224,18 +226,24 @@ export async function syncOfflineRounds(): Promise<{ synced: number; failed: num
         ...(round.seasonWeekId ? { season_week_id: round.seasonWeekId } : {}),
       });
 
-      // Sync linked seasons if any
-      if (round.linkedSeasons && round.linkedSeasons.length > 0) {
-        const { seasonsService } = await import('../services/seasons.service');
+      // Sync linked seasons if any — use processSeasonRound for proper
+      // Stableford calculation instead of writing raw gross scores.
+      if (round.linkedSeasons && round.linkedSeasons.length > 0 && round.holeScores.length > 0) {
+        const { processSeasonRound } = await import('../services/scoring.service');
+        const coursePars = round.coursePars ?? round.holeScores.map(() => 4); // fallback par 4
         for (const ls of round.linkedSeasons) {
           try {
-            await seasonsService.submitScore({
-              season_week_id: ls.seasonId,
-              user_id: round.userId,
-              points: round.grossScore,
-              round_id: savedRound.id,
+            await processSeasonRound({
+              roundId: savedRound.id,
+              userId: round.userId,
+              seasonWeekId: ls.seasonWeekId ?? ls.seasonId,
+              seasonId: ls.seasonId,
+              holeScores: round.holeScores,
+              coursePars,
             });
-          } catch {}
+          } catch (err) {
+            console.error('[roundStorage] Season sync failed for season', ls.seasonId, err);
+          }
         }
       }
 

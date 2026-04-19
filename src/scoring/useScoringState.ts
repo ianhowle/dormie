@@ -779,6 +779,7 @@ export function useScoringState() {
         tripId: tripId ?? undefined,
         seasonWeekId: linkedSeasons.length > 0 ? linkedSeasons[0].seasonId : undefined,
         linkedSeasons: linkedSeasons.length > 0 ? linkedSeasons : undefined,
+        coursePars: holes.map((h) => h.par),
       };
       await queueOfflineRound(offlineRound);
       await clearActiveRound();
