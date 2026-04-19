@@ -764,15 +764,21 @@ export function useScoringState() {
       Alert.alert('Score Posted', `Your ${grossTotal} (${grossTotal - totalPar >= 0 ? '+' : ''}${grossTotal - totalPar}) is on the board.`);
       router.dismissAll();
     } catch (err) {
+      const offlineHoleScores: { hole: number; gross: number; putts?: number; fir?: boolean }[] = [];
+      holes.forEach((h) => {
+        const sc = allScores.get(h.number)?.get(user.id);
+        if (sc) offlineHoleScores.push({ hole: h.number, gross: sc.gross, putts: sc.putts, ...(sc.fir !== null ? { fir: sc.fir } : {}) });
+      });
       const offlineRound = {
         id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
         userId: user.id, courseId, courseName,
         courseSlope, courseRating,
-        grossScore: holes.reduce((sum, h) => sum + (allScores.get(h.number)?.get(user.id)?.gross ?? 0), 0),
-        netScore: null, holeScores: [] as any[], source: 'app' as const,
+        grossScore: offlineHoleScores.reduce((sum, h) => sum + h.gross, 0),
+        netScore: null, holeScores: offlineHoleScores, source: 'app' as const,
         playedAt: new Date().toISOString(), queuedAt: new Date().toISOString(),
         tripId: tripId ?? undefined,
         seasonWeekId: linkedSeasons.length > 0 ? linkedSeasons[0].seasonId : undefined,
+        linkedSeasons: linkedSeasons.length > 0 ? linkedSeasons : undefined,
       };
       await queueOfflineRound(offlineRound);
       await clearActiveRound();
