@@ -567,22 +567,25 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Create button */}
             <Pressable
               onPress={async () => {
+                if (!user) return;
                 haptics.success();
-                if (user) {
-                  try {
-                    await tripsService.create({
-                      name,
-                      location,
-                      start_date: startDate || new Date().toISOString().slice(0, 10),
-                      end_date: endDate || new Date().toISOString().slice(0, 10),
-                      organizer_id: user.id,
-                      trip_type: tripType,
-                      format,
-                    });
-                  } catch {}
+                try {
+                  await tripsService.create({
+                    name,
+                    location,
+                    start_date: startDate || new Date().toISOString().slice(0, 10),
+                    end_date: endDate || new Date().toISOString().slice(0, 10),
+                    organizer_id: user.id,
+                    trip_type: tripType,
+                    format,
+                    side_games: Array.from(sideGames),
+                    stakes: stakes.trim() || null,
+                  });
+                  showToast({ message: 'Trip created', type: 'gold', icon: 'airplane' });
+                  router.back();
+                } catch (err) {
+                  showToast({ message: 'Failed to create trip', type: 'error', icon: 'alert-circle-outline' });
                 }
-                showToast({ message: 'Trip created', type: 'gold', icon: 'airplane' });
-                router.back();
               }}
               disabled={!canCreate}
               style={[
