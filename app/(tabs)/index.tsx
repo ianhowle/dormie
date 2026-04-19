@@ -12,7 +12,6 @@ import { cardShadowDark, cardShadowLight, greenHeaderGradient, tickerShadowDark,
 import GoldDivider from '../../src/components/GoldDivider';
 import { Avatar } from '../../src/components/Avatar';
 import { SkeletonFeed, SkeletonStats } from '../../src/components/Skeleton';
-import { DataFreshness } from '../../src/components/DataFreshness';
 import { useToast } from '../../src/components/Toast';
 import { haptics } from '../../src/lib/haptics';
 import { roundsService } from '../../src/services/rounds.service';
@@ -1052,7 +1051,6 @@ export default function HomeScreen() {
   const [activeGroup, setActiveGroup] = useState<Group>(EMPTY_GROUP);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
   const [monthlyDismissed, setMonthlyDismissed] = useState(false);
   const [weeklyDismissed, setWeeklyDismissed] = useState(false);
   const [upcomingItems, setUpcomingItems] = useState<UpcomingItem[]>([]);
@@ -1151,7 +1149,6 @@ export default function HomeScreen() {
       ]);
       setRealRounds(rounds);
       setPendingRequests(requests);
-      setLastUpdated(new Date());
       setRealTrips(trips as any[]);
       setGroups(userGroups);
       // Select first group on initial load, or keep current selection if it's still in the list
@@ -1399,11 +1396,6 @@ export default function HomeScreen() {
             onDismiss={() => setChecklistDismissed(true)}
           />
         )}
-
-        {/* Data freshness indicator */}
-        <View style={st.freshnessWrap}>
-          <DataFreshness updatedAt={lastUpdated} />
-        </View>
 
         {/* ESPN Ticker — first thing below greeting, prominent green card */}
         <ESPNTicker standings={standings} />
@@ -1787,6 +1779,8 @@ const st = StyleSheet.create({
 
   /* Greeting section */
   greetingSection: {
+    flex: 1,
+    justifyContent: 'flex-end' as const,
     paddingVertical: 20,
     paddingHorizontal: 20,
     overflow: 'hidden',
@@ -1884,14 +1878,6 @@ const st = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'Georgia',
     marginLeft: 2,
-  },
-
-  /* Data freshness */
-  freshnessWrap: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
-    alignItems: 'flex-end',
   },
 
   /* Body */
