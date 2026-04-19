@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Contacts from 'expo-contacts';
 import { useTheme } from '../src/theme/ThemeContext';
 import { useAuth } from '../src/lib/auth';
+import { useDemoMode } from '../src/contexts/DemoModeContext';
 import { GEO, SANS } from '../src/theme/fonts';
 import { greenHeaderGradient, cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import { Avatar } from '../src/components/Avatar';
@@ -64,6 +65,7 @@ export default function AddFriendsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { checkAndDisable: disableDemoIfNeeded } = useDemoMode();
 
   // Search state
   const [query, setQuery] = useState('');
@@ -243,6 +245,7 @@ export default function AddFriendsScreen() {
       await friendsService.acceptRequest(friendship.id);
       setPendingRequests((prev) => prev.filter((r) => r.id !== friendship.id));
       showToast({ message: 'Friend added', type: 'success', icon: 'checkmark-circle' });
+      disableDemoIfNeeded().catch(() => {});
     } catch {
       showToast({ message: 'Failed to accept request', type: 'error' });
     } finally {

@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '../src/lib/auth';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
 import { ToastProvider } from '../src/components/Toast';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { DemoModeProvider } from '../src/contexts/DemoModeContext';
 import { initSentry, setSentryUser, clearSentryUser, Sentry } from '../src/lib/sentry';
 import { initPushForUser } from '../src/services/pushNotification.service';
 
@@ -108,7 +109,9 @@ function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <RootLayoutNav />
+            <DemoModeProvider>
+              <RootLayoutNav />
+            </DemoModeProvider>
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>

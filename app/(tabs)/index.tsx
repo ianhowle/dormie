@@ -41,8 +41,7 @@ import {
   type ActiveRoundState,
 } from '../../src/lib/roundStorage';
 
-/** Toggle to show mock/demo data for screenshots and demos */
-const DEV_DEMO_MODE = false;
+import { useDemoMode } from '../../src/contexts/DemoModeContext';
 import {
   type FeedItem,
   type QuickStats,
@@ -1046,7 +1045,7 @@ export default function HomeScreen() {
   const [realRounds, setRealRounds] = useState<RoundWithCourse[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendshipWithUser[]>([]);
   const [showMenu, setShowMenu] = useState(false);
-  const [showDemoData, setShowDemoData] = useState(DEV_DEMO_MODE);
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
   const [groups, setGroups] = useState<Group[]>([]);
   const [activeGroup, setActiveGroup] = useState<Group>(EMPTY_GROUP);
   const [loading, setLoading] = useState(true);

@@ -21,6 +21,7 @@ import { useAuth } from '../../src/lib/auth';
 import { haptics } from '../../src/lib/haptics';
 import { SeasonEmpty } from '../../src/components/EmptyStates';
 import { DemoPeekToggle, DemoBanner, DEMO_SEASON } from '../../src/components/DemoPeek';
+import { useDemoMode } from '../../src/contexts/DemoModeContext';
 import { seasonsService } from '../../src/services/seasons.service';
 
 // ─── Mock data ──────────────────────────────────────────────────────
@@ -296,7 +297,7 @@ export default function SeasonsTab() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [realSeasons, setRealSeasons] = useState<any[]>([]);
-  const [showDemoData, setShowDemoData] = useState(false);
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const navigation = useNavigation();

@@ -43,6 +43,7 @@ import { movementArrow, movementColor, formatToPar as fmtToPar } from '../../src
 import type { RoundWithCourse, FriendshipWithUser } from '../../src/lib/database.types';
 import { LeaderboardGhostEmpty } from '../../src/components/EmptyStates';
 import { DemoPeekToggle, DemoBanner, DEMO_LEADERBOARD, DEMO_FIELD_LEADERBOARD } from '../../src/components/DemoPeek';
+import { useDemoMode } from '../../src/contexts/DemoModeContext';
 
 const WELCOME_BANNER_KEY = '@dormie/welcome_banner_dismissed';
 
@@ -494,7 +495,7 @@ export default function LeaderboardScreen() {
   const [friends, setFriends] = useState<FriendshipWithUser[]>([]);
   const [myRounds, setMyRounds] = useState<RoundWithCourse[]>([]);
   const [realSeasons, setRealSeasons] = useState<Season[]>([]);
-  const [showDemoData, setShowDemoData] = useState(false);
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
   const [refreshing, setRefreshing] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(true); // default hidden until loaded

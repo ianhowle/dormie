@@ -39,6 +39,7 @@ import { ProfileStatsEmpty, HandicapGraphEmpty } from '../../src/components/Empt
 import { CourseImage } from '../../src/components/CourseImage';
 import { supabase } from '../../src/lib/supabase';
 import { MOCK_GROUPS } from '../../src/data/groups';
+import { useDemoMode } from '../../src/contexts/DemoModeContext';
 import {
   recalculatePlayerHandicap,
   selectDifferentials,
@@ -214,7 +215,7 @@ export default function ProfileScreen() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
-  const [showDemoData, setShowDemoData] = useState(false);
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
     user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
@@ -1202,6 +1203,29 @@ export default function ProfileScreen() {
             <Ionicons name="log-out-outline" size={18} color={c.urgent} />
             <Text style={[s.signOutText, { color: c.urgent }]}>Sign Out</Text>
           </Pressable>
+
+          {/* Developer section — only in dev builds */}
+          {__DEV__ && (
+            <>
+              <Text style={[s.sectionLabel, { color: c.textMuted, marginTop: 24 }]}>DEVELOPER</Text>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  setShowDemoData(!showDemoData);
+                }}
+                style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                accessibilityLabel="Demo Mode"
+                accessibilityRole="switch"
+                accessibilityState={{ checked: showDemoData }}
+              >
+                <Ionicons name="flask" size={20} color={showDemoData ? c.gold : c.textMuted} />
+                <Text style={[s.settingText, { color: c.text }]}>Demo Mode</Text>
+                <View style={[s.toggleTrack, { backgroundColor: showDemoData ? '#C9A227' : c.elevated, borderColor: showDemoData ? '#C9A227' : c.border }]}>
+                  <View style={[s.toggleKnob, showDemoData && s.toggleKnobOn]} />
+                </View>
+              </Pressable>
+            </>
+          )}
 
           <View style={{ height: 40 + insets.bottom }} />
         </View>

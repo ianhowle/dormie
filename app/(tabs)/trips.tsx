@@ -31,6 +31,7 @@ import { getDreamImage } from '../../src/services/courseImages.service';
 import type { TripWithMembers, BucketListItemWithCourse } from '../../src/lib/database.types';
 import { TripsEmpty } from '../../src/components/EmptyStates';
 import { DemoPeekToggle, DemoBanner } from '../../src/components/DemoPeek';
+import { useDemoMode } from '../../src/contexts/DemoModeContext';
 import {
   MOCK_TRIP_STATS,
   MOCK_UPCOMING_TRIPS,
@@ -441,7 +442,7 @@ export default function TripsScreen() {
   const insets = useSafeAreaInsets();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
   const [bucketItems, setBucketItems] = useState<BucketListItemWithCourse[]>([]);
-  const [showDemoData, setShowDemoData] = useState(false);
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const { showToast } = useToast();

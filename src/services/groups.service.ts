@@ -105,7 +105,8 @@ export const groupsService = {
     return toGroup(groupRow as GroupRow, members);
   },
 
-  /** Creates a group and seeds the creator as the admin member in one flow. */
+  /** Creates a group and seeds the creator as the admin member in one flow.
+   *  Callers should invoke checkAndDisable() from DemoModeContext after success. */
   async createGroup(name: string, createdBy: string, opts?: { color?: string }): Promise<Group> {
     const trimmed = name.trim();
     if (!trimmed) throw new Error('Group name required');

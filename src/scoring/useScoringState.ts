@@ -7,6 +7,7 @@ import { haptics } from '../lib/haptics';
 import { sounds } from '../lib/sounds';
 import { useToast } from '../components/Toast';
 import { useNetworkStatus } from '../lib/networkStatus';
+import { useDemoMode } from '../contexts/DemoModeContext';
 import {
   saveActiveRound,
   clearActiveRound,
@@ -43,6 +44,7 @@ export function useScoringState() {
   const c = theme.colors;
   const router = useRouter();
   const { user } = useAuth();
+  const { checkAndDisable: disableDemoIfNeeded } = useDemoMode();
   const params = useLocalSearchParams<{
     courseName: string;
     coursePar: string;
@@ -807,6 +809,7 @@ export function useScoringState() {
       haptics.success();
       sounds.chime();
       showToast({ message: 'Round saved', type: 'success', icon: 'checkmark-circle' });
+      disableDemoIfNeeded().catch(() => {});
       setShowConfetti(true);
       try {
         if (finalCourseId) {
