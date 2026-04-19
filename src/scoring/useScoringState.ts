@@ -17,7 +17,7 @@ import {
 import { roundsService } from '../services/rounds.service';
 import { coursesService } from '../services/courses.service';
 import { seasonsService } from '../services/seasons.service';
-import { processSeasonRound } from '../services/scoring.service';
+import { processSeasonRound, resolveSeasonWeekId } from '../services/scoring.service';
 import { MOCK_GROUP_PLAYERS } from '../data/leaderboard';
 import { MOCK_UPCOMING_TRIPS } from '../data/trips';
 
@@ -712,6 +712,13 @@ export function useScoringState() {
       const bbbData = sideGameKeys.includes('bingo_bango_bongo')
         ? Array.from(bbbHolePoints.entries()).map(([hole, pts]) => ({ hole, ...pts }))
         : null;
+      // Resolve the actual season_weeks row id for the round record
+      let firstWeekId: string | null = null;
+      if (linkedSeasons.length > 0) {
+        try {
+          firstWeekId = await resolveSeasonWeekId(linkedSeasons[0].seasonId, linkedSeasons[0].weekNumber);
+        } catch {}
+      }
       const savedRound = await roundsService.create({
         user_id: user.id,
         course_id: finalCourseId,
@@ -725,7 +732,7 @@ export function useScoringState() {
         course_rating: courseRating || null,
         course_source: 'golfapi',
         ...(tripId ? { trip_id: tripId } : {}),
-        ...(linkedSeasons.length > 0 ? { season_week_id: linkedSeasons[0].seasonId } : {}),
+        ...(firstWeekId ? { season_week_id: firstWeekId } : {}),
         ...(wolfData ? { wolf_data: wolfData } : {}),
         ...(bbbData ? { bbb_data: bbbData } : {}),
       } as any);
@@ -733,10 +740,11 @@ export function useScoringState() {
         const coursePars = holes.map((h) => h.par);
         for (const ls of linkedSeasons) {
           try {
+            const weekId = await resolveSeasonWeekId(ls.seasonId, ls.weekNumber);
             await processSeasonRound({
               roundId: savedRound.id,
               userId: user.id,
-              seasonWeekId: ls.seasonId,
+              seasonWeekId: weekId,
               seasonId: ls.seasonId,
               holeScores,
               coursePars,

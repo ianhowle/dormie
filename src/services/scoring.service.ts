@@ -4,6 +4,32 @@ import type { MultiRoundConfig, ParticipationConfig } from '../data/seasons-deta
 import type { HoleScore, Season } from '../lib/database.types';
 
 /**
+ * Resolve the season_weeks row id for a given season + week number.
+ * If no matching week exists, creates one so the round can still be recorded.
+ */
+export async function resolveSeasonWeekId(
+  seasonId: string,
+  weekNumber: number,
+): Promise<string> {
+  const { data: week, error } = await supabase
+    .from('season_weeks')
+    .select('id')
+    .eq('season_id', seasonId)
+    .eq('week_number', weekNumber)
+    .single();
+  if (week) return week.id;
+
+  // No week row yet — create one so the score can be attached
+  const { data: created, error: createErr } = await supabase
+    .from('season_weeks')
+    .insert({ season_id: seasonId, week_number: weekNumber })
+    .select('id')
+    .single();
+  if (createErr) throw createErr;
+  return (created as { id: string }).id;
+}
+
+/**
  * Calculate Stableford points from a full round's hole-by-hole scores.
  *
  * Scoring: Double bogey+ = 0, Bogey = 1, Par = 2, Birdie = 3, Eagle = 4, Albatross+ = 5
