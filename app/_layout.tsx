@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Linking from 'expo-linking';
 import 'react-native-url-polyfill/auto';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
@@ -9,6 +10,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { DemoModeProvider } from '../src/contexts/DemoModeContext';
 import { initSentry, setSentryUser, clearSentryUser, Sentry } from '../src/lib/sentry';
 import { initPushForUser } from '../src/services/pushNotification.service';
+import { parseInviteUrl } from '../src/lib/inviteLinks';
 
 initSentry();
 
@@ -39,6 +41,24 @@ function RootLayoutNav() {
       initPushForUser(session.user.id).catch(() => {});
     }
   }, [session?.user?.id]);
+
+  // Listen for trip invite deep links (dormie://trip-invite/CODE)
+  useEffect(() => {
+    const handleUrl = (url: string) => {
+      const parsed = parseInviteUrl(url);
+      if (!parsed) return;
+      if (parsed.type === 'trip-invite') {
+        router.push({ pathname: '/trip-invite', params: { code: parsed.code } });
+      }
+    };
+
+    // Cold start: check if app was opened via a link
+    Linking.getInitialURL().then((url) => url && handleUrl(url));
+
+    // Warm state: listen for incoming links while app is open
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => sub.remove();
+  }, [router]);
 
   useEffect(() => {
     if (loading) return;
@@ -98,6 +118,7 @@ function RootLayoutNav() {
         <Stack.Screen name="groups" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="group-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="course-search" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="trip-invite" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </>
   );

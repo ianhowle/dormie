@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   Platform,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,9 @@ import { useToast } from '../Toast';
 import { useAuth } from '../../lib/auth';
 import { Avatar } from '../Avatar';
 import { friendsService } from '../../services/friends.service';
+import { tripInvitesService } from '../../services/tripInvites.service';
+import type { TripInvite } from '../../services/tripInvites.service';
+import { getInviteUrl } from '../../lib/inviteLinks';
 import { supabase } from '../../lib/supabase';
 import type { FriendshipWithUser } from '../../lib/database.types';
 
@@ -47,7 +51,7 @@ interface AddPlayerSheetProps {
   isVisible: boolean;
 }
 
-type Tab = 'friends' | 'recent' | 'guest';
+type Tab = 'friends' | 'recent' | 'invite' | 'guest';
 
 type CoPlayer = {
   id: string;
@@ -64,6 +68,7 @@ function SheetTabBar({ tab, onSelect, colors: c }: { tab: Tab; onSelect: (t: Tab
   const tabs: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'friends', label: 'Friends', icon: 'people-outline' },
     { key: 'recent', label: 'Recent', icon: 'time-outline' },
+    { key: 'invite', label: 'Invite', icon: 'link-outline' },
     { key: 'guest', label: 'Guest', icon: 'person-add-outline' },
   ];
   return (
@@ -408,7 +413,128 @@ function GuestTab({
   );
 }
 
-// ─── Main Sheet ──────────────────────────────────────���─────────────────
+// ─── Invite Tab ────────────────────────────────────────────────────────
+
+function InviteTab({
+  tripId,
+  tripName,
+  tripInviteCode,
+}: {
+  tripId?: string;
+  tripName?: string;
+  tripInviteCode?: string;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const { showToast } = useToast();
+
+  const [shareLink, setShareLink] = useState<TripInvite | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  if (!tripId) {
+    return (
+      <View style={styles.centered}>
+        <Ionicons name="link-outline" size={48} color={c.textMuted} />
+        <Text style={[styles.emptyTitle, { color: c.text }]}>Create the trip first</Text>
+        <Text style={[styles.emptySubtitle, { color: c.textMuted }]}>
+          You can generate invite links after the trip is created
+        </Text>
+      </View>
+    );
+  }
+
+  const handleShareCode = async () => {
+    haptics.light();
+    try {
+      await Share.share({
+        message: `Join my trip on Dormie: ${tripName ?? 'Golf Trip'}\n\nTrip code: ${tripInviteCode}\n\nDownload Dormie and enter the code to join.`,
+        title: 'Join my Dormie trip',
+      });
+    } catch {}
+  };
+
+  const handleGenerateLink = async () => {
+    setIsGenerating(true);
+    try {
+      const invite = await tripInvitesService.create(tripId);
+      setShareLink(invite);
+      haptics.success();
+    } catch (err: any) {
+      haptics.error();
+      showToast({ message: err?.message ?? 'Could not generate link', type: 'error' });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!shareLink) return;
+    haptics.light();
+    const url = getInviteUrl(shareLink.code);
+    try {
+      await Share.share({
+        message: `Join my trip on Dormie: ${tripName ?? 'Golf Trip'}\n\n${url}`,
+        title: 'Join my Dormie trip',
+      });
+    } catch {}
+  };
+
+  return (
+    <View style={[styles.inviteContainer, { backgroundColor: c.bg }]}>
+      <Text style={[styles.inviteHero, { color: c.gold, fontFamily: GEO }]}>DORMIE</Text>
+      {tripName && (
+        <Text style={[styles.inviteTripName, { color: c.gold, fontFamily: GEO }]}>{tripName}</Text>
+      )}
+
+      {tripInviteCode && (
+        <View style={[styles.inviteSection, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.inviteSectionLabel, { color: c.gold, fontFamily: GEO }]}>TRIP CODE</Text>
+          <Text style={[styles.inviteCode, { color: c.text, fontFamily: GEO }]}>{tripInviteCode}</Text>
+          <Text style={[styles.inviteHint, { color: c.textMuted }]}>Share with your crew — this code never expires</Text>
+          <Pressable onPress={handleShareCode} style={[styles.shareBtn, { backgroundColor: c.teal }]}>
+            <Ionicons name="share-outline" size={16} color="#fff" />
+            <Text style={styles.shareBtnText}>Share Code</Text>
+          </Pressable>
+        </View>
+      )}
+
+      <View style={[styles.inviteSection, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[styles.inviteSectionLabel, { color: c.gold, fontFamily: GEO }]}>SHARE LINK</Text>
+        {shareLink ? (
+          <>
+            <Text style={[styles.inviteLinkCode, { color: c.text, fontFamily: GEO }]}>{shareLink.code}</Text>
+            <Text style={[styles.inviteLinkUrl, { color: c.textMuted }]}>{getInviteUrl(shareLink.code)}</Text>
+            <Text style={[styles.inviteHint, { color: c.textMuted }]}>Expires in 7 days · Up to {shareLink.max_uses} uses</Text>
+            <Pressable onPress={handleShareLink} style={[styles.shareBtn, { backgroundColor: c.teal }]}>
+              <Ionicons name="share-outline" size={16} color="#fff" />
+              <Text style={styles.shareBtnText}>Share Link</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.inviteHint, { color: c.textMuted }]}>Generate a time-limited link for secure sharing</Text>
+            <Pressable
+              onPress={handleGenerateLink}
+              disabled={isGenerating}
+              style={[styles.shareBtn, { backgroundColor: c.gold }, isGenerating && { opacity: 0.6 }]}
+            >
+              {isGenerating ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <>
+                  <Ionicons name="link" size={16} color="#000" />
+                  <Text style={[styles.shareBtnText, { color: '#000' }]}>Generate Share Link</Text>
+                </>
+              )}
+            </Pressable>
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── Main Sheet ────────────────────────────────────────────────────────
 
 export default function AddPlayerSheet({
   tripId,
@@ -499,6 +625,13 @@ export default function AddPlayerSheet({
               existingPlayerIds={existingIds}
               selected={selected}
               onToggle={handleToggle}
+            />
+          )}
+          {tab === 'invite' && (
+            <InviteTab
+              tripId={tripId}
+              tripName={tripName}
+              tripInviteCode={tripInviteCode}
             />
           )}
           {tab === 'guest' && (
@@ -700,5 +833,65 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  // Invite tab
+  inviteContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  inviteHero: {
+    fontSize: 24,
+    letterSpacing: 4,
+    marginBottom: 4,
+  },
+  inviteTripName: {
+    fontSize: 18,
+    marginBottom: 24,
+  },
+  inviteSection: {
+    width: '100%',
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  inviteSectionLabel: {
+    fontSize: 12,
+    letterSpacing: 3,
+    marginBottom: 12,
+  },
+  inviteCode: {
+    fontSize: 48,
+    letterSpacing: 6,
+    marginBottom: 8,
+  },
+  inviteLinkCode: {
+    fontSize: 32,
+    letterSpacing: 4,
+    marginBottom: 4,
+  },
+  inviteLinkUrl: {
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  inviteHint: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    width: '100%',
+  },
+  shareBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
