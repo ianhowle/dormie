@@ -9,6 +9,7 @@ import {
   Platform,
   StatusBar,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -208,6 +209,8 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [addName, setAddName] = useState('');
   const [addHcp, setAddHcp] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string; city?: string; state?: string } | null>(null);
 
   const toggleSideGame = (g: SideGame) => {
     setSideGames((prev) => {
@@ -229,7 +232,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
     setShowAddPlayer(false);
   };
 
-  const canCreate = name.trim().length > 0 && location.trim().length > 0;
+  const canCreate = name.trim().length > 0 && (selectedCourse?.id != null || location.trim().length > 0) && players.length >= 2;
 
   return (
     <View style={[z.screen, { backgroundColor: c.bg }]}>
@@ -567,12 +570,33 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
             {/* Create button */}
             <Pressable
               onPress={async () => {
+                // Bug fix 1: light haptic on tap, not premature success haptic
+                haptics.light();
+
                 if (!user) return;
-                haptics.success();
+
+                // Bug fix 2: validate with user-facing toasts — never silent
+                if (!name.trim()) {
+                  showToast({ message: 'Trip name is required', type: 'error' });
+                  return;
+                }
+                if (!selectedCourse?.id && !location.trim()) {
+                  showToast({ message: 'Select a course or enter a location', type: 'error' });
+                  return;
+                }
+                if (players.length < 2) {
+                  showToast({ message: 'Add at least one other player', type: 'error' });
+                  return;
+                }
+
+                // Bug fix 3: loading state on button
+                setIsCreating(true);
+
                 try {
-                  await tripsService.create({
-                    name,
-                    location,
+                  // Bug fix 4: no course_id or player_count in payload (per v3.1 patch)
+                  const trip = await tripsService.create({
+                    name: name.trim(),
+                    location: selectedCourse?.name ?? location.trim(),
                     start_date: startDate || new Date().toISOString().slice(0, 10),
                     end_date: endDate || new Date().toISOString().slice(0, 10),
                     organizer_id: user.id,
@@ -581,27 +605,60 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                     side_games: Array.from(sideGames),
                     stakes: stakes.trim() || null,
                   });
+
+                  // Associate selected course via trip_courses junction table
+                  if (selectedCourse?.id) {
+                    await tripsService.addCourse({
+                      trip_id: trip.id,
+                      course_id: selectedCourse.id,
+                      day_number: 1,
+                    });
+                  }
+
+                  // Add non-organizer players as trip members
+                  const otherPlayers = players
+                    .filter((_p, i) => i > 0) // index 0 is "You" (organizer, already added by create())
+                    .map((p) => ({ user_id: p.id }));
+                  if (otherPlayers.length > 0) {
+                    await tripsService.addMembers(
+                      trip.id,
+                      otherPlayers.map((p) => ({ user_id: p.user_id, role: 'player' as const })),
+                    );
+                  }
+
+                  // Bug fix 5: success haptic AFTER the async call succeeds
+                  haptics.success();
                   showToast({ message: 'Trip created', type: 'gold', icon: 'airplane' });
-                  router.back();
-                } catch (err) {
-                  showToast({ message: 'Failed to create trip', type: 'error', icon: 'alert-circle-outline' });
+
+                  // Bug fix 6: navigate to trip detail, not router.back()
+                  router.replace({ pathname: '/trip-detail', params: { id: trip.id } });
+                } catch (err: any) {
+                  console.error('[CreateTrip] failed', err);
+                  haptics.error();
+                  showToast({ message: err?.message ?? 'Could not create trip', type: 'error' });
+                } finally {
+                  setIsCreating(false);
                 }
               }}
-              disabled={!canCreate}
+              disabled={!canCreate || isCreating}
               style={[
                 z.createBtn,
-                { backgroundColor: canCreate ? '#006747' : c.elevated },
-                !canCreate && { opacity: 0.5 },
+                { backgroundColor: canCreate && !isCreating ? '#006747' : c.elevated },
+                (!canCreate || isCreating) && { opacity: 0.5 },
               ]}
             >
-              <Text
-                style={[
-                  z.createBtnText,
-                  { color: canCreate ? '#C9A227' : c.textMuted, fontFamily: GEO },
-                ]}
-              >
-                Create Trip
-              </Text>
+              {isCreating ? (
+                <ActivityIndicator size="small" color="#C9A227" />
+              ) : (
+                <Text
+                  style={[
+                    z.createBtnText,
+                    { color: canCreate ? '#C9A227' : c.textMuted, fontFamily: GEO },
+                  ]}
+                >
+                  Create Trip
+                </Text>
+              )}
             </Pressable>
           </View>
 
