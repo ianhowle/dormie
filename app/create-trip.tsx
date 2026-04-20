@@ -23,6 +23,8 @@ import { useToast } from '../src/components/Toast';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
 import { RyderCupWizard } from '../src/components/RyderCupWizard';
+import CourseLocationPicker from '../src/components/trip/CourseLocationPicker';
+import type { SelectedCourse } from '../src/components/trip/CourseLocationPicker';
 import { useAuth } from '../src/lib/auth';
 import { tripsService } from '../src/services/trips.service';
 import {
@@ -210,7 +212,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const [addName, setAddName] = useState('');
   const [addHcp, setAddHcp] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string; city?: string; state?: string } | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
 
   const toggleSideGame = (g: SideGame) => {
     setSideGames((prev) => {
@@ -269,44 +271,16 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               autoCapitalize="words"
             />
 
-            {/* Location */}
-            <SectionLabel title="LOCATION" />
-            <TextInput
-              style={[z.input, { color: c.text, backgroundColor: inputBg, borderColor: c.border }]}
-              placeholder="City or destination"
-              placeholderTextColor={c.textMuted}
-              value={location}
-              onChangeText={setLocation}
-              autoCapitalize="words"
+            {/* Location — course autocomplete */}
+            <SectionLabel title="COURSE" />
+            <CourseLocationPicker
+              value={selectedCourse}
+              onChange={(course) => {
+                setSelectedCourse(course);
+                setLocation(course?.name ?? '');
+              }}
+              placeholder="Search courses..."
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={z.quickFillScroll}
-            >
-              {QUICK_FILL.map((dest) => (
-                <Pressable
-                  key={dest}
-                  onPress={() => { haptics.light(); setLocation(dest); }}
-                  style={[
-                    z.quickFillChip,
-                    {
-                      backgroundColor: location === dest ? `${c.teal}20` : c.elevated,
-                      borderColor: location === dest ? c.teal : c.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      z.quickFillText,
-                      { color: location === dest ? c.teal : c.textMuted },
-                    ]}
-                  >
-                    {dest}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
 
             {/* Dates */}
             {tripType === 'planned' && (
