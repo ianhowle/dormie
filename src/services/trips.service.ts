@@ -121,22 +121,49 @@ export const tripsService = {
     return data as TripLeaderboardEntry[];
   },
 
-  /** Add multiple members to a trip in bulk. */
+  /** Add multiple members to a trip in bulk.
+   *  Supports both registered users (upsert by trip_id,user_id)
+   *  and guest players (insert with user_id: null + guest_name). */
   async addMembers(
     tripId: string,
-    members: { user_id: string; role?: TripMember['role']; team?: TripMember['team'] }[],
+    members: (
+      | { user_id: string; role?: TripMember['role']; team?: TripMember['team'] }
+      | { guest_name: string; handicap?: number }
+    )[],
   ): Promise<void> {
-    const rows = members.map((m) => ({
-      trip_id: tripId,
-      user_id: m.user_id,
-      rsvp_status: 'confirmed' as const,
-      role: m.role ?? 'player',
-      team: m.team ?? null,
-    }));
-    const { error } = await supabase.from('trip_members').upsert(rows, {
-      onConflict: 'trip_id,user_id',
-    });
-    if (error) throw error;
+    const userRows = members
+      .filter((m): m is { user_id: string; role?: TripMember['role']; team?: TripMember['team'] } => 'user_id' in m)
+      .map((m) => ({
+        trip_id: tripId,
+        user_id: m.user_id,
+        rsvp_status: 'confirmed' as const,
+        role: m.role ?? 'player',
+        team: m.team ?? null,
+      }));
+
+    const guestRows = members
+      .filter((m): m is { guest_name: string; handicap?: number } => 'guest_name' in m)
+      .map((m) => ({
+        trip_id: tripId,
+        user_id: null as string | null,
+        guest_name: m.guest_name,
+        rsvp_status: 'confirmed' as const,
+        role: 'player' as const,
+      }));
+
+    // Upsert registered users (handles re-invites gracefully)
+    if (userRows.length > 0) {
+      const { error } = await supabase.from('trip_members').upsert(userRows, {
+        onConflict: 'trip_id,user_id',
+      });
+      if (error) throw error;
+    }
+
+    // Insert guests (no conflict path — guests don't dedupe)
+    if (guestRows.length > 0) {
+      const { error } = await supabase.from('trip_members').insert(guestRows);
+      if (error) throw error;
+    }
   },
 
   /** Update a member's team assignment. */

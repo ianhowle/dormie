@@ -25,6 +25,8 @@ import GoldDivider from '../src/components/GoldDivider';
 import { RyderCupWizard } from '../src/components/RyderCupWizard';
 import CourseLocationPicker from '../src/components/trip/CourseLocationPicker';
 import type { SelectedCourse } from '../src/components/trip/CourseLocationPicker';
+import AddPlayerSheet from '../src/components/trip/AddPlayerSheet';
+import type { PendingPlayer } from '../src/components/trip/AddPlayerSheet';
 import { useAuth } from '../src/lib/auth';
 import { tripsService } from '../src/services/trips.service';
 import {
@@ -38,7 +40,7 @@ const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 :
 
 type TripType = 'quick' | 'planned' | 'ryder';
 
-type Player = { id: string; name: string; handicap: number };
+type Player = { id: string; name: string; handicap: number; user_id?: string; guest_name?: string };
 
 const QUICK_FILL = ['Scottsdale', 'Myrtle Beach', 'Bandon', 'Pinehurst', 'Pebble Beach'];
 
@@ -209,8 +211,6 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
     { id: '1', name: 'Ian McGowan', handicap: 8 },
   ]);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
-  const [addName, setAddName] = useState('');
-  const [addHcp, setAddHcp] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
 
@@ -223,14 +223,15 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
     });
   };
 
-  const handleAddPlayer = () => {
-    if (addName.trim().length === 0) return;
-    setPlayers((prev) => [
-      ...prev,
-      { id: `p-${Date.now()}`, name: addName.trim(), handicap: Number(addHcp) || 0 },
-    ]);
-    setAddName('');
-    setAddHcp('');
+  const handleAddPlayers = (newPlayers: PendingPlayer[]) => {
+    const mapped = newPlayers.map((p) => ({
+      id: p.user_id ?? `guest-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: p.name,
+      handicap: p.handicap,
+      user_id: p.user_id,
+      guest_name: p.guest_name,
+    }));
+    setPlayers((prev) => [...prev, ...mapped]);
     setShowAddPlayer(false);
   };
 
@@ -500,46 +501,20 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               );
             })}
 
-            {showAddPlayer ? (
-              <View style={[z.addForm, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-                <TextInput
-                  style={[z.addInput, { color: c.text, borderColor: c.border }]}
-                  placeholder="Player name"
-                  placeholderTextColor={c.textMuted}
-                  value={addName}
-                  onChangeText={setAddName}
-                  autoCapitalize="words"
-                />
-                <TextInput
-                  style={[z.addInput, z.addHcpInput, { color: c.text, borderColor: c.border }]}
-                  placeholder="HCP"
-                  placeholderTextColor={c.textMuted}
-                  value={addHcp}
-                  onChangeText={setAddHcp}
-                  keyboardType="numeric"
-                  maxLength={3}
-                />
-                <View style={z.addActions}>
-                  <Pressable onPress={() => { haptics.light(); setShowAddPlayer(false); }}>
-                    <Text style={[z.addCancel, { color: c.textMuted }]}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => { haptics.light(); handleAddPlayer(); }}
-                    style={[z.addDoneBtn, { backgroundColor: c.teal }]}
-                  >
-                    <Text style={z.addDoneText}>Add</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => { haptics.light(); setShowAddPlayer(true); }}
-                style={[z.addPlayerBtn, { borderColor: c.border }]}
-              >
-                <Ionicons name="add-circle-outline" size={18} color={c.teal} />
-                <Text style={[z.addPlayerText, { color: c.teal }]}>Add Player</Text>
-              </Pressable>
-            )}
+            <Pressable
+              onPress={() => { haptics.light(); setShowAddPlayer(true); }}
+              style={[z.addPlayerBtn, { borderColor: c.border }]}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={c.teal} />
+              <Text style={[z.addPlayerText, { color: c.teal }]}>Add Player</Text>
+            </Pressable>
+
+            <AddPlayerSheet
+              isVisible={showAddPlayer}
+              existingPlayers={players.map((p) => ({ id: p.id, name: p.name }))}
+              onAddPlayers={handleAddPlayers}
+              onClose={() => setShowAddPlayer(false)}
+            />
 
             {/* Create button */}
             <Pressable
@@ -590,14 +565,15 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   }
 
                   // Add non-organizer players as trip members
-                  const otherPlayers = players
-                    .filter((_p, i) => i > 0) // index 0 is "You" (organizer, already added by create())
-                    .map((p) => ({ user_id: p.id }));
+                  const otherPlayers = players.filter((_p, i) => i > 0); // index 0 is "You" (organizer)
                   if (otherPlayers.length > 0) {
-                    await tripsService.addMembers(
-                      trip.id,
-                      otherPlayers.map((p) => ({ user_id: p.user_id, role: 'player' as const })),
-                    );
+                    const memberInputs = otherPlayers.map((p) => {
+                      if (p.guest_name) {
+                        return { guest_name: p.guest_name, handicap: p.handicap };
+                      }
+                      return { user_id: p.user_id ?? p.id, role: 'player' as const };
+                    });
+                    await tripsService.addMembers(trip.id, memberInputs);
                   }
 
                   // Bug fix 5: success haptic AFTER the async call succeeds
