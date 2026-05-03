@@ -25,6 +25,7 @@ import { Avatar } from '../../src/components/Avatar';
 import { DestinationImage } from '../../src/components/CourseImage';
 import GoldDivider from '../../src/components/GoldDivider';
 import { TripCountdownRing } from '../../src/components/TripCountdownRing';
+import { Skeleton } from '../../src/components/Skeleton';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
 import { tripInvitesService } from '../../src/services/tripInvites.service';
@@ -52,7 +53,25 @@ import {
   type ExploreDestination,
 } from '../../src/data/trips';
 
-const DEFAULT_TRIP_GRADIENT: [string, string] = ['#1E4D2B', '#2D7A3F'];
+// Dormie-on-brand gradient palettes for real trip cards. All dark, paired well
+// with Georgia serif overlay text. Selected deterministically by trip name.
+const TRIP_GRADIENT_PALETTES: [string, string][] = [
+  ['#0a3d2e', '#1a5d3f'], // Augusta
+  ['#2a3d2a', '#1a2d1a'], // Pinehurst
+  ['#1a3d3d', '#0a2d2d'], // Cypress
+  ['#3d2a1a', '#5d3a2a'], // Sunset
+  ['#1a1a3d', '#2a2a5d'], // Twilight
+  ['#3d1a3d', '#5d2a5d'], // Royal
+];
+
+function deriveGradientColors(seed: string): [string, string] {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return TRIP_GRADIENT_PALETTES[Math.abs(hash) % TRIP_GRADIENT_PALETTES.length];
+}
 
 function adaptSupabaseTrip(t: TripWithMembers): Trip {
   const members = t.trip_members ?? [];
@@ -64,7 +83,7 @@ function adaptSupabaseTrip(t: TripWithMembers): Trip {
   const gradient: [string, string] =
     Array.isArray(t.gradient) && t.gradient.length >= 2
       ? [t.gradient[0], t.gradient[1]]
-      : DEFAULT_TRIP_GRADIENT;
+      : deriveGradientColors(t.name || t.id);
   return {
     id: t.id,
     name: t.name,
@@ -504,6 +523,7 @@ export default function TripsScreen() {
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const { showToast } = useToast();
   const [joinModalVisible, setJoinModalVisible] = useState(false);
+  const [tripsLoading, setTripsLoading] = useState(true);
 
   const upcomingRealTrips = useMemo(
     () => realTrips.filter((t) => !isCompletedTrip(t)),
@@ -515,11 +535,18 @@ export default function TripsScreen() {
   );
 
   useEffect(() => {
-    if (!user) return;
-    tripsService.getByUser(user.id).then((trips) => {
-      setRealTrips(trips);
-      if (trips.length > 0) checkAndDisable();
-    }).catch(() => {});
+    if (!user) {
+      setTripsLoading(false);
+      return;
+    }
+    setTripsLoading(true);
+    tripsService.getByUser(user.id)
+      .then((trips) => {
+        setRealTrips(trips);
+        if (trips.length > 0) checkAndDisable();
+      })
+      .catch(() => {})
+      .finally(() => setTripsLoading(false));
     bucketListService.getByUser(user.id).then(setBucketItems).catch(() => {});
   }, [user, checkAndDisable]);
 
@@ -556,17 +583,34 @@ export default function TripsScreen() {
         <Header onPressJoin={() => setJoinModalVisible(true)} />
 
         <View style={s.body}>
+          {/* First-mount skeleton placeholder — until we know if user has trips */}
+          {tripsLoading && realTrips.length === 0 ? (
+            <View style={{ marginTop: 16 }}>
+              <SectionLabel title="UPCOMING" />
+              {[0, 1].map((i) => (
+                <View key={i} style={[s.tripCard, { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1, borderLeftWidth: 3, borderLeftColor: c.teal, padding: 16 }]}>
+                  <Skeleton width="60%" height={18} />
+                  <Skeleton width="45%" height={12} style={{ marginTop: 8 }} />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                    <Skeleton width={120} height={32} />
+                    <Skeleton width={50} height={50} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {/* Demo peek toggle — for empty state */}
-          {realTrips.length === 0 && (
+          {!tripsLoading && realTrips.length === 0 && (
             <DemoPeekToggle
               isActive={showDemoData}
               onToggle={() => setShowDemoData(!showDemoData)}
             />
           )}
-          {showDemoData && realTrips.length === 0 && <DemoBanner />}
+          {!tripsLoading && showDemoData && realTrips.length === 0 && <DemoBanner />}
 
           {/* Smart empty state for new users — with destinations still visible */}
-          {realTrips.length === 0 && !showDemoData && (
+          {!tripsLoading && realTrips.length === 0 && !showDemoData && (
             <TripsEmpty />
           )}
 

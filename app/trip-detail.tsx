@@ -42,6 +42,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { tripsService } from '../src/services/trips.service';
 import { momentsService } from '../src/services/moments.service';
 import { SIDE_GAME_LABELS, type SideGame } from '../src/data/scoring';
+import { Skeleton } from '../src/components/Skeleton';
 import AddPlayerSheet from '../src/components/trip/AddPlayerSheet';
 import type { PendingPlayer } from '../src/components/trip/AddPlayerSheet';
 import type { TripMessageWithUser, TripMomentWithUser, TripMemberWithUser } from '../src/lib/database.types';
@@ -313,6 +314,7 @@ function ClubhouseTab({
   onToggleCheck,
   onToolPress,
   realMoments,
+  momentsLoading,
   onAddMoment,
 }: {
   trip: typeof MOCK_UPCOMING_TRIPS[0];
@@ -322,6 +324,7 @@ function ClubhouseTab({
   onToggleCheck: (id: string) => void;
   onToolPress: (toolId: string) => void;
   realMoments: TripMomentWithUser[];
+  momentsLoading?: boolean;
   onAddMoment: () => void;
 }) {
   const { theme } = useTheme();
@@ -497,7 +500,12 @@ function ClubhouseTab({
 
       {/* Trip moments */}
       <SectionLabel title="TRIP MOMENTS" />
-      {realMoments.length === 0 ? (
+      {momentsLoading && realMoments.length === 0 ? (
+        <View style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+          <Skeleton width="80%" height={14} />
+          <Skeleton width="50%" height={10} style={{ marginTop: 8 }} />
+        </View>
+      ) : realMoments.length === 0 ? (
         <View style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border, alignItems: 'center' }]}>
           <Text style={[s.momentText, { color: c.textMuted, textAlign: 'center' }]}>
             No moments yet. Capture a hole-in-one, a sandy save, or a story worth retelling.
@@ -574,9 +582,32 @@ function ClubhouseTab({
 // ═══════════════════════════════════════════════════════════════════════
 const DEFAULT_COURSE_GRADIENT: [string, string] = ['#1E4D2B', '#2D7A3F'];
 
-function CoursesTab({ courses }: { courses: any[] }) {
+function CoursesTab({ courses, loading }: { courses: any[]; loading?: boolean }) {
   const { theme } = useTheme();
   const c = theme.colors;
+
+  if (loading && courses.length === 0) {
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.tabContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {[0, 1].map((i) => (
+          <View key={i} style={[s.courseCard, { borderColor: c.border }]}>
+            <Skeleton width="100%" height={120} />
+            <View style={[s.courseStatsRow, { backgroundColor: c.cardBg, padding: 14 }]}>
+              <Skeleton width={48} height={20} />
+              <Skeleton width={48} height={20} />
+              <Skeleton width={48} height={20} />
+              <Skeleton width={48} height={20} />
+            </View>
+          </View>
+        ))}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  }
 
   if (courses.length === 0) {
     return (
@@ -2387,12 +2418,17 @@ function TripDetailScreenInner() {
   const [tripCourses, setTripCourses] = useState<any[]>([]);
   const [tripCourseData, setTripCourseData] = useState<{ id: string; name: string; par: number; slope: number; rating: number } | null>(null);
   const [addPlayerSheetVisible, setAddPlayerSheetVisible] = useState(false);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [coursesLoading, setCoursesLoading] = useState(false);
 
   useEffect(() => {
     if (!isRealTrip) return;
-    tripsService.getMembers(trip.id).then(setMembers).catch(() => {
-      showToast({ message: 'Could not load players', type: 'error' });
-    });
+    setMembersLoading(true);
+    setCoursesLoading(true);
+    tripsService.getMembers(trip.id)
+      .then(setMembers)
+      .catch(() => showToast({ message: 'Could not load players', type: 'error' }))
+      .finally(() => setMembersLoading(false));
     tripsService.getCourses(trip.id).then((courses) => {
       setTripCourses(courses);
       if (courses.length > 0) {
@@ -2408,7 +2444,7 @@ function TripDetailScreenInner() {
           });
         }
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setCoursesLoading(false));
   }, [trip.id, isRealTrip, showToast]);
 
   // Derived: real players in TripPlayer shape (registered users + guests)
@@ -2443,11 +2479,16 @@ function TripDetailScreenInner() {
   const [momentText, setMomentText] = useState('');
   const [momentPhoto, setMomentPhoto] = useState<string | null>(null);
   const [submittingMoment, setSubmittingMoment] = useState(false);
+  const [momentsLoading, setMomentsLoading] = useState(false);
 
   // Load moments from Supabase
   useEffect(() => {
     if (!isRealTrip) return;
-    momentsService.getByTrip(trip.id).then(setRealMoments).catch(() => {});
+    setMomentsLoading(true);
+    momentsService.getByTrip(trip.id)
+      .then(setRealMoments)
+      .catch(() => {})
+      .finally(() => setMomentsLoading(false));
   }, [trip.id, isRealTrip]);
 
   const handlePickPhoto = useCallback(async () => {
@@ -2717,41 +2758,55 @@ function TripDetailScreenInner() {
         </Animated.View>
 
         {/* Index 1: PLAYER ROW */}
-        <FlatList
-          data={realPlayers}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          getItemLayout={(_data, index) => ({
-            length: 80,
-            offset: 80 * index,
-            index,
-          })}
-          windowSize={5}
-          removeClippedSubviews={true}
-          contentContainerStyle={s.playerRowScroll}
-          style={[s.playerRowContainer, { backgroundColor: c.bg }]}
-          renderItem={({ item }) => {
-            const rsvpCol =
-              item.rsvp === 'confirmed' ? c.teal : item.rsvp === 'pending' ? c.gold : c.urgent;
-            return (
-              <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${item.name}, ${item.handicap} handicap, ${item.rsvp}`}>
-                <View style={s.playerCardAvatarWrap}>
-                  <View style={[s.avatarRing, item.rsvp === 'confirmed' && { borderColor: c.teal, borderWidth: 2 }]}>
-                    <Avatar id={item.id} size={36} name={item.name} />
-                  </View>
-                  <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol, borderColor: c.bg }]} />
+        {membersLoading && realPlayers.length === 0 ? (
+          <View style={[s.playerRowContainer, { backgroundColor: c.bg }]}>
+            <View style={s.playerRowScroll}>
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                  <Skeleton width={36} height={36} />
+                  <Skeleton width={48} height={10} style={{ marginTop: 6 }} />
+                  <Skeleton width={20} height={10} style={{ marginTop: 6 }} />
                 </View>
-                <Text style={[s.playerCardName, { color: c.text }]} numberOfLines={1}>
-                  {item.name.split(' ')[0]}
-                </Text>
-                <Text style={[s.playerCardHcp, { color: c.textMuted, fontFamily: GEO }]}>
-                  {item.handicap}
-                </Text>
-              </View>
-            );
-          }}
-        />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <FlatList
+            data={realPlayers}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            getItemLayout={(_data, index) => ({
+              length: 80,
+              offset: 80 * index,
+              index,
+            })}
+            windowSize={5}
+            removeClippedSubviews={true}
+            contentContainerStyle={s.playerRowScroll}
+            style={[s.playerRowContainer, { backgroundColor: c.bg }]}
+            renderItem={({ item }) => {
+              const rsvpCol =
+                item.rsvp === 'confirmed' ? c.teal : item.rsvp === 'pending' ? c.gold : c.urgent;
+              return (
+                <View style={[s.playerCard, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${item.name}, ${item.handicap} handicap, ${item.rsvp}`}>
+                  <View style={s.playerCardAvatarWrap}>
+                    <View style={[s.avatarRing, item.rsvp === 'confirmed' && { borderColor: c.teal, borderWidth: 2 }]}>
+                      <Avatar id={item.id} size={36} name={item.name} />
+                    </View>
+                    <View style={[s.rsvpIndicator, { backgroundColor: rsvpCol, borderColor: c.bg }]} />
+                  </View>
+                  <Text style={[s.playerCardName, { color: c.text }]} numberOfLines={1}>
+                    {item.name.split(' ')[0]}
+                  </Text>
+                  <Text style={[s.playerCardHcp, { color: c.textMuted, fontFamily: GEO }]}>
+                    {item.handicap}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+        )}
 
         {/* Index 2: STICKY TAB BAR (pinned via stickyHeaderIndices) */}
         <View style={[s.tabBarWrap, { backgroundColor: c.bg, borderColor: c.border }]}>
@@ -2787,9 +2842,9 @@ function TripDetailScreenInner() {
         {/* Index 3: TAB CONTENT */}
         <View style={{ minHeight: 500, backgroundColor: c.bg }}>
           {activeTab === 'Clubhouse' && (
-            <ClubhouseTab trip={trip} players={realPlayers} courses={tripCourses} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={handleToolPress} realMoments={realMoments} onAddMoment={() => setShowAddMoment(true)} />
+            <ClubhouseTab trip={trip} players={realPlayers} courses={tripCourses} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={handleToolPress} realMoments={realMoments} momentsLoading={momentsLoading} onAddMoment={() => setShowAddMoment(true)} />
           )}
-          {activeTab === 'Courses' && <CoursesTab courses={tripCourses} />}
+          {activeTab === 'Courses' && <CoursesTab courses={tripCourses} loading={coursesLoading} />}
           {activeTab === 'Players' && (
             <PlayersTab
               players={realPlayers}
