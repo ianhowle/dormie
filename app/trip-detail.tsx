@@ -2241,19 +2241,6 @@ function TripDetailScreenInner() {
 
   const trip = mockTrip ?? dbTrip ?? MOCK_UPCOMING_TRIPS[0];
 
-  if (dbLoading) {
-    return (
-      <View style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, { backgroundColor: c.bg }]}>
-        <Text style={{ color: c.textMuted }}>Loading...</Text>
-      </View>
-    );
-  }
-
-  // Ryder Cup trips get their own dedicated view
-  if (trip.isRyderCup) {
-    return <Suspense fallback={<View style={{ flex: 1 }} />}><RyderCupHub trip={trip} /></Suspense>;
-  }
-
   const daysUntil = getDaysUntilTrip(trip.startDate);
   const insets = useSafeAreaInsets();
 
@@ -2411,6 +2398,32 @@ function TripDetailScreenInner() {
     );
   }, [trip, showToast]);
 
+  const MASTERS_GREEN = '#1E4D2B';
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 140],
+    outputRange: [200, 60],
+    extrapolate: 'clamp',
+  });
+  const heroOpacity = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  // Early returns — all hooks above this point
+  if (dbLoading) {
+    return (
+      <View style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, { backgroundColor: c.bg }]}>
+        <Text style={{ color: c.textMuted }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (trip.isRyderCup) {
+    return <Suspense fallback={<View style={{ flex: 1 }} />}><RyderCupHub trip={trip} /></Suspense>;
+  }
+
   // Competition mode routing
   if (competitionMode) {
     return (
@@ -2459,19 +2472,6 @@ function TripDetailScreenInner() {
   if (activeTool === 'tt6') {
     return <WeatherForecast trip={trip} onBack={closeTool} />;
   }
-
-  const MASTERS_GREEN = '#1E4D2B';
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 140],
-    outputRange: [200, 60],
-    extrapolate: 'clamp',
-  });
-  const heroOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
