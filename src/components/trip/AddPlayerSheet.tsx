@@ -338,9 +338,9 @@ function RecentTab({
 // ─── Guest Tab ─────────────────────────────────────────────────────────
 
 function GuestTab({
-  onAdd,
+  onAddImmediate,
 }: {
-  onAdd: (player: PendingPlayer) => void;
+  onAddImmediate: (player: PendingPlayer) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -360,16 +360,15 @@ function GuestTab({
       return;
     }
 
-    haptics.light();
-    onAdd({
-      guest_name: guestName.trim(),
-      name: guestName.trim(),
+    const trimmedName = guestName.trim();
+    setGuestName('');
+    setGuestHcp('');
+    onAddImmediate({
+      guest_name: trimmedName,
+      name: trimmedName,
       handicap: hcp,
       source: 'guest',
     });
-    setGuestName('');
-    setGuestHcp('');
-    showToast({ message: `${guestName.trim()} added`, type: 'success' });
   };
 
   return (
@@ -566,20 +565,18 @@ export default function AddPlayerSheet({
     });
   }, []);
 
-  const handleGuestAdd = useCallback((player: PendingPlayer) => {
-    setSelected((prev) => {
-      const next = new Map(prev);
-      const key = `guest_${player.guest_name}_${Date.now()}`;
-      next.set(key, player);
-      return next;
-    });
-  }, []);
+  const handleGuestAddImmediate = useCallback((player: PendingPlayer) => {
+    haptics.success();
+    onAddPlayers([player]);
+    onClose();
+  }, [onAddPlayers, onClose]);
 
   const handleConfirm = useCallback(() => {
     haptics.success();
     onAddPlayers(Array.from(selected.values()));
     setSelected(new Map());
-  }, [selected, onAddPlayers]);
+    onClose();
+  }, [selected, onAddPlayers, onClose]);
 
   const handleClose = useCallback(() => {
     haptics.light();
@@ -635,7 +632,7 @@ export default function AddPlayerSheet({
             />
           )}
           {tab === 'guest' && (
-            <GuestTab onAdd={handleGuestAdd} />
+            <GuestTab onAddImmediate={handleGuestAddImmediate} />
           )}
         </View>
 
