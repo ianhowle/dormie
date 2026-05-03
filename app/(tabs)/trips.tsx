@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,6 +72,23 @@ function deriveGradientColors(seed: string): [string, string] {
   return TRIP_GRADIENT_PALETTES[Math.abs(hash) % TRIP_GRADIENT_PALETTES.length];
 }
 
+function startOfLocalDay(d: Date | string): Date {
+  const dt = typeof d === 'string' ? new Date(d) : new Date(d.getTime());
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+}
+
+function isTripLive(t: { start_date: string; end_date: string | null; status: string | null }): boolean {
+  if (t.status === 'completed') return false;
+  if (!t.start_date) return false;
+  const today = startOfLocalDay(new Date());
+  const start = startOfLocalDay(t.start_date);
+  const end = startOfLocalDay(t.end_date || t.start_date);
+  return start.getTime() <= today.getTime() && today.getTime() <= end.getTime();
+}
+
+const LIVE_COLOR = '#E07857';
+
 function adaptSupabaseTrip(t: TripWithMembers): Trip {
   const rawMembers = t.trip_members ?? [];
   const playerIds = rawMembers
@@ -110,6 +128,7 @@ function adaptSupabaseTrip(t: TripWithMembers): Trip {
     format: t.format ?? undefined,
     sideGames: Array.isArray(t.side_games) ? (t.side_games as string[]) : [],
     competitionStarted: t.status === 'active',
+    isLive: isTripLive(t),
   };
 }
 
@@ -360,6 +379,37 @@ function DreamBoard({
   );
 }
 
+// ─── Live trip banner ─────────────────────────────────────────────────
+function LiveTripBanner({ trip, onPress }: { trip: TripWithMembers; onPress: () => void }) {
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <Pressable
+      onPress={() => { haptics.light(); onPress(); }}
+      style={({ pressed }) => [
+        s.liveTripBanner,
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <Animated.View style={[s.livePulseDot, { opacity: pulse, backgroundColor: LIVE_COLOR }]} />
+      <Text style={[s.liveTripBannerText, { fontFamily: GEO }]} numberOfLines={1}>
+        {trip.name} is happening now
+      </Text>
+      <Text style={[s.liveTripBannerCta, { fontFamily: GEO }]}>Open →</Text>
+    </Pressable>
+  );
+}
+
 // ─── Add Destination modal ────────────────────────────────────────────
 function AddDestinationModal({
   visible,
@@ -543,6 +593,33 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
   const isDark = theme.isDark;
   const router = useRouter();
   const daysAway = showDays ? getDaysUntilTrip(trip.startDate) : 0;
+  const live = trip.isLive === true;
+
+  // Pulsing dot for live trips
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!live) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [live, pulse]);
+
+  // "Day X of Y" label for multi-day live trips, "LIVE" for single-day
+  const liveLabel = useMemo(() => {
+    if (!live) return null;
+    const start = startOfLocalDay(trip.startDate);
+    const end = startOfLocalDay(trip.endDate || trip.startDate);
+    const today = startOfLocalDay(new Date());
+    const totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    if (totalDays <= 1) return 'LIVE';
+    const currentDay = Math.round((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return `Day ${currentDay} of ${totalDays}`;
+  }, [live, trip.startDate, trip.endDate]);
 
   // Item 12: Two-tone color palette — planning vs competition mode
   const isCompetition = trip.competitionStarted === true;
@@ -598,12 +675,12 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
             <Text style={[s.tripName, { color: tripImage ? '#fff' : c.text }]} numberOfLines={1}>
               {trip.name}
             </Text>
-            {isCompetition && (
+            {!live && isCompetition && (
               <View style={[s.rcBadge, { backgroundColor: `${MASTERS_GREEN}20` }]}>
                 <Text style={[s.rcBadgeText, { color: MASTERS_GREEN }]}>LIVE</Text>
               </View>
             )}
-            {!isCompetition && trip.isRyderCup && (
+            {!live && !isCompetition && trip.isRyderCup && (
               <View style={[s.rcBadge, { backgroundColor: `${c.urgent}20` }]}>
                 <Text style={[s.rcBadgeText, { color: c.urgent }]}>RC</Text>
               </View>
@@ -619,8 +696,25 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
             members={trip.members ?? trip.playerIds.map((id) => ({ id, name: '' }))}
             ringColor={cardBg}
           />
-          {/* Item 15: Replace plain days badge with TripCountdownRing */}
-          {showDays && (
+          {/* Live trips: replace the countdown ring with a Day X of Y / LIVE pill */}
+          {live ? (
+            <View
+              style={[
+                s.liveDayPill,
+                {
+                  backgroundColor: tripImage ? 'rgba(0,0,0,0.55)' : c.elevated,
+                  borderColor: LIVE_COLOR,
+                },
+              ]}
+            >
+              <Animated.View
+                style={[s.livePulseDot, { opacity: pulse, backgroundColor: LIVE_COLOR }]}
+              />
+              <Text style={[s.liveDayPillText, { color: LIVE_COLOR, fontFamily: GEO }]}>
+                {liveLabel}
+              </Text>
+            </View>
+          ) : showDays ? (
             <TripCountdownRing
               daysUntil={daysAway}
               totalDays={60}
@@ -629,7 +723,7 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
               accentColor={trip.isRyderCup ? c.urgent : isCompetition ? MASTERS_GREEN : c.teal}
               textColor={tripImage ? '#FFFFFF' : undefined}
             />
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -727,12 +821,27 @@ export default function TripsScreen() {
   const [tripsLoading, setTripsLoading] = useState(true);
   const [addDestVisible, setAddDestVisible] = useState(false);
 
-  const upcomingRealTrips = useMemo(
-    () => realTrips.filter((t) => !isCompletedTrip(t)),
-    [realTrips],
-  );
+  const upcomingRealTrips = useMemo(() => {
+    const filtered = realTrips.filter((t) => !isCompletedTrip(t));
+    // Sort live trips to the top, then ascending by start_date
+    return filtered.sort((a, b) => {
+      const aLive = isTripLive(a);
+      const bLive = isTripLive(b);
+      if (aLive && !bLive) return -1;
+      if (!aLive && bLive) return 1;
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+    });
+  }, [realTrips]);
   const completedRealTrips = useMemo(
     () => realTrips.filter((t) => isCompletedTrip(t)),
+    [realTrips],
+  );
+  // Trips currently in progress, most recently started first.
+  const liveTrips = useMemo(
+    () =>
+      realTrips
+        .filter(isTripLive)
+        .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()),
     [realTrips],
   );
 
@@ -873,6 +982,15 @@ export default function TripsScreen() {
         }
       >
         <Header onPressJoin={() => setJoinModalVisible(true)} />
+
+        {liveTrips.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
+            <LiveTripBanner
+              trip={liveTrips[0]}
+              onPress={() => router.push({ pathname: '/trip-detail', params: { tripId: liveTrips[0].id } })}
+            />
+          </View>
+        )}
 
         <View style={s.body}>
           {/* First-mount skeleton placeholder — until we know if user has trips */}
@@ -1435,6 +1553,50 @@ const s = StyleSheet.create({
   addDestEmptyText: {
     fontSize: 13,
     textAlign: 'center',
+  },
+
+  /* Live state — trip card pill + pulse dot */
+  liveDayPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  liveDayPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  /* Live trip banner — sits between Header and body */
+  liveTripBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#1A1816',
+    borderWidth: 1,
+    borderColor: '#E07857',
+  },
+  liveTripBannerText: {
+    flex: 1,
+    color: '#E8E4DE',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  liveTripBannerCta: {
+    color: '#E07857',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 
   /* Avatar stack */

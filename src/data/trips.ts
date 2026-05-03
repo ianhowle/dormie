@@ -28,6 +28,7 @@ export type Trip = {
   sideGames?: string[];
   champion?: string; // only for completed
   competitionStarted?: boolean; // true when trip competition is live
+  isLive?: boolean; // calendar-based: start_date <= today <= end_date && status !== 'completed'
   ryderCupConfig?: {
     teamRedName: string;
     teamBlueName: string;
