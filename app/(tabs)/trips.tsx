@@ -696,7 +696,6 @@ function JoinTripModal({
   const canSubmit = (stripped.length === 6 || stripped.length === 8) && !isJoining;
 
   const handleJoin = async () => {
-    console.log('[JoinTrip] submit pressed, code:', code, 'stripped:', stripped, 'canSubmit:', canSubmit);
     if (!canSubmit) return;
     haptics.light();
     setIsJoining(true);
@@ -705,26 +704,15 @@ function JoinTripModal({
       if (stripped.length === 8) {
         // Permanent invite code from trips.invite_code (XXXX-XXXX)
         const formatted = `${stripped.slice(0, 4)}-${stripped.slice(4, 8)}`;
-        console.log('[JoinTrip] calling tripsService.joinByCode (permanent) with:', formatted);
         tripId = await tripsService.joinByCode(formatted);
-        console.log('[JoinTrip] joinByCode returned:', tripId, 'typeof:', typeof tripId);
       } else {
         // 6-char expiring share link from trip_invites.code
-        console.log('[JoinTrip] calling tripInvitesService.joinByInvite (expiring) with:', stripped);
         tripId = await tripInvitesService.joinByInvite(stripped);
-        console.log('[JoinTrip] joinByInvite returned:', tripId, 'typeof:', typeof tripId);
       }
       haptics.success();
       showToast({ message: 'Joined trip', type: 'success' });
-      console.log('[JoinTrip] calling onJoined → expects navigation to /trip-detail?tripId=', tripId);
       onJoined(tripId);
-      console.log('[JoinTrip] onJoined returned (sync portion complete)');
     } catch (err: any) {
-      console.error('[JoinTrip] failed:', err);
-      console.log('[JoinTrip] error message:', err?.message);
-      console.log('[JoinTrip] error code:', err?.code);
-      console.log('[JoinTrip] error details:', err?.details);
-      console.log('[JoinTrip] error hint:', err?.hint);
       haptics.error();
       const raw = (err?.message ?? '').toString();
       const msg = /not found|invalid|no trip|expired/i.test(raw)
@@ -732,7 +720,6 @@ function JoinTripModal({
         : raw || 'Could not join trip';
       showToast({ message: msg, type: 'error' });
     } finally {
-      console.log('[JoinTrip] finally → setIsJoining(false)');
       setIsJoining(false);
     }
   };
