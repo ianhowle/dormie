@@ -41,6 +41,8 @@ import { messagesService } from '../src/services/messages.service';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { tripsService } from '../src/services/trips.service';
 import { momentsService } from '../src/services/moments.service';
+import AddPlayerSheet from '../src/components/trip/AddPlayerSheet';
+import type { PendingPlayer } from '../src/components/trip/AddPlayerSheet';
 import type { TripMessageWithUser, TripMomentWithUser, TripMemberWithUser } from '../src/lib/database.types';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
@@ -634,7 +636,15 @@ function CoursesTab({ courses }: { courses: any[] }) {
 // ═══════════════════════════════════════════════════════════════════════
 // PLAYERS TAB
 // ═══════════════════════════════════════════════════════════════════════
-function PlayersTab({ players }: { players: TripPlayer[] }) {
+function PlayersTab({
+  players,
+  canAddPlayer,
+  onAddPlayer,
+}: {
+  players: TripPlayer[];
+  canAddPlayer?: boolean;
+  onAddPlayer?: () => void;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -644,6 +654,33 @@ function PlayersTab({ players }: { players: TripPlayer[] }) {
     return c.urgent;
   };
 
+  const AddPlayerCta = () => {
+    if (!canAddPlayer || !onAddPlayer) return null;
+    return (
+      <Pressable
+        onPress={() => { haptics.light(); onAddPlayer(); }}
+        style={({ pressed }) => [
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: 14,
+            paddingHorizontal: 20,
+            backgroundColor: '#006747',
+            marginBottom: 12,
+          },
+          pressed && { opacity: 0.7 },
+        ]}
+      >
+        <Ionicons name="person-add-outline" size={18} color="#C9A227" />
+        <Text style={{ color: '#C9A227', fontFamily: GEO, fontSize: 15, fontWeight: '700', letterSpacing: 1 }}>
+          Add Player
+        </Text>
+      </Pressable>
+    );
+  };
+
   if (players.length <= 1) {
     return (
       <ScrollView
@@ -651,6 +688,7 @@ function PlayersTab({ players }: { players: TripPlayer[] }) {
         contentContainerStyle={s.tabContent}
         showsVerticalScrollIndicator={false}
       >
+        <AddPlayerCta />
         {players.map((p) => (
           <View key={p.id} style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
             <Avatar id={p.id} size={44} name={p.name} />
@@ -685,6 +723,7 @@ function PlayersTab({ players }: { players: TripPlayer[] }) {
       contentContainerStyle={s.tabContent}
       showsVerticalScrollIndicator={false}
     >
+      <AddPlayerCta />
       {players.map((p) => (
         <View key={p.id} style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${p.name}, ${p.handicap} handicap, ${p.rsvp}`}>
           <Avatar id={p.id} size={44} name={p.name} />
@@ -2321,6 +2360,7 @@ function TripDetailScreenInner() {
   const [members, setMembers] = useState<TripMemberWithUser[]>([]);
   const [tripCourses, setTripCourses] = useState<any[]>([]);
   const [tripCourseData, setTripCourseData] = useState<{ id: string; name: string; par: number; slope: number; rating: number } | null>(null);
+  const [addPlayerSheetVisible, setAddPlayerSheetVisible] = useState(false);
 
   useEffect(() => {
     if (!isRealTrip) return;
@@ -2431,6 +2471,31 @@ function TripDetailScreenInner() {
     const tool = TRIP_TOOLS.find((t) => t.id === toolId);
     showToast({ message: `${tool?.label ?? 'This tool'} coming soon`, type: 'info' });
   }, [showToast]);
+
+  const isOrganizer = !!user?.id && user.id === trip.createdBy;
+
+  const handleAddPlayers = useCallback(async (newPlayers: PendingPlayer[]) => {
+    if (!isRealTrip) return;
+    const payload = newPlayers.map((p) =>
+      p.user_id
+        ? { user_id: p.user_id }
+        : { guest_name: p.guest_name ?? p.name, handicap: p.handicap },
+    );
+    try {
+      await tripsService.addMembers(trip.id, payload);
+      const updated = await tripsService.getMembers(trip.id);
+      setMembers(updated);
+      setAddPlayerSheetVisible(false);
+      haptics.success();
+      showToast({
+        message: newPlayers.length === 1 ? 'Player added' : `${newPlayers.length} players added`,
+        type: 'success',
+      });
+    } catch (err: any) {
+      haptics.error();
+      showToast({ message: err?.message ?? 'Could not add players', type: 'error' });
+    }
+  }, [trip.id, isRealTrip, showToast]);
 
   const formatDateRange = (start: string, end: string) => {
     const s = new Date(start);
@@ -2699,7 +2764,13 @@ function TripDetailScreenInner() {
             <ClubhouseTab trip={trip} players={realPlayers} courses={tripCourses} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={handleToolPress} realMoments={realMoments} onAddMoment={() => setShowAddMoment(true)} />
           )}
           {activeTab === 'Courses' && <CoursesTab courses={tripCourses} />}
-          {activeTab === 'Players' && <PlayersTab players={realPlayers} />}
+          {activeTab === 'Players' && (
+            <PlayersTab
+              players={realPlayers}
+              canAddPlayer={isOrganizer && isRealTrip}
+              onAddPlayer={() => setAddPlayerSheetVisible(true)}
+            />
+          )}
           {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
           {activeTab === '19th Hole' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
         </View>
@@ -2725,6 +2796,17 @@ function TripDetailScreenInner() {
         players={realPlayers}
         visible={showCeremony}
         onComplete={handleCeremonyComplete}
+      />
+
+      {/* Add Player sheet — organizers can add friends, recents, guests, or share an invite */}
+      <AddPlayerSheet
+        isVisible={addPlayerSheetVisible}
+        tripId={trip.id}
+        tripName={trip.name}
+        tripInviteCode={trip.inviteCode}
+        existingPlayers={realPlayers.map((p) => ({ id: p.id, name: p.name }))}
+        onAddPlayers={handleAddPlayers}
+        onClose={() => setAddPlayerSheetVisible(false)}
       />
 
       {/* Add Moment Modal */}
