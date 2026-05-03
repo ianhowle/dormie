@@ -14,7 +14,7 @@ import {
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
@@ -195,12 +195,14 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const params = useLocalSearchParams<{ location?: string }>();
+  const initialLocation = typeof params.location === 'string' ? params.location : '';
 
   const scrollRef = useRef<ScrollView>(null);
 
   // State
   const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState(initialLocation);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
@@ -300,6 +302,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                 setLocation(course?.name ?? '');
               }}
               placeholder="Search courses..."
+              initialQuery={initialLocation}
             />
 
             {/* Dates */}

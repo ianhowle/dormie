@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ interface CourseLocationPickerProps {
   value: SelectedCourse | null;
   onChange: (course: SelectedCourse | null) => void;
   placeholder?: string;
+  initialQuery?: string;
 }
 
 type FallbackStage = 'local' | 'golfApi' | 'places';
@@ -41,12 +42,13 @@ export default function CourseLocationPicker({
   value,
   onChange,
   placeholder = 'Search courses...',
+  initialQuery,
 }: CourseLocationPickerProps) {
   const { theme } = useTheme();
   const c = theme.colors;
   const { showToast } = useToast();
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ?? '');
   const [results, setResults] = useState<SelectedCourse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -89,6 +91,15 @@ export default function CourseLocationPicker({
       setExhaustedStages(new Set(['local']));
     } finally {
       setIsSearching(false);
+    }
+  }, []);
+
+  // Run an initial search if the parent supplied a starting query
+  // (e.g. "Pebble Beach, CA" from a Dream Board "Plan Trip" tap).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim().length >= 2) {
+      searchLocal(initialQuery.trim());
     }
   }, []);
 

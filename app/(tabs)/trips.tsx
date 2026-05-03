@@ -12,6 +12,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,12 +30,12 @@ import { Skeleton } from '../../src/components/Skeleton';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
 import { tripInvitesService } from '../../src/services/tripInvites.service';
-import { bucketListService } from '../../src/services/bucketList.service';
+import { destinationsService, type Destination, type DreamBoardEntry, type DestinationStatus } from '../../src/services/destinations.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { getDreamImage } from '../../src/services/courseImages.service';
-import type { TripWithMembers, BucketListItemWithCourse } from '../../src/lib/database.types';
+import type { TripWithMembers } from '../../src/lib/database.types';
 import { TripsEmpty } from '../../src/components/EmptyStates';
 import { DemoPeekToggle, DemoBanner } from '../../src/components/DemoPeek';
 import { useDemoMode } from '../../src/contexts/DemoModeContext';
@@ -42,14 +43,10 @@ import {
   MOCK_TRIP_STATS,
   MOCK_UPCOMING_TRIPS,
   MOCK_COMPLETED_TRIPS,
-  MOCK_DREAM_DESTINATIONS,
-  MOCK_BUCKET_COURSES,
   MOCK_EXPLORE_DESTINATIONS,
   getDaysUntilTrip,
   type Trip,
   type TripStatus,
-  type DreamDestination,
-  type BucketCourse,
   type ExploreDestination,
 } from '../../src/data/trips';
 
@@ -222,13 +219,69 @@ function BannerStat({
   );
 }
 
-// ─── Dream board (horizontal) ─────────────────────────────────────────
-function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
+// ─── Status badge config ──────────────────────────────────────────────
+const STATUS_BADGE: Record<DestinationStatus, { label: string; color: string }> = {
+  saved: { label: 'SAVED', color: '#C9A227' },        // gold
+  planning: { label: 'PLANNING', color: '#3FA897' },  // teal
+  booked: { label: 'BOOKED', color: '#006747' },      // Augusta green
+  played: { label: 'PLAYED', color: '#8A857F' },      // muted
+};
+
+const STATUS_OPTIONS: { status: DestinationStatus; subtitle: string }[] = [
+  { status: 'saved', subtitle: 'Just dreaming' },
+  { status: 'planning', subtitle: "Working on it" },
+  { status: 'booked', subtitle: "It's happening" },
+  { status: 'played', subtitle: 'Memory in the books' },
+];
+
+// ─── Dream board (horizontal, interactive) ────────────────────────────
+function DreamBoard({
+  entries,
+  onLongPress,
+  onAddPress,
+  onPlanTrip,
+}: {
+  entries: DreamBoardEntry[];
+  onLongPress: (entry: DreamBoardEntry) => void;
+  onAddPress: () => void;
+  onPlanTrip: (region: string) => void;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
 
-  if (destinations.length === 0) return null;
+  // Empty state — invite first add
+  if (entries.length === 0) {
+    return (
+      <View>
+        <SectionLabel title="DREAM BOARD" />
+        <Pressable
+          onPress={() => { haptics.light(); onAddPress(); }}
+          style={({ pressed }) => [
+            s.dreamEmptyCard,
+            { backgroundColor: c.cardBg, borderColor: c.gold },
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Ionicons name="star-outline" size={28} color={c.gold} />
+          <Text style={[s.dreamEmptyTitle, { color: c.text, fontFamily: GEO }]}>
+            Your Dream Board is empty
+          </Text>
+          <Text style={[s.dreamEmptyBody, { color: c.textMuted }]}>
+            Save up to 3 destinations you want to play.
+          </Text>
+          <View style={[s.dreamEmptyCta, { backgroundColor: '#006747' }]}>
+            <Ionicons name="add" size={14} color="#C9A227" />
+            <Text style={[s.dreamEmptyCtaText, { color: '#C9A227', fontFamily: GEO }]}>
+              Add Destination
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const canAddMore = entries.length < 3;
 
   return (
     <View>
@@ -238,40 +291,181 @@ function DreamBoard({ destinations }: { destinations: DreamDestination[] }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.dreamScroll}
       >
-        {destinations.map((d) => (
+        {entries.map((entry) => {
+          const d = entry.destination;
+          const badge = STATUS_BADGE[entry.status];
+          const isPlayed = entry.status === 'played';
+          return (
+            <Pressable
+              key={entry.id}
+              onPress={() => { haptics.light(); onPlanTrip(d.region); }}
+              onLongPress={() => { haptics.medium(); onLongPress(entry); }}
+              delayLongPress={350}
+              style={({ pressed }) => [
+                s.dreamCard,
+                { borderWidth: 1, borderColor: c.border },
+                ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+                isPlayed && { opacity: 0.75 },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <DestinationImage
+                name={d.name}
+                imageUrl={d.hero_image_url ?? getDreamImage(d.name)}
+                gradient={deriveGradientColors(d.name)}
+                style={s.dreamGradient}
+              >
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.7)']}
+                  locations={[0, 0.4, 1]}
+                  style={s.dreamOverlay}
+                />
+                <View style={[s.dreamStatusBadge, { borderColor: badge.color }]}>
+                  <Text style={[s.dreamStatusBadgeText, { color: badge.color }]}>
+                    {badge.label}
+                  </Text>
+                </View>
+                <View style={s.dreamTextWrap}>
+                  <Text style={[s.dreamName, { fontFamily: GEO }]}>{d.name}</Text>
+                  <Text style={s.dreamLocation}>{d.region}</Text>
+                </View>
+              </DestinationImage>
+              <View style={[s.dreamFooter, { backgroundColor: c.cardBg }]}>
+                <Text style={[s.dreamAction, { color: c.teal }]}>Plan Trip →</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+
+        {canAddMore && (
           <Pressable
-            key={d.id}
-            onPress={() => haptics.light()}
+            onPress={() => { haptics.light(); onAddPress(); }}
             style={({ pressed }) => [
-              s.dreamCard,
-              { borderWidth: 1, borderColor: c.border },
-              ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+              s.dreamAddTile,
+              { backgroundColor: c.cardBg, borderColor: c.gold },
               pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
             ]}
           >
-            <DestinationImage
-              name={d.name}
-              imageUrl={getDreamImage(d.name)}
-              gradient={d.gradient}
-              style={s.dreamGradient}
-            >
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.7)']}
-                locations={[0, 0.4, 1]}
-                style={s.dreamOverlay}
-              />
-              <View style={s.dreamTextWrap}>
-                <Text style={[s.dreamName, { fontFamily: GEO }]}>{d.name}</Text>
-                <Text style={s.dreamLocation}>{d.city}, {d.state}</Text>
-              </View>
-            </DestinationImage>
-            <View style={[s.dreamFooter, { backgroundColor: c.cardBg }]}>
-              <Text style={[s.dreamAction, { color: c.teal }]}>Plan Trip →</Text>
-            </View>
+            <Ionicons name="add" size={28} color={c.gold} />
+            <Text style={[s.dreamAddTileText, { color: c.gold, fontFamily: GEO }]}>
+              Add Destination
+            </Text>
+            <Text style={[s.dreamAddTileSubtle, { color: c.textMuted }]}>
+              {3 - entries.length} of 3 spots open
+            </Text>
           </Pressable>
-        ))}
+        )}
       </ScrollView>
     </View>
+  );
+}
+
+// ─── Add Destination modal ────────────────────────────────────────────
+function AddDestinationModal({
+  visible,
+  catalog,
+  takenIds,
+  onAdd,
+  onClose,
+}: {
+  visible: boolean;
+  catalog: Destination[];
+  takenIds: Set<string>;
+  onAdd: (destinationId: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) setBusyId(null);
+  }, [visible]);
+
+  const available = catalog.filter((d) => !takenIds.has(d.id));
+  const spotsOpen = Math.max(0, 3 - takenIds.size);
+
+  const handleAdd = async (destinationId: string) => {
+    if (busyId) return;
+    haptics.light();
+    setBusyId(destinationId);
+    try {
+      await onAdd(destinationId);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={[s.addDestRoot, { backgroundColor: c.bg }]}>
+        <View style={s.addDestHeader}>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Ionicons name="close" size={24} color={c.text} />
+          </Pressable>
+          <Text style={[s.addDestTitle, { color: c.text, fontFamily: GEO }]}>
+            Add to Dream Board
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <Text style={[s.addDestSubtitle, { color: c.textMuted }]}>
+          {spotsOpen} of 3 spots open
+        </Text>
+        <ScrollView contentContainerStyle={s.addDestList}>
+          {available.length === 0 ? (
+            <View style={[s.addDestEmpty, { borderColor: c.border }]}>
+              <Text style={[s.addDestEmptyText, { color: c.textMuted }]}>
+                You've added every destination on the catalog. More coming soon.
+              </Text>
+            </View>
+          ) : (
+            available.map((d) => {
+              const isBusy = busyId === d.id;
+              const tier = '$'.repeat(d.price_tier ?? 1);
+              return (
+                <Pressable
+                  key={d.id}
+                  onPress={() => handleAdd(d.id)}
+                  disabled={!!busyId}
+                  style={({ pressed }) => [
+                    s.addDestRow,
+                    { backgroundColor: c.cardBg, borderColor: c.border },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={s.addDestThumb}>
+                    <DestinationImage
+                      name={d.name}
+                      imageUrl={d.hero_image_url ?? getDreamImage(d.name)}
+                      gradient={deriveGradientColors(d.name)}
+                      style={s.addDestThumbImg}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.addDestRowName, { color: c.text, fontFamily: GEO }]}>
+                      {d.name}
+                    </Text>
+                    <Text style={[s.addDestRowMeta, { color: c.textMuted }]}>
+                      {d.region} · {d.course_count} course{d.course_count === 1 ? '' : 's'} · {tier || '$'}
+                    </Text>
+                  </View>
+                  {isBusy ? (
+                    <ActivityIndicator size="small" color={c.gold} />
+                  ) : (
+                    <Ionicons name="add-circle-outline" size={22} color={c.gold} />
+                  )}
+                </Pressable>
+              );
+            })
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
@@ -417,57 +611,6 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
   );
 }
 
-// ─── Bucket list ──────────────────────────────────────────────────────
-function BucketList({ courses, realItems }: { courses: BucketCourse[]; realItems: BucketListItemWithCourse[] }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  const isDark = theme.isDark;
-
-  // Merge real data with mock fallback
-  const hasRealData = realItems.length > 0;
-  const displayCourses = hasRealData
-    ? realItems.map((item) => {
-        const parts = item.course.location?.split(',') ?? ['', ''];
-        return {
-          id: item.id,
-          name: item.course.name,
-          city: parts[0]?.trim() ?? '',
-          state: parts[1]?.trim() ?? '',
-        };
-      })
-    : courses;
-
-  if (displayCourses.length === 0) return null;
-
-  return (
-    <View>
-      <SectionLabel title="BUCKET LIST" />
-      {displayCourses.map((course) => (
-        <View
-          key={course.id}
-          style={[
-            s.bucketRow,
-            {
-              backgroundColor: c.cardBg,
-              borderColor: c.gold,
-              borderWidth: 1,
-            },
-            ...(isDark ? [cardShadowDark] : [cardShadowLight]),
-          ]}
-        >
-          <Ionicons name="checkmark-circle" size={14} color={c.gold} />
-          <View style={s.bucketInfo}>
-            <Text style={[s.bucketName, { color: c.text, fontFamily: SANS }]}>{course.name}</Text>
-            <Text style={[s.bucketLocation, { color: c.textMuted }]}>
-              {course.city}{course.state ? `, ${course.state}` : ''}
-            </Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 // ─── Explore row (horizontal) ─────────────────────────────────────────
 function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
   const { theme } = useTheme();
@@ -522,13 +665,15 @@ export default function TripsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
-  const [bucketItems, setBucketItems] = useState<BucketListItemWithCourse[]>([]);
+  const [dreamEntries, setDreamEntries] = useState<DreamBoardEntry[]>([]);
+  const [destinationCatalog, setDestinationCatalog] = useState<Destination[]>([]);
   const { isDemoMode: showDemoData, setDemoMode: setShowDemoData, checkAndDisable } = useDemoMode();
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const { showToast } = useToast();
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [tripsLoading, setTripsLoading] = useState(true);
+  const [addDestVisible, setAddDestVisible] = useState(false);
 
   const upcomingRealTrips = useMemo(
     () => realTrips.filter((t) => !isCompletedTrip(t)),
@@ -552,19 +697,22 @@ export default function TripsScreen() {
       })
       .catch(() => {})
       .finally(() => setTripsLoading(false));
-    bucketListService.getByUser(user.id).then(setBucketItems).catch(() => {});
+    destinationsService.getDreamBoard(user.id).then(setDreamEntries).catch(() => {});
+    destinationsService.listAll().then(setDestinationCatalog).catch(() => {});
   }, [user, checkAndDisable]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (user) {
-        const [trips, bucket] = await Promise.all([
+        const [trips, dream, catalog] = await Promise.all([
           tripsService.getByUser(user.id),
-          bucketListService.getByUser(user.id),
+          destinationsService.getDreamBoard(user.id),
+          destinationsService.listAll(),
         ]);
         setRealTrips(trips);
-        setBucketItems(bucket);
+        setDreamEntries(dream);
+        setDestinationCatalog(catalog);
         if (trips.length > 0) checkAndDisable();
       }
       setLastRefreshed(new Date());
@@ -574,6 +722,93 @@ export default function TripsScreen() {
     }
     setRefreshing(false);
   }, [user, showToast, checkAndDisable]);
+
+  const refreshDreamBoard = useCallback(async () => {
+    if (!user) return;
+    try {
+      const dream = await destinationsService.getDreamBoard(user.id);
+      setDreamEntries(dream);
+    } catch {}
+  }, [user]);
+
+  const handleAddDestination = useCallback(async (destinationId: string) => {
+    if (!user) return;
+    try {
+      await destinationsService.addToDreamBoard(user.id, destinationId);
+      await refreshDreamBoard();
+      setAddDestVisible(false);
+      haptics.success();
+      showToast({ message: 'Added to Dream Board', type: 'success' });
+    } catch (err: any) {
+      haptics.error();
+      const raw = (err?.message ?? '').toString();
+      const msg = /limit reached|cap/i.test(raw)
+        ? 'Dream Board is full. Remove one to add another.'
+        : raw || "Couldn't add destination";
+      showToast({ message: msg, type: 'error' });
+    }
+  }, [user, showToast, refreshDreamBoard]);
+
+  const promptStatus = useCallback((entry: DreamBoardEntry) => {
+    Alert.alert(
+      'Update status',
+      entry.destination.name,
+      [
+        ...STATUS_OPTIONS.map((opt) => ({
+          text: `${STATUS_BADGE[opt.status].label} — ${opt.subtitle}`,
+          onPress: async () => {
+            if (entry.status === opt.status) return;
+            try {
+              await destinationsService.updateStatus(entry.id, opt.status);
+              haptics.success();
+              showToast({ message: 'Status updated', type: 'success' });
+              await refreshDreamBoard();
+            } catch (err: any) {
+              haptics.error();
+              showToast({ message: err?.message ?? "Couldn't update status", type: 'error' });
+            }
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    );
+  }, [refreshDreamBoard, showToast]);
+
+  const handleLongPressEntry = useCallback((entry: DreamBoardEntry) => {
+    Alert.alert(
+      entry.destination.name,
+      entry.destination.region,
+      [
+        { text: 'Update Status', onPress: () => promptStatus(entry) },
+        {
+          text: 'Remove from Dream Board',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await destinationsService.removeFromDreamBoard(entry.id);
+              haptics.success();
+              showToast({ message: 'Removed from Dream Board', type: 'success' });
+              await refreshDreamBoard();
+            } catch (err: any) {
+              haptics.error();
+              showToast({ message: err?.message ?? "Couldn't remove", type: 'error' });
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  }, [promptStatus, refreshDreamBoard, showToast]);
+
+  const handlePlanTrip = useCallback((region: string) => {
+    haptics.light();
+    router.push({ pathname: '/create-trip', params: { location: region } });
+  }, [router]);
+
+  const dreamTakenIds = useMemo(
+    () => new Set(dreamEntries.map((e) => e.destination_id)),
+    [dreamEntries],
+  );
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
@@ -625,8 +860,13 @@ export default function TripsScreen() {
           {/* Gold divider after stats */}
           {(realTrips.length > 0 || showDemoData) && <GoldDivider style={{ marginTop: 24 }} />}
 
-          {/* Dream board — always visible (destination data is not user-specific) */}
-          <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />
+          {/* Dream board — user's saved destinations from Supabase, capped at 3 */}
+          <DreamBoard
+            entries={dreamEntries}
+            onLongPress={handleLongPressEntry}
+            onAddPress={() => setAddDestVisible(true)}
+            onPlanTrip={handlePlanTrip}
+          />
 
           {/* Upcoming — real trips first, then demo mocks below (with DEMO badge) when demo mode is on */}
           {(() => {
@@ -669,14 +909,6 @@ export default function TripsScreen() {
             );
           })()}
 
-          {/* Bucket list */}
-          {(realTrips.length > 0 || showDemoData) && (
-            <>
-              <GoldDivider style={{ marginTop: 24 }} />
-              <BucketList courses={MOCK_BUCKET_COURSES} realItems={bucketItems} />
-            </>
-          )}
-
           {/* Explore */}
           {(realTrips.length > 0 || showDemoData) && (
             <>
@@ -688,6 +920,14 @@ export default function TripsScreen() {
 
         <View style={{ height: 32 + insets.bottom }} />
       </ScrollView>
+
+      <AddDestinationModal
+        visible={addDestVisible}
+        catalog={destinationCatalog}
+        takenIds={dreamTakenIds}
+        onAdd={handleAddDestination}
+        onClose={() => setAddDestVisible(false)}
+      />
 
       <JoinTripModal
         visible={joinModalVisible}
@@ -1014,6 +1254,132 @@ const s = StyleSheet.create({
   dreamAction: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  dreamStatusBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    zIndex: 2,
+  },
+  dreamStatusBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  dreamAddTile: {
+    width: 160,
+    height: 142,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  dreamAddTileText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  dreamAddTileSubtle: {
+    fontSize: 10,
+    textAlign: 'center',
+  },
+  dreamEmptyCard: {
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  dreamEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  dreamEmptyBody: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  dreamEmptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  dreamEmptyCtaText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+
+  /* Add Destination modal */
+  addDestRoot: {
+    flex: 1,
+  },
+  addDestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  addDestTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  addDestSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  addDestList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  addDestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  addDestThumb: {
+    width: 56,
+    height: 56,
+    overflow: 'hidden',
+  },
+  addDestThumbImg: {
+    width: 56,
+    height: 56,
+  },
+  addDestRowName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  addDestRowMeta: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  addDestEmpty: {
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+  },
+  addDestEmptyText: {
+    fontSize: 13,
+    textAlign: 'center',
   },
 
   /* Avatar stack */
