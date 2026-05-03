@@ -43,7 +43,7 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
   const checkAndDisable = useCallback(async () => {
     if (!user) return;
 
-    const [roundsRes, groupsRes, friendsRes] = await Promise.all([
+    const [roundsRes, groupsRes, friendsRes, tripsRes] = await Promise.all([
       supabase.from('rounds').select('id').eq('user_id', user.id).limit(1),
       supabase.from('group_members').select('id').eq('user_id', user.id).limit(1),
       supabase
@@ -52,12 +52,14 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
         .eq('status', 'accepted')
         .limit(1),
+      supabase.from('trip_members').select('id').eq('user_id', user.id).limit(1),
     ]);
 
     const hasRealData =
       (roundsRes.data && roundsRes.data.length > 0) ||
       (groupsRes.data && groupsRes.data.length > 0) ||
-      (friendsRes.data && friendsRes.data.length > 0);
+      (friendsRes.data && friendsRes.data.length > 0) ||
+      (tripsRes.data && tripsRes.data.length > 0);
 
     if (hasRealData) {
       setIsDemoMode(false);

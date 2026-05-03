@@ -46,14 +46,14 @@ export const tripsService = {
     return data as TripWithMembers;
   },
 
-  /** Get all trips the user is a member of. */
-  async getByUser(userId: string): Promise<Trip[]> {
+  /** Get all trips the user is a member of, with members joined for avatar/player rendering. */
+  async getByUser(userId: string): Promise<TripWithMembers[]> {
     const { data, error } = await supabase
       .from('trip_members')
-      .select('trip:trips(*)')
+      .select('trip:trips(*, trip_members(*, user:users(id, name, handicap_index, avatar_color)))')
       .eq('user_id', userId);
     if (error) throw error;
-    return (data || []).map((row: any) => row.trip) as Trip[];
+    return (data || []).map((row: any) => row.trip) as TripWithMembers[];
   },
 
   /** Update trip details (organizer only via RLS). */

@@ -41,10 +41,49 @@ import {
   MOCK_EXPLORE_DESTINATIONS,
   getDaysUntilTrip,
   type Trip,
+  type TripStatus,
   type DreamDestination,
   type BucketCourse,
   type ExploreDestination,
 } from '../../src/data/trips';
+
+const DEFAULT_TRIP_GRADIENT: [string, string] = ['#1E4D2B', '#2D7A3F'];
+
+function adaptSupabaseTrip(t: TripWithMembers): Trip {
+  const members = t.trip_members ?? [];
+  const playerIds = members
+    .map((m) => m.user_id)
+    .filter((id): id is string => !!id);
+  const city = t.city ?? t.location?.split(',')[0]?.trim() ?? '';
+  const state = t.state ?? t.location?.split(',')[1]?.trim() ?? '';
+  const gradient: [string, string] =
+    Array.isArray(t.gradient) && t.gradient.length >= 2
+      ? [t.gradient[0], t.gradient[1]]
+      : DEFAULT_TRIP_GRADIENT;
+  return {
+    id: t.id,
+    name: t.name,
+    destination: t.location,
+    city,
+    state,
+    startDate: t.start_date,
+    endDate: t.end_date,
+    status: (t.status ?? 'upcoming') as TripStatus,
+    inviteCode: t.invite_code ?? '',
+    isRyderCup: t.trip_type === 'ryder',
+    createdBy: t.organizer_id,
+    playerIds,
+    roundsPlanned: 1,
+    gradient,
+    competitionStarted: t.status === 'active',
+  };
+}
+
+function isCompletedTrip(t: TripWithMembers): boolean {
+  if (t.status === 'completed') return true;
+  const today = new Date().toISOString().slice(0, 10);
+  return t.end_date < today;
+}
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -442,16 +481,28 @@ export default function TripsScreen() {
   const insets = useSafeAreaInsets();
   const [realTrips, setRealTrips] = useState<TripWithMembers[]>([]);
   const [bucketItems, setBucketItems] = useState<BucketListItemWithCourse[]>([]);
-  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData, checkAndDisable } = useDemoMode();
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const { showToast } = useToast();
 
+  const upcomingRealTrips = useMemo(
+    () => realTrips.filter((t) => !isCompletedTrip(t)),
+    [realTrips],
+  );
+  const completedRealTrips = useMemo(
+    () => realTrips.filter((t) => isCompletedTrip(t)),
+    [realTrips],
+  );
+
   useEffect(() => {
     if (!user) return;
-    tripsService.getByUser(user.id).then(setRealTrips).catch(() => {});
+    tripsService.getByUser(user.id).then((trips) => {
+      setRealTrips(trips);
+      if (trips.length > 0) checkAndDisable();
+    }).catch(() => {});
     bucketListService.getByUser(user.id).then(setBucketItems).catch(() => {});
-  }, [user]);
+  }, [user, checkAndDisable]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -463,12 +514,15 @@ export default function TripsScreen() {
         ]);
         setRealTrips(trips);
         setBucketItems(bucket);
+        if (trips.length > 0) checkAndDisable();
       }
       setLastRefreshed(new Date());
       showToast({ message: 'Trips updated', type: 'success' });
-    } catch {}
+    } catch {
+      showToast({ message: "Couldn't refresh trips", type: 'error' });
+    }
     setRefreshing(false);
-  }, [user, showToast]);
+  }, [user, showToast, checkAndDisable]);
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
@@ -506,8 +560,21 @@ export default function TripsScreen() {
           {/* Dream board — always visible (destination data is not user-specific) */}
           <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />
 
-          {/* Upcoming */}
-          {(realTrips.length > 0 || showDemoData) && MOCK_UPCOMING_TRIPS.length > 0 && (
+          {/* Upcoming — real trips when present, otherwise mock peek when demo on */}
+          {realTrips.length > 0 ? (
+            upcomingRealTrips.length > 0 && (
+              <>
+                <GoldDivider style={{ marginTop: 24 }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <SectionLabel title="UPCOMING" />
+                  <DataFreshness updatedAt={lastRefreshed} />
+                </View>
+                {upcomingRealTrips.map((trip) => (
+                  <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} showDays />
+                ))}
+              </>
+            )
+          ) : showDemoData && MOCK_UPCOMING_TRIPS.length > 0 ? (
             <>
               <GoldDivider style={{ marginTop: 24 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -518,10 +585,20 @@ export default function TripsScreen() {
                 <TripCard key={trip.id} trip={trip} showDays />
               ))}
             </>
-          )}
+          ) : null}
 
-          {/* Completed */}
-          {(realTrips.length > 0 || showDemoData) && MOCK_COMPLETED_TRIPS.length > 0 && (
+          {/* Completed — real trips when present, otherwise mock peek when demo on */}
+          {realTrips.length > 0 ? (
+            completedRealTrips.length > 0 && (
+              <>
+                <GoldDivider style={{ marginTop: 24 }} />
+                <SectionLabel title="COMPLETED" />
+                {completedRealTrips.map((trip) => (
+                  <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} />
+                ))}
+              </>
+            )
+          ) : showDemoData && MOCK_COMPLETED_TRIPS.length > 0 ? (
             <>
               <GoldDivider style={{ marginTop: 24 }} />
               <SectionLabel title="COMPLETED" />
@@ -529,7 +606,7 @@ export default function TripsScreen() {
                 <TripCard key={trip.id} trip={trip} />
               ))}
             </>
-          )}
+          ) : null}
 
           {/* Bucket list */}
           {(realTrips.length > 0 || showDemoData) && (
