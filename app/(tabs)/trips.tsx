@@ -8,6 +8,10 @@ import {
   Platform,
   StatusBar,
   RefreshControl,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -97,7 +101,7 @@ function SectionLabel({ title }: { title: string }) {
 }
 
 // ─── Header ───────────────────────────────────────────────────────────
-function Header() {
+function Header({ onPressJoin }: { onPressJoin: () => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
@@ -124,6 +128,17 @@ function Header() {
         >
           <Ionicons name="compass-outline" size={15} color="rgba(255,255,255,0.8)" />
           <Text style={[s.headerBtnText, { color: 'rgba(255,255,255,0.8)' }]}>Discover</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => { haptics.light(); onPressJoin(); }}
+          style={({ pressed }) => [
+            s.headerBtn,
+            { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)' },
+            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+          ]}
+        >
+          <Ionicons name="enter-outline" size={15} color="rgba(255,255,255,0.8)" />
+          <Text style={[s.headerBtnText, { color: 'rgba(255,255,255,0.8)' }]}>Join</Text>
         </Pressable>
         <Pressable
           onPress={() => router.push('/create-trip')}
@@ -485,6 +500,7 @@ export default function TripsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const { showToast } = useToast();
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
 
   const upcomingRealTrips = useMemo(
     () => realTrips.filter((t) => !isCompletedTrip(t)),
@@ -534,7 +550,7 @@ export default function TripsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.teal} />
         }
       >
-        <Header />
+        <Header onPressJoin={() => setJoinModalVisible(true)} />
 
         <View style={s.body}>
           {/* Demo peek toggle — for empty state */}
@@ -627,7 +643,135 @@ export default function TripsScreen() {
 
         <View style={{ height: 32 + insets.bottom }} />
       </ScrollView>
+
+      <JoinTripModal
+        visible={joinModalVisible}
+        onClose={() => setJoinModalVisible(false)}
+        onJoined={(tripId) => {
+          setJoinModalVisible(false);
+          if (user) checkAndDisable();
+          router.push({ pathname: '/trip-detail', params: { tripId } });
+        }}
+      />
     </View>
+  );
+}
+
+// ─── Join Trip modal ──────────────────────────────────────────────────
+function JoinTripModal({
+  visible,
+  onClose,
+  onJoined,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onJoined: (tripId: string) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const { showToast } = useToast();
+  const [code, setCode] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setCode('');
+      setIsJoining(false);
+    }
+  }, [visible]);
+
+  const canSubmit = code.trim().length === 6 && !isJoining;
+
+  const handleJoin = async () => {
+    if (!canSubmit) return;
+    haptics.light();
+    setIsJoining(true);
+    try {
+      const tripId = await tripsService.joinByCode(code.trim());
+      haptics.success();
+      showToast({ message: 'Joined trip', type: 'success' });
+      onJoined(tripId);
+    } catch (err: any) {
+      haptics.error();
+      const raw = (err?.message ?? '').toString();
+      const msg = /not found|invalid|no trip/i.test(raw)
+        ? 'Invalid invite code'
+        : raw || 'Could not join trip';
+      showToast({ message: msg, type: 'error' });
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[s.joinModalRoot, { backgroundColor: c.bg }]}
+      >
+        <View style={s.joinModalHeader}>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Ionicons name="close" size={24} color={c.text} />
+          </Pressable>
+          <Text style={[s.joinModalTitle, { color: c.text, fontFamily: GEO }]}>Join a Trip</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <View style={s.joinModalBody}>
+          <Text style={[s.joinModalSubtitle, { color: c.textMuted }]}>
+            Enter the trip code shared by the organizer
+          </Text>
+
+          <TextInput
+            value={code}
+            onChangeText={(text) => setCode(text.replace(/\s/g, '').toUpperCase().slice(0, 6))}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            maxLength={6}
+            placeholder="ABCDEF"
+            placeholderTextColor={c.textMuted}
+            style={[
+              s.joinCodeInput,
+              {
+                color: c.gold,
+                backgroundColor: c.cardBg,
+                borderColor: c.border,
+                fontFamily: GEO,
+              },
+            ]}
+          />
+
+          <Pressable
+            onPress={handleJoin}
+            disabled={!canSubmit}
+            style={({ pressed }) => [
+              s.joinSubmitBtn,
+              {
+                backgroundColor: canSubmit ? '#006747' : c.elevated,
+                opacity: pressed && canSubmit ? 0.85 : 1,
+              },
+            ]}
+          >
+            {isJoining ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="enter-outline" size={18} color={canSubmit ? '#fff' : c.textMuted} />
+                <Text style={[s.joinSubmitText, { color: canSubmit ? '#fff' : c.textMuted, fontFamily: GEO }]}>
+                  Join Trip
+                </Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -656,16 +800,63 @@ const s = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   headerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
     borderRadius: 0,
+  },
+
+  /* Join Trip modal */
+  joinModalRoot: {
+    flex: 1,
+  },
+  joinModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  joinModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  joinModalBody: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+  },
+  joinModalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  joinCodeInput: {
+    fontSize: 32,
+    letterSpacing: 8,
+    textAlign: 'center',
+    paddingVertical: 20,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  joinSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  joinSubmitText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   headerBtnText: {
     fontSize: 12,
