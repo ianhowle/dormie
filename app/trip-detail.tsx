@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense, lazy } from 'react';
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ import { messagesService } from '../src/services/messages.service';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { tripsService } from '../src/services/trips.service';
 import { momentsService } from '../src/services/moments.service';
-import type { TripMessageWithUser, TripMomentWithUser } from '../src/lib/database.types';
+import type { TripMessageWithUser, TripMomentWithUser, TripMemberWithUser } from '../src/lib/database.types';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -53,6 +53,8 @@ type TripPlayer = {
   rsvp: 'confirmed' | 'pending' | 'declined';
   roundsPlayed?: number;
   tripAvg?: number;
+  role?: 'organizer' | 'captain' | 'player';
+  isGuest?: boolean;
 };
 
 const MOCK_PLAYERS: TripPlayer[] = [
@@ -304,6 +306,8 @@ function SectionLabel({ title }: { title: string }) {
 // ═══════════════════════════════════════════════════════════════════════
 function ClubhouseTab({
   trip,
+  players,
+  courses,
   checklist,
   onToggleCheck,
   onToolPress,
@@ -311,6 +315,8 @@ function ClubhouseTab({
   onAddMoment,
 }: {
   trip: typeof MOCK_UPCOMING_TRIPS[0];
+  players: TripPlayer[];
+  courses: any[];
   checklist: ChecklistItem[];
   onToggleCheck: (id: string) => void;
   onToolPress: (toolId: string) => void;
@@ -323,7 +329,21 @@ function ClubhouseTab({
   const [checklistExpanded, setChecklistExpanded] = useState(false);
   const checkDone = checklist.filter((cl) => cl.done).length;
   const checkTotal = checklist.length;
-  const checkProgress = checkDone / checkTotal;
+  const checkProgress = checkTotal > 0 ? checkDone / checkTotal : 0;
+  const formatLabel = (() => {
+    const f = (trip as any).format as string | undefined | null;
+    if (!f) return '—';
+    if (f === 'total_strokes' || f === 'stroke_play') return 'SP';
+    if (f === 'match_play') return 'MP';
+    if (f === 'stableford') return 'STB';
+    if (f === 'best_ball') return 'BB';
+    if (f === 'scramble') return 'SCR';
+    return f.slice(0, 3).toUpperCase();
+  })();
+  const sideGames: string[] = Array.isArray((trip as any).sideGames)
+    ? ((trip as any).sideGames as string[])
+    : [];
+  const inviteCode = trip.inviteCode || '';
 
   return (
     <ScrollView
@@ -334,23 +354,12 @@ function ClubhouseTab({
       {/* LATEST — chat preview */}
       <View style={s.sectionWithFreshness}>
         <SectionLabel title="LATEST" />
-        <View style={s.freshnessBar}>
-          <PulsingDot color={c.teal} size={6} />
-          <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
-        </View>
       </View>
-      {MOCK_CHAT.slice(-3).map((msg) => (
-        <View key={msg.id} style={[s.chatPreviewRow, { borderColor: c.border }]}>
-          <Avatar id={msg.userId} size={28} name={msg.userName} />
-          <View style={{ flex: 1 }}>
-            <Text style={[s.chatPreviewName, { color: c.text }]}>{msg.userName}</Text>
-            <Text style={[s.chatPreviewText, { color: c.textMuted }]} numberOfLines={1}>
-              {msg.text}
-            </Text>
-          </View>
-          <Text style={[s.chatPreviewTime, { color: c.textMuted }]}>{msg.time}</Text>
-        </View>
-      ))}
+      <View style={[s.chatPreviewRow, { borderColor: c.border, justifyContent: 'center' }]}>
+        <Text style={[s.chatPreviewText, { color: c.textMuted, textAlign: 'center', flex: 1 }]}>
+          No messages yet — chat is coming soon.
+        </Text>
+      </View>
 
       <GoldDivider style={{ marginTop: 16 }} />
 
@@ -358,10 +367,10 @@ function ClubhouseTab({
       <SectionLabel title="TRIP INFO" />
       <View style={s.statsRow}>
         {[
-          { label: 'FORMAT', value: 'SP' },
-          { label: 'ROUNDS', value: `${trip.roundsPlanned}` },
-          { label: 'GAMES', value: `${SIDE_GAME_PILLS.length}` },
-          { label: 'PLAYERS', value: `${MOCK_PLAYERS.length}` },
+          { label: 'FORMAT', value: formatLabel },
+          { label: 'ROUNDS', value: `${courses.length || trip.roundsPlanned || 0}` },
+          { label: 'GAMES', value: `${sideGames.length}` },
+          { label: 'PLAYERS', value: `${players.length}` },
         ].map((st) => (
           <View key={st.label} style={[s.statCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
             <Text style={[s.statValue, { color: c.teal, fontFamily: GEO }]}>{st.value}</Text>
@@ -376,14 +385,15 @@ function ClubhouseTab({
       <SectionLabel title="INVITE CODE" />
       <Pressable
         onPress={() => {
-          Clipboard.setString(formatInviteCode(trip));
+          if (!inviteCode) return;
+          Clipboard.setString(inviteCode);
           haptics.medium();
           showToast({ message: 'Invite code copied', type: 'success', icon: 'copy-outline' });
         }}
         accessibilityLabel="Trip invite code"
         style={[s.inviteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}
       >
-        <Text style={[s.inviteCode, { color: c.gold, fontFamily: GEO }]}>{formatInviteCode(trip)}</Text>
+        <Text style={[s.inviteCode, { color: c.gold, fontFamily: GEO }]}>{inviteCode || '——————'}</Text>
         <View style={s.inviteCopyWrap}>
           <Ionicons name="copy-outline" size={16} color={c.teal} />
           <Text style={[s.inviteCopyText, { color: c.teal }]}>Copy</Text>
@@ -461,30 +471,35 @@ function ClubhouseTab({
 
       {/* Trip moments */}
       <SectionLabel title="TRIP MOMENTS" />
-      {(realMoments.length > 0 ? realMoments : MOCK_MOMENTS).map((m: any) => {
-        const authorName = m.user?.name ?? m.author ?? '';
-        const timeStr = m.created_at
-          ? formatTimeAgo(m.created_at)
-          : m.time ?? '';
-        return (
-          <View key={m.id} style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-            {m.user && (
-              <View style={s.momentHeader}>
-                <Avatar id={m.user.id} size={24} name={authorName} />
-                <Text style={[s.momentAuthorName, { color: c.text }]}>{authorName}</Text>
+      {realMoments.length === 0 ? (
+        <View style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border, alignItems: 'center' }]}>
+          <Text style={[s.momentText, { color: c.textMuted, textAlign: 'center' }]}>
+            No moments yet. Capture a hole-in-one, a sandy save, or a story worth retelling.
+          </Text>
+        </View>
+      ) : (
+        realMoments.map((m) => {
+          const authorName = m.user?.name ?? '';
+          const timeStr = m.created_at ? formatTimeAgo(m.created_at) : '';
+          return (
+            <View key={m.id} style={[s.momentRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              {m.user && (
+                <View style={s.momentHeader}>
+                  <Avatar id={m.user.id} size={24} name={authorName} />
+                  <Text style={[s.momentAuthorName, { color: c.text }]}>{authorName}</Text>
+                </View>
+              )}
+              <Text style={[s.momentText, { color: c.text }]}>{m.text}</Text>
+              {m.photo_url && (
+                <Image source={{ uri: m.photo_url }} style={s.momentPhoto} resizeMode="cover" />
+              )}
+              <View style={s.momentMeta}>
+                <Text style={[s.momentTime, { color: c.textMuted }]}>{timeStr}</Text>
               </View>
-            )}
-            <Text style={[s.momentText, { color: c.text }]}>{m.text}</Text>
-            {m.photo_url && (
-              <Image source={{ uri: m.photo_url }} style={s.momentPhoto} resizeMode="cover" />
-            )}
-            <View style={s.momentMeta}>
-              {!m.user && <Text style={[s.momentAuthor, { color: c.textMuted }]}>{authorName}</Text>}
-              <Text style={[s.momentTime, { color: c.textMuted }]}>{timeStr}</Text>
             </View>
-          </View>
-        );
-      })}
+          );
+        })
+      )}
       <Pressable
         onPress={() => { haptics.light(); onAddMoment(); }}
         style={[s.addMomentBtn, { borderColor: c.border }]}
@@ -497,29 +512,14 @@ function ClubhouseTab({
 
       {/* Head to Head */}
       <SectionLabel title="HEAD TO HEAD" />
-      {MOCK_H2H.map((h) => {
-        const total = h.wins + h.losses + h.ties;
-        const winPct = total > 0 ? ((h.wins / total) * 100).toFixed(0) : '0';
-        return (
-          <View key={h.opponentId} style={[s.h2hRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-            <Avatar id={h.opponentId} size={32} name={h.opponentName} />
-            <View style={{ flex: 1 }}>
-              <Text style={[s.h2hName, { color: c.text }]}>{h.opponentName}</Text>
-              <Text style={[s.h2hRecord, { color: c.textMuted }]}>
-                {h.wins}W - {h.losses}L - {h.ties}T
-              </Text>
-            </View>
-            <Text
-              style={[
-                s.h2hPct,
-                { color: h.wins > h.losses ? c.teal : h.wins < h.losses ? c.urgent : c.textMuted, fontFamily: GEO },
-              ]}
-            >
-              {winPct}%
-            </Text>
-          </View>
-        );
-      })}
+      <View style={[s.h2hRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.h2hName, { color: c.text }]}>No matchups yet</Text>
+          <Text style={[s.h2hRecord, { color: c.textMuted }]}>
+            Once rounds are scored, head-to-head records appear here.
+          </Text>
+        </View>
+      </View>
 
       <GoldDivider style={{ marginTop: 16 }} />
 
@@ -546,21 +546,32 @@ function ClubhouseTab({
 // ═══════════════════════════════════════════════════════════════════════
 // COURSES TAB
 // ═══════════════════════════════════════════════════════════════════════
-function CoursesTab() {
+const DEFAULT_COURSE_GRADIENT: [string, string] = ['#1E4D2B', '#2D7A3F'];
+
+function CoursesTab({ courses }: { courses: any[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const [votedCourses, setVotedCourses] = useState<Set<string>>(
-    new Set(MOCK_COURSES.filter((cc) => cc.voted).map((cc) => cc.id)),
-  );
 
-  const toggleVote = (id: string) => {
-    setVotedCourses((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  if (courses.length === 0) {
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.tabContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[s.courseCard, { borderColor: c.border, padding: 24, alignItems: 'center' }]}>
+          <Ionicons name="golf-outline" size={32} color={c.textMuted} />
+          <Text style={[s.courseCardName, { color: c.text, fontFamily: GEO, marginTop: 12, textAlign: 'center' }]}>
+            No courses yet
+          </Text>
+          <Text style={{ color: c.textMuted, textAlign: 'center', marginTop: 6 }}>
+            Add a course to plan rounds for this trip.
+          </Text>
+        </View>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -568,35 +579,40 @@ function CoursesTab() {
       contentContainerStyle={s.tabContent}
       showsVerticalScrollIndicator={false}
     >
-      {MOCK_COURSES.map((course) => {
-        const voted = votedCourses.has(course.id);
+      {courses.map((tc: any) => {
+        const course = tc.course ?? {};
+        const day = tc.day_number ?? 1;
+        const teeTime = tc.tee_time ?? 'TBD';
+        const rating = typeof course.rating === 'number' ? course.rating : null;
+        const slope = typeof course.slope === 'number' ? course.slope : null;
+        const par = typeof course.par === 'number' ? course.par : null;
+        const yards = typeof course.yards === 'number' ? course.yards : null;
+        const name = course.name ?? 'Course';
         return (
-          <View key={course.id} style={[s.courseCard, { borderColor: c.border }]}>
-            {/* Course image header */}
+          <View key={tc.id} style={[s.courseCard, { borderColor: c.border }]}>
             <CourseImage
-              courseName={course.name}
-              location={`${course.name.split('—')[0].trim()}`}
-              gradient={course.gradient}
+              courseName={name}
+              location={name.split('—')[0]?.trim() ?? name}
+              gradient={DEFAULT_COURSE_GRADIENT}
               style={s.courseGradient}
               height={120}
             >
               <View style={s.courseImageOverlay} />
               <View style={s.courseGradientContent}>
                 <View style={s.courseDayBadge}>
-                  <Text style={[s.courseDayText, { fontFamily: GEO }]}>DAY {course.day}</Text>
+                  <Text style={[s.courseDayText, { fontFamily: GEO }]}>DAY {day}</Text>
                 </View>
-                <Text style={[s.courseCardName, { fontFamily: GEO }]}>{course.name}</Text>
-                <Text style={s.courseTeeTime}>{course.teeTime}</Text>
+                <Text style={[s.courseCardName, { fontFamily: GEO }]}>{name}</Text>
+                <Text style={s.courseTeeTime}>{teeTime}</Text>
               </View>
             </CourseImage>
 
-            {/* Stats row */}
             <View style={[s.courseStatsRow, { backgroundColor: c.cardBg }]}>
               {[
-                { label: 'RATING', value: course.rating.toFixed(1) },
-                { label: 'SLOPE', value: `${course.slope}` },
-                { label: 'PAR', value: `${course.par}` },
-                { label: 'YARDS', value: course.yards.toLocaleString() },
+                { label: 'RATING', value: rating != null ? rating.toFixed(1) : '—' },
+                { label: 'SLOPE', value: slope != null ? `${slope}` : '—' },
+                { label: 'PAR', value: par != null ? `${par}` : '—' },
+                { label: 'YARDS', value: yards != null ? yards.toLocaleString() : '—' },
               ].map((stat) => (
                 <View key={stat.label} style={s.courseStatItem}>
                   <Text style={[s.courseStatValue, { color: c.text, fontFamily: GEO }]}>
@@ -605,31 +621,6 @@ function CoursesTab() {
                   <Text style={[s.courseStatLabel, { color: c.textMuted }]}>{stat.label}</Text>
                 </View>
               ))}
-            </View>
-
-            {/* Vote row */}
-            <View style={[s.courseVoteRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-              <Pressable
-                onPress={() => toggleVote(course.id)}
-                style={[
-                  s.voteBtn,
-                  {
-                    backgroundColor: voted ? `${c.teal}15` : c.elevated,
-                    borderColor: voted ? c.teal : c.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={voted ? 'thumbs-up' : 'thumbs-up-outline'}
-                  size={14}
-                  color={voted ? c.teal : c.textMuted}
-                />
-                <Text style={[s.voteText, { color: voted ? c.teal : c.textMuted }]}>
-                  {voted
-                    ? `${MOCK_COURSES.find((x) => x.id === course.id)?.votes ?? 0} votes`
-                    : 'Vote'}
-                </Text>
-              </Pressable>
             </View>
           </View>
         );
@@ -643,7 +634,7 @@ function CoursesTab() {
 // ═══════════════════════════════════════════════════════════════════════
 // PLAYERS TAB
 // ═══════════════════════════════════════════════════════════════════════
-function PlayersTab() {
+function PlayersTab({ players }: { players: TripPlayer[] }) {
   const { theme } = useTheme();
   const c = theme.colors;
 
@@ -653,36 +644,74 @@ function PlayersTab() {
     return c.urgent;
   };
 
+  if (players.length <= 1) {
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.tabContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {players.map((p) => (
+          <View key={p.id} style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <Avatar id={p.id} size={44} name={p.name} />
+            <View style={{ flex: 1 }}>
+              <View style={s.playerNameRow}>
+                <Text style={[s.fullPlayerName, { color: c.text }]}>{p.name}</Text>
+                {p.role === 'organizer' && (
+                  <View style={[s.rsvpBadge, { backgroundColor: `${c.gold}15` }]}>
+                    <Text style={[s.rsvpText, { color: c.gold }]}>Organizer</Text>
+                  </View>
+                )}
+              </View>
+              {p.handicap > 0 && (
+                <Text style={[s.fullPlayerHcp, { color: c.textMuted }]}>{p.handicap.toFixed(1)} HCP</Text>
+              )}
+            </View>
+          </View>
+        ))}
+        <View style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={{ color: c.textMuted, textAlign: 'center', flex: 1 }}>
+            No other players yet. Share your invite code to grow the trip.
+          </Text>
+        </View>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={s.tabContent}
       showsVerticalScrollIndicator={false}
     >
-      {MOCK_PLAYERS.map((p) => (
+      {players.map((p) => (
         <View key={p.id} style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border }]} accessibilityLabel={`${p.name}, ${p.handicap} handicap, ${p.rsvp}`}>
           <Avatar id={p.id} size={44} name={p.name} />
           <View style={{ flex: 1 }}>
             <View style={s.playerNameRow}>
               <Text style={[s.fullPlayerName, { color: c.text }]}>{p.name}</Text>
-              <View style={[s.rsvpBadge, { backgroundColor: `${rsvpColor(p.rsvp)}15` }]}>
-                <View style={[s.rsvpDot, { backgroundColor: rsvpColor(p.rsvp) }]} />
-                <Text style={[s.rsvpText, { color: rsvpColor(p.rsvp) }]}>
-                  {p.rsvp.charAt(0).toUpperCase() + p.rsvp.slice(1)}
-                </Text>
-              </View>
+              {p.role === 'organizer' && (
+                <View style={[s.rsvpBadge, { backgroundColor: `${c.gold}15` }]}>
+                  <Text style={[s.rsvpText, { color: c.gold }]}>Organizer</Text>
+                </View>
+              )}
+              {p.isGuest && (
+                <View style={[s.rsvpBadge, { backgroundColor: `${c.textMuted}15` }]}>
+                  <Text style={[s.rsvpText, { color: c.textMuted }]}>Guest</Text>
+                </View>
+              )}
+              {!p.isGuest && (
+                <View style={[s.rsvpBadge, { backgroundColor: `${rsvpColor(p.rsvp)}15` }]}>
+                  <View style={[s.rsvpDot, { backgroundColor: rsvpColor(p.rsvp) }]} />
+                  <Text style={[s.rsvpText, { color: rsvpColor(p.rsvp) }]}>
+                    {p.rsvp.charAt(0).toUpperCase() + p.rsvp.slice(1)}
+                  </Text>
+                </View>
+              )}
             </View>
-            <Text style={[s.fullPlayerHcp, { color: c.textMuted }]}>{p.handicap} HCP</Text>
-            {p.roundsPlayed != null && (
-              <View style={s.playerStatsRow}>
-                <Text style={[s.playerStatText, { color: c.textMuted }]}>
-                  {p.roundsPlayed} rounds
-                </Text>
-                <Text style={[s.playerStatText, { color: c.textMuted }]}>·</Text>
-                <Text style={[s.playerStatText, { color: c.teal }]}>
-                  {p.tripAvg?.toFixed(1)} avg
-                </Text>
-              </View>
+            {p.handicap > 0 && (
+              <Text style={[s.fullPlayerHcp, { color: c.textMuted }]}>{p.handicap.toFixed(1)} HCP</Text>
             )}
           </View>
         </View>
@@ -706,6 +735,27 @@ function ChecklistTab({
   const { theme } = useTheme();
   const c = theme.colors;
   const done = checklist.filter((cl) => cl.done).length;
+
+  if (checklist.length === 0) {
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.tabContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[s.checkProgressBox, { backgroundColor: c.cardBg, borderColor: c.border, alignItems: 'center', padding: 24 }]}>
+          <Ionicons name="checkbox-outline" size={32} color={c.textMuted} />
+          <Text style={[s.checkProgressLabel, { color: c.text, fontFamily: GEO, fontSize: 16, marginTop: 12 }]}>
+            No checklist yet
+          </Text>
+          <Text style={{ color: c.textMuted, textAlign: 'center', marginTop: 6 }}>
+            Custom trip checklists are coming soon.
+          </Text>
+        </View>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -779,7 +829,7 @@ const TRASH_TALK_MESSAGES = [
 function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
   const [showTrashTalk, setShowTrashTalk] = useState(false);
@@ -799,12 +849,10 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
         time: new Date(m.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
         reactions: (m.reactions ?? []).map((r) => ({ emoji: r.emoji, count: r.count ?? 1, reacted: false })),
       }));
-      if (mapped.length > 0) {
-        setMessages(mapped);
-      }
+      setMessages(mapped);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 200);
     }).catch(() => {
-      // Keep mock data on error
+      setMessages([]);
     });
 
     const channel = messagesService.subscribe(tripId, (newMsg) => {
@@ -912,19 +960,33 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
     setEmojiPickerMsg(null);
   };
 
+  const isEmpty = messages.length === 0;
+
   return (
     <View style={{ flex: 1 }}>
-      {/* Data freshness indicator */}
-      <View style={s.freshnessBar}>
-        <PulsingDot color={c.teal} size={6} />
-        <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
-      </View>
+      {!isEmpty && (
+        <View style={s.freshnessBar}>
+          <PulsingDot color={c.teal} size={6} />
+          <Text style={[s.freshnessText, { color: c.teal }]}>Live</Text>
+        </View>
+      )}
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={s.chatScrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {isEmpty && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, marginTop: 64 }}>
+            <Ionicons name="chatbubbles-outline" size={48} color={c.textMuted} />
+            <Text style={{ color: c.text, fontFamily: GEO, fontSize: 18, marginTop: 12 }}>
+              No messages yet
+            </Text>
+            <Text style={{ color: c.textMuted, textAlign: 'center', marginTop: 6 }}>
+              Trip chat is coming soon. Stay tuned.
+            </Text>
+          </View>
+        )}
         {messages.map((msg) => {
           const isMe = msg.userId === userId;
           return (
@@ -2246,25 +2308,22 @@ function TripDetailScreenInner() {
 
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('Clubhouse');
-  const [checklist, setChecklist] = useState(MOCK_CHECKLIST);
-  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [showCeremony, setShowCeremony] = useState(false);
   const [competitionMode, setCompetitionMode] = useState(false);
   const [chatLastActive, setChatLastActive] = useState<Date>(new Date());
 
-  // Trip members and courses for scoring bridge
-  const [tripMembers, setTripMembers] = useState<{ id: string; name: string; handicap: number }[]>([]);
+  // Real members and courses from Supabase
+  const [members, setMembers] = useState<TripMemberWithUser[]>([]);
+  const [tripCourses, setTripCourses] = useState<any[]>([]);
   const [tripCourseData, setTripCourseData] = useState<{ id: string; name: string; par: number; slope: number; rating: number } | null>(null);
 
   useEffect(() => {
-    tripsService.getMembers(trip.id).then((members) => {
-      setTripMembers(members.map((m: any) => ({
-        id: m.user_id,
-        name: m.user?.name ?? 'Player',
-        handicap: m.user?.handicap_index ?? 0,
-      })));
-    }).catch(() => {});
+    tripsService.getMembers(trip.id).then(setMembers).catch(() => {
+      showToast({ message: 'Could not load players', type: 'error' });
+    });
     tripsService.getCourses(trip.id).then((courses) => {
+      setTripCourses(courses);
       if (courses.length > 0) {
         const first = courses[0] as any;
         const course = first.course;
@@ -2279,7 +2338,33 @@ function TripDetailScreenInner() {
         }
       }
     }).catch(() => {});
-  }, [trip.id]);
+  }, [trip.id, showToast]);
+
+  // Derived: real players in TripPlayer shape (registered users + guests)
+  const realPlayers = useMemo<TripPlayer[]>(() => {
+    return members.map((m: any) => {
+      const isGuest = !m.user_id;
+      return {
+        id: m.user_id ?? `guest-${m.id}`,
+        name: isGuest ? (m.guest_name ?? 'Guest') : (m.user?.name ?? 'Player'),
+        handicap: m.user?.handicap_index ?? 0,
+        rsvp: (m.rsvp_status ?? 'pending') as TripPlayer['rsvp'],
+        role: (m.role ?? 'player') as TripPlayer['role'],
+        isGuest,
+      };
+    });
+  }, [members]);
+
+  // Scoring bridge: registered users only, simplified shape for /scoring params
+  const scoringMembers = useMemo(() => {
+    return members
+      .filter((m: any) => !!m.user_id)
+      .map((m: any) => ({
+        id: m.user_id,
+        name: m.user?.name ?? 'Player',
+        handicap: m.user?.handicap_index ?? 0,
+      }));
+  }, [members]);
 
   // Moments state
   const [realMoments, setRealMoments] = useState<TripMomentWithUser[]>([]);
@@ -2335,6 +2420,12 @@ function TripDetailScreenInner() {
     );
   }, []);
 
+  const handleToolPress = useCallback((toolId: string) => {
+    haptics.light();
+    const tool = TRIP_TOOLS.find((t) => t.id === toolId);
+    showToast({ message: `${tool?.label ?? 'This tool'} coming soon`, type: 'info' });
+  }, [showToast]);
+
   const formatDateRange = (start: string, end: string) => {
     const s = new Date(start);
     const e = new Date(end);
@@ -2368,7 +2459,7 @@ function TripDetailScreenInner() {
               // Fetch leaderboard for recap
               const leaderboard = await tripsService.getLeaderboard(trip.id);
               const winner = leaderboard[0];
-              const coursesPlayed = MOCK_COURSES.length;
+              const coursesPlayed = tripCourses.length;
               const bestRound = leaderboard.reduce(
                 (best: any, entry: any) => (!best || (entry.best_round && entry.best_round < best.score))
                   ? { player: entry.user_name, score: entry.best_round }
@@ -2439,8 +2530,8 @@ function TripDetailScreenInner() {
             params.courseSlope = String(tripCourseData.slope);
             params.courseRating = String(tripCourseData.rating);
           }
-          if (tripMembers.length > 0) {
-            params.players = JSON.stringify(tripMembers);
+          if (scoringMembers.length > 0) {
+            params.players = JSON.stringify(scoringMembers);
           }
           router.push({ pathname: '/scoring', params });
         }}
@@ -2449,28 +2540,6 @@ function TripDetailScreenInner() {
         onFinishTrip={handleFinishTrip}
       />
     );
-  }
-
-  // Trip tool routing
-  const closeTool = () => setActiveTool(null);
-
-  if (activeTool === 'tt1') {
-    return <BudgetCalculator trip={trip} playerCount={MOCK_PLAYERS.length} onBack={closeTool} />;
-  }
-  if (activeTool === 'tt2') {
-    return <PackingList onBack={closeTool} />;
-  }
-  if (activeTool === 'tt3') {
-    return <TeeTimeGroups players={MOCK_PLAYERS} courses={MOCK_COURSES} onBack={closeTool} />;
-  }
-  if (activeTool === 'tt4') {
-    return <RSVPPreview trip={trip} players={MOCK_PLAYERS} courses={MOCK_COURSES} onBack={closeTool} />;
-  }
-  if (activeTool === 'tt5') {
-    return <TripAwards onBack={closeTool} />;
-  }
-  if (activeTool === 'tt6') {
-    return <WeatherForecast trip={trip} onBack={closeTool} />;
   }
 
   return (
@@ -2552,7 +2621,7 @@ function TripDetailScreenInner() {
 
         {/* Index 1: PLAYER ROW */}
         <FlatList
-          data={MOCK_PLAYERS}
+          data={realPlayers}
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.id}
@@ -2621,10 +2690,10 @@ function TripDetailScreenInner() {
         {/* Index 3: TAB CONTENT */}
         <View style={{ minHeight: 500, backgroundColor: c.bg }}>
           {activeTab === 'Clubhouse' && (
-            <ClubhouseTab trip={trip} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={setActiveTool} realMoments={realMoments} onAddMoment={() => setShowAddMoment(true)} />
+            <ClubhouseTab trip={trip} players={realPlayers} courses={tripCourses} checklist={checklist} onToggleCheck={toggleCheck} onToolPress={handleToolPress} realMoments={realMoments} onAddMoment={() => setShowAddMoment(true)} />
           )}
-          {activeTab === 'Courses' && <CoursesTab />}
-          {activeTab === 'Players' && <PlayersTab />}
+          {activeTab === 'Courses' && <CoursesTab courses={tripCourses} />}
+          {activeTab === 'Players' && <PlayersTab players={realPlayers} />}
           {activeTab === 'Checklist' && <ChecklistTab checklist={checklist} onToggle={toggleCheck} />}
           {activeTab === '19th Hole' && <ChatTab tripId={trip.id} userId={user?.id ?? ''} />}
         </View>
@@ -2647,7 +2716,7 @@ function TripDetailScreenInner() {
       {/* Item 13: Competition ceremony modal */}
       <CompetitionCeremony
         trip={trip}
-        players={MOCK_PLAYERS}
+        players={realPlayers}
         visible={showCeremony}
         onComplete={handleCeremonyComplete}
       />
