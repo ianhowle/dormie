@@ -1,6 +1,13 @@
 // ─── Types ───────────────────────────────────────────────────────────
 export type TripStatus = 'planning' | 'upcoming' | 'active' | 'completed';
 
+export type TripCardMember = {
+  id: string;
+  name: string;
+  photoUrl?: string | null;
+  isGuest?: boolean;
+};
+
 export type Trip = {
   id: string;
   name: string;
@@ -14,6 +21,7 @@ export type Trip = {
   isRyderCup: boolean;
   createdBy: string;
   playerIds: string[];
+  members?: TripCardMember[];
   roundsPlanned: number;
   gradient: [string, string];
   format?: string;
@@ -82,6 +90,21 @@ export const MOCK_TRIP_STATS: TripStats = {
   regularAvg: 79.2,
 };
 
+// Reusable mock crew so demo trip cards show real names/initials, not UUID prefixes.
+const MOCK_CREW: Record<string, string> = {
+  '1': 'Ian McGowan',
+  '2': 'Drew Patterson',
+  '3': 'Sarah Park',
+  '4': 'Jake Sullivan',
+  '5': 'Marco Romano',
+  '6': 'Tommy Fleetwood',
+  '7': 'Liz Carter',
+  '8': 'Henry Vaughn',
+};
+
+const mockMembers = (ids: string[]): TripCardMember[] =>
+  ids.map((id) => ({ id, name: MOCK_CREW[id] ?? `Player ${id}` }));
+
 export const MOCK_UPCOMING_TRIPS: Trip[] = [
   {
     id: 't1',
@@ -96,6 +119,7 @@ export const MOCK_UPCOMING_TRIPS: Trip[] = [
     isRyderCup: false,
     createdBy: '4',
     playerIds: ['1', '2', '4', '6'],
+    members: mockMembers(['1', '2', '4', '6']),
     roundsPlanned: 3,
     gradient: ['#8B6B3A', '#C4994A'],
   },
@@ -112,6 +136,7 @@ export const MOCK_UPCOMING_TRIPS: Trip[] = [
     isRyderCup: true,
     createdBy: '1',
     playerIds: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    members: mockMembers(['1', '2', '3', '4', '5', '6', '7', '8']),
     roundsPlanned: 4,
     gradient: ['#1565C0', '#B71C1C'],
   },
@@ -131,6 +156,7 @@ export const MOCK_COMPLETED_TRIPS: Trip[] = [
     isRyderCup: false,
     createdBy: '1',
     playerIds: ['1', '2', '3', '4', '6'],
+    members: mockMembers(['1', '2', '3', '4', '6']),
     roundsPlanned: 3,
     gradient: ['#2A4A6B', '#5B7FA5'],
     champion: 'Tommy Fleetwood',
@@ -148,6 +174,7 @@ export const MOCK_COMPLETED_TRIPS: Trip[] = [
     isRyderCup: true,
     createdBy: '1',
     playerIds: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    members: mockMembers(['1', '2', '3', '4', '5', '6', '7', '8']),
     roundsPlanned: 3,
     gradient: ['#1565C0', '#B71C1C'],
     ryderCupConfig: {

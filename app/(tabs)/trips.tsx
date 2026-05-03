@@ -47,6 +47,7 @@ import {
   getDaysUntilTrip,
   type Trip,
   type TripStatus,
+  type TripCardMember,
   type ExploreDestination,
 } from '../../src/data/trips';
 
@@ -71,10 +72,19 @@ function deriveGradientColors(seed: string): [string, string] {
 }
 
 function adaptSupabaseTrip(t: TripWithMembers): Trip {
-  const members = t.trip_members ?? [];
-  const playerIds = members
+  const rawMembers = t.trip_members ?? [];
+  const playerIds = rawMembers
     .map((m) => m.user_id)
     .filter((id): id is string => !!id);
+  const cardMembers: TripCardMember[] = rawMembers.map((m: any) => {
+    const isGuest = !m.user_id;
+    return {
+      id: m.user_id ?? `guest-${m.id}`,
+      name: isGuest ? (m.guest_name ?? 'Guest') : (m.user?.name ?? 'Player'),
+      photoUrl: m.user?.profile_photo_url ?? null,
+      isGuest,
+    };
+  });
   const city = t.city ?? t.location?.split(',')[0]?.trim() ?? '';
   const state = t.state ?? t.location?.split(',')[1]?.trim() ?? '';
   const gradient: [string, string] =
@@ -94,6 +104,7 @@ function adaptSupabaseTrip(t: TripWithMembers): Trip {
     isRyderCup: t.trip_type === 'ryder',
     createdBy: t.organizer_id,
     playerIds,
+    members: cardMembers,
     roundsPlanned: 1,
     gradient,
     format: t.format ?? undefined,
@@ -459,22 +470,66 @@ function AddDestinationModal({
 }
 
 // ─── Avatar stack ─────────────────────────────────────────────────────
-function AvatarStack({ playerIds, max }: { playerIds: string[]; max?: number }) {
+const AVATAR_STACK_SIZE = 26;
+const AVATAR_STACK_OVERLAP = 9; // ~35% overlap
+const AVATAR_RING_WIDTH = 2;
+
+function AvatarStack({
+  members,
+  ringColor,
+  max,
+}: {
+  members: TripCardMember[];
+  ringColor: string;
+  max?: number;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const show = playerIds.slice(0, max ?? 4);
-  const extra = playerIds.length - show.length;
+  const limit = max ?? 4;
+  const show = members.slice(0, limit);
+  const extra = members.length - show.length;
+  const wrapSize = AVATAR_STACK_SIZE + AVATAR_RING_WIDTH * 2;
 
   return (
     <View style={s.avatarStack}>
-      {show.map((id, i) => (
-        <View key={id} style={[s.avatarStackItem, { marginLeft: i > 0 ? -8 : 0, zIndex: show.length - i }]}>
-          <Avatar id={id} size={22} name="" />
+      {show.map((m, i) => (
+        <View
+          key={m.id}
+          style={[
+            s.avatarStackItem,
+            {
+              width: wrapSize,
+              height: wrapSize,
+              marginLeft: i > 0 ? -AVATAR_STACK_OVERLAP : 0,
+              zIndex: show.length - i,
+              borderWidth: AVATAR_RING_WIDTH,
+              borderColor: ringColor,
+              borderRadius: wrapSize / 2,
+              backgroundColor: ringColor,
+            },
+          ]}
+        >
+          <Avatar id={m.id} name={m.name} photoUrl={m.photoUrl ?? undefined} size={AVATAR_STACK_SIZE} />
         </View>
       ))}
       {extra > 0 && (
-        <View style={[s.avatarExtra]}>
-          <Text style={[s.avatarExtraText, { color: c.textMuted }]}>+{extra}</Text>
+        <View
+          style={[
+            s.avatarExtra,
+            {
+              width: wrapSize,
+              height: wrapSize,
+              marginLeft: -AVATAR_STACK_OVERLAP,
+              borderRadius: wrapSize / 2,
+              borderWidth: AVATAR_RING_WIDTH,
+              borderColor: ringColor,
+              backgroundColor: c.elevated,
+            },
+          ]}
+        >
+          <Text style={[s.avatarExtraText, { color: c.textMuted, fontFamily: GEO }]}>
+            +{extra}
+          </Text>
         </View>
       )}
     </View>
@@ -560,7 +615,10 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
         </View>
 
         <View style={s.tripCardBottom}>
-          <AvatarStack playerIds={trip.playerIds} />
+          <AvatarStack
+            members={trip.members ?? trip.playerIds.map((id) => ({ id, name: '' }))}
+            ringColor={cardBg}
+          />
           {/* Item 15: Replace plain days badge with TripCountdownRing */}
           {showDays && (
             <TripCountdownRing
@@ -1384,16 +1442,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarStackItem: {},
+  avatarStackItem: {
+    overflow: 'hidden',
+  },
   avatarExtra: {
-    width: 22,
-    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: -8,
   },
   avatarExtraText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
   },
 
