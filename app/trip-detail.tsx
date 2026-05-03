@@ -379,7 +379,7 @@ function ClubhouseTab({
       </View>
       <View style={[s.chatPreviewRow, { borderColor: c.border, justifyContent: 'center' }]}>
         <Text style={[s.chatPreviewText, { color: c.textMuted, textAlign: 'center', flex: 1 }]}>
-          No messages yet — chat is coming soon.
+          Quiet on the group chat. Trip chat lands soon.
         </Text>
       </View>
 
@@ -542,7 +542,7 @@ function ClubhouseTab({
         <View style={{ flex: 1 }}>
           <Text style={[s.h2hName, { color: c.text }]}>No matchups yet</Text>
           <Text style={[s.h2hRecord, { color: c.textMuted }]}>
-            Once rounds are scored, head-to-head records appear here.
+            Once cards are signed, you'll see who owes who a beer.
           </Text>
         </View>
       </View>
@@ -588,10 +588,10 @@ function CoursesTab({ courses }: { courses: any[] }) {
         <View style={[s.courseCard, { borderColor: c.border, padding: 24, alignItems: 'center' }]}>
           <Ionicons name="golf-outline" size={32} color={c.textMuted} />
           <Text style={[s.courseCardName, { color: c.text, fontFamily: GEO, marginTop: 12, textAlign: 'center' }]}>
-            No courses yet
+            No course locked in
           </Text>
           <Text style={{ color: c.textMuted, textAlign: 'center', marginTop: 6 }}>
-            Add a course to plan rounds for this trip.
+            Pick where you'll tee it up to start planning rounds.
           </Text>
         </View>
         <View style={{ height: 40 }} />
@@ -733,7 +733,7 @@ function PlayersTab({
         ))}
         <View style={[s.fullPlayerRow, { backgroundColor: c.cardBg, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }]}>
           <Text style={{ color: c.textMuted, textAlign: 'center', flex: 1 }}>
-            No other players yet. Share your invite code to grow the trip.
+            Just you so far. Share your invite code — the trip's better with company.
           </Text>
         </View>
         <View style={{ height: 40 }} />
@@ -809,10 +809,10 @@ function ChecklistTab({
         <View style={[s.checkProgressBox, { backgroundColor: c.cardBg, borderColor: c.border, alignItems: 'center', padding: 24 }]}>
           <Ionicons name="checkbox-outline" size={32} color={c.textMuted} />
           <Text style={[s.checkProgressLabel, { color: c.text, fontFamily: GEO, fontSize: 16, marginTop: 12 }]}>
-            No checklist yet
+            Checklist on the way
           </Text>
           <Text style={{ color: c.textMuted, textAlign: 'center', marginTop: 6 }}>
-            Custom trip checklists are coming soon.
+            Until then, don't forget gloves, an extra sleeve, and your lucky marker.
           </Text>
         </View>
         <View style={{ height: 40 }} />
@@ -1043,10 +1043,10 @@ function ChatTab({ tripId, userId }: { tripId: string; userId: string }) {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, marginTop: 64 }}>
             <Ionicons name="chatbubbles-outline" size={48} color={c.textMuted} />
             <Text style={{ color: c.text, fontFamily: GEO, fontSize: 18, marginTop: 12 }}>
-              No messages yet
+              Quiet on the group chat
             </Text>
             <Text style={{ color: c.textMuted, textAlign: 'center', marginTop: 6 }}>
-              Trip chat is coming soon. Stay tuned.
+              Trip chat lands soon. Until then, bring the trash talk in person.
             </Text>
           </View>
         )}

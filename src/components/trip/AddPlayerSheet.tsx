@@ -143,9 +143,9 @@ function FriendsTab({
     return (
       <View style={styles.centered}>
         <Ionicons name="people-outline" size={48} color={c.textMuted} />
-        <Text style={[styles.emptyTitle, { color: c.text }]}>No friends yet</Text>
+        <Text style={[styles.emptyTitle, { color: c.text }]}>No crew yet</Text>
         <Text style={[styles.emptySubtitle, { color: c.textMuted }]}>
-          Add someone to your crew to invite them to trips
+          Add a few buddies to invite them to your next trip.
         </Text>
         <Pressable
           onPress={() => { haptics.light(); router.push('/add-friends'); }}
@@ -267,9 +267,9 @@ function RecentTab({
     return (
       <View style={styles.centered}>
         <Ionicons name="time-outline" size={48} color={c.textMuted} />
-        <Text style={[styles.emptyTitle, { color: c.text }]}>No recent co-players</Text>
+        <Text style={[styles.emptyTitle, { color: c.text }]}>Nobody recent</Text>
         <Text style={[styles.emptySubtitle, { color: c.textMuted }]}>
-          Play a round with friends and they'll appear here
+          Play a round with someone and they'll show up here for next time.
         </Text>
       </View>
     );
