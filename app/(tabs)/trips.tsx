@@ -27,6 +27,7 @@ import GoldDivider from '../../src/components/GoldDivider';
 import { TripCountdownRing } from '../../src/components/TripCountdownRing';
 import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
+import { tripInvitesService } from '../../src/services/tripInvites.service';
 import { bucketListService } from '../../src/services/bucketList.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
@@ -680,25 +681,58 @@ function JoinTripModal({
     }
   }, [visible]);
 
-  const canSubmit = code.trim().length === 6 && !isJoining;
+  // Format input as user types: uppercase, alphanumeric only, auto-hyphen after pos 4.
+  // Caps at 8 alphanumeric chars (9 visible with hyphen) — covers the permanent
+  // XXXX-XXXX format. 6-char expiring codes display as "ABCD-EF" but normalize
+  // back to 6 chars on submit.
+  const formatCodeInput = (text: string): string => {
+    const valid = text.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
+    if (valid.length <= 4) return valid;
+    return `${valid.slice(0, 4)}-${valid.slice(4, 8)}`;
+  };
+
+  // Strip the formatting to get just the alphanumeric code for routing.
+  const stripped = code.replace(/-/g, '').toUpperCase();
+  const canSubmit = (stripped.length === 6 || stripped.length === 8) && !isJoining;
 
   const handleJoin = async () => {
+    console.log('[JoinTrip] submit pressed, code:', code, 'stripped:', stripped, 'canSubmit:', canSubmit);
     if (!canSubmit) return;
     haptics.light();
     setIsJoining(true);
     try {
-      const tripId = await tripsService.joinByCode(code.trim());
+      let tripId: string;
+      if (stripped.length === 8) {
+        // Permanent invite code from trips.invite_code (XXXX-XXXX)
+        const formatted = `${stripped.slice(0, 4)}-${stripped.slice(4, 8)}`;
+        console.log('[JoinTrip] calling tripsService.joinByCode (permanent) with:', formatted);
+        tripId = await tripsService.joinByCode(formatted);
+        console.log('[JoinTrip] joinByCode returned:', tripId, 'typeof:', typeof tripId);
+      } else {
+        // 6-char expiring share link from trip_invites.code
+        console.log('[JoinTrip] calling tripInvitesService.joinByInvite (expiring) with:', stripped);
+        tripId = await tripInvitesService.joinByInvite(stripped);
+        console.log('[JoinTrip] joinByInvite returned:', tripId, 'typeof:', typeof tripId);
+      }
       haptics.success();
       showToast({ message: 'Joined trip', type: 'success' });
+      console.log('[JoinTrip] calling onJoined → expects navigation to /trip-detail?tripId=', tripId);
       onJoined(tripId);
+      console.log('[JoinTrip] onJoined returned (sync portion complete)');
     } catch (err: any) {
+      console.error('[JoinTrip] failed:', err);
+      console.log('[JoinTrip] error message:', err?.message);
+      console.log('[JoinTrip] error code:', err?.code);
+      console.log('[JoinTrip] error details:', err?.details);
+      console.log('[JoinTrip] error hint:', err?.hint);
       haptics.error();
       const raw = (err?.message ?? '').toString();
-      const msg = /not found|invalid|no trip/i.test(raw)
-        ? 'Invalid invite code'
+      const msg = /not found|invalid|no trip|expired/i.test(raw)
+        ? 'Invalid or expired code'
         : raw || 'Could not join trip';
       showToast({ message: msg, type: 'error' });
     } finally {
+      console.log('[JoinTrip] finally → setIsJoining(false)');
       setIsJoining(false);
     }
   };
@@ -724,17 +758,17 @@ function JoinTripModal({
 
         <View style={s.joinModalBody}>
           <Text style={[s.joinModalSubtitle, { color: c.textMuted }]}>
-            Enter the trip code shared by the organizer
+            Enter the trip code (e.g. ABCD-1234)
           </Text>
 
           <TextInput
             value={code}
-            onChangeText={(text) => setCode(text.replace(/\s/g, '').toUpperCase().slice(0, 6))}
+            onChangeText={(text) => setCode(formatCodeInput(text))}
             autoCapitalize="characters"
             autoCorrect={false}
             autoFocus
-            maxLength={6}
-            placeholder="ABCDEF"
+            maxLength={9}
+            placeholder="XXXX-XXXX"
             placeholderTextColor={c.textMuted}
             style={[
               s.joinCodeInput,
@@ -839,8 +873,8 @@ const s = StyleSheet.create({
     marginBottom: 24,
   },
   joinCodeInput: {
-    fontSize: 32,
-    letterSpacing: 8,
+    fontSize: 28,
+    letterSpacing: 4,
     textAlign: 'center',
     paddingVertical: 20,
     borderWidth: 1,
