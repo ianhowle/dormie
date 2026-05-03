@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -196,6 +196,8 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
+  const scrollRef = useRef<ScrollView>(null);
+
   // State
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
@@ -233,9 +235,25 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
     }));
     setPlayers((prev) => [...prev, ...mapped]);
     setShowAddPlayer(false);
+
+    const guestCount = newPlayers.filter((p) => p.source === 'guest').length;
+    if (guestCount > 0) {
+      showToast({ message: 'Guest added to trip', type: 'success' });
+    }
+
+    // Scroll to bottom so Create Trip button is visible
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
   };
 
   const canCreate = name.trim().length > 0 && (selectedCourse?.id != null || location.trim().length > 0) && players.length >= 2;
+
+  const createBtnLabel = !name.trim()
+    ? 'Enter a trip name'
+    : !selectedCourse?.id && !location.trim()
+      ? 'Select a course'
+      : players.length < 2
+        ? 'Add at least 2 players'
+        : 'Create Trip';
 
   return (
     <View style={[z.screen, { backgroundColor: c.bg }]}>
@@ -245,6 +263,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           bounces={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -593,7 +612,11 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
               disabled={!canCreate || isCreating}
               style={[
                 z.createBtn,
-                { backgroundColor: canCreate && !isCreating ? '#006747' : c.elevated },
+                {
+                  backgroundColor: canCreate && !isCreating ? '#006747' : c.elevated,
+                  borderWidth: canCreate ? 0 : 1,
+                  borderColor: canCreate ? 'transparent' : 'rgba(201,162,39,0.3)',
+                },
                 (!canCreate || isCreating) && { opacity: 0.5 },
               ]}
             >
@@ -606,7 +629,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                     { color: canCreate ? '#C9A227' : c.textMuted, fontFamily: GEO },
                   ]}
                 >
-                  Create Trip
+                  {createBtnLabel}
                 </Text>
               )}
             </Pressable>
