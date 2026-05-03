@@ -138,17 +138,6 @@ function Header({ onPressJoin }: { onPressJoin: () => void }) {
       </View>
       <View style={s.headerActions}>
         <Pressable
-          onPress={() => router.push('/discover')}
-          style={({ pressed }) => [
-            s.headerBtn,
-            { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)' },
-            pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-          ]}
-        >
-          <Ionicons name="compass-outline" size={15} color="rgba(255,255,255,0.8)" />
-          <Text style={[s.headerBtnText, { color: 'rgba(255,255,255,0.8)' }]}>Discover</Text>
-        </Pressable>
-        <Pressable
           onPress={() => { haptics.light(); onPressJoin(); }}
           style={({ pressed }) => [
             s.headerBtn,
@@ -612,11 +601,16 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
 }
 
 // ─── Explore row (horizontal) ─────────────────────────────────────────
-function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
+function ExploreRow({
+  destinations,
+  onCardPress,
+}: {
+  destinations: ExploreDestination[];
+  onCardPress: () => void;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
-  const router = useRouter();
 
   return (
     <View>
@@ -629,7 +623,7 @@ function ExploreRow({ destinations }: { destinations: ExploreDestination[] }) {
         {destinations.map((d) => (
           <Pressable
             key={d.id}
-            onPress={() => router.push('/discover')}
+            onPress={() => { haptics.light(); onCardPress(); }}
             style={({ pressed }) => [
               s.exploreCard,
               { borderWidth: 1, borderColor: c.border },
@@ -913,7 +907,10 @@ export default function TripsScreen() {
           {(realTrips.length > 0 || showDemoData) && (
             <>
               <GoldDivider style={{ marginTop: 24 }} />
-              <ExploreRow destinations={MOCK_EXPLORE_DESTINATIONS} />
+              <ExploreRow
+                destinations={MOCK_EXPLORE_DESTINATIONS}
+                onCardPress={() => setAddDestVisible(true)}
+              />
             </>
           )}
         </View>
