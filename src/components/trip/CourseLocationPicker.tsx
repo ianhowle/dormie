@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
-  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
@@ -256,14 +255,10 @@ export default function CourseLocationPicker({
       {showDropdown && (
         <View style={[styles.dropdown, { backgroundColor: c.surface, borderColor: c.border }]}>
           {results.length > 0 && (
-            <FlatList
-              data={results.slice(0, 5)}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={results.length > 5}
-              style={styles.resultsList}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
+            <View style={styles.resultsList}>
+              {results.slice(0, 5).map((item) => (
                 <Pressable
+                  key={item.id}
                   onPress={() => handleSelect(item)}
                   style={[styles.resultRow, { borderBottomColor: c.border }]}
                 >
@@ -278,8 +273,8 @@ export default function CourseLocationPicker({
                   </View>
                   <Ionicons name="add" size={24} color={c.gold} />
                 </Pressable>
-              )}
-            />
+              ))}
+            </View>
           )}
 
           {/* GolfCourseAPI fallback row */}
