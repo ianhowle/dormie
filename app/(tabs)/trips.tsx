@@ -299,7 +299,7 @@ function AvatarStack({ playerIds, max }: { playerIds: string[]; max?: number }) 
 }
 
 // ─── Trip card ────────────────────────────────────────────────────────
-function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
+function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; isDemo?: boolean }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
@@ -348,6 +348,11 @@ function TripCard({ trip, showDays }: { trip: Trip; showDays?: boolean }) {
         >
           <View style={s.tripImageOverlay} />
         </DestinationImage>
+      )}
+      {isDemo && (
+        <View style={s.demoBadge}>
+          <Text style={s.demoBadgeText}>DEMO</Text>
+        </View>
       )}
       <View style={[s.tripCardBody, tripImage && { zIndex: 1 }]}>
         <View style={s.tripCardTop}>
@@ -623,9 +628,12 @@ export default function TripsScreen() {
           {/* Dream board — always visible (destination data is not user-specific) */}
           <DreamBoard destinations={MOCK_DREAM_DESTINATIONS} />
 
-          {/* Upcoming — real trips when present, otherwise mock peek when demo on */}
-          {realTrips.length > 0 ? (
-            upcomingRealTrips.length > 0 && (
+          {/* Upcoming — real trips first, then demo mocks below (with DEMO badge) when demo mode is on */}
+          {(() => {
+            const showUpcomingMocks = showDemoData && MOCK_UPCOMING_TRIPS.length > 0;
+            const hasUpcoming = upcomingRealTrips.length > 0 || showUpcomingMocks;
+            if (!hasUpcoming) return null;
+            return (
               <>
                 <GoldDivider style={{ marginTop: 24 }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -635,41 +643,31 @@ export default function TripsScreen() {
                 {upcomingRealTrips.map((trip) => (
                   <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} showDays />
                 ))}
+                {showUpcomingMocks && MOCK_UPCOMING_TRIPS.map((trip) => (
+                  <TripCard key={trip.id} trip={trip} showDays isDemo />
+                ))}
               </>
-            )
-          ) : showDemoData && MOCK_UPCOMING_TRIPS.length > 0 ? (
-            <>
-              <GoldDivider style={{ marginTop: 24 }} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <SectionLabel title="UPCOMING" />
-                <DataFreshness updatedAt={lastRefreshed} />
-              </View>
-              {MOCK_UPCOMING_TRIPS.map((trip) => (
-                <TripCard key={trip.id} trip={trip} showDays />
-              ))}
-            </>
-          ) : null}
+            );
+          })()}
 
-          {/* Completed — real trips when present, otherwise mock peek when demo on */}
-          {realTrips.length > 0 ? (
-            completedRealTrips.length > 0 && (
+          {/* Completed — real trips first, then demo mocks below (with DEMO badge) when demo mode is on */}
+          {(() => {
+            const showCompletedMocks = showDemoData && MOCK_COMPLETED_TRIPS.length > 0;
+            const hasCompleted = completedRealTrips.length > 0 || showCompletedMocks;
+            if (!hasCompleted) return null;
+            return (
               <>
                 <GoldDivider style={{ marginTop: 24 }} />
                 <SectionLabel title="COMPLETED" />
                 {completedRealTrips.map((trip) => (
                   <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} />
                 ))}
+                {showCompletedMocks && MOCK_COMPLETED_TRIPS.map((trip) => (
+                  <TripCard key={trip.id} trip={trip} isDemo />
+                ))}
               </>
-            )
-          ) : showDemoData && MOCK_COMPLETED_TRIPS.length > 0 ? (
-            <>
-              <GoldDivider style={{ marginTop: 24 }} />
-              <SectionLabel title="COMPLETED" />
-              {MOCK_COMPLETED_TRIPS.map((trip) => (
-                <TripCard key={trip.id} trip={trip} />
-              ))}
-            </>
-          ) : null}
+            );
+          })()}
 
           {/* Bucket list */}
           {(realTrips.length > 0 || showDemoData) && (
@@ -1074,6 +1072,23 @@ const s = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  demoBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderWidth: 1,
+    borderColor: '#C9A227',
+    zIndex: 2,
+  },
+  demoBadgeText: {
+    color: '#C9A227',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
   tripLocation: {
     fontSize: 10,
