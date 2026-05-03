@@ -215,7 +215,7 @@ export default function ProfileScreen() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
-  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData } = useDemoMode();
+  const { isDemoMode: showDemoData, setDemoMode: setShowDemoData, hasRealData: demoHasRealData } = useDemoMode();
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
     user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
@@ -1211,7 +1211,31 @@ export default function ProfileScreen() {
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  setShowDemoData(!showDemoData);
+                  if (showDemoData) {
+                    // Turning off — no confirmation
+                    setShowDemoData(false);
+                    return;
+                  }
+                  // Turning on — if user has real data, confirm before mixing mocks in
+                  if (demoHasRealData) {
+                    Alert.alert(
+                      'Turn on Demo Mode?',
+                      'You have real trips and other data. Demo mode will show example trips alongside yours, which can be confusing. Continue?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Turn On',
+                          style: 'destructive',
+                          onPress: () => {
+                            haptics.success();
+                            setShowDemoData(true);
+                          },
+                        },
+                      ],
+                    );
+                  } else {
+                    setShowDemoData(true);
+                  }
                 }}
                 style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
                 accessibilityLabel="Demo Mode"

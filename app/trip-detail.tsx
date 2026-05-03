@@ -41,6 +41,7 @@ import { messagesService } from '../src/services/messages.service';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { tripsService } from '../src/services/trips.service';
 import { momentsService } from '../src/services/moments.service';
+import { SIDE_GAME_LABELS, type SideGame } from '../src/data/scoring';
 import AddPlayerSheet from '../src/components/trip/AddPlayerSheet';
 import type { PendingPlayer } from '../src/components/trip/AddPlayerSheet';
 import type { TripMessageWithUser, TripMomentWithUser, TripMemberWithUser } from '../src/lib/database.types';
@@ -245,8 +246,6 @@ const TRIP_TOOLS: TripTool[] = [
   { id: 'tt6', label: 'Weather', icon: 'partly-sunny-outline', color: '#4A9B8E' },
 ];
 
-const SIDE_GAME_PILLS = ['Skins', 'Nassau', 'Dots', 'Snake'];
-
 const TABS = ['Clubhouse', 'Courses', 'Players', 'Checklist', '19th Hole'] as const;
 type Tab = (typeof TABS)[number];
 
@@ -333,18 +332,39 @@ function ClubhouseTab({
   const checkTotal = checklist.length;
   const checkProgress = checkTotal > 0 ? checkDone / checkTotal : 0;
   const formatLabel = (() => {
-    const f = (trip as any).format as string | undefined | null;
+    const f = trip.format;
     if (!f) return '—';
-    if (f === 'total_strokes' || f === 'stroke_play') return 'SP';
-    if (f === 'match_play') return 'MP';
-    if (f === 'stableford') return 'STB';
-    if (f === 'best_ball') return 'BB';
-    if (f === 'scramble') return 'SCR';
-    return f.slice(0, 3).toUpperCase();
+    const map: Record<string, string> = {
+      stroke_play: 'SP',
+      total_strokes: 'TS',
+      match_play: 'MP',
+      stableford: 'ST',
+      modified_stableford: 'MS',
+      mod_stableford: 'MS',
+      best_ball: 'BB',
+      scramble: 'SC',
+      alternate_shot: 'AS',
+      shamble: 'SH',
+      chapman: 'CH',
+      fourball: 'FB',
+      greensomes: 'GS',
+      pinehurst: 'PH',
+      wolf: 'WF',
+      low_high: 'LH',
+      sixsixsix: '666',
+    };
+    if (map[f]) return map[f];
+    // Fallback: first 2 uppercase letters of the format string
+    const cleaned = f.replace(/[^A-Za-z]/g, '');
+    return cleaned.slice(0, 2).toUpperCase() || '—';
   })();
-  const sideGames: string[] = Array.isArray((trip as any).sideGames)
-    ? ((trip as any).sideGames as string[])
-    : [];
+  const sideGames: string[] = trip.sideGames ?? [];
+  const sideGameLabels = sideGames.map((g) => {
+    const known = SIDE_GAME_LABELS[g as SideGame];
+    if (known) return known;
+    // Unknown key: title-case it (e.g. "trash_talk" → "Trash Talk")
+    return g.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  });
   const inviteCode = trip.inviteCode || '';
 
   return (
@@ -459,17 +479,21 @@ function ClubhouseTab({
           </Pressable>
         ))}
 
-      {/* Games on the line */}
-      <SectionLabel title="GAMES ON THE LINE" />
-      <View style={s.sideGamePillWrap}>
-        {SIDE_GAME_PILLS.map((g) => (
-          <View key={g} style={[s.sideGamePill, { backgroundColor: `${c.gold}15`, borderColor: c.gold }]}>
-            <Text style={[s.sideGamePillText, { color: c.gold }]}>{g}</Text>
+      {/* Games on the line — only when the trip has side games */}
+      {sideGameLabels.length > 0 && (
+        <>
+          <SectionLabel title="GAMES ON THE LINE" />
+          <View style={s.sideGamePillWrap}>
+            {sideGameLabels.map((label, i) => (
+              <View key={`${sideGames[i]}-${i}`} style={[s.sideGamePill, { backgroundColor: `${c.gold}15`, borderColor: c.gold }]}>
+                <Text style={[s.sideGamePillText, { color: c.gold }]}>{label}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
 
-      <GoldDivider style={{ marginTop: 16 }} />
+          <GoldDivider style={{ marginTop: 16 }} />
+        </>
+      )}
 
       {/* Trip moments */}
       <SectionLabel title="TRIP MOMENTS" />
@@ -2333,6 +2357,8 @@ function TripDetailScreenInner() {
             playerIds: (data.trip_members || []).map((m: any) => m.user_id),
             roundsPlanned: (data.ryder_cup_config as any)?.sessions?.length ?? 3,
             gradient: (data.gradient as [string, string]) ?? ['#1565C0', '#B71C1C'],
+            format: data.format ?? undefined,
+            sideGames: Array.isArray(data.side_games) ? (data.side_games as string[]) : [],
           });
         }
         setDbLoading(false);

@@ -80,6 +80,8 @@ function adaptSupabaseTrip(t: TripWithMembers): Trip {
     playerIds,
     roundsPlanned: 1,
     gradient,
+    format: t.format ?? undefined,
+    sideGames: Array.isArray(t.side_games) ? (t.side_games as string[]) : [],
     competitionStarted: t.status === 'active',
   };
 }

@@ -16,6 +16,8 @@ export type Trip = {
   playerIds: string[];
   roundsPlanned: number;
   gradient: [string, string];
+  format?: string;
+  sideGames?: string[];
   champion?: string; // only for completed
   competitionStarted?: boolean; // true when trip competition is live
   ryderCupConfig?: {
