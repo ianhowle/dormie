@@ -2302,6 +2302,10 @@ function TripDetailScreenInner() {
   }, [mockTrip, tripId]);
 
   const trip = mockTrip ?? dbTrip ?? MOCK_UPCOMING_TRIPS[0];
+  // Guard: while we're falling back to MOCK_UPCOMING_TRIPS[0] during dbLoading,
+  // skip any Supabase fetch keyed on trip.id — the mock id 't1' is not a UUID
+  // and Postgres rejects it, surfacing spurious error toasts.
+  const isRealTrip = !!mockTrip || !!dbTrip;
 
   const daysUntil = getDaysUntilTrip(trip.startDate);
   const insets = useSafeAreaInsets();
@@ -2319,6 +2323,7 @@ function TripDetailScreenInner() {
   const [tripCourseData, setTripCourseData] = useState<{ id: string; name: string; par: number; slope: number; rating: number } | null>(null);
 
   useEffect(() => {
+    if (!isRealTrip) return;
     tripsService.getMembers(trip.id).then(setMembers).catch(() => {
       showToast({ message: 'Could not load players', type: 'error' });
     });
@@ -2338,7 +2343,7 @@ function TripDetailScreenInner() {
         }
       }
     }).catch(() => {});
-  }, [trip.id, showToast]);
+  }, [trip.id, isRealTrip, showToast]);
 
   // Derived: real players in TripPlayer shape (registered users + guests)
   const realPlayers = useMemo<TripPlayer[]>(() => {
@@ -2375,8 +2380,9 @@ function TripDetailScreenInner() {
 
   // Load moments from Supabase
   useEffect(() => {
+    if (!isRealTrip) return;
     momentsService.getByTrip(trip.id).then(setRealMoments).catch(() => {});
-  }, [trip.id]);
+  }, [trip.id, isRealTrip]);
 
   const handlePickPhoto = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
