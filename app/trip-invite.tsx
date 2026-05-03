@@ -35,7 +35,7 @@ export default function TripInviteScreen() {
       const tripId = await tripInvitesService.joinByInvite(code);
       haptics.success();
       showToast({ message: 'Joined trip!', type: 'success' });
-      router.replace({ pathname: '/trip-detail', params: { id: tripId } });
+      router.replace({ pathname: '/trip-detail', params: { tripId } });
     } catch (err: any) {
       haptics.error();
       showToast({ message: err?.message ?? 'Could not join trip', type: 'error' });

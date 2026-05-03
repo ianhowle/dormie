@@ -600,7 +600,7 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   showToast({ message: 'Trip created', type: 'gold', icon: 'airplane' });
 
                   // Bug fix 6: navigate to trip detail, not router.back()
-                  router.replace({ pathname: '/trip-detail', params: { id: trip.id } });
+                  router.replace({ pathname: '/trip-detail', params: { tripId: trip.id } });
                 } catch (err: any) {
                   console.error('[CreateTrip] failed', err);
                   haptics.error();

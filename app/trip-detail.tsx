@@ -2202,18 +2202,19 @@ function TripDetailScreenInner() {
   const { theme, toggleTheme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const params = useLocalSearchParams<{ tripId?: string }>();
+  const params = useLocalSearchParams<{ tripId?: string; id?: string }>();
+  const tripId = params.tripId ?? params.id;
   const { user } = useAuth();
 
-  const mockTrip = MOCK_UPCOMING_TRIPS.find((t) => t.id === params.tripId);
+  const mockTrip = MOCK_UPCOMING_TRIPS.find((t) => t.id === tripId);
 
   // Fetch real trip from Supabase for Ryder Cup trips (when tripId doesn't match mock data)
   const [dbTrip, setDbTrip] = useState<Trip | null>(null);
-  const [dbLoading, setDbLoading] = useState(!mockTrip && !!params.tripId);
+  const [dbLoading, setDbLoading] = useState(!mockTrip && !!tripId);
 
   useEffect(() => {
-    if (!mockTrip && params.tripId) {
-      tripsService.getById(params.tripId).then((data) => {
+    if (!mockTrip && tripId) {
+      tripsService.getById(tripId).then((data) => {
         if (data) {
           // Map DB Trip to local Trip shape
           setDbTrip({
@@ -2236,7 +2237,7 @@ function TripDetailScreenInner() {
         setDbLoading(false);
       }).catch(() => setDbLoading(false));
     }
-  }, [mockTrip, params.tripId]);
+  }, [mockTrip, tripId]);
 
   const trip = mockTrip ?? dbTrip ?? MOCK_UPCOMING_TRIPS[0];
 
