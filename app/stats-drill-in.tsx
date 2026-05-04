@@ -387,20 +387,25 @@ export default function StatsDrillInScreen() {
   const [callouts, setCallouts] = useState<StatCallouts | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Pin to a stable userId primitive — the Supabase user object reference
+  // re-emits on token refresh / focus events, which previously cancelled the
+  // in-flight fetch on every emission and left the screen stuck in loading.
+  const userId = user?.id;
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setLoading(false);
       return;
     }
     let cancelled = false;
+    setLoading(true);
     (async () => {
       try {
         const [o, t, co, y, cl] = await Promise.all([
-          statsService.getOverview(user.id),
-          statsService.getTripPerformanceList(user.id),
-          statsService.getCourseBreakdown(user.id),
-          statsService.getYearOverYear(user.id),
-          statsService.getCallouts(user.id),
+          statsService.getOverview(userId),
+          statsService.getTripPerformanceList(userId),
+          statsService.getCourseBreakdown(userId),
+          statsService.getYearOverYear(userId),
+          statsService.getCallouts(userId),
         ]);
         if (cancelled) return;
         setOverview(o);
@@ -417,7 +422,7 @@ export default function StatsDrillInScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [userId]);
 
   const useDemo = useMemo(() => {
     if (loading) return false;
