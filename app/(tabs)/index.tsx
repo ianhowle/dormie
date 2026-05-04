@@ -495,7 +495,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
         } catch {}
       }).catch(() => {});
     });
-  }, [user, groupName]);
+  }, [user?.id, groupName]);
 
   if (!season) return null;
 
@@ -1195,7 +1195,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

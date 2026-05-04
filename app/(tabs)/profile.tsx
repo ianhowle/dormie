@@ -271,7 +271,7 @@ export default function ProfileScreen() {
       })
       .catch(() => {})
       .finally(() => setLoadingRounds(false));
-  }, [user]);
+  }, [user?.id]);
 
   // Fetch social counts
   const fetchSocialCounts = useCallback(() => {
@@ -285,7 +285,7 @@ export default function ProfileScreen() {
     seasonsService.getByUser(user.id)
       .then((seasons) => setSeasonCount(seasons.length))
       .catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   // Enable LayoutAnimation on Android
   useEffect(() => {

@@ -308,7 +308,7 @@ export default function SeasonsTab() {
       setRealSeasons(s);
       setDataLoaded(true);
     }).catch(() => setDataLoaded(true));
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { loadSeasons(); }, [loadSeasons]);
 

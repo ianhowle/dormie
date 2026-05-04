@@ -535,7 +535,7 @@ export default function LeaderboardScreen() {
       })));
     } catch {}
     setDataLoaded(true);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     loadData();
