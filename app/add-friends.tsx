@@ -97,7 +97,7 @@ export default function AddFriendsScreen() {
       .then(setPendingRequests)
       .catch(() => {})
       .finally(() => setLoadingPending(false));
-  }, [user]);
+  }, [user?.id]);
 
   // Check contacts permission on mount
   useEffect(() => {

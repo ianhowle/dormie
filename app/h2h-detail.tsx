@@ -131,7 +131,7 @@ export default function H2HDetailScreen() {
         courseBreakdown,
       });
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [user, opponentId, paramName]);
+  }, [user?.id, opponentId, paramName]);
 
   const MY_NAME = user?.user_metadata?.name ?? 'You';
   const MY_ID = user?.id ?? '';

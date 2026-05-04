@@ -524,7 +524,7 @@ export default function CourseDetailScreen() {
         });
       }).catch(() => {});
     }
-  }, [courseId, user]);
+  }, [courseId, user?.id]);
 
   // Use static mock for course metadata, but override leaderboard and history with real data
   const baseCourse = useMemo(() => getCourseDetail(courseId ?? ''), [courseId]);

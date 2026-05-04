@@ -5414,7 +5414,7 @@ export default function SeasonCreateScreen() {
     }).catch(() => {
       // Keep MOCK_FRIENDS as fallback
     });
-  }, [user]);
+  }, [user?.id]);
 
   // State — FedEx / Custom
   const [preset, setPreset] = useState('standard');

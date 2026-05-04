@@ -327,7 +327,7 @@ export default function SeasonsTab() {
       setRealSeasons(s);
     }
     setRefreshing(false);
-  }, [user]);
+  }, [user?.id]);
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>

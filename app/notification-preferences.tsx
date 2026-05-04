@@ -36,7 +36,7 @@ export default function NotificationPreferencesScreen() {
       setPrefs(p);
       setLoading(false);
     });
-  }, [user]);
+  }, [user?.id]);
 
   const toggle = async (key: keyof NotificationPrefs) => {
     if (!user) return;

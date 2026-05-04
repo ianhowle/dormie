@@ -59,7 +59,7 @@ export default function LedgerScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { load(); }, [load]);
 

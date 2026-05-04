@@ -142,7 +142,7 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!user) return;
     bucketListService.getIds(user.id).then(setBucketCourseIds).catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   const toggleBucketList = async (courseId: string, courseName: string) => {
     if (!user) return;

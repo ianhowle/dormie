@@ -77,7 +77,7 @@ export default function SettingsScreen() {
       const data = await groupsService.getUserGroups(user.id);
       setGroups(data);
     } catch {}
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
