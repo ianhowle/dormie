@@ -138,6 +138,32 @@ function isCompletedTrip(t: TripWithMembers): boolean {
   return t.end_date < today;
 }
 
+// ─── Search matchers (real vs mock have different shapes) ─────────────
+function matchesSearchRaw(t: TripWithMembers, q: string): boolean {
+  if (!q) return true;
+  const needle = q.toLowerCase();
+  if ((t.name ?? '').toLowerCase().includes(needle)) return true;
+  if ((t.location ?? '').toLowerCase().includes(needle)) return true;
+  const members = t.trip_members ?? [];
+  return members.some((m: any) => {
+    const userName = m.user?.name ?? '';
+    const guestName = m.guest_name ?? '';
+    return (
+      userName.toLowerCase().includes(needle) ||
+      guestName.toLowerCase().includes(needle)
+    );
+  });
+}
+
+function matchesSearchLocal(t: Trip, q: string): boolean {
+  if (!q) return true;
+  const needle = q.toLowerCase();
+  if (t.name.toLowerCase().includes(needle)) return true;
+  if (t.destination?.toLowerCase().includes(needle)) return true;
+  if (`${t.city}, ${t.state}`.toLowerCase().includes(needle)) return true;
+  return (t.members ?? []).some((m) => m.name.toLowerCase().includes(needle));
+}
+
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
 // ─── Section header ───────────────────────────────────────────────────
@@ -820,6 +846,15 @@ export default function TripsScreen() {
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [tripsLoading, setTripsLoading] = useState(true);
   const [addDestVisible, setAddDestVisible] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'live' | 'upcoming' | 'completed'>('all');
+
+  // Debounce text input → search query so filter logic doesn't re-run on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(searchInput), 150);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const upcomingRealTrips = useMemo(() => {
     const filtered = realTrips.filter((t) => !isCompletedTrip(t));
@@ -844,6 +879,42 @@ export default function TripsScreen() {
         .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()),
     [realTrips],
   );
+
+  // Filtered views — chip filter can collapse a section to empty; search query
+  // matches across name/location/member names case-insensitively.
+  const filteredUpcomingReal = useMemo(() => {
+    if (activeFilter === 'completed') return [];
+    let arr = upcomingRealTrips;
+    if (activeFilter === 'live') arr = arr.filter(isTripLive);
+    else if (activeFilter === 'upcoming') arr = arr.filter((t) => !isTripLive(t));
+    return arr.filter((t) => matchesSearchRaw(t, searchQuery));
+  }, [upcomingRealTrips, activeFilter, searchQuery]);
+  const filteredCompletedReal = useMemo(() => {
+    if (activeFilter === 'live' || activeFilter === 'upcoming') return [];
+    return completedRealTrips.filter((t) => matchesSearchRaw(t, searchQuery));
+  }, [completedRealTrips, activeFilter, searchQuery]);
+  const filteredUpcomingMock = useMemo(() => {
+    if (!showDemoData) return [];
+    if (activeFilter === 'completed') return [];
+    let arr = MOCK_UPCOMING_TRIPS;
+    if (activeFilter === 'live') arr = arr.filter((t) => t.isLive === true);
+    // No additional split for 'upcoming' on mocks — none of them are live by date.
+    return arr.filter((t) => matchesSearchLocal(t, searchQuery));
+  }, [showDemoData, activeFilter, searchQuery]);
+  const filteredCompletedMock = useMemo(() => {
+    if (!showDemoData) return [];
+    if (activeFilter === 'live' || activeFilter === 'upcoming') return [];
+    return MOCK_COMPLETED_TRIPS.filter((t) => matchesSearchLocal(t, searchQuery));
+  }, [showDemoData, activeFilter, searchQuery]);
+
+  const filterIsActive = activeFilter !== 'all' || searchQuery.trim().length > 0;
+  const totalFilteredCount =
+    filteredUpcomingReal.length +
+    filteredCompletedReal.length +
+    filteredUpcomingMock.length +
+    filteredCompletedMock.length;
+  const noFilteredResults = filterIsActive && totalFilteredCount === 0;
+  const searchDisabled = realTrips.length === 0 && !showDemoData;
 
   useEffect(() => {
     if (!user) {
@@ -1038,46 +1109,122 @@ export default function TripsScreen() {
             onPlanTrip={handlePlanTrip}
           />
 
+          {/* Search + filter chips. Visible always so power users learn it; disabled when there's nothing to search. */}
+          {(realTrips.length > 0 || showDemoData || searchDisabled) && (
+            <>
+              <GoldDivider style={{ marginTop: 24 }} />
+              <View style={[s.searchBar, { backgroundColor: c.cardBg, borderColor: c.border, opacity: searchDisabled ? 0.5 : 1 }]}>
+                <Ionicons name="search-outline" size={16} color={c.textMuted} />
+                <TextInput
+                  style={[s.searchInput, { color: c.text }]}
+                  placeholder="Search trips by name, location, or member"
+                  placeholderTextColor={c.textMuted}
+                  value={searchInput}
+                  onChangeText={setSearchInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                  editable={!searchDisabled}
+                />
+                {searchInput.length > 0 && (
+                  <Pressable onPress={() => setSearchInput('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={16} color={c.textMuted} />
+                  </Pressable>
+                )}
+              </View>
+              <View style={s.filterRow}>
+                {(['all', 'live', 'upcoming', 'completed'] as const).map((f) => {
+                  const active = activeFilter === f;
+                  return (
+                    <Pressable
+                      key={f}
+                      onPress={() => {
+                        if (searchDisabled) return;
+                        haptics.light();
+                        setActiveFilter(f);
+                      }}
+                      disabled={searchDisabled}
+                      style={({ pressed }) => [
+                        s.filterChip,
+                        {
+                          backgroundColor: active ? '#006747' : c.cardBg,
+                          borderColor: active ? '#006747' : c.border,
+                          opacity: searchDisabled ? 0.5 : pressed ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.filterChipText,
+                          {
+                            color: active ? '#C9A227' : c.textMuted,
+                            fontFamily: GEO,
+                          },
+                        ]}
+                      >
+                        {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Empty state — search/filter combo yields nothing */}
+          {noFilteredResults && (
+            <View style={[s.searchEmpty, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+              <Ionicons name="search" size={32} color={c.textMuted} />
+              <Text style={[s.searchEmptyTitle, { color: c.text, fontFamily: GEO }]}>
+                No trips match your search
+              </Text>
+              <Text style={[s.searchEmptyBody, { color: c.textMuted }]}>
+                Try different terms or clear the filter.
+              </Text>
+              <Pressable
+                onPress={() => { haptics.light(); setSearchInput(''); setActiveFilter('all'); }}
+                style={({ pressed }) => [
+                  s.searchEmptyCta,
+                  { backgroundColor: '#006747', opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Text style={[s.searchEmptyCtaText, { color: '#C9A227', fontFamily: GEO }]}>
+                  Clear filters
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Upcoming — real trips first, then demo mocks below (with DEMO badge) when demo mode is on */}
-          {(() => {
-            const showUpcomingMocks = showDemoData && MOCK_UPCOMING_TRIPS.length > 0;
-            const hasUpcoming = upcomingRealTrips.length > 0 || showUpcomingMocks;
-            if (!hasUpcoming) return null;
-            return (
-              <>
-                <GoldDivider style={{ marginTop: 24 }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <SectionLabel title="UPCOMING" />
-                  <DataFreshness updatedAt={lastRefreshed} />
-                </View>
-                {upcomingRealTrips.map((trip) => (
-                  <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} showDays />
-                ))}
-                {showUpcomingMocks && MOCK_UPCOMING_TRIPS.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} showDays isDemo />
-                ))}
-              </>
-            );
-          })()}
+          {(filteredUpcomingReal.length > 0 || filteredUpcomingMock.length > 0) && (
+            <>
+              <GoldDivider style={{ marginTop: 24 }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <SectionLabel title="UPCOMING" />
+                <DataFreshness updatedAt={lastRefreshed} />
+              </View>
+              {filteredUpcomingReal.map((trip) => (
+                <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} showDays />
+              ))}
+              {filteredUpcomingMock.map((trip) => (
+                <TripCard key={trip.id} trip={trip} showDays isDemo />
+              ))}
+            </>
+          )}
 
           {/* Completed — real trips first, then demo mocks below (with DEMO badge) when demo mode is on */}
-          {(() => {
-            const showCompletedMocks = showDemoData && MOCK_COMPLETED_TRIPS.length > 0;
-            const hasCompleted = completedRealTrips.length > 0 || showCompletedMocks;
-            if (!hasCompleted) return null;
-            return (
-              <>
-                <GoldDivider style={{ marginTop: 24 }} />
-                <SectionLabel title="COMPLETED" />
-                {completedRealTrips.map((trip) => (
-                  <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} />
-                ))}
-                {showCompletedMocks && MOCK_COMPLETED_TRIPS.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} isDemo />
-                ))}
-              </>
-            );
-          })()}
+          {(filteredCompletedReal.length > 0 || filteredCompletedMock.length > 0) && (
+            <>
+              <GoldDivider style={{ marginTop: 24 }} />
+              <SectionLabel title="COMPLETED" />
+              {filteredCompletedReal.map((trip) => (
+                <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} />
+              ))}
+              {filteredCompletedMock.map((trip) => (
+                <TripCard key={trip.id} trip={trip} isDemo />
+              ))}
+            </>
+          )}
 
           {/* Explore */}
           {(realTrips.length > 0 || showDemoData) && (
@@ -1553,6 +1700,65 @@ const s = StyleSheet.create({
   addDestEmptyText: {
     fontSize: 13,
     textAlign: 'center',
+  },
+
+  /* Search bar + filter chips */
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  searchEmpty: {
+    marginTop: 20,
+    padding: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  searchEmptyBody: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  searchEmptyCta: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  searchEmptyCtaText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 
   /* Live state — trip card pill + pulse dot */
