@@ -13,6 +13,8 @@
 
 ## Active Compost
 
+- 2026-05-03 — Stats card revealed as 100% hardcoded mock data despite appearing functional. Sweep other surfaces post-beta to find any other "looks real, isn't real" content (Home tab Stats, Season standings, Scoreboard, anywhere displaying user-specific numbers). Don't ship to beta with hidden mock data.
+
 ### 2026-05-03 — Initial seeding
 
 These are everything Ian and I have surfaced across our conversations that hasn't been acted on yet.

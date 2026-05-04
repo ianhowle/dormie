@@ -33,6 +33,7 @@ import { useAuth } from '../../src/lib/auth';
 import { tripsService } from '../../src/services/trips.service';
 import { tripInvitesService } from '../../src/services/tripInvites.service';
 import { destinationsService, type Destination, type DreamBoardEntry, type DestinationStatus } from '../../src/services/destinations.service';
+import { statsService, type TripStatsOverview } from '../../src/services/stats.service';
 import { haptics } from '../../src/lib/haptics';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
@@ -224,28 +225,101 @@ function Header({ onPressJoin }: { onPressJoin: () => void }) {
 }
 
 // ─── Trip stats banner ────────────────────────────────────────────────
-function TripStatsBanner() {
+type StatsBannerView =
+  | { kind: 'real'; totalTrips: number; totalWins: number; tripAvg: number; regularAvg: number; diffStrokes: number }
+  | { kind: 'demo'; totalTrips: number; totalWins: number; tripAvg: number; regularAvg: number; diffStrokes: number }
+  | { kind: 'empty' }
+  | { kind: 'loading' };
+
+function TripStatsBanner({
+  view,
+  onPress,
+}: {
+  view: StatsBannerView;
+  onPress?: () => void;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
-  const stats = MOCK_TRIP_STATS;
-  const diff = stats.regularAvg - stats.tripAvg;
-  const playsSmarter = diff > 0;
+  const tappable = !!onPress && (view.kind === 'real' || view.kind === 'demo');
 
-  return (
-    <View style={[s.statsBanner, { backgroundColor: `${c.teal}10`, borderColor: c.teal, borderWidth: 1 }, ...(isDark ? [cardShadowDark] : [cardShadowLight])]}>
-      <View style={s.statsRow}>
-        <BannerStat label="TRIPS" value={String(stats.totalTrips)} c={c} />
-        <BannerStat label="WINS" value={String(stats.wins)} c={c} />
-        <BannerStat label="TRIP AVG" value={stats.tripAvg.toFixed(1)} c={c} />
-        <BannerStat label="REG AVG" value={stats.regularAvg.toFixed(1)} c={c} />
-      </View>
-      {playsSmarter && (
-        <Text style={[s.callout, { color: c.teal }]}>
-          You play {diff.toFixed(1)} strokes better on trips
-        </Text>
+  const cardStyle = [
+    s.statsBanner,
+    { backgroundColor: `${c.teal}10`, borderColor: c.teal, borderWidth: 1 },
+    ...(isDark ? [cardShadowDark] : [cardShadowLight]),
+  ];
+
+  const renderInner = () => {
+    if (view.kind === 'loading') {
+      return (
+        <View style={s.statsRow}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={s.bannerStat}>
+              <Skeleton width={42} height={22} />
+              <Skeleton width={48} height={9} style={{ marginTop: 6 }} />
+            </View>
+          ))}
+        </View>
+      );
+    }
+    if (view.kind === 'empty') {
+      return (
+        <View style={{ alignItems: 'center', paddingVertical: 4 }}>
+          <Text style={[s.bannerStatLabel, { color: c.textMuted, fontSize: 12, textAlign: 'center' }]}>
+            Play your first trip to see your stats.
+          </Text>
+        </View>
+      );
+    }
+    const playsSmarter = view.diffStrokes < 0;
+    const playsWorse = view.diffStrokes > 0;
+    const diffMag = Math.abs(view.diffStrokes);
+    return (
+      <>
+        <View style={s.statsRow}>
+          <BannerStat label="TRIPS" value={String(view.totalTrips)} c={c} />
+          <BannerStat label="WINS" value={String(view.totalWins)} c={c} />
+          <BannerStat label="TRIP AVG" value={view.tripAvg > 0 ? view.tripAvg.toFixed(1) : '—'} c={c} />
+          <BannerStat label="REG AVG" value={view.regularAvg > 0 ? view.regularAvg.toFixed(1) : '—'} c={c} />
+        </View>
+        {playsSmarter && diffMag >= 0.1 && (
+          <Text style={[s.callout, { color: c.teal }]}>
+            You play {diffMag.toFixed(1)} strokes better on trips
+          </Text>
+        )}
+        {playsWorse && diffMag >= 0.1 && (
+          <Text style={[s.callout, { color: c.gold }]}>
+            You play {diffMag.toFixed(1)} strokes worse on trips. Pre-trip jitters?
+          </Text>
+        )}
+      </>
+    );
+  };
+
+  const content = (
+    <View style={cardStyle}>
+      {view.kind === 'demo' && (
+        <View style={s.demoBadge}>
+          <Text style={s.demoBadgeText}>DEMO</Text>
+        </View>
+      )}
+      {renderInner()}
+      {tappable && (
+        <View style={s.statsCardChevron}>
+          <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+        </View>
       )}
     </View>
+  );
+
+  if (!tappable) return content;
+  return (
+    <Pressable
+      onPress={() => { haptics.light(); onPress!(); }}
+      style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -863,6 +937,8 @@ export default function TripsScreen() {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'live' | 'upcoming' | 'completed'>('all');
+  const [statsOverview, setStatsOverview] = useState<TripStatsOverview | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // Debounce text input → search query so filter logic doesn't re-run on every keystroke
   useEffect(() => {
@@ -933,9 +1009,11 @@ export default function TripsScreen() {
   useEffect(() => {
     if (!user) {
       setTripsLoading(false);
+      setStatsLoading(false);
       return;
     }
     setTripsLoading(true);
+    setStatsLoading(true);
     tripsService.getByUser(user.id)
       .then((trips) => {
         setRealTrips(trips);
@@ -945,20 +1023,26 @@ export default function TripsScreen() {
       .finally(() => setTripsLoading(false));
     destinationsService.getDreamBoard(user.id).then(setDreamEntries).catch(() => {});
     destinationsService.listAll().then(setDestinationCatalog).catch(() => {});
+    statsService.getOverview(user.id)
+      .then(setStatsOverview)
+      .catch(() => setStatsOverview(null))
+      .finally(() => setStatsLoading(false));
   }, [user, checkAndDisable]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (user) {
-        const [trips, dream, catalog] = await Promise.all([
+        const [trips, dream, catalog, overview] = await Promise.all([
           tripsService.getByUser(user.id),
           destinationsService.getDreamBoard(user.id),
           destinationsService.listAll(),
+          statsService.getOverview(user.id).catch(() => null),
         ]);
         setRealTrips(trips);
         setDreamEntries(dream);
         setDestinationCatalog(catalog);
+        setStatsOverview(overview);
         if (trips.length > 0) checkAndDisable();
       }
       setLastRefreshed(new Date());
@@ -1188,8 +1272,53 @@ export default function TripsScreen() {
             <TripsEmpty />
           )}
 
-          {/* Trip stats */}
-          {(realTrips.length > 0 || showDemoData) && <TripStatsBanner />}
+          {/* Trip stats — real when available, demo with badge when only demo,
+              empty-copy when neither. Tappable in real/demo modes. */}
+          {(() => {
+            if (tripsLoading || statsLoading) {
+              return <TripStatsBanner view={{ kind: 'loading' }} />;
+            }
+            const hasReal = !!statsOverview && statsOverview.hasData;
+            if (hasReal && statsOverview) {
+              const view: StatsBannerView = {
+                kind: 'real',
+                totalTrips: statsOverview.totalTrips,
+                totalWins: statsOverview.totalWins,
+                tripAvg: statsOverview.tripAvg,
+                regularAvg: statsOverview.regularAvg,
+                diffStrokes: statsOverview.diffStrokes,
+              };
+              return (
+                <TripStatsBanner
+                  view={view}
+                  onPress={() => router.push('/stats-drill-in')}
+                />
+              );
+            }
+            if (showDemoData) {
+              const view: StatsBannerView = {
+                kind: 'demo',
+                totalTrips: MOCK_TRIP_STATS.totalTrips,
+                totalWins: MOCK_TRIP_STATS.wins,
+                tripAvg: MOCK_TRIP_STATS.tripAvg,
+                regularAvg: MOCK_TRIP_STATS.regularAvg,
+                diffStrokes: MOCK_TRIP_STATS.tripAvg - MOCK_TRIP_STATS.regularAvg,
+              };
+              return (
+                <TripStatsBanner
+                  view={view}
+                  onPress={() => router.push('/stats-drill-in')}
+                />
+              );
+            }
+            // No real data, demo off — show empty-state copy on the card itself.
+            // Only render when the user has at least some trips on the books;
+            // otherwise the section is hidden entirely (TripsEmpty covers it).
+            if (realTrips.length > 0) {
+              return <TripStatsBanner view={{ kind: 'empty' }} />;
+            }
+            return null;
+          })()}
 
           {/* Gold divider after stats */}
           {(realTrips.length > 0 || showDemoData) && <GoldDivider style={{ marginTop: 24 }} />}
@@ -1619,6 +1748,11 @@ const s = StyleSheet.create({
     padding: 16,
     marginTop: 8,
     borderRadius: 12,
+  },
+  statsCardChevron: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
   },
   statsRow: {
     flexDirection: 'row',
