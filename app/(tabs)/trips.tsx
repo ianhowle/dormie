@@ -866,13 +866,44 @@ function TripCard({
   );
 }
 
+// ─── Explore CTA (intent-capture form entry point) ────────────────────
+function ExploreCta({ onPress }: { onPress: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <Pressable
+      onPress={() => { haptics.light(); onPress(); }}
+      style={({ pressed }) => [
+        s.exploreCta,
+        { backgroundColor: c.cardBg, borderColor: c.gold },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[s.exploreCtaTitle, { color: c.text, fontFamily: GEO }]}>
+          Explore your next dream trip
+        </Text>
+        <Text style={[s.exploreCtaBody, { color: c.textMuted }]}>
+          Tell us about your dream trip. We're building a trip planner that produces what matters most to golfers.
+        </Text>
+      </View>
+      <View style={s.exploreCtaBtn}>
+        <Text style={[s.exploreCtaBtnText, { color: '#C9A227', fontFamily: GEO }]}>Start</Text>
+        <Ionicons name="arrow-forward" size={14} color="#C9A227" />
+      </View>
+    </Pressable>
+  );
+}
+
 // ─── Explore row (horizontal) ─────────────────────────────────────────
 function ExploreRow({
   destinations,
+  title,
   onCardPress,
 }: {
   destinations: ExploreDestination[];
-  onCardPress: () => void;
+  title?: string;
+  onCardPress: (destination: ExploreDestination) => void;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -880,7 +911,7 @@ function ExploreRow({
 
   return (
     <View>
-      <SectionLabel title="EXPLORE" />
+      <SectionLabel title={title ?? 'EXPLORE'} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -889,7 +920,7 @@ function ExploreRow({
         {destinations.map((d) => (
           <Pressable
             key={d.id}
-            onPress={() => { haptics.light(); onCardPress(); }}
+            onPress={() => { haptics.light(); onCardPress(d); }}
             style={({ pressed }) => [
               s.exploreCard,
               { borderWidth: 1, borderColor: c.border },
@@ -1144,6 +1175,25 @@ export default function TripsScreen() {
   const handlePlanTrip = useCallback((region: string) => {
     haptics.light();
     router.push({ pathname: '/create-trip', params: { location: region } });
+  }, [router]);
+
+  const handleExploreTilePress = useCallback((dest: ExploreDestination) => {
+    // Option A: tap-to-add-to-Dream-Board. Resolve the mock tile name to a
+    // catalog destination by case-insensitive name match. If found, add it
+    // directly. If not (or if catalog hasn't loaded yet), fall back to the
+    // generic Add Destination picker.
+    const match = destinationCatalog.find(
+      (d) => d.name.toLowerCase() === dest.name.toLowerCase(),
+    );
+    if (match) {
+      handleAddDestination(match.id);
+    } else {
+      setAddDestVisible(true);
+    }
+  }, [destinationCatalog, handleAddDestination]);
+
+  const handleExploreCtaPress = useCallback(() => {
+    router.push('/explore-dream-trip');
   }, [router]);
 
   const handleDuplicateTrip = useCallback((trip: Trip) => {
@@ -1479,13 +1529,16 @@ export default function TripsScreen() {
             </>
           )}
 
-          {/* Explore */}
+          {/* Explore — intent-capture CTA on top, popular tiles below */}
           {(realTrips.length > 0 || showDemoData) && (
             <>
               <GoldDivider style={{ marginTop: 24 }} />
+              <SectionLabel title="EXPLORE" />
+              <ExploreCta onPress={handleExploreCtaPress} />
               <ExploreRow
                 destinations={MOCK_EXPLORE_DESTINATIONS}
-                onCardPress={() => setAddDestVisible(true)}
+                title="POPULAR WITH DORMIE GOLFERS"
+                onCardPress={handleExploreTilePress}
               />
             </>
           )}
@@ -2200,6 +2253,40 @@ const s = StyleSheet.create({
   },
 
   /* Explore */
+  /* Explore intent-capture CTA */
+  exploreCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderWidth: 1,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  exploreCtaTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  exploreCtaBody: {
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 16,
+  },
+  exploreCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#006747',
+  },
+  exploreCtaBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+
   exploreScroll: {
     gap: 10,
     paddingRight: 20,
