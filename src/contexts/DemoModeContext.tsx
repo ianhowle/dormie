@@ -76,7 +76,7 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
       setAutoDisabledOnce(true);
       AsyncStorage.setItem(AUTO_DISABLED_KEY, 'true');
     }
-  }, [user, autoDisabledOnce]);
+  }, [user?.id, autoDisabledOnce]);
 
   return (
     <DemoModeContext.Provider value={{ isDemoMode: loaded ? isDemoMode : true, setDemoMode, checkAndDisable, hasRealData }}>
