@@ -26,6 +26,7 @@ export type Trip = {
   gradient: [string, string];
   format?: string;
   sideGames?: string[];
+  stakes?: string | null;
   champion?: string; // only for completed
   competitionStarted?: boolean; // true when trip competition is live
   isLive?: boolean; // calendar-based: start_date <= today <= end_date && status !== 'completed'

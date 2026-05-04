@@ -56,6 +56,13 @@ export const tripsService = {
     return (data || []).map((row: any) => row.trip) as TripWithMembers[];
   },
 
+  /** Delete a trip (organizer only via RLS). Cascades to trip_members,
+   *  trip_courses, trip_invites, messages, moments, etc. via FK constraints. */
+  async delete(tripId: string): Promise<void> {
+    const { error } = await supabase.from('trips').delete().eq('id', tripId);
+    if (error) throw error;
+  },
+
   /** Update trip details (organizer only via RLS). */
   async update(tripId: string, updates: TripUpdate): Promise<Trip> {
     const { data, error } = await supabase

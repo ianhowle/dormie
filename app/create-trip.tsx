@@ -195,22 +195,45 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
   const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const params = useLocalSearchParams<{ location?: string }>();
+  const params = useLocalSearchParams<{
+    location?: string;
+    duplicateFromName?: string;
+    duplicateFromFormat?: string;
+    duplicateFromSideGames?: string;
+    duplicateFromStakes?: string;
+  }>();
   const initialLocation = typeof params.location === 'string' ? params.location : '';
+  // Duplicate-trip prefills (Option A — no member prefill)
+  const initialName = typeof params.duplicateFromName === 'string' ? params.duplicateFromName : '';
+  const initialFormat: ScoringFormat = (() => {
+    const raw = typeof params.duplicateFromFormat === 'string' ? params.duplicateFromFormat : '';
+    return (raw as ScoringFormat) || 'stroke_play';
+  })();
+  const initialSideGames: Set<SideGame> = (() => {
+    const raw = typeof params.duplicateFromSideGames === 'string' ? params.duplicateFromSideGames : '';
+    if (!raw) return new Set();
+    try {
+      const parsed = JSON.parse(raw);
+      return new Set(Array.isArray(parsed) ? (parsed as SideGame[]) : []);
+    } catch {
+      return new Set();
+    }
+  })();
+  const initialStakes = typeof params.duplicateFromStakes === 'string' ? params.duplicateFromStakes : '';
 
   const scrollRef = useRef<ScrollView>(null);
 
   // State
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName);
   const [location, setLocation] = useState(initialLocation);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
-  const [format, setFormat] = useState<ScoringFormat>('stroke_play');
+  const [format, setFormat] = useState<ScoringFormat>(initialFormat);
   const [expandedFormat, setExpandedFormat] = useState<ScoringFormat | null>(null);
-  const [sideGames, setSideGames] = useState<Set<SideGame>>(new Set());
+  const [sideGames, setSideGames] = useState<Set<SideGame>>(initialSideGames);
   const [expandedSide, setExpandedSide] = useState<SideGame | null>(null);
-  const [stakes, setStakes] = useState('');
+  const [stakes, setStakes] = useState(initialStakes);
   const [players, setPlayers] = useState<Player[]>([
     { id: '1', name: 'Ian McGowan', handicap: 8 },
   ]);

@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Clipboard,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -127,6 +128,7 @@ function adaptSupabaseTrip(t: TripWithMembers): Trip {
     gradient,
     format: t.format ?? undefined,
     sideGames: Array.isArray(t.side_games) ? (t.side_games as string[]) : [],
+    stakes: t.stakes,
     competitionStarted: t.status === 'active',
     isLive: isTripLive(t),
   };
@@ -613,7 +615,17 @@ function AvatarStack({
 }
 
 // ─── Trip card ────────────────────────────────────────────────────────
-function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; isDemo?: boolean }) {
+function TripCard({
+  trip,
+  showDays,
+  isDemo,
+  onLongPress,
+}: {
+  trip: Trip;
+  showDays?: boolean;
+  isDemo?: boolean;
+  onLongPress?: (trip: Trip) => void;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
   const isDark = theme.isDark;
@@ -667,6 +679,8 @@ function TripCard({ trip, showDays, isDemo }: { trip: Trip; showDays?: boolean; 
   return (
     <Pressable
       onPress={() => { haptics.light(); router.push(`/trip-detail?tripId=${trip.id}`); }}
+      onLongPress={onLongPress ? () => { haptics.medium(); onLongPress(trip); } : undefined}
+      delayLongPress={400}
       style={({ pressed }) => [
         s.tripCard,
         {
@@ -1037,6 +1051,85 @@ export default function TripsScreen() {
     router.push({ pathname: '/create-trip', params: { location: region } });
   }, [router]);
 
+  const handleDuplicateTrip = useCallback((trip: Trip) => {
+    haptics.light();
+    router.push({
+      pathname: '/create-trip',
+      params: {
+        duplicateFromName: `${trip.name} (Copy)`,
+        duplicateFromFormat: trip.format ?? '',
+        duplicateFromSideGames: JSON.stringify(trip.sideGames ?? []),
+        duplicateFromStakes: trip.stakes ?? '',
+      },
+    });
+  }, [router]);
+
+  const handleDeleteTrip = useCallback((trip: Trip) => {
+    Alert.alert(
+      'Delete this trip?',
+      "This can't be undone. The trip and all its members will be removed.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await tripsService.delete(trip.id);
+              haptics.success();
+              showToast({ message: 'Trip deleted', type: 'success' });
+              if (user) {
+                const updated = await tripsService.getByUser(user.id);
+                setRealTrips(updated);
+              }
+            } catch (err: any) {
+              haptics.error();
+              showToast({ message: err?.message || "Couldn't delete trip", type: 'error' });
+            }
+          },
+        },
+      ],
+    );
+  }, [showToast, user]);
+
+  const handleShareInvite = useCallback((trip: Trip) => {
+    if (!trip.inviteCode) {
+      showToast({ message: "This trip has no invite code yet", type: 'error' });
+      return;
+    }
+    haptics.light();
+    Clipboard.setString(trip.inviteCode);
+    showToast({
+      message: `Invite code copied: ${trip.inviteCode}`,
+      type: 'success',
+      icon: 'copy-outline',
+    });
+  }, [showToast]);
+
+  const handleTripLongPress = useCallback((trip: Trip) => {
+    const isOrganizer = !!user?.id && user.id === trip.createdBy;
+    const buttons: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      {
+        text: 'Open Trip',
+        onPress: () => router.push({ pathname: '/trip-detail', params: { tripId: trip.id } }),
+      },
+      {
+        text: 'Share Invite',
+        onPress: () => handleShareInvite(trip),
+      },
+    ];
+    if (isOrganizer) {
+      buttons.push({ text: 'Duplicate Trip', onPress: () => handleDuplicateTrip(trip) });
+      buttons.push({ text: 'Delete Trip', style: 'destructive', onPress: () => handleDeleteTrip(trip) });
+    }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert(trip.name, undefined, buttons);
+  }, [user, router, handleShareInvite, handleDuplicateTrip, handleDeleteTrip]);
+
+  const handleDemoLongPress = useCallback(() => {
+    showToast({ message: "Demo trips can't be modified", type: 'info' });
+  }, [showToast]);
+
   const dreamTakenIds = useMemo(
     () => new Set(dreamEntries.map((e) => e.destination_id)),
     [dreamEntries],
@@ -1204,10 +1297,21 @@ export default function TripsScreen() {
                 <DataFreshness updatedAt={lastRefreshed} />
               </View>
               {filteredUpcomingReal.map((trip) => (
-                <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} showDays />
+                <TripCard
+                  key={trip.id}
+                  trip={adaptSupabaseTrip(trip)}
+                  showDays
+                  onLongPress={handleTripLongPress}
+                />
               ))}
               {filteredUpcomingMock.map((trip) => (
-                <TripCard key={trip.id} trip={trip} showDays isDemo />
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  showDays
+                  isDemo
+                  onLongPress={handleDemoLongPress}
+                />
               ))}
             </>
           )}
@@ -1218,10 +1322,19 @@ export default function TripsScreen() {
               <GoldDivider style={{ marginTop: 24 }} />
               <SectionLabel title="COMPLETED" />
               {filteredCompletedReal.map((trip) => (
-                <TripCard key={trip.id} trip={adaptSupabaseTrip(trip)} />
+                <TripCard
+                  key={trip.id}
+                  trip={adaptSupabaseTrip(trip)}
+                  onLongPress={handleTripLongPress}
+                />
               ))}
               {filteredCompletedMock.map((trip) => (
-                <TripCard key={trip.id} trip={trip} isDemo />
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  isDemo
+                  onLongPress={handleDemoLongPress}
+                />
               ))}
             </>
           )}
