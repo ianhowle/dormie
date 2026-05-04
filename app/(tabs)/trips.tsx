@@ -1006,44 +1006,55 @@ export default function TripsScreen() {
   const noFilteredResults = filterIsActive && totalFilteredCount === 0;
   const searchDisabled = realTrips.length === 0 && !showDemoData;
 
+  // Stash checkAndDisable in a ref so the fetch effect doesn't re-fire when
+  // its identity changes (which it does whenever the auth user ref or the
+  // autoDisabledOnce flag changes — Supabase re-emits user objects on token
+  // refresh / focus events, which used to cascade into a runaway fetch loop).
+  const checkAndDisableRef = useRef(checkAndDisable);
   useEffect(() => {
-    if (!user) {
+    checkAndDisableRef.current = checkAndDisable;
+  }, [checkAndDisable]);
+
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (!userId) {
       setTripsLoading(false);
       setStatsLoading(false);
       return;
     }
     setTripsLoading(true);
     setStatsLoading(true);
-    tripsService.getByUser(user.id)
+    tripsService.getByUser(userId)
       .then((trips) => {
         setRealTrips(trips);
-        if (trips.length > 0) checkAndDisable();
+        if (trips.length > 0) checkAndDisableRef.current();
       })
       .catch(() => {})
       .finally(() => setTripsLoading(false));
-    destinationsService.getDreamBoard(user.id).then(setDreamEntries).catch(() => {});
+    destinationsService.getDreamBoard(userId).then(setDreamEntries).catch(() => {});
     destinationsService.listAll().then(setDestinationCatalog).catch(() => {});
-    statsService.getOverview(user.id)
+    statsService.getOverview(userId)
       .then(setStatsOverview)
       .catch(() => setStatsOverview(null))
       .finally(() => setStatsLoading(false));
-  }, [user, checkAndDisable]);
+  }, [userId]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      if (user) {
+      if (userId) {
         const [trips, dream, catalog, overview] = await Promise.all([
-          tripsService.getByUser(user.id),
-          destinationsService.getDreamBoard(user.id),
+          tripsService.getByUser(userId),
+          destinationsService.getDreamBoard(userId),
           destinationsService.listAll(),
-          statsService.getOverview(user.id).catch(() => null),
+          statsService.getOverview(userId).catch(() => null),
         ]);
         setRealTrips(trips);
         setDreamEntries(dream);
         setDestinationCatalog(catalog);
         setStatsOverview(overview);
-        if (trips.length > 0) checkAndDisable();
+        if (trips.length > 0) checkAndDisableRef.current();
       }
       setLastRefreshed(new Date());
       showToast({ message: 'Trips updated', type: 'success' });
@@ -1051,7 +1062,7 @@ export default function TripsScreen() {
       showToast({ message: "Couldn't refresh trips", type: 'error' });
     }
     setRefreshing(false);
-  }, [user, showToast, checkAndDisable]);
+  }, [userId, showToast]);
 
   const refreshDreamBoard = useCallback(async () => {
     if (!user) return;
