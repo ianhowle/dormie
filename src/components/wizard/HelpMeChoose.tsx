@@ -134,8 +134,8 @@ const FORMAT_LOOKUP: Record<string, FormatRec> = {
     rationale: 'One partner can save the team on a tough hole — keeps the pressure off both.',
   },
   'casual|pairs|dynamic': {
-    format: 'match_play',
-    rationale: 'Hole-by-hole head-to-head. The format that produces "I\'ll close you out on 14" moments.',
+    format: 'best_ball',
+    rationale: 'Every hole is its own battle, lower partner score wins.',
   },
   'mixed|pairs|simple': {
     format: 'best_ball',
@@ -160,8 +160,8 @@ const FORMAT_LOOKUP: Record<string, FormatRec> = {
     rationale: 'Everyone tees off, pick the best, repeat. Forgiving and fast — even with a beginner in the group.',
   },
   'casual|bigger|dynamic': {
-    format: 'scramble',
-    rationale: 'Best shot every time keeps the pace up and the trash talk going.',
+    format: 'shamble',
+    rationale: 'Best drive, then play your own ball — scramble safety with individual play.',
   },
   'mixed|bigger|simple': {
     format: 'fourball',
@@ -192,12 +192,12 @@ const SIDE_GAME_LOOKUP: Record<string, SideGameRec> = {
     rationale: 'Closest-to-pin on par 3s. Easy to explain, low stakes, no handicap required.',
   },
   'low|easy|strangers': {
-    game: 'greenies',
-    rationale: 'Easy to explain to anyone — par 3 only, simple payout.',
+    game: 'close_shave',
+    rationale: 'Closest to pin on a designated par 3 — simplest side bet there is.',
   },
   'low|strategic|friends': {
-    game: 'bark',
-    rationale: 'Hit a tree and save par — Barkies are pure novelty. Pairs well with sandies and arnies for a "trash" tally.',
+    game: 'dots',
+    rationale: 'Design your own dot list together — strategic and social.',
   },
   'low|strategic|mixed': {
     game: 'bingo_bango_bongo',
@@ -244,8 +244,8 @@ const SIDE_GAME_LOOKUP: Record<string, SideGameRec> = {
     rationale: 'Carry-over math is universal regardless of skill level.',
   },
   'real|easy|strangers': {
-    game: 'skins',
-    rationale: 'Real money + simple rules — the safe choice with anyone.',
+    game: 'nassau',
+    rationale: 'Front 9 / back 9 / total — respectable cash play with anyone.',
   },
   'real|strategic|friends': {
     game: 'hammer',
