@@ -64,7 +64,7 @@ export type FormatInfo = {
 export const SCORING_FORMATS: FormatInfo[] = [
   {
     key: 'stroke_play',
-    label: 'Total Strokes',
+    label: 'Stroke Play',
     description: 'Lowest total score wins',
     fullDescription:
       'The most common form of golf scoring. Add up your strokes across all 18 holes — lowest total wins. No team play, no per-hole shenanigans, just you against the course and the scorecard.',
@@ -87,10 +87,10 @@ export const SCORING_FORMATS: FormatInfo[] = [
   },
   {
     key: 'modified_stableford',
-    label: 'Mod. Stableford',
+    label: 'Modified Stableford',
     description: 'Stableford with attitude — eagles pay, doubles cost',
     fullDescription:
-      'Stableford with sharper teeth. Reward aggressive play harder, punish mistakes harder. Eagle = 5, birdie = 2, par = 0, bogey = -1, double = -3, triple+ = -5. Highest total wins. Used at the WGC events — go for the green or pay for it.',
+      'Stableford with sharper teeth. Reward aggressive play harder, punish mistakes harder. Eagle = 5, birdie = 2, par = 0, bogey = -1, double = -3, triple+ = -5. Highest total wins. Used at the Barracuda Championship — go for the green or pay for it.',
     example:
       'Two eagles (10), four birdies (8), nine pars (0), three bogeys (-3) = 15 points. Aggressive day pays.',
     complexity: 'Expert',
@@ -186,9 +186,56 @@ export const SCORING_FORMATS: FormatInfo[] = [
       'Foursome format. Three blocks of six holes; partners rotate each block. By round\'s end, you\'ve been partners with each of the others for one block. Each block is its own match — three matches in one round.',
     example:
       'Holes 1-6: Drew + Tommy vs Jake + Marco. Holes 7-12: Drew + Jake vs Tommy + Marco. Holes 13-18: Drew + Marco vs Tommy + Jake.',
+    complexity: 'Expert',
+    whenToUse:
+      'Foursomes that want the team feel without committing to one partner. Equalizes pairings across the round — but tracking three rotating partnerships demands attention.',
+  },
+  {
+    key: 'alternate_shot',
+    label: 'Alternate Shot',
+    description: 'Two-player teams; partners alternate strokes',
+    fullDescription:
+      'Foursomes proper. Two-player teams, one ball per team, partners alternate strokes tee to cup. If A drives, B hits the second, A hits the third, and so on. Honor decides who tees off on the next hole.',
+    example: 'Drew tees off on 1. Jake takes the second, Drew the third, Jake holes the putt. Hole 2: Jake tees off.',
+    complexity: 'Expert',
+    whenToUse:
+      'Tournament partner formats. Demands trust — your partner\'s miss is your problem.',
+  },
+  {
+    key: 'chapman',
+    label: 'Chapman',
+    description: 'Both drive, hit partner\'s ball, pick best, alternate from there',
+    fullDescription:
+      'Two-player teams. Both partners drive. Each then hits the partner\'s drive. After the second shots, pick the best ball and alternate from there to the hole. Combines individual play (drives) with partner play (alternate from the third shot).',
+    example:
+      'Drew and Jake both drive. Drew hits Jake\'s ball, Jake hits Drew\'s ball. Pick Drew\'s lie. Jake plays third, Drew plays fourth, Jake holes out.',
+    complexity: 'Expert',
+    whenToUse:
+      'Partner play that tests both drives and alternate-shot rhythm. The American foursomes standard.',
+  },
+  {
+    key: 'greensomes',
+    label: 'Greensomes',
+    description: 'Both drive, pick best, alternate from there',
+    fullDescription:
+      'Two-player teams. Both partners drive. Pick the best drive. The other partner plays the second shot from there, then alternate strokes to the hole. Lighter than Chapman — only one ball after the drives.',
+    example:
+      'Drew and Jake both drive. Jake\'s drive is better. Drew plays the second from Jake\'s ball, Jake plays third, Drew plays fourth and holes out.',
     complexity: 'Casual',
     whenToUse:
-      'Foursomes that want the team feel without committing to one partner. Equalizes pairings across the round.',
+      'Mixed-skill partner pairs. The strong driver still drives; the partner with the better short game finishes.',
+  },
+  {
+    key: 'pinehurst',
+    label: 'Pinehurst',
+    description: 'Foursomes variant where both drive, then partners switch balls',
+    fullDescription:
+      'Same engine as Chapman. Both partners drive, then each hits the partner\'s ball as the second shot. After the second shots, pick the best ball and alternate to the hole. Some clubs use Pinehurst and Chapman interchangeably; others differ on when the ball is selected.',
+    example:
+      'Drew and Jake both drive. Drew hits Jake\'s drive for the second shot. Jake hits Drew\'s drive for the second shot. Pick the best lie. Alternate from there.',
+    complexity: 'Expert',
+    whenToUse:
+      'Member-guest tournaments and partner formats with regional traditions. Functionally Chapman.',
   },
 ];
 
@@ -262,7 +309,7 @@ export const SIDE_GAMES: SideGameInfo[] = [
       'Hole 12. Drew leads. Tommy drops the hammer — bet doubles. Drew accepts. Tommy now must beat Drew on 12 or lose double.',
     complexity: 'Expert',
     whenToUse:
-      'Match play between confident players who want to swing the round on a single hole. Not for the conflict-averse.',
+      'Match play between confident players who want to swing the round on a single hole. Best when both sides know the format.',
   },
   {
     key: 'nassau',
@@ -278,14 +325,14 @@ export const SIDE_GAMES: SideGameInfo[] = [
   {
     key: 'wolf',
     label: 'Wolf',
-    description: 'Rotating Wolf picks a partner or goes solo for double',
+    description: 'Wolf points converted to cash — runs alongside any format',
     fullDescription:
-      'Same mechanics as the Wolf format, played alongside another scoring format. Each hole, the rotating Wolf either picks a partner (1 point per win) or goes alone for double points. Side-bet cash value per Wolf point at round\'s end.',
+      'A parallel cash bet that runs on top of whatever scoring format you\'re playing. Each hole, the rotating Wolf picks a partner (1 point per hole won) or goes alone for double. At round\'s end, points convert to cash at the agreed rate. Doesn\'t replace the primary format — adds a layer of partner intrigue to it.',
     example:
-      'Tommy goes Lone Wolf on 14, beats the others — 2 points. Drew picks a partner on 15, wins — 1 point each.',
+      'Tommy goes Lone Wolf on 14, beats the others — 2 points. Drew picks a partner on 15, wins — 1 point each. At $2 a point, Tommy collects $4 from the round.',
     complexity: 'Expert',
     whenToUse:
-      'Foursomes that already love Wolf and want a parallel cash bet without committing to it as the primary scoring format.',
+      'Foursomes playing stroke or stableford as the primary format who want partner-rotation cash on the side. Adds spice without rewriting the scorecard.',
   },
   {
     key: 'bingo_bango_bongo',
@@ -353,10 +400,58 @@ export const SIDE_GAMES: SideGameInfo[] = [
     fullDescription:
       'Every time a player 3-putts, they\'re dealt a playing card (face up). At round\'s end, each player makes their best 5-card poker hand from the cards they received. Worst hand pays everyone. The cruel twist: 3-putting more = more cards = more chances at a hand, but also more pain.',
     example:
-      'Drew 3-putts twice (two cards), Jake once, Tommy three times. Five cards in front of Tommy still beats two pair from Drew? Probably not. Tommy pays out.',
-    complexity: 'Expert',
+      'Drew gets two cards (pair of aces), Jake one, Tommy three of junk. Worst hand pays — Tommy buys the round.',
+    complexity: 'Casual',
     whenToUse:
       'Long rounds with persistent putting troubles. Turns 3-putts from a single-hole disappointment into round-long suspense.',
+  },
+  {
+    key: 'trash',
+    label: 'Trash',
+    description: 'Catch-all junk bet — greenies, sandies, barkies, all rolled in',
+    fullDescription:
+      'An umbrella side bet that bundles several smaller ones (greenies, sandies, barkies, arnies, etc.) into a single "trash" tally. Whoever ends with the most trash wins the agreed payout. Saves you from tracking each side bet individually.',
+    example:
+      'Drew earns 1 sandie + 2 greenies + 1 barkie = 4 trash. Tommy has 2. Drew wins the trash bet.',
+    complexity: 'Casual',
+    whenToUse:
+      'Groups that want all the small bets without the bookkeeping. A lazy aggregation that keeps the pace.',
+  },
+  {
+    key: 'hogans',
+    label: 'Hogans',
+    description: 'Fairway, green in regulation, two putts, par or better',
+    fullDescription:
+      'Named for Ben Hogan\'s relentless ball-striking. Hit the fairway off the tee, hit the green in regulation, two-putt or better, and make par or better. All four conditions required. Fixed payout per Hogan — one of the harder side bets to earn.',
+    example:
+      'Drew splits the fairway on 8, hits the green with his approach, two-putts for par. One Hogan.',
+    complexity: 'Casual',
+    whenToUse:
+      'Confident ball-strikers who want a side bet rewarding the fundamentals. Pairs well with Sandies and Barkies (which pay when fundamentals fail).',
+  },
+  {
+    key: 'murphys',
+    label: 'Murphys',
+    description: 'Call your up-and-down — make it or pay',
+    fullDescription:
+      'Around the green and not on it? Call a Murphy: announce you\'ll get up-and-down. Make par from there and you collect from each player. Miss and you pay each player. Optional, declared per shot.',
+    example:
+      'Drew is in the bunker on 14, 30 feet from the pin. Calls Murphy. Splashes out to 5 feet, makes the par putt. Each player pays Drew $2.',
+    complexity: 'Casual',
+    whenToUse:
+      'Players confident in their short game who want a per-shot side bet. The wager is opt-in — only call when you\'re feeling it.',
+  },
+  {
+    key: 'poleys',
+    label: 'Poleys',
+    description: 'Make a putt longer than the flagstick — that\'s a poley',
+    fullDescription:
+      'Make any putt longer than the flagstick (typically 4-5 feet) and you\'ve made a poley. Fixed payout per poley — winner collects from each other player. Encourages putting the long ones in instead of leaving them short.',
+    example:
+      'Drew lags a 35-footer to 8 feet on hole 9. Drains the second putt. One poley.',
+    complexity: 'Beginner',
+    whenToUse:
+      'Any round where you want a putting incentive that rewards confidence on mid-length putts.',
   },
 ];
 
@@ -393,8 +488,8 @@ export const SIDE_GAME_LABELS: Record<SideGame, string> = {
   hogans: 'Hogans',
   murphys: 'Murphys',
   poleys: 'Poleys',
-  bark: 'Bark',
-  close_shave: 'Close Shave',
+  bark: 'Barkies',
+  close_shave: 'KP',
   hammer: 'Hammer',
   three_putt_poker: '3-Putt Poker',
 };
