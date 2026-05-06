@@ -56,50 +56,80 @@ import type { TripLaunchedPlayer } from '../../src/components/wizard/trip-launch
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
-// [DEV HARNESS] Trip Launched roster variants for visual review. Each
-// tap on the preview button rotates through these so all four spec
-// variants (solo / standard / medium / large) can be checked on phone
-// without a code edit. Ian is "you" in every variant.
-const TRIP_LAUNCHED_VARIANTS: Array<{ label: string; players: TripLaunchedPlayer[] }> = [
-  { label: 'solo', players: [{ name: 'Ian', isYou: true }] },
-  {
-    label: '4 players',
-    players: [
-      { name: 'Ian', isYou: true },
-      { name: 'Drew' },
-      { name: 'Jake' },
-      { name: 'Tommy' },
-    ],
-  },
-  {
-    label: '7 players',
-    players: [
-      { name: 'Ian', isYou: true },
-      { name: 'Drew' },
-      { name: 'Jake' },
-      { name: 'Tommy' },
-      { name: 'Marcus' },
-      { name: 'Cal' },
-      { name: 'Dev' },
-    ],
-  },
-  {
-    label: '11 players',
-    players: [
-      { name: 'Ian', isYou: true },
-      { name: 'Drew' },
-      { name: 'Jake' },
-      { name: 'Tommy' },
-      { name: 'Marcus' },
-      { name: 'Cal' },
-      { name: 'Dev' },
-      { name: 'Will' },
-      { name: 'Pete' },
-      { name: 'Sam' },
-      { name: 'Ryan' },
-    ],
-  },
+// [DEV HARNESS] Trip Launched preview rotation. Each tap cycles through
+// 4 roster variants × 3 time modes (12 combos) so every spec branch
+// (solo/standard/medium/large × tee-time/date-range/countdown) can be
+// reviewed on phone without a code edit. A handful of test players
+// have avatarUrls so the Image render path is exercised alongside the
+// monogram fallback. Ian is "you" in every variant.
+const PRAVATAR = (n: number) => `https://i.pravatar.cc/150?img=${n}`;
+
+const HARNESS_PLAYERS = {
+  solo: [{ name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) }],
+  four: [
+    { name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) },
+    { name: 'Drew', avatarUrl: PRAVATAR(2) },
+    { name: 'Jake' },
+    { name: 'Tommy' },
+  ],
+  seven: [
+    { name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) },
+    { name: 'Drew', avatarUrl: PRAVATAR(2) },
+    { name: 'Jake' },
+    { name: 'Tommy', avatarUrl: PRAVATAR(3) },
+    { name: 'Marcus' },
+    { name: 'Cal', avatarUrl: PRAVATAR(4) },
+    { name: 'Dev' },
+  ],
+  eleven: [
+    { name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) },
+    { name: 'Drew', avatarUrl: PRAVATAR(2) },
+    { name: 'Jake' },
+    { name: 'Tommy', avatarUrl: PRAVATAR(3) },
+    { name: 'Marcus' },
+    { name: 'Cal', avatarUrl: PRAVATAR(4) },
+    { name: 'Dev' },
+    { name: 'Will', avatarUrl: PRAVATAR(5) },
+    { name: 'Pete' },
+    { name: 'Sam' },
+    { name: 'Ryan', avatarUrl: PRAVATAR(6) },
+  ],
+} satisfies Record<string, TripLaunchedPlayer[]>;
+
+const HARNESS_TIME_MODES: Array<{
+  label: string;
+  primary: string;
+  secondary?: string;
+}> = [
+  { label: 'date-range', primary: 'OCT 15 – 17', secondary: '2026' },
+  { label: 'countdown', primary: 'T-149 DAYS', secondary: 'OCTOBER 2026' },
+  { label: 'tee-time', primary: '8:42 AM', secondary: 'TOMORROW' },
 ];
+
+const HARNESS_VARIANTS: Array<{
+  label: string;
+  players: TripLaunchedPlayer[];
+}> = [
+  { label: 'solo', players: HARNESS_PLAYERS.solo },
+  { label: '4', players: HARNESS_PLAYERS.four },
+  { label: '7', players: HARNESS_PLAYERS.seven },
+  { label: '11', players: HARNESS_PLAYERS.eleven },
+];
+
+// Cartesian product: 4 variants × 3 time modes = 12 entries
+const TRIP_LAUNCHED_ROTATION: Array<{
+  label: string;
+  players: TripLaunchedPlayer[];
+  primary: string;
+  secondary?: string;
+}> = HARNESS_VARIANTS.flatMap((v) =>
+  HARNESS_TIME_MODES.map((t) => ({
+    label: `${v.label} · ${t.label}`,
+    players: v.players,
+    primary: t.primary,
+    secondary: t.secondary,
+  })),
+);
 
 type RecentRound = {
   id: string;
@@ -1314,11 +1344,11 @@ export default function ProfileScreen() {
                 accessibilityLabel="Preview Trip Launched cinematic"
               >
                 <Ionicons name="film-outline" size={20} color={c.gold} />
-                <Text style={[s.settingText, { color: c.text }]}>{`Preview Trip Launched · ${TRIP_LAUNCHED_VARIANTS[tripLaunchedVariantIdx].label}`}</Text>
+                <Text style={[s.settingText, { color: c.text }]}>{`Preview Trip Launched · ${TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].label}`}</Text>
                 <Ionicons name="play-outline" size={16} color={c.textMuted} />
               </Pressable>
               <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
-                Tap to cycle: solo → 4 → 7 → 11
+                Cycles 4 variants × 3 time modes (12 combos)
               </Text>
             </>
           )}
@@ -1338,12 +1368,12 @@ export default function ProfileScreen() {
           visible={tripLaunchedPreview}
           onViewTrip={() => {
             setTripLaunchedPreview(false);
-            setTripLaunchedVariantIdx((idx) => (idx + 1) % TRIP_LAUNCHED_VARIANTS.length);
+            setTripLaunchedVariantIdx((idx) => (idx + 1) % TRIP_LAUNCHED_ROTATION.length);
           }}
           destination="Hermitage"
-          datePrimary="OCT 15 – 17"
-          dateSecondary="2026"
-          players={TRIP_LAUNCHED_VARIANTS[tripLaunchedVariantIdx].players}
+          datePrimary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].primary}
+          dateSecondary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].secondary}
+          players={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].players}
           __devTapToDismiss
         />
       )}

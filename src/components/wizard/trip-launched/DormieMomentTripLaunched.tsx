@@ -116,11 +116,16 @@ function CornerBracket({
     outputRange: [(isTop ? -1 : 1) * (CORNER_SIZE / 2), 0],
   });
 
+  // Brackets frame the GREEN STAGE area, not the device viewport.
+  // Vertical inset accounts for the letterbox bar height so the corner
+  // sits just inside the stage edge (CORNER_INSET past the letterbox
+  // boundary). Horizontal inset is from the screen edge directly since
+  // there's no horizontal letterbox.
   const containerStyle = {
     position: 'absolute' as const,
     width: CORNER_SIZE,
     height: CORNER_SIZE,
-    [isTop ? 'top' : 'bottom']: CORNER_INSET,
+    [isTop ? 'top' : 'bottom']: LETTERBOX_BAR_H + CORNER_INSET,
     [isLeft ? 'left' : 'right']: CORNER_INSET,
   };
 
@@ -270,7 +275,19 @@ export function DormieMomentTripLaunched({
   // Sentence type-on (state, not animated value — drives sliced text
   // re-render). youUnderlineProgress is animated 0→1 over 380ms.
   const [revealedChars, setRevealedChars] = useState(0);
-  const [youWordWidth, setYouWordWidth] = useState<number | null>(null);
+  // youLayout captures position + size of the "you" inline Text within
+  // the sentence's outer Text. Using a nested Text + onLayout keeps the
+  // sentence wrapping as one continuous flow (vs three sibling Texts,
+  // which broke "you." onto an orphan line at narrow widths). x/y are
+  // relative to the outer Text's origin, which we co-locate with the
+  // sentence wrapper View's origin (no padding) so the underline can
+  // be absolute-positioned in the wrapper using these coordinates.
+  const [youLayout, setYouLayout] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const youUnderlineProgress = useRef(new Animated.Value(0)).current;
 
   // ─── Timer tracking ────────────────────────────────────────────────────
@@ -301,23 +318,47 @@ export function DormieMomentTripLaunched({
     if (!visible) {
       clearAllTimers();
       setRevealedChars(0);
-      setYouWordWidth(null);
+      setYouLayout(null);
     }
   }, [visible, clearAllTimers]);
   useEffect(() => {
     return () => clearAllTimers();
   }, [clearAllTimers]);
 
-  // ─── Layout shift (when destination wraps) ─────────────────────────────
-  // Per spec: dateBlockTop / hairlineTop / avatarRailTop all push +36px
-  // when hero wraps (≤44pt + ≥14ch heuristic). +14px additional when a
-  // subtitle is rendered (multi-destination case — Phase 1.9f).
-  const layoutShift = useMemo(
-    () => (heroIsTwoLine(destination.length) ? TL.layoutShiftTwoLine : 0),
-    [destination],
-  );
-  const dateBlockTop = TL.dateBlockTop + layoutShift;
-  const hairlineTop = TL.hairlineTop + layoutShift;
+  // ─── Vertical layout flow ──────────────────────────────────────────────
+  // Two deviations from the locked tokens, both driven by the Claude
+  // Design v1 mockups (2026-05-05) over the token values:
+  //
+  // 1. destinationTop = 200, not the token's 100. At 100, the hero
+  //    sits 12px below the kicker bottom — feels like a page header,
+  //    not a movie title card. The mockups show ~80–100px breathing
+  //    room above the destination so it lands in the upper third
+  //    (200pt centers a 64pt single-line hero at ~28% from viewport
+  //    top, inside the 25–30% target band).
+  //
+  // 2. dateBlockTop / hairlineTop / avatarRailTop flow off actual
+  //    rendered hero size, not fixed token positions. The locked
+  //    tokens (dateBlockTop:220 etc.) over-reserve for short heroes
+  //    and leave a ~56px void between hero and date. Dynamic flow
+  //    gives uniform tight grouping; the spec's layoutShiftTwoLine
+  //    becomes implicit since a wrapping hero naturally pushes
+  //    everything below it down by its full extra line.
+  const DESTINATION_TOP = 200;
+  const HERO_TO_DATE_GAP = 20; // tight grouping under the destination
+  const HAIRLINE_TO_RAIL_GAP = 28; // matches token-implied 308−280 gap
+
+  const heroFontSize = getHeroFontSize(destination.length);
+  const heroLineHeight = heroFontSize * TL.destinationLineH;
+  const heroLines = heroIsTwoLine(destination.length) ? 2 : 1;
+  const heroActualH = heroLineHeight * heroLines;
+
+  const dateStackH = dateSecondary
+    ? TL.dateFontSize + TL.dateSubtitleMarginTop + TL.dateFontSize
+    : TL.dateFontSize;
+
+  const dateBlockTop = DESTINATION_TOP + heroActualH + HERO_TO_DATE_GAP;
+  const hairlineTop = dateBlockTop + dateStackH + TL.hairlineMarginTop;
+  const avatarRailTop = hairlineTop + HAIRLINE_TO_RAIL_GAP;
 
   // ─── Beat 3 type-on + underline helpers ──────────────────────────────
   // Sentence reveals one char at a time at tickMs intervals (or fewer if
@@ -370,7 +411,7 @@ export function DormieMomentTripLaunched({
     avatarProgresses.forEach((p) => p.setValue(0));
     youUnderlineProgress.setValue(0);
     setRevealedChars(0);
-    setYouWordWidth(null);
+    setYouLayout(null);
 
     // Cancel any timers left over from a prior aborted run.
     clearAllTimers();
@@ -654,15 +695,10 @@ export function DormieMomentTripLaunched({
     outputRange: [0, STAGE_CONTENT_W * TL.hairlineWidth],
   });
 
-  const heroFontSize = getHeroFontSize(destination.length);
-  const heroLineHeight = heroFontSize * TL.destinationLineH;
-  const heroLines = heroIsTwoLine(destination.length) ? 2 : 1;
-
-  // ─── Beat 3 layout positions ────────────────────────────────────────
-  // Avatar rail top is fixed (token + layoutShift). Sentence sits below
-  // the rail at avatarRailTop + railHeight + sentenceMarginTop. Solo
-  // skips the rail so its sentence anchors at avatarRailTop directly.
-  const avatarRailTop = TL.avatarRailTop + layoutShift;
+  // ─── Beat 3 sentence position ───────────────────────────────────────
+  // Sentence sits below the rail. avatarRailTop is computed up top in
+  // the dynamic flow block. Solo skips the rail so its sentence anchors
+  // at avatarRailTop directly (replacing the would-be rail block).
   const railHeight =
     roster.variant === 'solo'
       ? 0
@@ -674,11 +710,11 @@ export function DormieMomentTripLaunched({
       ? avatarRailTop
       : avatarRailTop + railHeight + TL.sentenceMarginTop;
 
-  // Beat 3 — sliced sentence segments. Always rendered as three Texts
-  // (prefix / "you" / suffix) so the underline can attach to a measured
-  // wrapper. During type-on, each segment shows only the chars that
-  // have been revealed so far. After typing completes, full text is
-  // rendered and the underline animates to youWordWidth.
+  // Beat 3 — sliced text for type-on. We render the sentence as ONE
+  // continuous Text with a nested <Text> for "you" so wrapping flows
+  // naturally (vs three sibling Texts which flex-wrapped "you." onto
+  // an orphan line at narrow widths). During type-on, the prefix +
+  // inner-you text + suffix are sliced according to revealedChars.
   const youAt = sentence.youAt;
   const prefixFull = youAt >= 0 ? sentence.text.slice(0, youAt) : sentence.text;
   const youFull = youAt >= 0 ? sentence.text.slice(youAt, youAt + 3) : '';
@@ -703,15 +739,27 @@ export function DormieMomentTripLaunched({
       : '';
 
   // Beat 3 — underline width interpolates 0 → measured "you" word width.
-  // Until the layout has measured (youWordWidth === null), keep at 0.
+  // Until the layout has measured (youLayout === null), keep at 0.
   const underlineWidth = youUnderlineProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, youWordWidth ?? 0],
+    outputRange: [0, youLayout?.width ?? 0],
   });
 
+  // onLayout on the nested "you" Text reports its position relative to
+  // the outer Text. Since the outer Text is the only child of the
+  // sentenceWrap View (no padding), those coordinates are also valid
+  // within the wrapper — we use them to absolute-position the underline.
   const onYouLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0 && w !== youWordWidth) setYouWordWidth(w);
+    const next = e.nativeEvent.layout;
+    if (next.width <= 0) return;
+    if (
+      youLayout &&
+      youLayout.x === next.x &&
+      youLayout.y === next.y &&
+      youLayout.width === next.width &&
+      youLayout.height === next.height
+    ) return;
+    setYouLayout({ x: next.x, y: next.y, width: next.width, height: next.height });
   };
 
   return (
@@ -754,11 +802,14 @@ export function DormieMomentTripLaunched({
 
         {/* ─── Beat 2 — Recognition ─────────────────────────────────── */}
 
-        {/* Destination — italic Georgia hero with adaptive type sizing */}
+        {/* Destination — italic Georgia hero with adaptive type sizing.
+            top set inline to DESTINATION_TOP (overrides token; see
+            vertical layout flow comment for rationale). */}
         <Animated.View
           style={[
             s.destinationWrap,
             {
+              top: DESTINATION_TOP,
               opacity: destinationProgress,
               transform: [{ translateY: destinationTranslate }],
             },
@@ -778,11 +829,19 @@ export function DormieMomentTripLaunched({
 
         {/* Gold glow sweep — championshipGold horizontal gradient that
             crosses the destination block L→R. Approximates the spec's
-            screen-blend highlight via transparent→gold→transparent. */}
+            screen-blend highlight via transparent→gold→transparent.
+            top anchored to DESTINATION_TOP (overrides the token-anchored
+            stylesheet position so the glow follows the bumped hero). */}
         <Animated.View
           style={[
             s.glowSweep,
-            { transform: [{ translateX: glowTranslate }] },
+            {
+              top:
+                DESTINATION_TOP +
+                TL.destinationBlockHeight / 2 -
+                GLOW_H / 2,
+              transform: [{ translateX: glowTranslate }],
+            },
           ]}
           pointerEvents="none"
         >
@@ -876,27 +935,39 @@ export function DormieMomentTripLaunched({
           </View>
         ) : null}
 
-        {/* Sentence row + you-underline. Renders three Text segments so
-            the underline can attach to the measured "you" wrapper.
-            During type-on, segments show only the chars revealed so
-            far. Underline animates after typing completes. */}
+        {/* Sentence + you-underline. Single continuous Text (with a
+            nested <Text> for "you") so wrapping flows as one paragraph
+            — the prior three-sibling-Text layout caused "you." to
+            orphan onto its own line at 7+ player widths. During type-on,
+            each piece is sliced from revealedChars. The underline is an
+            absolute-positioned overlay anchored to the nested Text's
+            measured layout. */}
         {sentence.text.length > 0 ? (
           <View
             style={[s.sentenceWrap, { top: sentenceTop }]}
             pointerEvents="none"
           >
-            <View style={s.sentenceRow}>
-              <Text style={s.sentenceText}>{revealedPrefix}</Text>
+            <Text style={s.sentenceText}>
+              {revealedPrefix}
               {youAt >= 0 ? (
-                <View style={s.youWrap} onLayout={onYouLayout}>
-                  <Text style={s.sentenceText}>{revealedYou}</Text>
-                  <Animated.View
-                    style={[s.youUnderline, { width: underlineWidth }]}
-                  />
-                </View>
+                <Text style={s.sentenceText} onLayout={onYouLayout}>
+                  {revealedYou}
+                </Text>
               ) : null}
-              <Text style={s.sentenceText}>{revealedSuffix}</Text>
-            </View>
+              {revealedSuffix}
+            </Text>
+            {youAt >= 0 && youLayout ? (
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  left: youLayout.x,
+                  top: youLayout.y + youLayout.height - TL.youUnderlineInset,
+                  height: TL.youUnderlineThickness,
+                  width: underlineWidth,
+                  backgroundColor: TL.youUnderlineColor,
+                }}
+              />
+            ) : null}
           </View>
         ) : null}
 
@@ -977,7 +1048,10 @@ const s = StyleSheet.create({
 
   kickerWrap: {
     position: 'absolute',
-    top: LETTERBOX_BAR_H + 16, // 16px below the top letterbox edge
+    // 48px below the green stage's top edge (= top letterbox bottom).
+    // Gives the kicker visible breathing room above and a defined
+    // "header zone" before the destination block begins at y=200.
+    top: LETTERBOX_BAR_H + 48,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -996,7 +1070,7 @@ const s = StyleSheet.create({
 
   destinationWrap: {
     position: 'absolute',
-    top: TL.destinationBlockTop,
+    // top is set inline to DESTINATION_TOP (overrides token)
     left: TL.contentPadX,
     right: TL.contentPadX,
     height: TL.destinationBlockHeight,
@@ -1007,15 +1081,19 @@ const s = StyleSheet.create({
     fontWeight: '400',
     color: TL.text,
     letterSpacing: TL.destinationTracking,
+    textAlign: 'center',
+    // Optical-center compensation for italic lean. Italic glyphs lean
+    // right, so a mathematically-centered bounding box reads slightly
+    // left of true visual center against centered chrome (kicker, date,
+    // hairline). +6pt translateX nudges the rendered text rightward to
+    // align optical center with the rest of the centered stack.
+    transform: [{ translateX: 6 }],
   },
 
   glowSweep: {
     position: 'absolute',
     left: 0,
-    top:
-      TL.destinationBlockTop +
-      TL.destinationBlockHeight / 2 -
-      GLOW_H / 2,
+    // top is set inline (anchored to DESTINATION_TOP, not the token)
     width: GLOW_W,
     height: GLOW_H,
   },
@@ -1025,7 +1103,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    // top is set inline (depends on layoutShift)
+    // top is set inline (dynamic flow: hero bottom + HERO_TO_DATE_GAP)
   },
   datePrimary: {
     fontSize: TL.dateFontSize,
@@ -1056,7 +1134,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    // top is set inline (depends on layoutShift)
+    // top is set inline (dynamic flow: dateBlockTop + dateStackH + hairlineMarginTop)
   },
   hairline: {
     height: TL.hairlineH,
@@ -1070,7 +1148,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    // top is set inline (avatarRailTop + layoutShift)
+    // top is set inline (dynamic flow: hairlineTop + HAIRLINE_TO_RAIL_GAP)
   },
   avatarRow: {
     flexDirection: 'row',
@@ -1081,13 +1159,7 @@ const s = StyleSheet.create({
     position: 'absolute',
     left: TL.contentPadX,
     right: TL.contentPadX,
-    // top is set inline (depends on roster variant + layoutShift)
-  },
-  sentenceRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
+    // top is set inline (depends on roster variant + dynamic flow)
   },
   sentenceText: {
     fontFamily: 'Georgia',
@@ -1096,16 +1168,7 @@ const s = StyleSheet.create({
     lineHeight: Math.round(TL.sentenceFontSize * 1.3),
     letterSpacing: TL.sentenceTracking,
     color: TL.text,
-  },
-  youWrap: {
-    position: 'relative',
-  },
-  youUnderline: {
-    position: 'absolute',
-    left: 0,
-    bottom: -TL.youUnderlineInset,
-    height: TL.youUnderlineThickness,
-    backgroundColor: TL.youUnderlineColor,
+    textAlign: 'center',
   },
 });
 

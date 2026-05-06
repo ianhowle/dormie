@@ -97,6 +97,9 @@ export function TripLaunchedAvatar({
             width: size - TL.avatarBorderW * 2,
             height: size - TL.avatarBorderW * 2,
           }}
+          // cover fills the (square) tile regardless of source aspect
+          // ratio. Without this, a portrait avatar URL would letterbox.
+          resizeMode="cover"
         />
       ) : (
         <Text
