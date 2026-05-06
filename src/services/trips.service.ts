@@ -10,7 +10,15 @@ import type {
   TripCourseInsert,
   TripLeaderboardEntry,
 } from '../lib/database.types';
+import type { ScoringFormat, SideGame } from '../data/scoring';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+
+// Layer-3 fallbacks for the wizard's recent/most-used queries
+// (docs/trips-wizard-redesign-spec-2026-05-05.md Phase 1.3). Used only
+// when the user has no trip history AND the cross-user popular RPC also
+// returns empty (very early adopter or RPC failure path).
+const DEFAULT_FORMATS: ScoringFormat[] = ['stroke_play', 'match_play'];
+const DEFAULT_SIDE_GAMES: SideGame[] = ['skins'];
 
 export const tripsService = {
   /** Create a trip and add the organizer as a confirmed member. */
@@ -234,5 +242,146 @@ export const tripsService = {
 
   async unsubscribe(channel: RealtimeChannel): Promise<void> {
     await supabase.removeChannel(channel);
+  },
+
+  /** Recent formats the user has chosen, with three-layer fallback ladder.
+   *
+   * Layer 1: user's own trip history. Queried via trip_members so the
+   *   organizer (auto-added as a member at trip creation) and member-only
+   *   trips are both covered in a single fetch. Sorted by (isOrganizer DESC,
+   *   created_at DESC) so a format the user picked themselves outranks one
+   *   they merely played in. draft and cancelled trips excluded — drafts
+   *   aren't real history; cancelled trips don't represent preference signal.
+   *
+   * Layer 2: cross-user popular via the get_popular_formats security_definer
+   *   RPC. Used only when Layer 1 returns empty.
+   *
+   * Layer 3: hardcoded curated default. Guarantees the wizard never breaks
+   *   on a brand-new install where both prior layers are empty.
+   *
+   * Each layer falls through only if it returns zero results. A partial
+   * Layer 1 (e.g., the user has only used one format ever) is preferred
+   * over Layer 2 — the user's own signal beats aggregate popularity.
+   */
+  async getRecentFormats(userId: string, limit = 2): Promise<ScoringFormat[]> {
+    // Layer 1 — user's own recent
+    try {
+      const { data, error } = await supabase
+        .from('trip_members')
+        .select('trip:trips(format, status, created_at, organizer_id)')
+        .eq('user_id', userId);
+      if (!error && data) {
+        type Row = {
+          format: ScoringFormat;
+          isOrganizer: boolean;
+          createdAt: number;
+        };
+        const trips: Row[] = [];
+        for (const row of data as any[]) {
+          const t = row.trip;
+          if (!t) continue;
+          if (t.status === 'draft' || t.status === 'cancelled') continue;
+          if (!t.format) continue;
+          trips.push({
+            format: t.format as ScoringFormat,
+            isOrganizer: t.organizer_id === userId,
+            createdAt: new Date(t.created_at).getTime(),
+          });
+        }
+        trips.sort((a, b) => {
+          if (a.isOrganizer !== b.isOrganizer) return a.isOrganizer ? -1 : 1;
+          return b.createdAt - a.createdAt;
+        });
+        const seen = new Set<ScoringFormat>();
+        const out: ScoringFormat[] = [];
+        for (const t of trips) {
+          if (seen.has(t.format)) continue;
+          seen.add(t.format);
+          out.push(t.format);
+          if (out.length >= limit) break;
+        }
+        if (out.length > 0) return out;
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Layer 2 — cross-user popular
+    try {
+      const { data, error } = await supabase.rpc('get_popular_formats', { p_limit: limit });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return (data as string[]).slice(0, limit) as ScoringFormat[];
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Layer 3 — hardcoded curated default
+    return DEFAULT_FORMATS.slice(0, limit);
+  },
+
+  /** Recent side games the user has chosen, with the same three-layer
+   *  fallback ladder as getRecentFormats. side_games is a jsonb array per
+   *  trip, so Layer 1 walks through trips in (isOrganizer, recency) order
+   *  and flattens each trip's array into a deduplicated stream. */
+  async getRecentSideGames(userId: string, limit = 2): Promise<SideGame[]> {
+    // Layer 1 — user's own recent
+    try {
+      const { data, error } = await supabase
+        .from('trip_members')
+        .select('trip:trips(side_games, status, created_at, organizer_id)')
+        .eq('user_id', userId);
+      if (!error && data) {
+        type Row = {
+          sideGames: SideGame[];
+          isOrganizer: boolean;
+          createdAt: number;
+        };
+        const trips: Row[] = [];
+        for (const row of data as any[]) {
+          const t = row.trip;
+          if (!t) continue;
+          if (t.status === 'draft' || t.status === 'cancelled') continue;
+          const arr = Array.isArray(t.side_games) ? (t.side_games as SideGame[]) : [];
+          if (arr.length === 0) continue;
+          trips.push({
+            sideGames: arr,
+            isOrganizer: t.organizer_id === userId,
+            createdAt: new Date(t.created_at).getTime(),
+          });
+        }
+        trips.sort((a, b) => {
+          if (a.isOrganizer !== b.isOrganizer) return a.isOrganizer ? -1 : 1;
+          return b.createdAt - a.createdAt;
+        });
+        const seen = new Set<SideGame>();
+        const out: SideGame[] = [];
+        for (const t of trips) {
+          for (const g of t.sideGames) {
+            if (seen.has(g)) continue;
+            seen.add(g);
+            out.push(g);
+            if (out.length >= limit) break;
+          }
+          if (out.length >= limit) break;
+        }
+        if (out.length > 0) return out;
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Layer 2 — cross-user popular
+    try {
+      const { data, error } = await supabase.rpc('get_popular_side_games', { p_limit: limit });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return (data as string[]).slice(0, limit) as SideGame[];
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Layer 3 — hardcoded curated default
+    return DEFAULT_SIDE_GAMES.slice(0, limit);
   },
 };
