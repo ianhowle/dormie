@@ -13,6 +13,8 @@
 
 ## Active Compost
 
+- 2026-05-04 — Cinematic features queued for post-beta deep work. See docs/dormie-cinematic-exploration.md for full strategic exploration. Five moments identified: post-trip recap (the big one), live trip moments, year-in-review, anniversary triggers, achievement system. Build sequence depends on real beta data. Verify post-round share card existence in next audit session.
+- 2026-05-04 — Design DNA consolidated. See docs/dormie-design-dna.md for canonical reference. Pulls together design language from Jan-Apr 2026 chats into single source of truth. Use as orientation doc for future design-focused sessions.
 - 2026-05-03 — Form sub-headline copy gap (Item 3 build). "Explore your next dream trip" needs a 1-2 sentence sub-headline explaining what users get from filling out the form. Claude (this assistant) suggested writing it during spec; flagging that Ian has better taste for Dormie voice than I do, so this should be Ian's call when we draft final form copy. Don't ship with a blank.
 - 2026-05-03 — Dynamic destination popularity ranking (post-beta). "Where do you want to go" autocomplete should eventually show top destinations weighted by Dormie user popularity, not alphabetical or curated-only. Once we have submission data, sort the suggestions by frequency. Could become a "Trending in Dormie" indicator. Strategic moat: showing what real golfers are dreaming about beats showing what marketing teams suggest.
 - 2026-05-03 — Inquiry admin view (post-launch). Once dream_trip_inquiries has real submissions, build a simple admin/founder view (could be a Supabase SQL query, or a basic Dormie web admin) to read submissions, filter by category/budget/window, and identify high-intent leads.
