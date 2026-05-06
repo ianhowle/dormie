@@ -188,15 +188,24 @@ export interface DormieMomentTripLaunchedProps {
    *  Medium haptic. Ryder Cup variants are NOT handled in 1.9c —
    *  those land in Phase 1.9e. */
   players: TripLaunchedPlayer[];
-  /** Dev-only — when true, any tap dismisses the moment via onViewTrip.
-   *  Useful for visually reviewing the cinematic in isolation before the
-   *  real CTA tap target lands in Phase 1.9d. Has no effect outside of
-   *  __DEV__. Production callers should NOT pass this. */
+  /** Beat 4 stakes credit, e.g. "NASSAU · CLASSIC" or "RYDER CUP ·
+   *  DRAFT PENDING". When omitted, falls back to "GAME TBD" per the
+   *  spec's fire-floor language. */
+  stakes?: string;
+  /** Scoring format pass-through. Currently unused inside Beat 4 (the
+   *  `stakes` prop drives display copy directly), but reserved for
+   *  Ryder-Cup detection in Phase 1.9e. */
+  format?: string;
+  /** Dev-only — when true, any tap on the stage (outside the active
+   *  CTA tap area) dismisses the moment via onViewTrip. Useful for
+   *  reviewing the cinematic without waiting for the CTA to activate.
+   *  Has no effect outside of __DEV__. Production callers should NOT
+   *  pass this — the real CTA Pressable is the only dismiss path. */
   __devTapToDismiss?: boolean;
 }
 
 /**
- * Trip Launched cinematic moment — Phase 1.9c (Beats 1+2+3).
+ * Trip Launched cinematic moment — Phase 1.9d (Beats 1+2+3+4).
  *
  * Beat 1 — Arrival (0–1000ms): letterbox bars slide in, Masters green
  * gradient fades up, gold corner brackets draw inward, a one-shot 3%
@@ -217,8 +226,17 @@ export interface DormieMomentTripLaunchedProps {
  * a selection haptic at start). Solo: rail dropped, single Medium
  * haptic at 2500ms, "Just you." sentence with you-underline.
  *
- * Subsequent phases add Beat 4 (CTA + live amber dot), Ryder Cup
- * states, and adaptive time / multi-destination / fire-floor logic.
+ * Beat 4 — Invitation (after Beat 3): stakes credit fades in (300ms
+ * cubicOut), CTA arrow extends 14px (400ms cubicOut), live amber dot
+ * begins a 1200ms pulse loop, and the CTA tap target activates with a
+ * `ctaReady` haptic at +600ms. Beat 3's end time is computed
+ * dynamically from roster + sentence so Beat 4 lands the same +offsets
+ * regardless of how long the roll call ran. The CTA Pressable replaces
+ * dev tap-anywhere as the production dismiss path; the dev override is
+ * still available for testing.
+ *
+ * Subsequent phases add Ryder Cup states (1.9e) and adaptive time /
+ * multi-destination / fire-floor logic (1.9f).
  *
  * Reference: docs/trip-launched-design-spec-2026-05-05.md (locked).
  * Tokens contract: src/components/wizard/trip-launched/tokens.jsx.
@@ -230,6 +248,9 @@ export function DormieMomentTripLaunched({
   datePrimary,
   dateSecondary,
   players,
+  stakes,
+  // format reserved for Phase 1.9e Ryder-Cup detection
+  format: _format,
   __devTapToDismiss,
 }: DormieMomentTripLaunchedProps) {
   // ─── Beat 1 animated values (initialized to "hidden" state) ────────────
@@ -290,6 +311,23 @@ export function DormieMomentTripLaunched({
   } | null>(null);
   const youUnderlineProgress = useRef(new Animated.Value(0)).current;
 
+  // ─── Beat 4 animated values ────────────────────────────────────────────
+  const stakesOpacity = useRef(new Animated.Value(0)).current;
+  // CTA arrow translates 0 → CTA_ARROW_EXTENSION (14px) cubicOut over
+  // 400ms. Drives a translateX on the arrow glyph to "extend" the arrow
+  // outward from the text.
+  const ctaArrowTranslate = useRef(new Animated.Value(0)).current;
+  // Live amber dot opacity loops 1.0 → 0.4 → 1.0 over 1200ms while the
+  // moment is active. The Animation handle is kept in a ref so dismiss
+  // can stop it cleanly (otherwise the loop continues silently behind
+  // the closed modal until the component unmounts).
+  const liveDotOpacity = useRef(new Animated.Value(1)).current;
+  const liveDotLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  // CTA fades from disabled-look to active-look. We also gate the
+  // Pressable's onPress on this state so taps before activation are no-ops.
+  const ctaActiveOpacity = useRef(new Animated.Value(0.5)).current;
+  const [ctaActive, setCtaActive] = useState(false);
+
   // ─── Timer tracking ────────────────────────────────────────────────────
   // Many Beat 3 events fire on setTimeout (haptics, sentence start,
   // underline start). We track all IDs so dismiss-during-animation cancels
@@ -305,6 +343,10 @@ export function DormieMomentTripLaunched({
       clearInterval(sentenceIntervalRef.current);
       sentenceIntervalRef.current = null;
     }
+    if (liveDotLoopRef.current) {
+      liveDotLoopRef.current.stop();
+      liveDotLoopRef.current = null;
+    }
   }, []);
   const scheduleTimer = useCallback((delay: number, fn: () => void) => {
     const id = setTimeout(fn, delay);
@@ -319,6 +361,7 @@ export function DormieMomentTripLaunched({
       clearAllTimers();
       setRevealedChars(0);
       setYouLayout(null);
+      setCtaActive(false);
     }
   }, [visible, clearAllTimers]);
   useEffect(() => {
@@ -410,8 +453,13 @@ export function DormieMomentTripLaunched({
     hairlineProgress.setValue(0);
     avatarProgresses.forEach((p) => p.setValue(0));
     youUnderlineProgress.setValue(0);
+    stakesOpacity.setValue(0);
+    ctaArrowTranslate.setValue(0);
+    ctaActiveOpacity.setValue(0.5);
+    liveDotOpacity.setValue(1);
     setRevealedChars(0);
     setYouLayout(null);
+    setCtaActive(false);
 
     // Cancel any timers left over from a prior aborted run.
     clearAllTimers();
@@ -604,16 +652,43 @@ export function DormieMomentTripLaunched({
     const HAPTIC_RAMP = TL.haptics.rollCall.ramp;
     const HAPTIC_CAP = TL.haptics.rollCall.maxHits;
 
+    // Compute when Beat 3 ends so Beat 4 can land at the correct +0/+200/
+    // +400/+600 offsets regardless of roster size. The chain is:
+    //   lastLand → +200 sentenceStart → +typedDuration → +200 underline
+    //   start → +380 underline end. Sentences without "you" (rare; future
+    //   undrafted Ryder Cup) skip the underline phase.
+    const lastLandAt =
+      roster.variant === 'solo'
+        ? FIRST_LAND
+        : TL.beats.momentum.avatarRollCall.firstAvatarStart +
+          (avatarProgresses.length - 1) * roster.cadence +
+          TL.beats.momentum.avatarRollCall.perAvatarDuration;
+    const sentenceStartAt =
+      lastLandAt + TL.beats.momentum.sentenceTypeOn.startsAfterLastAvatar;
+    const sentenceDurMs =
+      sentence.text.length > 0
+        ? Math.min(
+            sentence.text.length * TL.beats.momentum.sentenceTypeOn.msPerChar,
+            TL.beats.momentum.sentenceTypeOn.maxDuration,
+          )
+        : 0;
+    const sentenceEndAt = sentenceStartAt + sentenceDurMs;
+    const underlineStartAt =
+      sentence.youAt >= 0
+        ? sentenceEndAt + TL.beats.momentum.sentenceTypeOn.youUnderlineDelay
+        : sentenceEndAt;
+    const beat3EndAt =
+      sentence.youAt >= 0
+        ? underlineStartAt + TL.beats.momentum.sentenceTypeOn.youUnderlineDuration
+        : sentenceEndAt;
+
     if (roster.variant === 'solo') {
       // Solo override: single Medium haptic where the first avatar
       // would have landed (roughly 2820ms = 2500 + 320). The sentence
       // starts 200ms after that, matching the "200ms after last avatar
       // lands" rule applied to a phantom landing.
       scheduleTimer(FIRST_LAND, () => haptics.medium());
-      scheduleTimer(
-        FIRST_LAND + TL.beats.momentum.sentenceTypeOn.startsAfterLastAvatar,
-        () => startSentenceTypeOn(),
-      );
+      scheduleTimer(sentenceStartAt, () => startSentenceTypeOn());
     } else {
       // Roll call: schedule one haptic per land time, capped at 6 hits.
       // Avatars beyond the cap (e.g., 9–12 player rosters) drop silently.
@@ -632,15 +707,76 @@ export function DormieMomentTripLaunched({
       });
 
       // Sentence: 200ms after the LAST avatar lands.
-      const lastLandAt =
-        TL.beats.momentum.avatarRollCall.firstAvatarStart +
-        (avatarProgresses.length - 1) * roster.cadence +
-        TL.beats.momentum.avatarRollCall.perAvatarDuration;
-      scheduleTimer(
-        lastLandAt + TL.beats.momentum.sentenceTypeOn.startsAfterLastAvatar,
-        () => startSentenceTypeOn(),
-      );
+      scheduleTimer(sentenceStartAt, () => startSentenceTypeOn());
     }
+
+    // ─── Beat 4 — Invitation (after Beat 3) ──────────────────────────
+    // Stakes credit fade: beat3End → +300ms cubicOut, opacity only.
+    Animated.sequence([
+      Animated.delay(beat3EndAt),
+      Animated.timing(stakesOpacity, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // CTA arrow extension: beat3End +200 → +600 cubicOut, translateX
+    // 0 → 14. Drives the arrow glyph rightward to "extend" the call to
+    // action.
+    Animated.sequence([
+      Animated.delay(beat3EndAt + 200),
+      Animated.timing(ctaArrowTranslate, {
+        toValue: TL.ctaArrowExtension,
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // CTA enabled-fade: beat3End +200 → +600 cubicOut, opacity 0.5 → 1.
+    Animated.sequence([
+      Animated.delay(beat3EndAt + 200),
+      Animated.timing(ctaActiveOpacity, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Live amber dot: starts pulsing at beat3End +400ms. 1200ms loop:
+    // 1.0 → 0.4 → 1.0 across two 600ms timing branches (cubicInOut for
+    // a smooth heartbeat). The composite handle is stored so dismiss
+    // can stop it cleanly via clearAllTimers.
+    scheduleTimer(beat3EndAt + 400, () => {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(liveDotOpacity, {
+            toValue: 0.4,
+            duration: 600,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(liveDotOpacity, {
+            toValue: 1.0,
+            duration: 600,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      liveDotLoopRef.current = loop;
+      loop.start();
+    });
+
+    // CTA tap target activates at beat3End +600ms with a soft ctaReady
+    // haptic. Before then, taps on the CTA Pressable are no-ops.
+    scheduleTimer(beat3EndAt + 600, () => {
+      haptics.light();
+      setCtaActive(true);
+    });
   }, [
     letterboxProgress,
     gradientOpacity,
@@ -654,7 +790,12 @@ export function DormieMomentTripLaunched({
     hairlineProgress,
     avatarProgresses,
     youUnderlineProgress,
+    stakesOpacity,
+    ctaArrowTranslate,
+    ctaActiveOpacity,
+    liveDotOpacity,
     roster,
+    sentence,
     scheduleTimer,
     clearAllTimers,
     startSentenceTypeOn,
@@ -1007,10 +1148,30 @@ export function DormieMomentTripLaunched({
           <Text style={s.kickerText}>DORMIE · TRIP LAUNCHED</Text>
         </Animated.View>
 
+        {/* ─── Beat 4 — Invitation ──────────────────────────────────── */}
+
+        {/* Stakes credit — tracked-caps SF Pro just above the CTA. Fades
+            in (cubicOut) at beat3End. Falls back to "GAME TBD" per the
+            spec's fire-floor language when no stakes string is provided. */}
+        <Animated.View
+          style={[s.stakesWrap, { opacity: stakesOpacity }]}
+          pointerEvents="none"
+        >
+          <Text style={s.stakesText}>{stakes ?? 'GAME TBD'}</Text>
+        </Animated.View>
+
+        {/* Live amber dot — top-right, begins pulsing at beat3End +400ms.
+            Renders inside the top letterbox area (per token positions);
+            this is the broadcast "LIVE" tell. */}
+        <Animated.View
+          style={[s.liveDot, { opacity: liveDotOpacity }]}
+          pointerEvents="none"
+        />
+
         {/* Dev tap-to-dismiss — full-screen invisible Pressable layered
             above all visuals. Only active when the harness opts in via
-            __devTapToDismiss AND we're in __DEV__. Replaced by the real
-            CTA tap target in Phase 1.9d. */}
+            __devTapToDismiss AND we're in __DEV__. Rendered BEFORE the
+            CTA so the CTA's bounds win for taps within them. */}
         {__DEV__ && __devTapToDismiss ? (
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -1018,6 +1179,33 @@ export function DormieMomentTripLaunched({
             accessibilityLabel="Dismiss preview"
           />
         ) : null}
+
+        {/* CTA — production tap target. Activates at beat3End +600ms.
+            Before activation, pointerEvents="none" lets taps pass
+            through (to the dev layer below in __DEV__, or to the modal
+            backdrop in production where they're absorbed silently).
+            After activation, the Pressable receives taps directly. */}
+        <Animated.View
+          style={[s.ctaWrap, { opacity: ctaActiveOpacity }]}
+          pointerEvents={ctaActive ? 'auto' : 'none'}
+        >
+          <Pressable
+            onPress={onViewTrip}
+            accessibilityLabel="View trip"
+            accessibilityRole="button"
+            style={s.ctaInner}
+          >
+            <Text style={s.ctaText}>TAP TO VIEW TRIP</Text>
+            <Animated.Text
+              style={[
+                s.ctaArrow,
+                { transform: [{ translateX: ctaArrowTranslate }] },
+              ]}
+            >
+              {'  →'}
+            </Animated.Text>
+          </Pressable>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -1169,6 +1357,63 @@ const s = StyleSheet.create({
     letterSpacing: TL.sentenceTracking,
     color: TL.text,
     textAlign: 'center',
+  },
+
+  // ─── Beat 4 ──────────────────────────────────────────────────────────
+
+  stakesWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    // Sits above the CTA with the spec's stakesMarginTop (28) gap.
+    // CTA bottom is LETTERBOX_BAR_H + 8, CTA glyph height ~14, so:
+    //   stakesBottom = 80 (CTA bottom anchor) + 14 (CTA height) + 28
+    bottom: LETTERBOX_BAR_H + 8 + 14 + TL.stakesMarginTop,
+    alignItems: 'center',
+  },
+  stakesText: {
+    fontSize: TL.stakesFontSize,
+    fontWeight: '600',
+    letterSpacing: TL.stakesTracking,
+    color: TL.textMuted,
+    textTransform: 'uppercase',
+  },
+
+  ctaWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    // Floats just above the bottom letterbox (8px gap) so the CTA reads
+    // as part of the broadcast frame's lower chrome.
+    bottom: LETTERBOX_BAR_H + 8,
+    alignItems: 'center',
+  },
+  ctaInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  ctaText: {
+    fontSize: TL.ctaFontSize,
+    fontWeight: '700',
+    letterSpacing: TL.ctaTracking,
+    color: TL.brandGold,
+    textTransform: 'uppercase',
+  },
+  ctaArrow: {
+    fontSize: TL.ctaFontSize,
+    fontWeight: '700',
+    color: TL.brandGold,
+  },
+
+  liveDot: {
+    position: 'absolute',
+    top: TL.liveDotInsetT,
+    right: TL.liveDotInsetR,
+    width: TL.liveDotSize,
+    height: TL.liveDotSize,
+    backgroundColor: TL.liveAmber,
   },
 });
 

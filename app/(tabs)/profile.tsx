@@ -100,10 +100,13 @@ const HARNESS_TIME_MODES: Array<{
   label: string;
   primary: string;
   secondary?: string;
+  stakes: string;
 }> = [
-  { label: 'date-range', primary: 'OCT 15 – 17', secondary: '2026' },
-  { label: 'countdown', primary: 'T-149 DAYS', secondary: 'OCTOBER 2026' },
-  { label: 'tee-time', primary: '8:42 AM', secondary: 'TOMORROW' },
+  // Each time mode pairs with a different stakes line so Beat 4
+  // exercises a few realistic format strings across the rotation.
+  { label: 'date-range', primary: 'OCT 15 – 17', secondary: '2026', stakes: 'NASSAU · CLASSIC' },
+  { label: 'countdown', primary: 'T-149 DAYS', secondary: 'OCTOBER 2026', stakes: 'SCRAMBLE · TEAM PLAY' },
+  { label: 'tee-time', primary: '8:42 AM', secondary: 'TOMORROW', stakes: 'MATCH PLAY · 18 HOLES' },
 ];
 
 const HARNESS_VARIANTS: Array<{
@@ -122,12 +125,17 @@ const TRIP_LAUNCHED_ROTATION: Array<{
   players: TripLaunchedPlayer[];
   primary: string;
   secondary?: string;
+  stakes: string;
 }> = HARNESS_VARIANTS.flatMap((v) =>
   HARNESS_TIME_MODES.map((t) => ({
     label: `${v.label} · ${t.label}`,
     players: v.players,
     primary: t.primary,
     secondary: t.secondary,
+    // Solo overrides the format-derived stakes with the spec's
+    // "no-stakes" copy when paired with the casual-feeling time modes.
+    stakes:
+      v.label === 'solo' ? 'QUIET ROUND · NO STAKES' : t.stakes,
   })),
 );
 
@@ -1374,6 +1382,7 @@ export default function ProfileScreen() {
           datePrimary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].primary}
           dateSecondary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].secondary}
           players={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].players}
+          stakes={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].stakes}
           __devTapToDismiss
         />
       )}
