@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,21 @@ import {
   Easing,
   Pressable,
   StyleSheet,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { haptics } from '../../../lib/haptics';
 import TL from './tokens';
+import {
+  buildSentence,
+  computeRoster,
+  orderPlayersForRail,
+  type RosterConfig,
+  type SentenceShape,
+  type TripLaunchedPlayer,
+} from './roster';
+import { TripLaunchedAvatar } from './TripLaunchedAvatar';
 
 // ─── Hero adaptive type sizing ────────────────────────────────────────
 // Per spec (and tokens.jsx adaptive comments):
@@ -167,6 +177,12 @@ export interface DormieMomentTripLaunchedProps {
   datePrimary: string;
   /** Optional secondary date line, e.g. "2026" or "TODAY". */
   dateSecondary?: string;
+  /** Roster for Beat 3. Order is preserved for non-"you" players;
+   *  internally the "you" player is anchored to row 1 leftmost. Solo
+   *  trips (length 1 with isYou) skip the rail and play a single
+   *  Medium haptic. Ryder Cup variants are NOT handled in 1.9c —
+   *  those land in Phase 1.9e. */
+  players: TripLaunchedPlayer[];
   /** Dev-only — when true, any tap dismisses the moment via onViewTrip.
    *  Useful for visually reviewing the cinematic in isolation before the
    *  real CTA tap target lands in Phase 1.9d. Has no effect outside of
@@ -175,7 +191,7 @@ export interface DormieMomentTripLaunchedProps {
 }
 
 /**
- * Trip Launched cinematic moment — Phase 1.9b (Beats 1+2).
+ * Trip Launched cinematic moment — Phase 1.9c (Beats 1+2+3).
  *
  * Beat 1 — Arrival (0–1000ms): letterbox bars slide in, Masters green
  * gradient fades up, gold corner brackets draw inward, a one-shot 3%
@@ -187,9 +203,17 @@ export interface DormieMomentTripLaunchedProps {
  * (1500–2300ms), date stack fades in (1900–2200ms), gold hairline draws
  * to 42% stage width (2100–2500ms). haptics.light() fires at t=1700ms.
  *
- * Subsequent phases add Beat 3 (avatar roll call + sentence + you-
- * underline), Beat 4 (CTA + live amber dot), Ryder Cup states, and
- * adaptive time / multi-destination / fire-floor logic.
+ * Beat 3 — Momentum (2500ms→variable): per-avatar roll call drops at
+ * cadence (180ms standard / 110ms large), each tile 320ms cubicOut
+ * (translateY 8→0 + opacity 0→1). Haptic ramp [light×2, medium×2,
+ * heavy×2] fires AT each avatar's land time, capped at 6 hits. Sentence
+ * type-ons 200ms after the last avatar (30ms/char, 800ms cap), then a
+ * championshipGold underline draws under "you" (380ms cubicInOut, with
+ * a selection haptic at start). Solo: rail dropped, single Medium
+ * haptic at 2500ms, "Just you." sentence with you-underline.
+ *
+ * Subsequent phases add Beat 4 (CTA + live amber dot), Ryder Cup
+ * states, and adaptive time / multi-destination / fire-floor logic.
  *
  * Reference: docs/trip-launched-design-spec-2026-05-05.md (locked).
  * Tokens contract: src/components/wizard/trip-launched/tokens.jsx.
@@ -200,6 +224,7 @@ export function DormieMomentTripLaunched({
   destination,
   datePrimary,
   dateSecondary,
+  players,
   __devTapToDismiss,
 }: DormieMomentTripLaunchedProps) {
   // ─── Beat 1 animated values (initialized to "hidden" state) ────────────
@@ -216,30 +241,72 @@ export function DormieMomentTripLaunched({
   const dateOpacity = useRef(new Animated.Value(0)).current;
   const hairlineProgress = useRef(new Animated.Value(0)).current;     // 0=zero width, 1=42% stage width
 
-  // ─── Haptic timeout tracking ───────────────────────────────────────────
-  // Beat 2's haptics.light() at t=1700 needs to fire on a setTimeout (no
-  // synchronous "land" event we can hook). We track timeout IDs in a ref
-  // so closing the modal early cancels in-flight haptics — avoids buzzing
-  // the user after they've dismissed the moment.
-  const hapticTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const clearScheduledHaptics = useCallback(() => {
-    hapticTimeoutsRef.current.forEach(clearTimeout);
-    hapticTimeoutsRef.current = [];
+  // ─── Beat 3 — roster, sentence, animated values ────────────────────────
+  // Pure derivations: ordered players (you-first), layout config, and
+  // the recap sentence + youAt index. Memoized on the players array so
+  // variant switches in dev cycling rebuild cleanly.
+  const orderedPlayers: TripLaunchedPlayer[] = useMemo(
+    () => orderPlayersForRail(players),
+    [players],
+  );
+  const roster: RosterConfig = useMemo(
+    () => computeRoster(orderedPlayers),
+    [orderedPlayers],
+  );
+  const sentence: SentenceShape = useMemo(
+    () => buildSentence(orderedPlayers),
+    [orderedPlayers],
+  );
+
+  // Per-avatar Animated.Values, indexed parallel to orderedPlayers. We
+  // memo on the player COUNT (not identity) so a name swap at the same
+  // size doesn't churn animation state, but a variant change rebuilds.
+  const avatarProgresses = useMemo(
+    () => orderedPlayers.map(() => new Animated.Value(0)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderedPlayers.length],
+  );
+
+  // Sentence type-on (state, not animated value — drives sliced text
+  // re-render). youUnderlineProgress is animated 0→1 over 380ms.
+  const [revealedChars, setRevealedChars] = useState(0);
+  const [youWordWidth, setYouWordWidth] = useState<number | null>(null);
+  const youUnderlineProgress = useRef(new Animated.Value(0)).current;
+
+  // ─── Timer tracking ────────────────────────────────────────────────────
+  // Many Beat 3 events fire on setTimeout (haptics, sentence start,
+  // underline start). We track all IDs so dismiss-during-animation cancels
+  // in-flight scheduled work — no stranded buzz, no late renders.
+  const pendingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const sentenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const clearAllTimers = useCallback(() => {
+    pendingTimersRef.current.forEach(clearTimeout);
+    pendingTimersRef.current = [];
+    if (sentenceIntervalRef.current) {
+      clearInterval(sentenceIntervalRef.current);
+      sentenceIntervalRef.current = null;
+    }
   }, []);
-  const scheduleHaptic = useCallback((delay: number, fn: () => void) => {
+  const scheduleTimer = useCallback((delay: number, fn: () => void) => {
     const id = setTimeout(fn, delay);
-    hapticTimeoutsRef.current.push(id);
+    pendingTimersRef.current.push(id);
   }, []);
 
-  // Cancel any in-flight haptics when the modal hides or the component
-  // unmounts. Animations themselves are allowed to finish silently behind
-  // the closed modal — they free up automatically on unmount.
+  // Cancel in-flight timers + reset Beat 3 state when the modal hides
+  // or the component unmounts. Animations themselves are allowed to
+  // finish silently behind the closed modal.
   useEffect(() => {
-    if (!visible) clearScheduledHaptics();
-  }, [visible, clearScheduledHaptics]);
+    if (!visible) {
+      clearAllTimers();
+      setRevealedChars(0);
+      setYouWordWidth(null);
+    }
+  }, [visible, clearAllTimers]);
   useEffect(() => {
-    return () => clearScheduledHaptics();
-  }, [clearScheduledHaptics]);
+    return () => clearAllTimers();
+  }, [clearAllTimers]);
 
   // ─── Layout shift (when destination wraps) ─────────────────────────────
   // Per spec: dateBlockTop / hairlineTop / avatarRailTop all push +36px
@@ -251,6 +318,42 @@ export function DormieMomentTripLaunched({
   );
   const dateBlockTop = TL.dateBlockTop + layoutShift;
   const hairlineTop = TL.hairlineTop + layoutShift;
+
+  // ─── Beat 3 type-on + underline helpers ──────────────────────────────
+  // Sentence reveals one char at a time at tickMs intervals (or fewer if
+  // the 800ms cap is hit on long sentences). When the last char lands, we
+  // wait 200ms then fire the selection haptic and start the underline.
+  const startSentenceTypeOn = useCallback(() => {
+    const charCount = sentence.text.length;
+    if (charCount === 0) return;
+    const totalDuration = Math.min(charCount * 30, 800);
+    const tickMs = totalDuration / charCount;
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setRevealedChars(i);
+      if (i >= charCount) {
+        clearInterval(id);
+        sentenceIntervalRef.current = null;
+        // 200ms after the sentence lands, draw the gold underline under
+        // "you" with a selection haptic at the start.
+        if (sentence.youAt >= 0) {
+          scheduleTimer(200, () => {
+            haptics.selection();
+            Animated.timing(youUnderlineProgress, {
+              toValue: 1,
+              duration: 380,
+              easing: Easing.inOut(Easing.cubic),
+              // Width is the animated dimension — JS thread is fine for
+              // a single 380ms branch.
+              useNativeDriver: false,
+            }).start();
+          });
+        }
+      }
+    }, tickMs);
+    sentenceIntervalRef.current = id;
+  }, [sentence, scheduleTimer, youUnderlineProgress]);
 
   const runEntrance = useCallback(() => {
     // Defensive reset (in case the modal re-shows after a previous run).
@@ -264,15 +367,19 @@ export function DormieMomentTripLaunched({
     glowSweepProgress.setValue(0);
     dateOpacity.setValue(0);
     hairlineProgress.setValue(0);
+    avatarProgresses.forEach((p) => p.setValue(0));
+    youUnderlineProgress.setValue(0);
+    setRevealedChars(0);
+    setYouWordWidth(null);
 
-    // Cancel any haptic timeouts left over from a prior aborted run.
-    clearScheduledHaptics();
+    // Cancel any timers left over from a prior aborted run.
+    clearAllTimers();
 
     // Beat 1 haptic — single tactile commit at t=0.
     haptics.heavy();
 
     // Beat 2 haptic — soft tick when destination lands at t=1700ms.
-    scheduleHaptic(TL.haptics.destination.at, () => haptics.light());
+    scheduleTimer(TL.haptics.destination.at, () => haptics.light());
 
     // Schedule each element on its token-defined window in parallel.
     // Animated.parallel runs all branches concurrently; each branch
@@ -423,7 +530,76 @@ export function DormieMomentTripLaunched({
           useNativeDriver: false,
         }),
       ]),
+
+      // ─── Beat 3 — Momentum (2500ms→variable) ──────────────────
+      //
+      // Per-avatar drops at the variant cadence (180ms standard, 110ms
+      // large). Solo skips the rail entirely — no avatar branches in
+      // that case (avatarProgresses is empty), and the haptic + sentence
+      // get scheduled outside the parallel below.
+      ...avatarProgresses.map((progress, i) =>
+        Animated.sequence([
+          Animated.delay(
+            TL.beats.momentum.avatarRollCall.firstAvatarStart +
+              i * roster.cadence,
+          ),
+          Animated.timing(progress, {
+            toValue: 1,
+            duration: TL.beats.momentum.avatarRollCall.perAvatarDuration,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
     ]).start();
+
+    // ─── Beat 3 — haptic ramp + sentence + underline scheduling ─────
+    // These fire on setTimeout (not Animated branches) because the
+    // ramp is keyed to land-times rather than animation values, and
+    // the sentence type-on is character-based, not value-based.
+    const FIRST_LAND =
+      TL.beats.momentum.avatarRollCall.firstAvatarStart +
+      TL.beats.momentum.avatarRollCall.perAvatarDuration;
+    const HAPTIC_RAMP = TL.haptics.rollCall.ramp;
+    const HAPTIC_CAP = TL.haptics.rollCall.maxHits;
+
+    if (roster.variant === 'solo') {
+      // Solo override: single Medium haptic where the first avatar
+      // would have landed (roughly 2820ms = 2500 + 320). The sentence
+      // starts 200ms after that, matching the "200ms after last avatar
+      // lands" rule applied to a phantom landing.
+      scheduleTimer(FIRST_LAND, () => haptics.medium());
+      scheduleTimer(
+        FIRST_LAND + TL.beats.momentum.sentenceTypeOn.startsAfterLastAvatar,
+        () => startSentenceTypeOn(),
+      );
+    } else {
+      // Roll call: schedule one haptic per land time, capped at 6 hits.
+      // Avatars beyond the cap (e.g., 9–12 player rosters) drop silently.
+      avatarProgresses.forEach((_progress, i) => {
+        if (i >= HAPTIC_CAP) return;
+        const landAt =
+          TL.beats.momentum.avatarRollCall.firstAvatarStart +
+          i * roster.cadence +
+          TL.beats.momentum.avatarRollCall.perAvatarDuration;
+        const kind = HAPTIC_RAMP[i];
+        scheduleTimer(landAt, () => {
+          if (kind === 'impactLight') haptics.light();
+          else if (kind === 'impactMedium') haptics.medium();
+          else if (kind === 'impactHeavy') haptics.heavy();
+        });
+      });
+
+      // Sentence: 200ms after the LAST avatar lands.
+      const lastLandAt =
+        TL.beats.momentum.avatarRollCall.firstAvatarStart +
+        (avatarProgresses.length - 1) * roster.cadence +
+        TL.beats.momentum.avatarRollCall.perAvatarDuration;
+      scheduleTimer(
+        lastLandAt + TL.beats.momentum.sentenceTypeOn.startsAfterLastAvatar,
+        () => startSentenceTypeOn(),
+      );
+    }
   }, [
     letterboxProgress,
     gradientOpacity,
@@ -435,8 +611,12 @@ export function DormieMomentTripLaunched({
     glowSweepProgress,
     dateOpacity,
     hairlineProgress,
-    scheduleHaptic,
-    clearScheduledHaptics,
+    avatarProgresses,
+    youUnderlineProgress,
+    roster,
+    scheduleTimer,
+    clearAllTimers,
+    startSentenceTypeOn,
   ]);
 
   if (!visible) return null;
@@ -477,6 +657,62 @@ export function DormieMomentTripLaunched({
   const heroFontSize = getHeroFontSize(destination.length);
   const heroLineHeight = heroFontSize * TL.destinationLineH;
   const heroLines = heroIsTwoLine(destination.length) ? 2 : 1;
+
+  // ─── Beat 3 layout positions ────────────────────────────────────────
+  // Avatar rail top is fixed (token + layoutShift). Sentence sits below
+  // the rail at avatarRailTop + railHeight + sentenceMarginTop. Solo
+  // skips the rail so its sentence anchors at avatarRailTop directly.
+  const avatarRailTop = TL.avatarRailTop + layoutShift;
+  const railHeight =
+    roster.variant === 'solo'
+      ? 0
+      : roster.rowSplits.length === 1
+        ? roster.avatarSize
+        : roster.avatarSize * 2 + roster.gap;
+  const sentenceTop =
+    roster.variant === 'solo'
+      ? avatarRailTop
+      : avatarRailTop + railHeight + TL.sentenceMarginTop;
+
+  // Beat 3 — sliced sentence segments. Always rendered as three Texts
+  // (prefix / "you" / suffix) so the underline can attach to a measured
+  // wrapper. During type-on, each segment shows only the chars that
+  // have been revealed so far. After typing completes, full text is
+  // rendered and the underline animates to youWordWidth.
+  const youAt = sentence.youAt;
+  const prefixFull = youAt >= 0 ? sentence.text.slice(0, youAt) : sentence.text;
+  const youFull = youAt >= 0 ? sentence.text.slice(youAt, youAt + 3) : '';
+  const suffixFull = youAt >= 0 ? sentence.text.slice(youAt + 3) : '';
+  const revealedPrefix = prefixFull.slice(
+    0,
+    Math.min(revealedChars, prefixFull.length),
+  );
+  const revealedYou =
+    youAt >= 0
+      ? youFull.slice(
+          0,
+          Math.max(0, Math.min(revealedChars - prefixFull.length, youFull.length)),
+        )
+      : '';
+  const revealedSuffix =
+    youAt >= 0
+      ? suffixFull.slice(
+          0,
+          Math.max(0, revealedChars - prefixFull.length - youFull.length),
+        )
+      : '';
+
+  // Beat 3 — underline width interpolates 0 → measured "you" word width.
+  // Until the layout has measured (youWordWidth === null), keep at 0.
+  const underlineWidth = youUnderlineProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, youWordWidth ?? 0],
+  });
+
+  const onYouLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0 && w !== youWordWidth) setYouWordWidth(w);
+  };
 
   return (
     <Modal
@@ -581,6 +817,88 @@ export function DormieMomentTripLaunched({
         >
           <Animated.View style={[s.hairline, { width: hairlineWidth }]} />
         </View>
+
+        {/* ─── Beat 3 — Momentum ─────────────────────────────────────── */}
+
+        {/* Avatar rail — skipped for solo. Each row centers via flexbox;
+            "you" anchors row 1 leftmost (orderPlayersForRail). Per-tile
+            opacity + translateY drive off avatarProgresses[i]. */}
+        {roster.variant !== 'solo' ? (
+          <View
+            style={[s.avatarRail, { top: avatarRailTop }]}
+            pointerEvents="none"
+          >
+            {(() => {
+              let cumIdx = 0;
+              return roster.rowSplits.map((count, rowIdx) => {
+                const rowStart = cumIdx;
+                cumIdx += count;
+                const rowPlayers = orderedPlayers.slice(rowStart, rowStart + count);
+                return (
+                  <View
+                    key={rowIdx}
+                    style={[
+                      s.avatarRow,
+                      { gap: roster.gap, marginTop: rowIdx > 0 ? roster.gap : 0 },
+                    ]}
+                  >
+                    {rowPlayers.map((player, colIdx) => {
+                      const absIdx = rowStart + colIdx;
+                      const progress = avatarProgresses[absIdx];
+                      return (
+                        <Animated.View
+                          key={`${player.name}-${absIdx}`}
+                          style={{
+                            opacity: progress,
+                            transform: [
+                              {
+                                translateY: progress.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [8, 0],
+                                }),
+                              },
+                            ],
+                          }}
+                        >
+                          <TripLaunchedAvatar
+                            name={player.name}
+                            avatarUrl={player.avatarUrl}
+                            size={roster.avatarSize}
+                            isYou={player.isYou}
+                          />
+                        </Animated.View>
+                      );
+                    })}
+                  </View>
+                );
+              });
+            })()}
+          </View>
+        ) : null}
+
+        {/* Sentence row + you-underline. Renders three Text segments so
+            the underline can attach to the measured "you" wrapper.
+            During type-on, segments show only the chars revealed so
+            far. Underline animates after typing completes. */}
+        {sentence.text.length > 0 ? (
+          <View
+            style={[s.sentenceWrap, { top: sentenceTop }]}
+            pointerEvents="none"
+          >
+            <View style={s.sentenceRow}>
+              <Text style={s.sentenceText}>{revealedPrefix}</Text>
+              {youAt >= 0 ? (
+                <View style={s.youWrap} onLayout={onYouLayout}>
+                  <Text style={s.sentenceText}>{revealedYou}</Text>
+                  <Animated.View
+                    style={[s.youUnderline, { width: underlineWidth }]}
+                  />
+                </View>
+              ) : null}
+              <Text style={s.sentenceText}>{revealedSuffix}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Letterbox bars (above stage, define the broadcast frame) */}
         <Animated.View
@@ -743,6 +1061,51 @@ const s = StyleSheet.create({
   hairline: {
     height: TL.hairlineH,
     backgroundColor: TL.hairlineColor,
+  },
+
+  // ─── Beat 3 ──────────────────────────────────────────────────────────
+
+  avatarRail: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    // top is set inline (avatarRailTop + layoutShift)
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    // gap is set inline (depends on roster variant)
+  },
+
+  sentenceWrap: {
+    position: 'absolute',
+    left: TL.contentPadX,
+    right: TL.contentPadX,
+    // top is set inline (depends on roster variant + layoutShift)
+  },
+  sentenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+  },
+  sentenceText: {
+    fontFamily: 'Georgia',
+    fontStyle: 'italic',
+    fontSize: TL.sentenceFontSize,
+    lineHeight: Math.round(TL.sentenceFontSize * 1.3),
+    letterSpacing: TL.sentenceTracking,
+    color: TL.text,
+  },
+  youWrap: {
+    position: 'relative',
+  },
+  youUnderline: {
+    position: 'absolute',
+    left: 0,
+    bottom: -TL.youUnderlineInset,
+    height: TL.youUnderlineThickness,
+    backgroundColor: TL.youUnderlineColor,
   },
 });
 

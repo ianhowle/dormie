@@ -52,8 +52,54 @@ import { PlayerStatsTabs } from '../../src/components/PlayerStatsTabs';
 import { MOCK_PLAYER_STATS } from '../../src/data/playerStats';
 // [DEV HARNESS] Preview wiring for the Trip Launched cinematic — kept through Beats 3+4 buildout, remove before shipping.
 import { DormieMomentTripLaunched } from '../../src/components/wizard/trip-launched/DormieMomentTripLaunched';
+import type { TripLaunchedPlayer } from '../../src/components/wizard/trip-launched/roster';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
+
+// [DEV HARNESS] Trip Launched roster variants for visual review. Each
+// tap on the preview button rotates through these so all four spec
+// variants (solo / standard / medium / large) can be checked on phone
+// without a code edit. Ian is "you" in every variant.
+const TRIP_LAUNCHED_VARIANTS: Array<{ label: string; players: TripLaunchedPlayer[] }> = [
+  { label: 'solo', players: [{ name: 'Ian', isYou: true }] },
+  {
+    label: '4 players',
+    players: [
+      { name: 'Ian', isYou: true },
+      { name: 'Drew' },
+      { name: 'Jake' },
+      { name: 'Tommy' },
+    ],
+  },
+  {
+    label: '7 players',
+    players: [
+      { name: 'Ian', isYou: true },
+      { name: 'Drew' },
+      { name: 'Jake' },
+      { name: 'Tommy' },
+      { name: 'Marcus' },
+      { name: 'Cal' },
+      { name: 'Dev' },
+    ],
+  },
+  {
+    label: '11 players',
+    players: [
+      { name: 'Ian', isYou: true },
+      { name: 'Drew' },
+      { name: 'Jake' },
+      { name: 'Tommy' },
+      { name: 'Marcus' },
+      { name: 'Cal' },
+      { name: 'Dev' },
+      { name: 'Will' },
+      { name: 'Pete' },
+      { name: 'Sam' },
+      { name: 'Ryan' },
+    ],
+  },
+];
 
 type RecentRound = {
   id: string;
@@ -219,7 +265,11 @@ export default function ProfileScreen() {
   const [showIntegrity, setShowIntegrity] = useState(false);
   const { isDemoMode: showDemoData, setDemoMode: setShowDemoData, hasRealData: demoHasRealData } = useDemoMode();
   // [DEV HARNESS] Trip Launched preview state — kept through Beats 3+4 buildout.
+  // Each tap on the preview button rotates through roster variants for
+  // visual review: solo → 4 → 7 → 11 → solo. The variant currently loaded
+  // is shown in the button label.
   const [tripLaunchedPreview, setTripLaunchedPreview] = useState(false);
+  const [tripLaunchedVariantIdx, setTripLaunchedVariantIdx] = useState(0);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
     user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
@@ -1253,7 +1303,8 @@ export default function ProfileScreen() {
                 </View>
               </Pressable>
 
-              {/* [DEV HARNESS] Trip Launched cinematic preview button — kept through Beats 3+4 buildout. */}
+              {/* [DEV HARNESS] Trip Launched cinematic preview button — kept through Beats 3+4 buildout.
+                  Tapping opens the modal with the current variant; on dismiss, the variant index advances. */}
               <Pressable
                 onPress={() => {
                   haptics.light();
@@ -1263,9 +1314,12 @@ export default function ProfileScreen() {
                 accessibilityLabel="Preview Trip Launched cinematic"
               >
                 <Ionicons name="film-outline" size={20} color={c.gold} />
-                <Text style={[s.settingText, { color: c.text }]}>Preview Trip Launched (1.9b)</Text>
+                <Text style={[s.settingText, { color: c.text }]}>{`Preview Trip Launched · ${TRIP_LAUNCHED_VARIANTS[tripLaunchedVariantIdx].label}`}</Text>
                 <Ionicons name="play-outline" size={16} color={c.textMuted} />
               </Pressable>
+              <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
+                Tap to cycle: solo → 4 → 7 → 11
+              </Text>
             </>
           )}
 
@@ -1277,14 +1331,19 @@ export default function ProfileScreen() {
 
       {/* [DEV HARNESS] Trip Launched cinematic preview modal — kept through Beats 3+4 buildout.
           __devTapToDismiss: tap anywhere on screen to dismiss the moment
-          (the real CTA tap target lands in Phase 1.9d). */}
+          (the real CTA tap target lands in Phase 1.9d). On dismiss the
+          variant index advances so the next tap previews a new roster. */}
       {__DEV__ && (
         <DormieMomentTripLaunched
           visible={tripLaunchedPreview}
-          onViewTrip={() => setTripLaunchedPreview(false)}
+          onViewTrip={() => {
+            setTripLaunchedPreview(false);
+            setTripLaunchedVariantIdx((idx) => (idx + 1) % TRIP_LAUNCHED_VARIANTS.length);
+          }}
           destination="Hermitage"
           datePrimary="OCT 15 – 17"
           dateSecondary="2026"
+          players={TRIP_LAUNCHED_VARIANTS[tripLaunchedVariantIdx].players}
           __devTapToDismiss
         />
       )}
