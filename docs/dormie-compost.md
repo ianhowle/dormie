@@ -13,6 +13,8 @@
 
 ## Active Compost
 
+- 2026-05-05 — Two-cinematic-moments insight from Trip Launched design exploration: big trips earn multiple peak emotional moments, not one. Trip Launched at announce, Draft Night at draft, Day 1 Welcome at start. Pattern applies beyond Ryder Cup — annual trips, bachelor parties, bucket-list trips all have multi-moment arcs. Develop as a framework for cinematic exploration doc.
+- 2026-05-05 — Design principle from Trip Launched exploration: in editorial typography, the personality is the typography, not the noun. Italic Georgia at hero scale carries emotional weight whether it contains "Pinehurst" or "Tennessee Three-Course Tour." Add to dormie-design-dna.md when convenient.
 - 2026-05-05 — Legacy borderRadius: 12 on existing trip card in app/(tabs)/trips.tsx:2140 violates design DNA's zero-border-radius rule. Should be cleaned up alongside any other rounded-corner UI surfaces in a sweep — see TripCardPreview's sharp-edges treatment as the canonical pattern.
 - 2026-05-05 — Wizard navigation pattern decision deferred to v1.5+. Linear (back button only) shipping in v1; progressive disclosure (jump between steps from sidebar) is the v1.5+ candidate. Evaluate after we have real beta usage data on where users drop off in the wizard.
 - 2026-05-05 — Wizard mid-flow persistence: session-state for v1, Supabase persistence for v2. Cross-device wizard continuation is the v2 win — start a trip on phone, finish on iPad. Evaluate when multi-device usage signals appear.
