@@ -245,7 +245,7 @@ const SIDE_GAME_LOOKUP: Record<string, SideGameRec> = {
   },
   'real|easy|strangers': {
     game: 'nassau',
-    rationale: 'Front 9 / back 9 / total — respectable cash play with anyone.',
+    rationale: 'Front 9 / back 9 / total — everyone knows the rules.',
   },
   'real|strategic|friends': {
     game: 'hammer',
@@ -257,7 +257,7 @@ const SIDE_GAME_LOOKUP: Record<string, SideGameRec> = {
   },
   'real|strategic|strangers': {
     game: 'nassau',
-    rationale: 'Standard for cash play between players who don\'t know each other. Presses optional.',
+    rationale: 'Standard for cash play with strangers — three bets running, presses available for depth without escalation.',
   },
 };
 
