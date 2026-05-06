@@ -424,13 +424,16 @@ export function DormieMomentTripLaunched({
         if (sentence.youAt >= 0) {
           scheduleTimer(200, () => {
             haptics.selection();
+            // Native-driver scaleX + translateX compensation (same
+            // pattern as the corner brackets) keeps the L→R draw at
+            // 60fps even while Beat 4 elements are kicking off on the
+            // JS thread. See the underline render block for the
+            // transform math.
             Animated.timing(youUnderlineProgress, {
               toValue: 1,
               duration: 380,
               easing: Easing.inOut(Easing.cubic),
-              // Width is the animated dimension — JS thread is fine for
-              // a single 380ms branch.
-              useNativeDriver: false,
+              useNativeDriver: true,
             }).start();
           });
         }
@@ -444,7 +447,10 @@ export function DormieMomentTripLaunched({
     letterboxProgress.setValue(0);
     gradientOpacity.setValue(0);
     cornerProgress.setValue(0);
-    pinstripeOpacity.setValue(0);
+    // Pinstripe baseline 0.6 → ~1.8% effective texture (persistent
+    // through Beats 2–4). The Beat 1 pulse spikes to 1.0 (3% peak) and
+    // settles back to 0.6 — see pulse sequence below for the full curve.
+    pinstripeOpacity.setValue(0.6);
     kickerOpacity.setValue(0);
     kickerTranslateY.setValue(8);
     destinationProgress.setValue(0);
@@ -514,11 +520,11 @@ export function DormieMomentTripLaunched({
         }),
       ]),
 
-      // Pinstripe pulse: 650–900ms — opacity 0→1→0 over the 250ms window.
-      // Spec lists a single cubicOut easing for the pulse; rendering it
-      // as cubicOut on both halves produces a soft decelerating pulse on
-      // the way up and a soft fade on the way down (natural one-shot
-      // lighting feel).
+      // Pinstripe pulse: 650–900ms — spikes from the persistent baseline
+      // 0.6 (~1.8% effective) up to peak 1.0 (~3% effective) and settles
+      // back to 0.6. The pulse is a brighter accent moment within the
+      // baseline texture that stays visible across Beats 2–4. Both halves
+      // run cubicOut for a soft rising punch + soft falling settle.
       Animated.sequence([
         Animated.delay(TL.beats.arrival.pinstripePulse.start),
         Animated.timing(pinstripeOpacity, {
@@ -528,7 +534,7 @@ export function DormieMomentTripLaunched({
           useNativeDriver: true,
         }),
         Animated.timing(pinstripeOpacity, {
-          toValue: 0,
+          toValue: 0.6,
           duration: 125,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
@@ -879,11 +885,17 @@ export function DormieMomentTripLaunched({
         )
       : '';
 
-  // Beat 3 — underline width interpolates 0 → measured "you" word width.
-  // Until the layout has measured (youLayout === null), keep at 0.
-  const underlineWidth = youUnderlineProgress.interpolate({
+  // Beat 3 — underline draw via scaleX + translateX compensation.
+  // Renders the underline at FULL measured "you" width but transforms
+  // it: at progress=0, scaleX=0 collapses the line and translateX
+  // shifts it -width/2 so the collapsed point pins to the LEFT edge of
+  // the bounding box. As progress→1, scaleX grows to 1 and translateX
+  // returns to 0 — the line draws L→R from a fixed left anchor. Both
+  // transforms are native-driver compatible (60fps).
+  const underlineFullWidth = youLayout?.width ?? 0;
+  const underlineScaleTranslate = youUnderlineProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, youLayout?.width ?? 0],
+    outputRange: [-(underlineFullWidth / 2), 0],
   });
 
   // onLayout on the nested "you" Text reports its position relative to
@@ -1104,8 +1116,12 @@ export function DormieMomentTripLaunched({
                   left: youLayout.x,
                   top: youLayout.y + youLayout.height - TL.youUnderlineInset,
                   height: TL.youUnderlineThickness,
-                  width: underlineWidth,
+                  width: underlineFullWidth,
                   backgroundColor: TL.youUnderlineColor,
+                  transform: [
+                    { translateX: underlineScaleTranslate },
+                    { scaleX: youUnderlineProgress },
+                  ],
                 }}
               />
             ) : null}
