@@ -50,6 +50,8 @@ import {
 } from '../../src/services/handicap.service';
 import { PlayerStatsTabs } from '../../src/components/PlayerStatsTabs';
 import { MOCK_PLAYER_STATS } from '../../src/data/playerStats';
+// [DEV HARNESS] Preview wiring for the Trip Launched cinematic — kept through Beats 3+4 buildout, remove before shipping.
+import { DormieMomentTripLaunched } from '../../src/components/wizard/trip-launched/DormieMomentTripLaunched';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -216,6 +218,8 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
   const { isDemoMode: showDemoData, setDemoMode: setShowDemoData, hasRealData: demoHasRealData } = useDemoMode();
+  // [DEV HARNESS] Trip Launched preview state — kept through Beats 3+4 buildout.
+  const [tripLaunchedPreview, setTripLaunchedPreview] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
     user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
@@ -1248,6 +1252,20 @@ export default function ProfileScreen() {
                   <View style={[s.toggleKnob, showDemoData && s.toggleKnobOn]} />
                 </View>
               </Pressable>
+
+              {/* [DEV HARNESS] Trip Launched cinematic preview button — kept through Beats 3+4 buildout. */}
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  setTripLaunchedPreview(true);
+                }}
+                style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                accessibilityLabel="Preview Trip Launched cinematic"
+              >
+                <Ionicons name="film-outline" size={20} color={c.gold} />
+                <Text style={[s.settingText, { color: c.text }]}>Preview Trip Launched (1.9b)</Text>
+                <Ionicons name="play-outline" size={16} color={c.textMuted} />
+              </Pressable>
             </>
           )}
 
@@ -1256,6 +1274,20 @@ export default function ProfileScreen() {
       </Animated.ScrollView>
 
       {/* Course picker now uses the /course-search screen */}
+
+      {/* [DEV HARNESS] Trip Launched cinematic preview modal — kept through Beats 3+4 buildout.
+          __devTapToDismiss: tap anywhere on screen to dismiss the moment
+          (the real CTA tap target lands in Phase 1.9d). */}
+      {__DEV__ && (
+        <DormieMomentTripLaunched
+          visible={tripLaunchedPreview}
+          onViewTrip={() => setTripLaunchedPreview(false)}
+          destination="Hermitage"
+          datePrimary="OCT 15 – 17"
+          dateSecondary="2026"
+          __devTapToDismiss
+        />
+      )}
     </View>
   );
 }
