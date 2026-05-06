@@ -13,6 +13,7 @@
 
 ## Active Compost
 
+- 2026-05-05 — Legacy borderRadius: 12 on existing trip card in app/(tabs)/trips.tsx:2140 violates design DNA's zero-border-radius rule. Should be cleaned up alongside any other rounded-corner UI surfaces in a sweep — see TripCardPreview's sharp-edges treatment as the canonical pattern.
 - 2026-05-05 — Wizard navigation pattern decision deferred to v1.5+. Linear (back button only) shipping in v1; progressive disclosure (jump between steps from sidebar) is the v1.5+ candidate. Evaluate after we have real beta usage data on where users drop off in the wizard.
 - 2026-05-05 — Wizard mid-flow persistence: session-state for v1, Supabase persistence for v2. Cross-device wizard continuation is the v2 win — start a trip on phone, finish on iPad. Evaluate when multi-device usage signals appear.
 - 2026-05-05 — Default format for first-time users: shipping Stroke Play default for v1 (most universal). Worth A/B testing Match Play or Stableford as alternative defaults later — Dormie's premium positioning could justify a more "golf insider" default that stands out from generic golf apps.
