@@ -390,6 +390,8 @@ Build the reusable infrastructure that all three trip types will use.
 
 9. **DormieMomentTripLaunched component:** New cinematic moment for trip launch. Reuses existing Dormie Moment infrastructure with new copy and styling.
 
+   **Deferred to a separate Claude Design pass (decided 2026-05-05).** The Trip Launched moment is design-driven (sound, animation choreography, gradient palette tuning) and benefits from a focused design conversation rather than implementation alongside the structural foundations. Phases 1.1–1.8 ship the structural pieces; 1.9 lands when the design pass produces a concrete spec. Consumer code in Phase 2 (Quick Trip wizard's Step 7 launch button) will stub the Trip Launched call until 1.9 ships.
+
 ### Phase 2 — Quick Trip (3-4 hours)
 
 Rebuild the Quick Trip wizard using Phase 1 foundations.
