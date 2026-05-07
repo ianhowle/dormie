@@ -151,6 +151,9 @@ export type WizardAction =
   | { type: 'REMOVE_PLAYER'; playerId: string }
   | { type: 'SET_FORMAT'; format: ScoringFormat | null }
   | { type: 'SET_SIDE_GAMES'; sideGames: SideGame[] }
+  | { type: 'TOGGLE_SIDE_GAME'; sideGame: SideGame }
+  | { type: 'ADD_SIDE_GAME'; sideGame: SideGame }
+  | { type: 'CLEAR_SIDE_GAMES' }
   | { type: 'SET_PER_GAME_STAKE'; key: string; stake: WizardPerGameStake }
   | { type: 'CLEAR_PER_GAME_STAKE'; key: string }
   | { type: 'SET_TRIP_NAME'; name: string };
@@ -199,6 +202,20 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, format: action.format };
     case 'SET_SIDE_GAMES':
       return { ...state, sideGames: action.sideGames };
+    case 'TOGGLE_SIDE_GAME': {
+      const present = state.sideGames.includes(action.sideGame);
+      return {
+        ...state,
+        sideGames: present
+          ? state.sideGames.filter((g) => g !== action.sideGame)
+          : [...state.sideGames, action.sideGame],
+      };
+    }
+    case 'ADD_SIDE_GAME':
+      if (state.sideGames.includes(action.sideGame)) return state;
+      return { ...state, sideGames: [...state.sideGames, action.sideGame] };
+    case 'CLEAR_SIDE_GAMES':
+      return { ...state, sideGames: [] };
     case 'SET_PER_GAME_STAKE': {
       const next = { ...state.perGameStakes, [action.key]: action.stake };
       return { ...state, perGameStakes: next };
@@ -249,9 +266,13 @@ export function computeCanAdvance(state: WizardState): boolean {
     case 4:
       // Need exactly one format selected.
       return state.format !== null;
+    case 5:
+      // Side games are optional — zero selections is valid. The Skip
+      // link in the step body advances directly without lifting state.
+      return true;
     default:
-      // Steps 5–7 still placeholder-validation; lands as each step's
-      // real content does (2.6–2.8).
+      // Steps 6–7 still placeholder-validation; lands as each step's
+      // real content does (2.7–2.8).
       return true;
   }
 }
