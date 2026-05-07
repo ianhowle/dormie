@@ -16,8 +16,13 @@ import TL from './tokens';
 import {
   buildSentence,
   computeRoster,
+  detectRyderState,
+  normalizeTeamKey,
   orderPlayersForRail,
   type RosterConfig,
+  type RyderState,
+  type RyderTeamConfig,
+  type RyderTeams,
   type SentenceShape,
   type TripLaunchedPlayer,
 } from './roster';
@@ -192,10 +197,16 @@ export interface DormieMomentTripLaunchedProps {
    *  DRAFT PENDING". When omitted, falls back to "GAME TBD" per the
    *  spec's fire-floor language. */
   stakes?: string;
-  /** Scoring format pass-through. Currently unused inside Beat 4 (the
-   *  `stakes` prop drives display copy directly), but reserved for
-   *  Ryder-Cup detection in Phase 1.9e. */
+  /** Scoring format. When set to 'ryderCup', the cinematic enters
+   *  Ryder Cup mode and detects sub-state (undrafted / drafted-default
+   *  / drafted-custom) from player team assignments + ryderTeams prop. */
   format?: string;
+  /** Custom Ryder Cup team configuration. When provided AND
+   *  format==='ryderCup' AND players have team assignments, the
+   *  drafted-custom sub-state activates with parametric team names,
+   *  colors, and glows. Without this prop (but with team assignments),
+   *  drafted-default uses "Team A" / "Team B" + oxblood/royal colors. */
+  ryderTeams?: RyderTeams;
   /** Dev-only — when true, any tap on the stage (outside the active
    *  CTA tap area) dismisses the moment via onViewTrip. Useful for
    *  reviewing the cinematic without waiting for the CTA to activate.
@@ -249,8 +260,8 @@ export function DormieMomentTripLaunched({
   dateSecondary,
   players,
   stakes,
-  // format reserved for Phase 1.9e Ryder-Cup detection
-  format: _format,
+  format,
+  ryderTeams,
   __devTapToDismiss,
 }: DormieMomentTripLaunchedProps) {
   // ─── Beat 1 animated values (initialized to "hidden" state) ────────────
@@ -268,21 +279,57 @@ export function DormieMomentTripLaunched({
   const hairlineProgress = useRef(new Animated.Value(0)).current;     // 0=zero width, 1=42% stage width
 
   // ─── Beat 3 — roster, sentence, animated values ────────────────────────
-  // Pure derivations: ordered players (you-first), layout config, and
-  // the recap sentence + youAt index. Memoized on the players array so
-  // variant switches in dev cycling rebuild cleanly.
+  // Pure derivations: Ryder Cup sub-state (or null), ordered players
+  // (you-anchored except in undrafted Ryder), layout config, and the
+  // recap sentence + youAt index. Memoized on inputs so variant
+  // switches in dev cycling rebuild cleanly.
+  const ryderState: RyderState | null = useMemo(
+    () => detectRyderState(players, format, ryderTeams),
+    [players, format, ryderTeams],
+  );
   const orderedPlayers: TripLaunchedPlayer[] = useMemo(
-    () => orderPlayersForRail(players),
-    [players],
+    () => orderPlayersForRail(players, ryderState),
+    [players, ryderState],
   );
   const roster: RosterConfig = useMemo(
-    () => computeRoster(orderedPlayers),
-    [orderedPlayers],
+    () => computeRoster(orderedPlayers, ryderState),
+    [orderedPlayers, ryderState],
   );
   const sentence: SentenceShape = useMemo(
-    () => buildSentence(orderedPlayers),
-    [orderedPlayers],
+    () => buildSentence(orderedPlayers, ryderState, ryderTeams),
+    [orderedPlayers, ryderState, ryderTeams],
   );
+
+  // Resolved team configs for drafted modes. drafted-default uses the
+  // spec's oxblood/royal defaults; drafted-custom uses the prop.
+  const resolvedRyderTeams: RyderTeams | null = useMemo(() => {
+    if (ryderState === 'drafted-custom' && ryderTeams) return ryderTeams;
+    if (ryderState === 'drafted-default') {
+      return {
+        a: {
+          name: 'Team A',
+          color: TL.teamUsaRed,
+          glow: TL.teamUsaGlow,
+        },
+        b: {
+          name: 'Team B',
+          color: TL.teamEuropeBlue,
+          glow: TL.teamEuropeGlow,
+        },
+      };
+    }
+    return null;
+  }, [ryderState, ryderTeams]);
+
+  // For drafted Ryder modes, the home team (containing "you") is the
+  // one whose row renders ON TOP. We resolve which team key that is so
+  // the per-row renderer can pick the right label/color from
+  // resolvedRyderTeams below.
+  const homeTeamKey: 'a' | 'b' = useMemo(() => {
+    if (!ryderState || ryderState === 'undrafted') return 'a';
+    const youPlayer = players.find((p) => p.isYou);
+    return youPlayer ? normalizeTeamKey(youPlayer.team) ?? 'a' : 'a';
+  }, [ryderState, players]);
 
   // Per-avatar Animated.Values, indexed parallel to orderedPlayers. We
   // memo on the player COUNT (not identity) so a name swap at the same
@@ -843,15 +890,44 @@ export function DormieMomentTripLaunched({
   });
 
   // ─── Beat 3 sentence position ───────────────────────────────────────
-  // Sentence sits below the rail. avatarRailTop is computed up top in
-  // the dynamic flow block. Solo skips the rail so its sentence anchors
-  // at avatarRailTop directly (replacing the would-be rail block).
-  const railHeight =
-    roster.variant === 'solo'
-      ? 0
-      : roster.rowSplits.length === 1
-        ? roster.avatarSize
-        : roster.avatarSize * 2 + roster.gap;
+  // Sentence sits below the rail block. avatarRailTop is the FIXED top
+  // of whatever the rail block is (pin / label / avatars), and rail
+  // block height varies per variant. Solo skips the rail so its
+  // sentence anchors at avatarRailTop directly (replacing the would-be
+  // rail block).
+  const PIN_BLOCK_H = 22; // "DRAFT NIGHT TBD" pill: 10pt text + 4px padding × 2 + 1px borders
+  const PIN_TO_RAIL_GAP = 16;
+  const railHeight = (() => {
+    switch (roster.variant) {
+      case 'solo':
+        return 0;
+      case 'standard':
+      case 'medium':
+        return roster.avatarSize;
+      case 'large':
+        return roster.avatarSize * 2 + roster.gap;
+      case 'ryder-undrafted':
+        // Pin + gap + 2 avatar rows
+        return (
+          PIN_BLOCK_H +
+          PIN_TO_RAIL_GAP +
+          roster.avatarSize * 2 +
+          roster.gap
+        );
+      case 'ryder-drafted':
+        // Two team rails. Per rail: ryderLabelOffset (label top → avatar
+        // top) + avatar height. Two such rails + ryderInterRailGap.
+        return (
+          TL.ryderLabelOffset +
+          roster.avatarSize +
+          TL.ryderInterRailGap +
+          TL.ryderLabelOffset +
+          roster.avatarSize
+        );
+      default:
+        return 0;
+    }
+  })();
   const sentenceTop =
     roster.variant === 'solo'
       ? avatarRailTop
@@ -1032,61 +1108,181 @@ export function DormieMomentTripLaunched({
 
         {/* ─── Beat 3 — Momentum ─────────────────────────────────────── */}
 
-        {/* Avatar rail — skipped for solo. Each row centers via flexbox;
-            "you" anchors row 1 leftmost (orderPlayersForRail). Per-tile
-            opacity + translateY drive off avatarProgresses[i]. */}
-        {roster.variant !== 'solo' ? (
-          <View
-            style={[s.avatarRail, { top: avatarRailTop }]}
-            pointerEvents="none"
-          >
-            {(() => {
-              let cumIdx = 0;
-              return roster.rowSplits.map((count, rowIdx) => {
+        {/* Avatar rail — branches by variant. Per-tile opacity +
+            translateY drive off avatarProgresses[absIdx] for all
+            variants (cadence handled by the animation schedule). */}
+        {(() => {
+          if (roster.variant === 'solo') return null;
+
+          // Shared per-tile renderer. teamColor/teamGlow forwarded to
+          // TripLaunchedAvatar for the drafted Ryder rails (ignored for
+          // non-Ryder where they're undefined).
+          const renderTile = (
+            player: TripLaunchedPlayer,
+            absIdx: number,
+            teamColor?: string,
+            teamGlow?: string,
+          ) => {
+            const progress = avatarProgresses[absIdx];
+            return (
+              <Animated.View
+                key={`${player.name}-${absIdx}`}
+                style={{
+                  opacity: progress,
+                  transform: [
+                    {
+                      translateY: progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [8, 0],
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <TripLaunchedAvatar
+                  name={player.name}
+                  avatarUrl={player.avatarUrl}
+                  size={roster.avatarSize}
+                  isYou={player.isYou}
+                  isCaptain={player.isCaptain}
+                  teamColor={teamColor}
+                  teamGlow={teamGlow}
+                />
+              </Animated.View>
+            );
+          };
+
+          // Shared per-row renderer.
+          const renderRow = (
+            rowPlayers: TripLaunchedPlayer[],
+            rowStart: number,
+            opts: {
+              key: string | number;
+              marginTop?: number;
+              teamColor?: string;
+              teamGlow?: string;
+            },
+          ) => (
+            <View
+              key={opts.key}
+              style={[
+                s.avatarRow,
+                {
+                  gap: roster.gap,
+                  ...(opts.marginTop ? { marginTop: opts.marginTop } : {}),
+                },
+              ]}
+            >
+              {rowPlayers.map((player, colIdx) =>
+                renderTile(
+                  player,
+                  rowStart + colIdx,
+                  opts.teamColor,
+                  opts.teamGlow,
+                ),
+              )}
+            </View>
+          );
+
+          // ── ryder-drafted: two team rails ────────────────────────
+          if (roster.variant === 'ryder-drafted' && resolvedRyderTeams) {
+            const awayTeamKey: 'a' | 'b' = homeTeamKey === 'a' ? 'b' : 'a';
+            const homeTeam = resolvedRyderTeams[homeTeamKey];
+            const awayTeam = resolvedRyderTeams[awayTeamKey];
+            const homeCount = roster.rowSplits[0];
+            const homePlayers = orderedPlayers.slice(0, homeCount);
+            const awayPlayers = orderedPlayers.slice(homeCount);
+            return (
+              <View
+                style={[s.avatarRail, { top: avatarRailTop }]}
+                pointerEvents="none"
+              >
+                {/* Home team label + row */}
+                <Text
+                  style={[s.ryderTeamLabel, { color: homeTeam.color }]}
+                >
+                  {homeTeam.name.toUpperCase()}
+                </Text>
+                {renderRow(homePlayers, 0, {
+                  key: 'home',
+                  // ryderLabelOffset is label-TOP to avatar-TOP. Label
+                  // line height ~12 means we need (32-12)=20px of margin.
+                  marginTop: TL.ryderLabelOffset - 12,
+                  teamColor: homeTeam.color,
+                  teamGlow: homeTeam.glow,
+                })}
+                {/* Away team label + row */}
+                <Text
+                  style={[
+                    s.ryderTeamLabel,
+                    {
+                      color: awayTeam.color,
+                      marginTop: TL.ryderInterRailGap,
+                    },
+                  ]}
+                >
+                  {awayTeam.name.toUpperCase()}
+                </Text>
+                {renderRow(awayPlayers, homeCount, {
+                  key: 'away',
+                  marginTop: TL.ryderLabelOffset - 12,
+                  teamColor: awayTeam.color,
+                  teamGlow: awayTeam.glow,
+                })}
+              </View>
+            );
+          }
+
+          // ── ryder-undrafted: pin + 2 rows in one rail ────────────
+          if (roster.variant === 'ryder-undrafted') {
+            let cumIdx = 0;
+            return (
+              <View
+                style={[s.avatarRail, { top: avatarRailTop }]}
+                pointerEvents="none"
+              >
+                <View style={s.draftPinBox}>
+                  <Text style={s.draftPinText}>DRAFT NIGHT TBD</Text>
+                </View>
+                {roster.rowSplits.map((count, rowIdx) => {
+                  const rowStart = cumIdx;
+                  cumIdx += count;
+                  const rowPlayers = orderedPlayers.slice(
+                    rowStart,
+                    rowStart + count,
+                  );
+                  return renderRow(rowPlayers, rowStart, {
+                    key: rowIdx,
+                    marginTop:
+                      rowIdx === 0 ? PIN_TO_RAIL_GAP : roster.gap,
+                  });
+                })}
+              </View>
+            );
+          }
+
+          // ── Non-Ryder (standard / medium / large) ────────────────
+          let cumIdx = 0;
+          return (
+            <View
+              style={[s.avatarRail, { top: avatarRailTop }]}
+              pointerEvents="none"
+            >
+              {roster.rowSplits.map((count, rowIdx) => {
                 const rowStart = cumIdx;
                 cumIdx += count;
-                const rowPlayers = orderedPlayers.slice(rowStart, rowStart + count);
-                return (
-                  <View
-                    key={rowIdx}
-                    style={[
-                      s.avatarRow,
-                      { gap: roster.gap, marginTop: rowIdx > 0 ? roster.gap : 0 },
-                    ]}
-                  >
-                    {rowPlayers.map((player, colIdx) => {
-                      const absIdx = rowStart + colIdx;
-                      const progress = avatarProgresses[absIdx];
-                      return (
-                        <Animated.View
-                          key={`${player.name}-${absIdx}`}
-                          style={{
-                            opacity: progress,
-                            transform: [
-                              {
-                                translateY: progress.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [8, 0],
-                                }),
-                              },
-                            ],
-                          }}
-                        >
-                          <TripLaunchedAvatar
-                            name={player.name}
-                            avatarUrl={player.avatarUrl}
-                            size={roster.avatarSize}
-                            isYou={player.isYou}
-                          />
-                        </Animated.View>
-                      );
-                    })}
-                  </View>
+                const rowPlayers = orderedPlayers.slice(
+                  rowStart,
+                  rowStart + count,
                 );
-              });
-            })()}
-          </View>
-        ) : null}
+                return renderRow(rowPlayers, rowStart, {
+                  key: rowIdx,
+                  marginTop: rowIdx > 0 ? roster.gap : 0,
+                });
+              })}
+            </View>
+          );
+        })()}
 
         {/* Sentence + you-underline. Single continuous Text (with a
             nested <Text> for "you") so wrapping flows as one paragraph
@@ -1357,6 +1553,30 @@ const s = StyleSheet.create({
   avatarRow: {
     flexDirection: 'row',
     // gap is set inline (depends on roster variant)
+  },
+
+  // Ryder Cup — drafted modes
+  ryderTeamLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2.4,
+    textAlign: 'center',
+    // color set inline (per team: red / blue / custom)
+  },
+
+  // Ryder Cup — undrafted "DRAFT NIGHT TBD" pin
+  draftPinBox: {
+    borderWidth: 1,
+    borderColor: TL.brandGold,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  draftPinText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2.4,
+    color: TL.brandGold,
+    textAlign: 'center',
   },
 
   sentenceWrap: {

@@ -52,7 +52,7 @@ import { PlayerStatsTabs } from '../../src/components/PlayerStatsTabs';
 import { MOCK_PLAYER_STATS } from '../../src/data/playerStats';
 // [DEV HARNESS] Preview wiring for the Trip Launched cinematic — kept through Beats 3+4 buildout, remove before shipping.
 import { DormieMomentTripLaunched } from '../../src/components/wizard/trip-launched/DormieMomentTripLaunched';
-import type { TripLaunchedPlayer } from '../../src/components/wizard/trip-launched/roster';
+import type { RyderTeams, TripLaunchedPlayer } from '../../src/components/wizard/trip-launched/roster';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
 
@@ -119,25 +119,91 @@ const HARNESS_VARIANTS: Array<{
   { label: '11', players: HARNESS_PLAYERS.eleven },
 ];
 
-// Cartesian product: 4 variants × 3 time modes = 12 entries
-const TRIP_LAUNCHED_ROTATION: Array<{
+// Ryder Cup harness rosters (Phase 1.9e). 12 players each.
+const RYDER_NAMES = [
+  'Ian', 'Drew', 'Jake', 'Tommy', 'Marcus', 'Cal',
+  'Dev', 'Will', 'Pete', 'Sam', 'Ryan', 'Chris',
+];
+
+// Undrafted: 12 players, NO team assignments. Drew + Jake are the
+// two captains (mark via isCaptain). Ian is "you" but doesn't anchor
+// the rail per the undrafted exception (original order preserved).
+const RYDER_UNDRAFTED_PLAYERS: TripLaunchedPlayer[] = RYDER_NAMES.map(
+  (name, i) => ({
+    name,
+    isYou: i === 0, // Ian
+    isCaptain: i === 1 || i === 2, // Drew + Jake
+    avatarUrl: i < 6 ? PRAVATAR(i + 1) : undefined, // mix photos + monograms
+  }),
+);
+
+// Drafted (default + custom): 12 players, 6 per team. Ian on team 'a'.
+// First 6 names go to team 'a', second 6 to team 'b'.
+const RYDER_DRAFTED_PLAYERS: TripLaunchedPlayer[] = RYDER_NAMES.map(
+  (name, i) => ({
+    name,
+    isYou: i === 0, // Ian
+    team: i < 6 ? 'a' : 'b',
+    avatarUrl: i < 6 ? PRAVATAR(i + 1) : undefined,
+  }),
+);
+
+const RYDER_CUSTOM_TEAMS: RyderTeams = {
+  a: { name: 'The Generals', color: '#5C4033', glow: 'rgba(92,64,51,0.30)' },
+  b: { name: 'The Outlaws', color: '#2C2C2C', glow: 'rgba(255,255,255,0.20)' },
+};
+
+type RotationEntry = {
   label: string;
   players: TripLaunchedPlayer[];
   primary: string;
   secondary?: string;
   stakes: string;
-}> = HARNESS_VARIANTS.flatMap((v) =>
-  HARNESS_TIME_MODES.map((t) => ({
-    label: `${v.label} · ${t.label}`,
-    players: v.players,
-    primary: t.primary,
-    secondary: t.secondary,
-    // Solo overrides the format-derived stakes with the spec's
-    // "no-stakes" copy when paired with the casual-feeling time modes.
-    stakes:
-      v.label === 'solo' ? 'QUIET ROUND · NO STAKES' : t.stakes,
-  })),
-);
+  format?: string;
+  ryderTeams?: RyderTeams;
+};
+
+// Cartesian product (12) for non-Ryder + 3 Ryder Cup entries (15 total).
+// Ryder variants use the countdown time mode only per Ian's spec.
+const TRIP_LAUNCHED_ROTATION: RotationEntry[] = [
+  ...HARNESS_VARIANTS.flatMap((v) =>
+    HARNESS_TIME_MODES.map<RotationEntry>((t) => ({
+      label: `${v.label} · ${t.label}`,
+      players: v.players,
+      primary: t.primary,
+      secondary: t.secondary,
+      // Solo overrides the format-derived stakes with the spec's
+      // "no-stakes" copy when paired with the casual-feeling time modes.
+      stakes:
+        v.label === 'solo' ? 'QUIET ROUND · NO STAKES' : t.stakes,
+    })),
+  ),
+  {
+    label: 'ryder undrafted · countdown',
+    players: RYDER_UNDRAFTED_PLAYERS,
+    primary: 'T-149 DAYS',
+    secondary: 'OCTOBER 2026',
+    stakes: 'RYDER CUP · DRAFT PENDING',
+    format: 'ryderCup',
+  },
+  {
+    label: 'ryder drafted-default · countdown',
+    players: RYDER_DRAFTED_PLAYERS,
+    primary: 'T-149 DAYS',
+    secondary: 'OCTOBER 2026',
+    stakes: 'RYDER CUP · 6 vs 6',
+    format: 'ryderCup',
+  },
+  {
+    label: 'ryder drafted-custom · countdown',
+    players: RYDER_DRAFTED_PLAYERS,
+    primary: 'T-149 DAYS',
+    secondary: 'OCTOBER 2026',
+    stakes: 'RYDER CUP · 6 vs 6',
+    format: 'ryderCup',
+    ryderTeams: RYDER_CUSTOM_TEAMS,
+  },
+];
 
 type RecentRound = {
   id: string;
@@ -1356,7 +1422,7 @@ export default function ProfileScreen() {
                 <Ionicons name="play-outline" size={16} color={c.textMuted} />
               </Pressable>
               <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
-                Cycles 4 variants × 3 time modes (12 combos)
+                12 non-Ryder combos + 3 Ryder Cup states (15 total)
               </Text>
             </>
           )}
@@ -1383,6 +1449,8 @@ export default function ProfileScreen() {
           dateSecondary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].secondary}
           players={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].players}
           stakes={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].stakes}
+          format={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].format}
+          ryderTeams={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].ryderTeams}
           __devTapToDismiss
         />
       )}
