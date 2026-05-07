@@ -26,7 +26,13 @@ import type { PerGameStakeConfig } from '../PerGameStakeInput';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
-export type WizardPersona = 'booker' | 'planner' | 'duplicate' | null;
+/** Trip-type / persona selected at Step 0. The three values map to
+ *  the strategic personas (Booker / Planner / Annual Repeater) but are
+ *  named by their trip-type entry point so the action surface reads
+ *  cleanly across the wizard. Annual Repeater (duplicate) routes
+ *  outside the wizard via the duplicate flow — it doesn't get its own
+ *  persona key here. */
+export type WizardPersona = 'quick' | 'plan' | 'ryder' | null;
 
 export interface WizardPlayer {
   /** Stable id — Dormie user id when present, otherwise a synthetic
@@ -113,7 +119,7 @@ export type WizardAction =
   | { type: 'GOTO_STEP'; step: number }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
-  | { type: 'SET_PERSONA'; persona: WizardPersona }
+  | { type: 'SELECT_PERSONA'; persona: WizardPersona }
   | { type: 'SET_COURSE'; course: SelectedCourse | null }
   | { type: 'SET_FREE_TEXT_LOCATION'; text: string }
   | { type: 'SET_DATES'; startDate: string; endDate: string }
@@ -142,7 +148,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       };
     case 'PREV_STEP':
       return { ...state, step: Math.max(state.step - 1, 0) };
-    case 'SET_PERSONA':
+    case 'SELECT_PERSONA':
       return { ...state, persona: action.persona };
     case 'SET_COURSE':
       return { ...state, course: action.course };
