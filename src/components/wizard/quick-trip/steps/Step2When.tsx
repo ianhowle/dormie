@@ -33,80 +33,36 @@ import { useTheme } from '../../../../theme/ThemeContext';
 import { GEO } from '../../../../theme/fonts';
 import { haptics } from '../../../../lib/haptics';
 import { useWizard } from '../WizardContext';
+import {
+  toYMD,
+  fromYMD,
+  todayYMD,
+  tomorrowYMD,
+  nextSaturdayYMD,
+  formatLongDate,
+  daysBetweenYMD,
+  countdownLabel,
+} from '../dateHelpers';
+
+// Re-export for any callers (tests, future shared use).
+export {
+  toYMD,
+  fromYMD,
+  todayYMD,
+  tomorrowYMD,
+  nextSaturdayYMD,
+  formatLongDate,
+  daysBetweenYMD,
+  countdownLabel,
+};
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 
-// ─── Date helpers ─────────────────────────────────────────────────────
-
-/** Format a Date as YYYY-MM-DD using LOCAL timezone (NOT toISOString,
- *  which converts to UTC and can shift the day across timezone boundaries). */
-function toYMD(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function fromYMD(s: string): Date | null {
-  if (!s) return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
-}
-
-function todayYMD(): string {
-  return toYMD(new Date());
-}
-
-function addDaysYMD(s: string, days: number): string {
-  const d = fromYMD(s);
-  if (!d) return s;
-  d.setDate(d.getDate() + days);
-  return toYMD(d);
-}
-
-function tomorrowYMD(): string {
-  return addDaysYMD(todayYMD(), 1);
-}
-
-/** Next Saturday from today. If today IS Saturday, returns NEXT week's
- *  Saturday (skip 7 days) per spec. */
-function nextSaturdayYMD(): string {
-  const d = new Date();
-  const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const daysUntilSat = dayOfWeek === 6 ? 7 : 6 - dayOfWeek;
-  d.setDate(d.getDate() + daysUntilSat);
-  return toYMD(d);
-}
-
-function formatLongDate(s: string): string {
-  const d = fromYMD(s);
-  if (!d) return '';
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
-function daysBetweenYMD(start: string, end: string): number {
-  const a = fromYMD(start);
-  const b = fromYMD(end);
-  if (!a || !b) return 0;
-  const ms = b.getTime() - a.getTime();
-  return Math.round(ms / (1000 * 60 * 60 * 24));
-}
-
-function countdownLabel(s: string): string {
-  const days = daysBetweenYMD(todayYMD(), s);
-  if (days === 0) return 'TODAY';
-  if (days === 1) return 'TOMORROW';
-  if (days < 0) return `${Math.abs(days)} DAYS AGO`;
-  return `T−${days} DAYS`;
-}
+// Date helpers extracted to ../dateHelpers (testable from ts-node
+// without RN imports). Re-exported above for any callers; this section
+// is intentionally empty.
 
 // ─── Smart-default pills ──────────────────────────────────────────────
 

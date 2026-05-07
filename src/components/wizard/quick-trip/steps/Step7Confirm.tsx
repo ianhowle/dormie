@@ -38,12 +38,6 @@ import { haptics } from '../../../../lib/haptics';
 import { useAuth } from '../../../../lib/auth';
 import { useToast } from '../../../Toast';
 import { tripsService } from '../../../../services/trips.service';
-import {
-  FORMAT_LABELS,
-  SIDE_GAME_LABELS,
-  type ScoringFormat,
-  type SideGame,
-} from '../../../../data/scoring';
 import { TripCardPreview } from '../../TripCardPreview';
 import { InvitePreview } from '../../InvitePreview';
 import { DormieMomentTripLaunched } from '../../trip-launched/DormieMomentTripLaunched';
@@ -53,86 +47,31 @@ import {
   type TripLaunchedPlayer,
 } from '../../trip-launched/roster';
 import type { Trip } from '../../../../lib/database.types';
-import { useWizard, type WizardPerGameStake } from '../WizardContext';
+import { useWizard } from '../WizardContext';
+import {
+  deriveTripName,
+  formatDateRange,
+  fireFloorReasonCopy,
+  summarizeStakesForCinematic,
+} from '../step7Helpers';
+import { fromYMD } from '../dateHelpers';
+
+// Re-export for any callers (tests, future shared use).
+export {
+  deriveTripName,
+  formatDateRange,
+  fireFloorReasonCopy,
+  summarizeStakesForCinematic,
+  fromYMD,
+};
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 
-// =============================================================
-// Helpers
-// =============================================================
-
-/** Parse a YYYY-MM-DD string in LOCAL timezone (no UTC drift). */
-function fromYMD(s: string): Date | null {
-  if (!s) return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
-}
-
-/** Title-case auto-derivation: "Pinehurst Oct 2026". The cinematic
- *  kicker / Trips-list card apply textTransform if uppercase is
- *  desired — keeps the underlying string clean. */
-function deriveTripName(courseName: string, ymd: string): string {
-  if (!courseName) return '';
-  const date = fromYMD(ymd);
-  if (!date) return courseName;
-  const month = date.toLocaleDateString('en-US', { month: 'short' });
-  return `${courseName} ${month} ${date.getFullYear()}`;
-}
-
-/** Quick Trip is single-day — formats the start date as "Oct 15, 2026". */
-function formatDateRange(ymd: string): string {
-  const d = fromYMD(ymd);
-  if (!d) return '';
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-/** Builds the cinematic stakes string from the user's selections.
- *  Returned undefined falls back to the cinematic's defaultStakes()
- *  helper, which produces "GAME TBD" / "QUIET ROUND · NO STAKES" /
- *  "RYDER CUP · DRAFT PENDING" depending on roster shape. */
-function summarizeStakesForCinematic(
-  format: ScoringFormat | null,
-  sideGames: SideGame[],
-  perGameStakes: Record<string, WizardPerGameStake>,
-): string | undefined {
-  if (!format) return undefined;
-  const label = (FORMAT_LABELS[format] ?? format).toUpperCase();
-  const formatStake = perGameStakes[format];
-  let result = label;
-  if (formatStake && formatStake.amount > 0) {
-    result += ` · $${formatStake.amount}`;
-  }
-  if (sideGames.length > 0 && sideGames.length <= 2) {
-    const labels = sideGames.map((g) =>
-      (SIDE_GAME_LABELS[g] ?? g).toUpperCase(),
-    );
-    result += ` + ${labels.join(' + ')}`;
-  } else if (sideGames.length > 2) {
-    result += ` + ${sideGames.length} GAMES`;
-  }
-  return result;
-}
-
-/** Reason copy for the disabled-launch state. Maps the fire-floor
- *  signals to user-facing language. */
-function fireFloorReasonCopy(reason: 'identity' | 'time' | 'people'): string {
-  switch (reason) {
-    case 'identity':
-      return 'Add a destination to launch';
-    case 'time':
-      return 'Add a date to launch';
-    case 'people':
-      return 'Add at least yourself to launch';
-  }
-}
+// Helpers extracted to ../step7Helpers and ../dateHelpers (testable
+// from ts-node without RN imports). Re-exported above for any callers.
 
 // =============================================================
 // Component

@@ -48,6 +48,10 @@ import { friendsService } from '../../../../services/friends.service';
 import { supabase } from '../../../../lib/supabase';
 import type { FriendshipWithUser } from '../../../../lib/database.types';
 import { useWizard, type WizardPlayer } from '../WizardContext';
+import { formatUSPhone, digitsOnly } from '../phoneHelpers';
+
+// Re-export for any callers (tests, future shared use).
+export { formatUSPhone, digitsOnly };
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 const CARD_BG = '#151312';
@@ -65,22 +69,8 @@ interface CoPlayer {
   rounds_together: number;
 }
 
-// ─── Phone formatter (US-style display) ───────────────────────────────
-// Stores raw digits internally, displays as (xxx) xxx-xxxx for US 10-digit
-// numbers. International numbers are passed through unformatted.
-
-function formatUSPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 10);
-  if (digits.length === 0) return '';
-  if (digits.length <= 3) return `(${digits}`;
-  if (digits.length <= 6)
-    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
-
-function digitsOnly(raw: string): string {
-  return raw.replace(/\D/g, '');
-}
+// Phone helpers extracted to ../phoneHelpers (testable from ts-node
+// without RN imports). Re-exported above for any callers.
 
 // =============================================================
 // Top-level Step 3 component

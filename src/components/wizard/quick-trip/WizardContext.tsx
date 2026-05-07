@@ -123,7 +123,9 @@ export interface WizardState {
   tripNameOverridden: boolean;
 }
 
-const initialState: WizardState = {
+/** Initial wizard state. Exported for stress-test harness use; runtime
+ *  code reaches it via the Provider's useReducer initialization. */
+export const INITIAL_WIZARD_STATE: WizardState = {
   step: 0,
   persona: null,
   course: null,
@@ -166,7 +168,9 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-function reducer(state: WizardState, action: WizardAction): WizardState {
+/** Pure reducer — exported for stress-test harness use. Runtime
+ *  code reaches it via WizardProvider's useReducer hook. */
+export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case 'GOTO_STEP':
       return { ...state, step: clamp(action.step, 0, TOTAL_WIZARD_STEPS - 1) };
@@ -296,7 +300,7 @@ interface WizardContextValue {
 const WizardContext = createContext<WizardContextValue | null>(null);
 
 export function WizardProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(wizardReducer, INITIAL_WIZARD_STATE);
   const canAdvance = computeCanAdvance(state);
   return (
     <WizardContext.Provider value={{ state, dispatch, canAdvance }}>
