@@ -210,9 +210,13 @@ export function computeCanAdvance(state: WizardState): boolean {
       if (!state.course) return false;
       if (state.course.id) return true;
       return state.course.name.trim().length >= 3;
+    case 2:
+      // Need a non-empty startDate. The Step 2 picker constrains
+      // selection to today-or-later, so any non-empty value is valid.
+      return state.startDate.trim().length > 0;
     default:
-      // Steps 2–7 still placeholder-validation; lands as each step's
-      // real content does (2.3–2.8).
+      // Steps 3–7 still placeholder-validation; lands as each step's
+      // real content does (2.4–2.8).
       return true;
   }
 }
