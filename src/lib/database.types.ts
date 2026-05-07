@@ -100,7 +100,7 @@ export interface Trip {
   format: string | null;
   side_games: Json;
   stakes: string | null;
-  status: 'planning' | 'upcoming' | 'active' | 'completed';
+  status: 'draft' | 'planning' | 'upcoming' | 'active' | 'completed' | 'cancelled';
   organizer_id: string;
   ryder_cup_config: RyderCupConfig | null;
   gradient: string[];
