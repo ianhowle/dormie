@@ -156,6 +156,7 @@ export type WizardAction =
   | { type: 'CLEAR_SIDE_GAMES' }
   | { type: 'SET_PER_GAME_STAKE'; key: string; stake: WizardPerGameStake }
   | { type: 'CLEAR_PER_GAME_STAKE'; key: string }
+  | { type: 'CLEAR_STAKES' }
   | { type: 'SET_TRIP_NAME'; name: string };
 
 /** Total step count — Step 0 (persona fork) through Step 7 (confirm). */
@@ -225,6 +226,8 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       delete next[action.key];
       return { ...state, perGameStakes: next };
     }
+    case 'CLEAR_STAKES':
+      return { ...state, perGameStakes: {} };
     case 'SET_TRIP_NAME':
       return { ...state, tripName: action.name, tripNameOverridden: true };
     default:
@@ -270,9 +273,14 @@ export function computeCanAdvance(state: WizardState): boolean {
       // Side games are optional — zero selections is valid. The Skip
       // link in the step body advances directly without lifting state.
       return true;
+    case 6:
+      // Stakes are optional — zero stakes is valid (settled offline).
+      // PerGameStakeInput clamps amounts to non-negative; the Skip link
+      // is a one-shot CLEAR_STAKES + advance shortcut.
+      return true;
     default:
-      // Steps 6–7 still placeholder-validation; lands as each step's
-      // real content does (2.7–2.8).
+      // Step 7 still placeholder-validation; lands as the real
+      // content does (2.8).
       return true;
   }
 }
