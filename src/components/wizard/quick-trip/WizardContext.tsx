@@ -241,9 +241,17 @@ export function computeCanAdvance(state: WizardState): boolean {
       // Need a non-empty startDate. The Step 2 picker constrains
       // selection to today-or-later, so any non-empty value is valid.
       return state.startDate.trim().length > 0;
+    case 3:
+      // Solo is valid — Step 3's self-seed guarantees state.players
+      // contains at least the organizer once auth resolves. Any
+      // non-empty roster passes.
+      return state.players.length >= 1;
+    case 4:
+      // Need exactly one format selected.
+      return state.format !== null;
     default:
-      // Steps 3–7 still placeholder-validation; lands as each step's
-      // real content does (2.4–2.8).
+      // Steps 5–7 still placeholder-validation; lands as each step's
+      // real content does (2.6–2.8).
       return true;
   }
 }
