@@ -20,9 +20,23 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { SelectedCourse } from '../../trip/CourseLocationPicker';
 import type { ScoringFormat, SideGame } from '../../../data/scoring';
 import type { PerGameStakeConfig } from '../PerGameStakeInput';
+
+/** Unified location shape covering both catalog matches and free-text
+ *  fallback. A picker selection has `id` set (with optional city/state
+ *  metadata); a "couldn't find your course?" free-text entry has only
+ *  `name`. Step 1 stores either through SET_COURSE; canAdvance gates on
+ *  presence of `id` OR a `name` of at least 3 characters. */
+export interface WizardLocationSelection {
+  /** Catalog id when the selection came from the picker; absent for
+   *  free-text fallback. */
+  id?: string;
+  name: string;
+  city?: string;
+  state?: string;
+  source?: 'local' | 'golfapi' | 'google' | 'free-text';
+}
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -60,10 +74,10 @@ export interface WizardState {
   persona: WizardPersona;
 
   // ─── Step 1 — Where ────────────────────────────────────
-  /** Course picked from the catalog (preferred). */
-  course: SelectedCourse | null;
-  /** Free-text location fallback when no catalog match. */
-  freeTextLocation: string;
+  /** Resolved location — catalog match (id present) or free-text
+   *  fallback (id absent, name only). null until the user makes a
+   *  selection. */
+  course: WizardLocationSelection | null;
 
   // ─── Step 2 — When ─────────────────────────────────────
   /** YYYY-MM-DD; empty until the user sets a date. */
@@ -102,7 +116,6 @@ const initialState: WizardState = {
   step: 0,
   persona: null,
   course: null,
-  freeTextLocation: '',
   startDate: '',
   endDate: '',
   players: [],
@@ -120,8 +133,7 @@ export type WizardAction =
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
   | { type: 'SELECT_PERSONA'; persona: WizardPersona }
-  | { type: 'SET_COURSE'; course: SelectedCourse | null }
-  | { type: 'SET_FREE_TEXT_LOCATION'; text: string }
+  | { type: 'SET_COURSE'; course: WizardLocationSelection | null }
   | { type: 'SET_DATES'; startDate: string; endDate: string }
   | { type: 'SET_PLAYERS'; players: WizardPlayer[] }
   | { type: 'SET_FORMAT'; format: ScoringFormat | null }
@@ -152,8 +164,6 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, persona: action.persona };
     case 'SET_COURSE':
       return { ...state, course: action.course };
-    case 'SET_FREE_TEXT_LOCATION':
-      return { ...state, freeTextLocation: action.text };
     case 'SET_DATES':
       return { ...state, startDate: action.startDate, endDate: action.endDate };
     case 'SET_PLAYERS':
@@ -182,14 +192,29 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 
 /** Whether the current step's data is sufficient to advance.
  *
- *  Phase 2.0: returns true for all steps so the placeholder skeleton
- *  can be navigated end-to-end. Real per-step gates land in 2.1–2.8 as
- *  each step's content + required fields are wired. The shape of the
- *  function (one signature, returns boolean) is stable from 2.0 onward
- *  — only the body grows over the build phases.
+ *  Each step's gate lands as that step's real content lands (2.1–2.8).
+ *  Steps without their content yet return true so the chassis can be
+ *  navigated end-to-end during build.
  */
-export function computeCanAdvance(_state: WizardState): boolean {
-  return true;
+export function computeCanAdvance(state: WizardState): boolean {
+  switch (state.step) {
+    case 0:
+      // Step 0 advances via persona-card tap (which dispatches NEXT_STEP
+      // along with SELECT_PERSONA). The footer Next button is hidden on
+      // Step 0 by WizardLayout, but defensively gate on persona being set
+      // to 'quick' — Plan Ahead/Ryder Cup don't continue this wizard.
+      return state.persona === 'quick';
+    case 1:
+      // Need either a catalog match (course.id) or a free-text name
+      // ≥ 3 characters.
+      if (!state.course) return false;
+      if (state.course.id) return true;
+      return state.course.name.trim().length >= 3;
+    default:
+      // Steps 2–7 still placeholder-validation; lands as each step's
+      // real content does (2.3–2.8).
+      return true;
+  }
 }
 
 // ─── Context ──────────────────────────────────────────────────────────

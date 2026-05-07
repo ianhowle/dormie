@@ -384,4 +384,72 @@ export const tripsService = {
     // Layer 3 — hardcoded curated default
     return DEFAULT_SIDE_GAMES.slice(0, limit);
   },
+
+  /** Recent courses the user has played, derived from trip_courses
+   *  joined off the user's trips. Same Layer-1 priority as the
+   *  recent-formats query (organizer trips first, then by recency).
+   *  Drafts and cancelled trips are excluded. Layers 2 and 3 don't
+   *  apply for courses — "popular cross-user courses" is a Discover
+   *  surface, not a recent-courses signal — so the result is just an
+   *  empty array when the user has no history. Phase 1.9f / Phase 2.2.
+   */
+  async getRecentCourses(
+    userId: string,
+    limit = 5,
+  ): Promise<
+    Array<{ id: string; name: string; city?: string; state?: string }>
+  > {
+    try {
+      const { data, error } = await supabase
+        .from('trip_members')
+        .select(
+          'trip:trips(status, created_at, organizer_id, trip_courses(course:courses(id, name, city, state)))',
+        )
+        .eq('user_id', userId);
+      if (error || !data) return [];
+
+      type Row = {
+        course: { id: string; name: string; city?: string; state?: string };
+        isOrganizer: boolean;
+        createdAt: number;
+      };
+      const rows: Row[] = [];
+      for (const tr of data as any[]) {
+        const t = tr.trip;
+        if (!t) continue;
+        if (t.status === 'draft' || t.status === 'cancelled') continue;
+        const trip_courses = Array.isArray(t.trip_courses) ? t.trip_courses : [];
+        for (const tc of trip_courses) {
+          const cs = tc?.course;
+          if (!cs?.id || !cs?.name) continue;
+          rows.push({
+            course: {
+              id: cs.id,
+              name: cs.name,
+              city: cs.city ?? undefined,
+              state: cs.state ?? undefined,
+            },
+            isOrganizer: t.organizer_id === userId,
+            createdAt: new Date(t.created_at).getTime(),
+          });
+        }
+      }
+      rows.sort((a, b) => {
+        if (a.isOrganizer !== b.isOrganizer) return a.isOrganizer ? -1 : 1;
+        return b.createdAt - a.createdAt;
+      });
+
+      const seen = new Set<string>();
+      const out: Row['course'][] = [];
+      for (const r of rows) {
+        if (seen.has(r.course.id)) continue;
+        seen.add(r.course.id);
+        out.push(r.course);
+        if (out.length >= limit) break;
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  },
 };

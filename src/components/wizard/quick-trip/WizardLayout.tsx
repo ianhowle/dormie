@@ -129,6 +129,10 @@ export function WizardLayout({ children }: WizardLayoutProps) {
   const isLastStep = state.step === TOTAL_WIZARD_STEPS - 1;
   // Step 0 is the persona fork (no "Step 0 of 7" label — its own header).
   const showStepCounter = state.step > 0;
+  // Step 0 advances via the persona cards (each tap dispatches
+  // SELECT_PERSONA + NEXT_STEP), so the footer Next button is redundant
+  // there. Hide it; the Back button doubles as Close at step 0.
+  const showNextButton = state.step > 0;
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
@@ -185,37 +189,42 @@ export function WizardLayout({ children }: WizardLayoutProps) {
           </Text>
         </Pressable>
 
-        <Pressable
-          onPress={handleNext}
-          disabled={!canAdvance}
-          style={({ pressed }) => [
-            s.nextBtn,
-            {
-              backgroundColor: canAdvance ? '#006747' : c.elevated,
-              borderWidth: canAdvance ? 0 : 1,
-              borderColor: canAdvance ? 'transparent' : HAIRLINE,
-              opacity: pressed ? 0.85 : 1,
-            },
-            !canAdvance && { opacity: 0.6 },
-          ]}
-        >
-          <Text
-            style={[
-              s.nextBtnText,
+        {showNextButton ? (
+          <Pressable
+            onPress={handleNext}
+            disabled={!canAdvance}
+            style={({ pressed }) => [
+              s.nextBtn,
               {
-                color: canAdvance ? '#C9A227' : c.textMuted,
-                fontFamily: GEO,
+                backgroundColor: canAdvance ? '#006747' : c.elevated,
+                borderWidth: canAdvance ? 0 : 1,
+                borderColor: canAdvance ? 'transparent' : HAIRLINE,
+                opacity: pressed ? 0.85 : 1,
               },
+              !canAdvance && { opacity: 0.6 },
             ]}
           >
-            {isLastStep ? 'DONE' : 'NEXT'}
-          </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={canAdvance ? '#C9A227' : c.textMuted}
-          />
-        </Pressable>
+            <Text
+              style={[
+                s.nextBtnText,
+                {
+                  color: canAdvance ? '#C9A227' : c.textMuted,
+                  fontFamily: GEO,
+                },
+              ]}
+            >
+              {isLastStep ? 'DONE' : 'NEXT'}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={canAdvance ? '#C9A227' : c.textMuted}
+            />
+          </Pressable>
+        ) : (
+          // Spacer keeps Back button left-aligned when Next is hidden.
+          <View />
+        )}
       </View>
     </View>
   );
