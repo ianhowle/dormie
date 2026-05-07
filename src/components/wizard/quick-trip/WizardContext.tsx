@@ -49,16 +49,27 @@ export interface WizardLocationSelection {
 export type WizardPersona = 'quick' | 'plan' | 'ryder' | null;
 
 export interface WizardPlayer {
-  /** Stable id — Dormie user id when present, otherwise a synthetic
-   *  guest/invitee key. */
+  /** Stable id — Dormie user id when 'self'/'dormie', otherwise a
+   *  synthetic key (e.g., 'guest-<timestamp>', 'sms-<timestamp>'). */
   id: string;
   name: string;
-  user_id?: string;       // Dormie account
-  guest_name?: string;    // guest player (no account)
-  phone?: string;         // SMS invitee
-  email?: string;         // email invitee
+  /** How the trip launch will reach this player:
+   *    'self'   — the wizard owner (always at state.players[0])
+   *    'dormie' — existing Dormie user invited via push
+   *    'sms'    — non-user, invited via SMS link copy on launch
+   *    'guest'  — name-only player, no invitation fires (offline-only)
+   */
+  deliveryMethod: 'self' | 'dormie' | 'sms' | 'guest';
+  avatarUrl?: string;
+  /** Phone number (SMS invite) or email (email invite). Surfaced in
+   *  Step 7's InvitePreview alongside the delivery method. */
+  phoneOrEmail?: string;
+  /** Dormie account id. Present for 'self' + 'dormie' rows. Used by
+   *  Step 7's tripsService.addMembers call. */
+  user_id?: string;
+  /** Stored for handicap-aware scoring at scoring time. Captured here
+   *  at trip-creation time but not displayed in the wizard. */
   handicap?: number;
-  isOrganizer?: boolean;  // true for the wizard owner (always at index 0)
 }
 
 export interface WizardPerGameStake {
@@ -136,6 +147,8 @@ export type WizardAction =
   | { type: 'SET_COURSE'; course: WizardLocationSelection | null }
   | { type: 'SET_DATES'; startDate: string; endDate: string }
   | { type: 'SET_PLAYERS'; players: WizardPlayer[] }
+  | { type: 'ADD_PLAYER'; player: WizardPlayer }
+  | { type: 'REMOVE_PLAYER'; playerId: string }
   | { type: 'SET_FORMAT'; format: ScoringFormat | null }
   | { type: 'SET_SIDE_GAMES'; sideGames: SideGame[] }
   | { type: 'SET_PER_GAME_STAKE'; key: string; stake: WizardPerGameStake }
@@ -168,6 +181,20 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, startDate: action.startDate, endDate: action.endDate };
     case 'SET_PLAYERS':
       return { ...state, players: action.players };
+    case 'ADD_PLAYER': {
+      // De-dupe on id — re-adding an already-present player is a no-op.
+      if (state.players.some((p) => p.id === action.player.id)) return state;
+      return { ...state, players: [...state.players, action.player] };
+    }
+    case 'REMOVE_PLAYER':
+      return {
+        ...state,
+        // Self ('deliveryMethod === self') can't be removed — defensively
+        // ignore the action if a caller tries.
+        players: state.players.filter(
+          (p) => p.id !== action.playerId || p.deliveryMethod === 'self',
+        ),
+      };
     case 'SET_FORMAT':
       return { ...state, format: action.format };
     case 'SET_SIDE_GAMES':
