@@ -1459,6 +1459,27 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
                 12 non-Ryder + 3 Ryder + 3 multi-dest (18 total)
               </Text>
+
+              {/* [DEV HARNESS] Phase 2.0 — Quick Trip wizard preview.
+                  Routes to the new /create-trip-quick wizard chassis.
+                  Production entry points (Trips tab "+", Discover, etc.)
+                  still go to the legacy /create-trip until Phase 2.9
+                  retires it. Removed when Phase 2 ships. */}
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  router.push('/create-trip-quick');
+                }}
+                style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }], marginTop: 12 }]}
+                accessibilityLabel="Preview Quick Trip wizard"
+              >
+                <Ionicons name="construct-outline" size={20} color={c.gold} />
+                <Text style={[s.settingText, { color: c.text }]}>Preview Quick Trip Wizard (2.0)</Text>
+                <Ionicons name="play-outline" size={16} color={c.textMuted} />
+              </Pressable>
+              <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
+                Phase 2.0 scaffolding — placeholder steps, real content in 2.1–2.8
+              </Text>
             </>
           )}
 
