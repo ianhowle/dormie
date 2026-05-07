@@ -70,23 +70,36 @@ export function TripLaunchedAvatar({
   teamGlow,
 }: TripLaunchedAvatarProps) {
   const bgColor = PALETTE[hashName(name) % PALETTE.length];
-  // Border priority: isYou (gold) > teamColor > neutral white-12%.
-  const borderColor = isYou
-    ? TL.championshipGold
-    : teamColor ?? 'rgba(255,255,255,0.12)';
+  // Border priority:
+  //   - With teamColor (drafted Ryder Cup): team > isYou > neutral.
+  //     Team identity is the dominant visual frame in Ryder Cup
+  //     competition; the personal "you" callout moves to the sentence
+  //     ("…and you on Team A"). All tiles in a team rail share the
+  //     team color including the user's own tile.
+  //   - Without teamColor (non-Ryder, undrafted Ryder): isYou > neutral.
+  //     The user's tile gets the championshipGold treatment to stand
+  //     out as the signature anchor.
+  // See docs/trip-launched-design-spec-2026-05-05.md for rationale.
+  const borderColor = teamColor
+    ? teamColor
+    : isYou
+      ? TL.championshipGold
+      : 'rgba(255,255,255,0.12)';
 
-  // Glow priority: isYou (gold) > teamGlow > none.
-  const glowStyle = isYou
+  // Glow priority mirrors border priority. Without team (non-Ryder /
+  // undrafted), isYou wins gold. With team (drafted Ryder), team glow
+  // wins for every tile including the user's.
+  const glowStyle = teamGlow
     ? {
-        shadowColor: TL.championshipGold,
-        shadowOpacity: 0.4,
+        shadowColor: teamGlow,
+        shadowOpacity: 1, // teamGlow is already translucent (rgba)
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 0 },
       }
-    : teamGlow
+    : isYou
       ? {
-          shadowColor: teamGlow,
-          shadowOpacity: 1, // teamGlow is already translucent (rgba)
+          shadowColor: TL.championshipGold,
+          shadowOpacity: 0.4,
           shadowRadius: 4,
           shadowOffset: { width: 0, height: 0 },
         }

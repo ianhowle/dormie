@@ -332,3 +332,226 @@ export function buildSentence(
 
   return { text: `${joinNames(others.map((p) => p.name))}.`, youAt: -1 };
 }
+
+// =============================================================
+// Phase 1.9f exports — adaptive time, fire-floor, duration, stakes
+// =============================================================
+
+const MONTH_ABBR = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+];
+const MONTH_FULL = [
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+];
+
+function isValidDate(d: unknown): d is Date {
+  return d instanceof Date && !isNaN(d.getTime());
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function isSameMonth(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+function formatTime12h(d: Date): string {
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const mm = m < 10 ? `0${m}` : `${m}`;
+  return `${h12}:${mm} ${ampm}`;
+}
+
+export interface AdaptiveTimeInput {
+  /** Trip start date — required. */
+  startDate: Date;
+  /** Trip end date — present for multi-day trips, omitted for single-
+   *  day. Triggers the range form when set. */
+  endDate?: Date;
+  /** Override for "now" — defaults to current wall clock. Useful for
+   *  storybook / preview environments and unit tests. */
+  now?: Date;
+}
+
+/** Builds the adaptive time strings (primary + optional secondary)
+ *  per the spec's three-mode logic:
+ *    < 24h     → teeTime mode    ("8:42 AM" · "TODAY"/"TOMORROW")
+ *    < 30 days → dateRange mode  ("OCT 15 – 17" · "2026")
+ *    ≥ 30 days → countdown mode  ("T-127 DAYS" · "OCTOBER 2026")
+ *
+ *  Returns null when startDate is invalid (caller should treat as
+ *  below-floor and disable the Launch button).
+ */
+export function buildAdaptiveTime(
+  input: AdaptiveTimeInput,
+): { primary: string; secondary?: string } | null {
+  if (!isValidDate(input.startDate)) return null;
+  const start = input.startDate;
+  const end =
+    input.endDate && isValidDate(input.endDate) ? input.endDate : undefined;
+  const now = input.now ?? new Date();
+
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const ONE_MONTH = 30 * ONE_DAY;
+  const msUntil = start.getTime() - now.getTime();
+
+  // Tee-time mode (< 24h): clock time + TODAY/TOMORROW label
+  if (msUntil < ONE_DAY && msUntil >= 0) {
+    const primary = formatTime12h(start);
+    const secondary = isSameDay(start, now) ? 'TODAY' : 'TOMORROW';
+    return { primary, secondary };
+  }
+
+  // Date-range mode (< 30 days): MMM D / MMM D – D / MMM D – MMM D
+  if (msUntil < ONE_MONTH && msUntil >= 0) {
+    const startMonth = MONTH_ABBR[start.getMonth()];
+    const startDay = start.getDate();
+    const year = `${start.getFullYear()}`;
+    if (!end || isSameDay(start, end)) {
+      // Single-day trip — no range dash
+      return { primary: `${startMonth} ${startDay}`, secondary: year };
+    }
+    if (isSameMonth(start, end)) {
+      // Same-month optimization: drops the second month abbrev
+      return {
+        primary: `${startMonth} ${startDay} – ${end.getDate()}`,
+        secondary: year,
+      };
+    }
+    // Cross-month range
+    return {
+      primary: `${startMonth} ${startDay} – ${MONTH_ABBR[end.getMonth()]} ${end.getDate()}`,
+      secondary: year,
+    };
+  }
+
+  // Countdown mode (≥ 30 days): T-NN DAYS · MONTH YEAR
+  const days = Math.ceil(msUntil / ONE_DAY);
+  const primary = `T-${days} DAYS`;
+  const secondary = `${MONTH_FULL[start.getMonth()]} ${start.getFullYear()}`;
+  return { primary, secondary };
+}
+
+export interface FireFloorInput {
+  /** At least one of destination / tripName / region must be non-empty. */
+  destination?: string;
+  tripName?: string;
+  region?: string;
+  /** Trip start date — required Date object. "TBD" / null / undefined
+   *  all fail the time check. */
+  startDate?: Date;
+  /** Roster — solo (length 1) is valid; empty array fails. */
+  players?: TripLaunchedPlayer[];
+}
+
+export interface FireFloorResult {
+  ok: boolean;
+  /** When ok=false, indicates which signal failed first. Consumers can
+   *  surface "Add a {reason} to launch" copy. */
+  reason?: 'identity' | 'time' | 'people';
+}
+
+/** Validates the spec's three required signals (identity / time /
+ *  people) before the cinematic is allowed to fire. The caller should
+ *  use this to gate the Launch button enable state — when ok=false,
+ *  disable with explanatory copy keyed off `reason`.
+ *
+ *  The component itself also checks this defensively and returns null
+ *  if called below floor (storybook / preview safety). */
+export function meetsFireFloor(input: FireFloorInput): FireFloorResult {
+  const hasIdentity = !!(
+    (input.destination && input.destination.trim()) ||
+    (input.tripName && input.tripName.trim()) ||
+    (input.region && input.region.trim())
+  );
+  if (!hasIdentity) return { ok: false, reason: 'identity' };
+  if (!isValidDate(input.startDate)) return { ok: false, reason: 'time' };
+  if (!input.players || input.players.length === 0) {
+    return { ok: false, reason: 'people' };
+  }
+  return { ok: true };
+}
+
+export interface TotalDurationInput {
+  players: TripLaunchedPlayer[];
+  format?: string;
+  ryderTeams?: RyderTeams;
+}
+
+/** Returns the wall-clock time (ms from cinematic start) at which Beat
+ *  4's CTA becomes interactive — i.e., when the moment is "fully
+ *  presented." Callers can use this to schedule cleanup, follow-up
+ *  routing, or analytics events.
+ *
+ *  Constants below mirror tokens.jsx and the runEntrance scheduling
+ *  inside DormieMomentTripLaunched.tsx. Keep in sync when timing
+ *  tokens change. */
+export function computeTotalDuration(input: TotalDurationInput): number {
+  const ryderState = detectRyderState(
+    input.players,
+    input.format,
+    input.ryderTeams,
+  );
+  const orderedPlayers = orderPlayersForRail(input.players, ryderState);
+  const roster = computeRoster(orderedPlayers, ryderState);
+  const sentence = buildSentence(orderedPlayers, ryderState, input.ryderTeams);
+
+  // Mirror tokens.beats.momentum.avatarRollCall + sentenceTypeOn
+  const FIRST_AVATAR_START = 2500;
+  const PER_AVATAR_DURATION = 320;
+  const SENTENCE_START_DELAY = 200;
+  const MS_PER_CHAR = 30;
+  const MAX_SENTENCE_DURATION = 800;
+  const UNDERLINE_DELAY = 200;
+  const UNDERLINE_DURATION = 380;
+  const BEAT4_CTA_OFFSET = 600;
+
+  const FIRST_LAND = FIRST_AVATAR_START + PER_AVATAR_DURATION;
+  const lastLandAt =
+    roster.variant === 'solo'
+      ? FIRST_LAND
+      : FIRST_AVATAR_START +
+        (orderedPlayers.length - 1) * roster.cadence +
+        PER_AVATAR_DURATION;
+  const sentenceStartAt = lastLandAt + SENTENCE_START_DELAY;
+  const sentenceDurMs =
+    sentence.text.length > 0
+      ? Math.min(sentence.text.length * MS_PER_CHAR, MAX_SENTENCE_DURATION)
+      : 0;
+  const sentenceEndAt = sentenceStartAt + sentenceDurMs;
+  const beat3EndAt =
+    sentence.youAt >= 0
+      ? sentenceEndAt + UNDERLINE_DELAY + UNDERLINE_DURATION
+      : sentenceEndAt;
+  return beat3EndAt + BEAT4_CTA_OFFSET;
+}
+
+/** Default stakes line when the caller doesn't provide one explicitly.
+ *  Solo + non-Ryder → "QUIET ROUND · NO STAKES". Ryder Cup branches
+ *  to undrafted ("RYDER CUP · DRAFT PENDING") or drafted ("RYDER CUP ·
+ *  6 vs 6"). Everything else falls to the spec's fire-floor language
+ *  "GAME TBD". */
+export function defaultStakes(
+  format?: string,
+  players?: TripLaunchedPlayer[],
+  ryderTeams?: RyderTeams,
+): string {
+  const ryderState = detectRyderState(players ?? [], format, ryderTeams);
+  if (ryderState === 'undrafted') return 'RYDER CUP · DRAFT PENDING';
+  if (ryderState) {
+    // drafted-default | drafted-custom
+    return 'RYDER CUP · 6 vs 6';
+  }
+  if (players && players.length === 1) return 'QUIET ROUND · NO STAKES';
+  return 'GAME TBD';
+}
+

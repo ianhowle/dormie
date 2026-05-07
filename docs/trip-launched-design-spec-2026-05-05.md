@@ -146,6 +146,14 @@ Detected by `format === 'ryderCup'` × team assignment.
 - Possessive handles trailing `s`: `"The Generals'"` not `"The Generals's"`
 - Example: *"The Generals' 6 vs. The Outlaws' 6 — and you on The Generals."*
 
+### Avatar border + glow priority
+
+Default (non-Ryder and undrafted Ryder): **isYou > teamColor > neutral**. The user's tile takes the championshipGold treatment so they stand out as the signature anchor.
+
+Drafted Ryder (`drafted-default` and `drafted-custom`): **teamColor > isYou > neutral**. Team identity is the dominant visual frame in Ryder Cup competition — the user's tile takes the team color like every other tile in their rail. The personal "you" callout shifts to the sentence (*"…and you on Team A"*) rather than visual differentiation on the avatar.
+
+Reviewed and confirmed on phone in Phase 1.9e (2026-05-06) — the override is intentional. Future implementers should preserve this hierarchy unless explicitly redesigning the Ryder Cup visual frame.
+
 ## Multi-Destination Trips
 
 `trip.tripName` overrides `trip.destination` as italic Georgia hero. Subtitle becomes the courses or regional context.

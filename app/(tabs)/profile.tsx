@@ -161,6 +161,11 @@ type RotationEntry = {
   stakes: string;
   format?: string;
   ryderTeams?: RyderTeams;
+  /** Multi-destination overrides (Phase 1.9f). When tripName is set,
+   *  it becomes the hero and subtitle renders below it. */
+  destination?: string;
+  tripName?: string;
+  subtitle?: string;
 };
 
 // Cartesian product (12) for non-Ryder + 3 Ryder Cup entries (15 total).
@@ -202,6 +207,36 @@ const TRIP_LAUNCHED_ROTATION: RotationEntry[] = [
     stakes: 'RYDER CUP · 6 vs 6',
     format: 'ryderCup',
     ryderTeams: RYDER_CUSTOM_TEAMS,
+  },
+  // ─── Multi-destination variants (Phase 1.9f) ──────────────────
+  // tripName overrides destination as the hero; subtitle below renders
+  // course list / regional context. Type tier scales by tripName length.
+  {
+    label: 'sand belt run (52pt)',
+    players: HARNESS_PLAYERS.four,
+    primary: 'OCT 15 – 17',
+    secondary: '2026',
+    stakes: 'NASSAU · CLASSIC',
+    tripName: 'Sand Belt Run',
+    subtitle: 'Royal Melbourne · Kingston Heath · Victoria',
+  },
+  {
+    label: 'tennessee tour (36pt 2-line)',
+    players: HARNESS_PLAYERS.seven,
+    primary: 'T-149 DAYS',
+    secondary: 'OCTOBER 2026',
+    stakes: 'SCRAMBLE · TEAM PLAY',
+    tripName: 'Tennessee Three-Course Tour',
+    subtitle: 'Hermitage · Gaylord Springs · Vanderbilt Legends',
+  },
+  {
+    label: 'big dawgs (36pt 2-line)',
+    players: HARNESS_PLAYERS.eleven,
+    primary: 'OCT 15 – 17',
+    secondary: '2026',
+    stakes: 'MATCH PLAY · 18 HOLES',
+    tripName: 'The Big Dawgs Invitational',
+    subtitle: 'Pebble · Spyglass · Spanish Bay · MPCC',
   },
 ];
 
@@ -1422,7 +1457,7 @@ export default function ProfileScreen() {
                 <Ionicons name="play-outline" size={16} color={c.textMuted} />
               </Pressable>
               <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
-                12 non-Ryder combos + 3 Ryder Cup states (15 total)
+                12 non-Ryder + 3 Ryder + 3 multi-dest (18 total)
               </Text>
             </>
           )}
@@ -1444,7 +1479,9 @@ export default function ProfileScreen() {
             setTripLaunchedPreview(false);
             setTripLaunchedVariantIdx((idx) => (idx + 1) % TRIP_LAUNCHED_ROTATION.length);
           }}
-          destination="Hermitage"
+          destination={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].destination ?? 'Hermitage'}
+          tripName={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].tripName}
+          subtitle={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].subtitle}
           datePrimary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].primary}
           dateSecondary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].secondary}
           players={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].players}

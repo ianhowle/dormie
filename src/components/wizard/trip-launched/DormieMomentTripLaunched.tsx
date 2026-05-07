@@ -16,12 +16,13 @@ import TL from './tokens';
 import {
   buildSentence,
   computeRoster,
+  defaultStakes,
   detectRyderState,
+  meetsFireFloor,
   normalizeTeamKey,
   orderPlayersForRail,
   type RosterConfig,
   type RyderState,
-  type RyderTeamConfig,
   type RyderTeams,
   type SentenceShape,
   type TripLaunchedPlayer,
@@ -179,11 +180,23 @@ export interface DormieMomentTripLaunchedProps {
    *  only), this is wired to the Android back button via onRequestClose
    *  so users can dismiss during testing. */
   onViewTrip: () => void;
-  /** Hero — italic Georgia destination or trip name. Adaptive type
-   *  sizing per char count (see getHeroFontSize). */
-  destination: string;
+  /** Hero — italic Georgia destination. Resolved with priority
+   *  tripName > destination > region. Either destination, tripName,
+   *  or region must be non-empty (fire-floor identity check). */
+  destination?: string;
+  /** Multi-destination hero override. When provided, takes priority
+   *  over destination as the italic Georgia hero, and a `subtitle`
+   *  prop is rendered below it (course list / regional context). */
+  tripName?: string;
+  /** Course list or regional context, rendered below the hero ONLY
+   *  when tripName is the resolved hero. Examples: "Royal Melbourne
+   *  · Kingston Heath · Victoria" or "Pacific Northwest". */
+  subtitle?: string;
+  /** Regional fallback for the hero when neither destination nor
+   *  tripName is set. Used by trips defined by region only. */
+  region?: string;
   /** Primary date line, e.g. "OCT 15 – 17" or "8:42 AM" or "T-127 DAYS".
-   *  Caller builds via the adaptive time helper (Phase 1.9f). */
+   *  Caller builds via the adaptive time helper (buildAdaptiveTime). */
   datePrimary: string;
   /** Optional secondary date line, e.g. "2026" or "TODAY". */
   dateSecondary?: string;
@@ -256,6 +269,9 @@ export function DormieMomentTripLaunched({
   visible,
   onViewTrip,
   destination,
+  tripName,
+  subtitle,
+  region,
   datePrimary,
   dateSecondary,
   players,
@@ -264,6 +280,29 @@ export function DormieMomentTripLaunched({
   ryderTeams,
   __devTapToDismiss,
 }: DormieMomentTripLaunchedProps) {
+  // ─── Hero resolution + fire-floor gate ─────────────────────────────────
+  // Hero priority: tripName > destination > region. When tripName is the
+  // resolved hero, the subtitle (course list / regional context) renders
+  // below it. The component defensively returns null below floor so
+  // storybook / preview environments don't crash on partial input —
+  // production callers should still pre-validate via meetsFireFloor()
+  // and gate the Launch button before invoking this component.
+  const heroText = tripName ?? destination ?? region ?? '';
+  const heroIsTripName = !!tripName;
+  const showSubtitle = heroIsTripName && !!subtitle;
+
+  // Internal fire-floor check uses a synthetic startDate (datePrimary
+  // is a presentation string, not a Date — but its presence is the
+  // proxy for "time has been resolved").
+  const belowFloor =
+    !heroText.trim() ||
+    !datePrimary.trim() ||
+    !players ||
+    players.length === 0;
+
+  // Resolve stakes: caller-provided string wins; otherwise derive from
+  // format + roster shape via the spec's fire-floor language.
+  const resolvedStakes = stakes ?? defaultStakes(format, players, ryderTeams);
   // ─── Beat 1 animated values (initialized to "hidden" state) ────────────
   const letterboxProgress = useRef(new Animated.Value(0)).current;
   const gradientOpacity = useRef(new Animated.Value(0)).current;
@@ -437,16 +476,25 @@ export function DormieMomentTripLaunched({
   const HERO_TO_DATE_GAP = 20; // tight grouping under the destination
   const HAIRLINE_TO_RAIL_GAP = 28; // matches token-implied 308−280 gap
 
-  const heroFontSize = getHeroFontSize(destination.length);
+  const heroFontSize = getHeroFontSize(heroText.length);
   const heroLineHeight = heroFontSize * TL.destinationLineH;
-  const heroLines = heroIsTwoLine(destination.length) ? 2 : 1;
+  const heroLines = heroIsTwoLine(heroText.length) ? 2 : 1;
   const heroActualH = heroLineHeight * heroLines;
+
+  // Subtitle (multi-destination only) — 14pt italic Georgia, muted,
+  // sits directly below the hero. Per spec layoutShiftSubtitle:14, we
+  // give the subtitle exactly 14pt of vertical space (font-size and
+  // line-height locked to that value) so downstream blocks shift by
+  // the spec amount.
+  const SUBTITLE_FONT_SIZE = 14;
+  const SUBTITLE_LINE_H = TL.layoutShiftSubtitle; // 14
+  const heroBlockH = heroActualH + (showSubtitle ? SUBTITLE_LINE_H : 0);
 
   const dateStackH = dateSecondary
     ? TL.dateFontSize + TL.dateSubtitleMarginTop + TL.dateFontSize
     : TL.dateFontSize;
 
-  const dateBlockTop = DESTINATION_TOP + heroActualH + HERO_TO_DATE_GAP;
+  const dateBlockTop = DESTINATION_TOP + heroBlockH + HERO_TO_DATE_GAP;
   const hairlineTop = dateBlockTop + dateStackH + TL.hairlineMarginTop;
   const avatarRailTop = hairlineTop + HAIRLINE_TO_RAIL_GAP;
 
@@ -855,6 +903,10 @@ export function DormieMomentTripLaunched({
   ]);
 
   if (!visible) return null;
+  // Defensive fire-floor gate — production callers should pre-validate
+  // via meetsFireFloor(); this guard keeps storybook / preview
+  // environments safe when partial input slips through.
+  if (belowFloor) return null;
 
   // Letterbox translation: top bar slides from -72 → 0, bottom from +72 → 0.
   const topBarTranslate = letterboxProgress.interpolate({
@@ -1052,9 +1104,40 @@ export function DormieMomentTripLaunched({
               { fontSize: heroFontSize, lineHeight: heroLineHeight },
             ]}
           >
-            {destination}
+            {heroText}
           </Text>
         </Animated.View>
+
+        {/* Subtitle — multi-destination only. Course list / regional
+            context, italic Georgia 14pt, muted, sits directly below
+            the hero. Fades in with the hero (shares destinationProgress)
+            since the two read as one editorial title block. */}
+        {showSubtitle ? (
+          <Animated.View
+            style={[
+              s.subtitleWrap,
+              {
+                top: DESTINATION_TOP + heroActualH,
+                opacity: destinationProgress,
+                transform: [{ translateY: destinationTranslate }],
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                s.subtitleText,
+                {
+                  fontSize: SUBTITLE_FONT_SIZE,
+                  lineHeight: SUBTITLE_LINE_H,
+                },
+              ]}
+            >
+              {subtitle}
+            </Text>
+          </Animated.View>
+        ) : null}
 
         {/* Gold glow sweep — championshipGold horizontal gradient that
             crosses the destination block L→R. Approximates the spec's
@@ -1369,7 +1452,7 @@ export function DormieMomentTripLaunched({
           style={[s.stakesWrap, { opacity: stakesOpacity }]}
           pointerEvents="none"
         >
-          <Text style={s.stakesText}>{stakes ?? 'GAME TBD'}</Text>
+          <Text style={s.stakesText}>{resolvedStakes}</Text>
         </Animated.View>
 
         {/* Live amber dot — top-right, begins pulsing at beat3End +400ms.
@@ -1488,6 +1571,21 @@ const s = StyleSheet.create({
     // hairline). +6pt translateX nudges the rendered text rightward to
     // align optical center with the rest of the centered stack.
     transform: [{ translateX: 6 }],
+  },
+
+  subtitleWrap: {
+    position: 'absolute',
+    left: TL.contentPadX,
+    right: TL.contentPadX,
+    // top is set inline (depends on DESTINATION_TOP + heroActualH)
+  },
+  subtitleText: {
+    fontFamily: 'Georgia',
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: TL.textMuted,
+    letterSpacing: -0.2,
+    textAlign: 'center',
   },
 
   glowSweep: {
