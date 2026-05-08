@@ -258,7 +258,11 @@ function InlineCalendar({ selected, minDate, onSelect }: InlineCalendarProps) {
                           ? 'rgba(255,255,255,0.18)'
                           : c.text,
                     fontFamily: GEO,
-                    fontWeight: isSelected || isToday ? '700' : '400',
+                    // Today is NOT bolded — only selected gets weight.
+                    // Today's orientation cue is the gold dot below the
+                    // number; bolding here would compete with the
+                    // selected-state weight signal.
+                    fontWeight: isSelected ? '700' : '400',
                   },
                 ]}
               >
@@ -478,6 +482,7 @@ const s = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: -0.4,
+    marginBottom: 24,
   },
   subtitle: {
     fontSize: 13,
@@ -533,8 +538,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: 4,
+    marginBottom: 4,
   },
   monthNavBtn: {
     width: 36,
@@ -567,8 +572,10 @@ const s = StyleSheet.create({
     paddingTop: 4,
   },
   dayCell: {
+    // 6 rows × 40pt = 240pt grid (was ~300pt with aspectRatio:1).
+    // Compresses calendar to keep tee time pills above the fold.
     width: `${100 / 7}%`,
-    aspectRatio: 1,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -577,7 +584,12 @@ const s = StyleSheet.create({
   },
   todayDot: {
     position: 'absolute',
-    bottom: 6,
+    // Center horizontally — absolute positioning ignores the parent's
+    // alignItems:center, so we anchor at 50% and pull back by half the
+    // dot width. Without this the dot sits at the cell's left edge.
+    left: '50%',
+    marginLeft: -2,
+    bottom: 4,
     width: 4,
     height: 4,
   },

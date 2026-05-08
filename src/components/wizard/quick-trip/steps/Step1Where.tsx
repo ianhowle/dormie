@@ -33,6 +33,7 @@ import { haptics } from '../../../../lib/haptics';
 import { useAuth } from '../../../../lib/auth';
 import { useToast } from '../../../Toast';
 import { tripsService } from '../../../../services/trips.service';
+import { coursesService } from '../../../../services/courses.service';
 import CourseLocationPicker from '../../../trip/CourseLocationPicker';
 import type { SelectedCourse } from '../../../trip/CourseLocationPicker';
 import { useWizard, type WizardLocationSelection } from '../WizardContext';
@@ -187,6 +188,52 @@ export function Step1Where() {
 
   const homeCourseHasRealId = !!user?.user_metadata?.home_course_id;
 
+  // Fetch home-course location from the courses table when the user
+  // has a real catalog id. user_metadata only stores id + name, so we
+  // hydrate the rest here so the card can match the recent-course
+  // card layout (name + location line).
+  //
+  // Read three fields with a fallback chain:
+  //   1. city + state (preferred — matches recent-course rendering)
+  //   2. location (always non-null per migration 003_courses.sql; used
+  //      when city/state happen to be unpopulated on this row)
+  //   3. nothing (line gracefully omits)
+  //
+  // Course type in database.types.ts doesn't expose city/state —
+  // they exist in the DB schema but the generated types are out of
+  // date (pre-existing baseline TS error at line 313). Using
+  // `as any` matches the existing pattern in trips.service.ts's
+  // getRecentCourses query.
+  const [homeCourseLocation, setHomeCourseLocation] = useState<{
+    city?: string;
+    state?: string;
+    location?: string;
+  }>({});
+
+  useEffect(() => {
+    if (!homeCourseHasRealId || !homeCourse?.id) {
+      setHomeCourseLocation({});
+      return;
+    }
+    let cancelled = false;
+    coursesService
+      .getById(homeCourse.id)
+      .then((course) => {
+        if (cancelled) return;
+        setHomeCourseLocation({
+          city: (course as any).city ?? undefined,
+          state: (course as any).state ?? undefined,
+          location: course.location ?? undefined,
+        });
+      })
+      .catch(() => {
+        // Best-effort. Card just renders without the location line.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [homeCourse?.id, homeCourseHasRealId]);
+
   // Dedupe: when the home course also appears in the recent-courses
   // list, drop it from recents so the user doesn't see the same course
   // twice on the screen. Match by id when the home course has a real
@@ -338,10 +385,29 @@ export function Step1Where() {
             <View style={s.recentBody}>
               <Text
                 style={[s.recentName, { color: c.text, fontFamily: GEO }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {homeCourse.name}
               </Text>
+              {(() => {
+                // Fallback chain: city,state → location → nothing.
+                const cityState = [
+                  homeCourseLocation.city,
+                  homeCourseLocation.state,
+                ]
+                  .filter(Boolean)
+                  .join(', ');
+                const line = cityState || homeCourseLocation.location || '';
+                if (!line) return null;
+                return (
+                  <Text
+                    style={[s.recentLocation, { color: c.textMuted }]}
+                    numberOfLines={1}
+                  >
+                    {line}
+                  </Text>
+                );
+              })()}
             </View>
           </Pressable>
         </View>
@@ -512,7 +578,7 @@ const s = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     marginTop: 4,
-    marginBottom: 24,
+    marginBottom: 36,
   },
 
   /* Section label primitive */
@@ -520,12 +586,17 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2,
-    marginBottom: 10,
+    marginBottom: 14,
   },
 
   /* Recent courses */
   recentSection: {
-    marginBottom: 24,
+    // Section-to-section breathing room. Each section header sits 28pt
+    // below the section above so YOUR HOME COURSE / RECENT COURSES
+    // each read as their own composition rather than blurring into
+    // the FIND A COURSE block. Bottom margin intentionally omitted —
+    // gap-above is the rule across all sections.
+    marginTop: 28,
   },
   recentCard: {
     flexDirection: 'row',
@@ -583,6 +654,9 @@ const s = StyleSheet.create({
 
   /* Free-text toggle link (used for both directions) */
   freeTextLink: {
+    // Link group sits 16pt below the last section. Tertiary
+    // affordance — not a section, lighter than the 28pt section gap
+    // above but enough to not collide with the section content.
     marginTop: 16,
     alignItems: 'center',
     paddingVertical: 8,
