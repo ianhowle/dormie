@@ -20,14 +20,35 @@
 // lands in Phase 2.9 polish or Phase 3.
 // =============================================================
 
+import { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../../theme/ThemeContext';
 import { GEO } from '../../../../theme/fonts';
 import { haptics } from '../../../../lib/haptics';
+import { useAuth } from '../../../../lib/auth';
 import { useToast } from '../../../Toast';
 import { useWizard, type WizardPersona } from '../WizardContext';
+
+/** Pulls the first name from user_metadata.name (the canonical
+ *  single-field name surface — see app/edit-profile.tsx and
+ *  src/services/auth.service.ts). Returns null when the name is
+ *  missing, empty, or whitespace-only so the Quick Trip card can
+ *  fall back to non-personalized copy. */
+function getFirstName(user: { user_metadata?: { name?: string } } | null): string | null {
+  const raw = user?.user_metadata?.name;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed.split(/\s+/)[0];
+}
+
+function quickTripDescription(firstName: string | null): string {
+  return firstName
+    ? `Next on the tee — ${firstName}, plus the crew.`
+    : 'Next on the tee — your group is up.';
+}
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 const TOP_ACCENT = 'rgba(255,255,255,0.12)';
@@ -40,14 +61,9 @@ interface PersonaCardConfig {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-const CARDS: PersonaCardConfig[] = [
-  {
-    persona: 'quick',
-    label: 'QUICK TRIP',
-    description:
-      'Single-day round with friends. Locked-in date, casual format, ready to launch.',
-    icon: 'flag-outline',
-  },
+// Static cards (Plan Ahead + Ryder Cup). Quick Trip's description is
+// dynamic per-user — built inside the component from auth context.
+const STATIC_CARDS: PersonaCardConfig[] = [
   {
     persona: 'plan',
     label: 'PLAN AHEAD',
@@ -70,6 +86,21 @@ export function Step0Persona() {
   const { theme } = useTheme();
   const c = theme.colors;
   const { showToast } = useToast();
+  const { user } = useAuth();
+
+  const firstName = getFirstName(user);
+  const cards: PersonaCardConfig[] = useMemo(
+    () => [
+      {
+        persona: 'quick',
+        label: 'QUICK TRIP',
+        description: quickTripDescription(firstName),
+        icon: 'flag-outline',
+      },
+      ...STATIC_CARDS,
+    ],
+    [firstName],
+  );
 
   const handleTap = (persona: Exclude<WizardPersona, null>) => {
     haptics.light();
@@ -114,7 +145,7 @@ export function Step0Persona() {
       </Text>
 
       <View style={s.cardStack}>
-        {CARDS.map((card) => (
+        {cards.map((card) => (
           <Pressable
             key={card.persona}
             onPress={() => handleTap(card.persona)}
