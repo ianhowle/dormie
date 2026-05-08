@@ -96,6 +96,11 @@ export interface WizardState {
   /** Quick Trip mirrors startDate (single-day). Plan Ahead extends to
    *  range — reserved for Phase 3. */
   endDate: string;
+  /** Optional tee time in "HH:MM" 24-hour format. null when the user
+   *  hasn't picked one (the cinematic + hero render "TEE TIME TBD"
+   *  / fall through to date-only adaptive logic). Independent from
+   *  startDate so changing the date doesn't clear the time. */
+  teeTime: string | null;
 
   // ─── Step 3 — Who ──────────────────────────────────────
   /** Roster including self at index 0 (isOrganizer:true). Solo trips
@@ -131,6 +136,7 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   course: null,
   startDate: '',
   endDate: '',
+  teeTime: null,
   players: [],
   format: null,
   sideGames: [],
@@ -145,9 +151,11 @@ export type WizardAction =
   | { type: 'GOTO_STEP'; step: number }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
+  | { type: 'RESET_WIZARD' }
   | { type: 'SELECT_PERSONA'; persona: WizardPersona }
   | { type: 'SET_COURSE'; course: WizardLocationSelection | null }
   | { type: 'SET_DATES'; startDate: string; endDate: string }
+  | { type: 'SET_TEE_TIME'; teeTime: string | null }
   | { type: 'SET_PLAYERS'; players: WizardPlayer[] }
   | { type: 'ADD_PLAYER'; player: WizardPlayer }
   | { type: 'REMOVE_PLAYER'; playerId: string }
@@ -181,12 +189,20 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       };
     case 'PREV_STEP':
       return { ...state, step: Math.max(state.step - 1, 0) };
+    case 'RESET_WIZARD':
+      // Wipe all wizard state and return to the persona fork.
+      // Used by the Step 1 multi-course off-ramp link to bounce the
+      // user back to Step 0 with a clean slate before they pivot to
+      // the Plan Ahead flow.
+      return INITIAL_WIZARD_STATE;
     case 'SELECT_PERSONA':
       return { ...state, persona: action.persona };
     case 'SET_COURSE':
       return { ...state, course: action.course };
     case 'SET_DATES':
       return { ...state, startDate: action.startDate, endDate: action.endDate };
+    case 'SET_TEE_TIME':
+      return { ...state, teeTime: action.teeTime };
     case 'SET_PLAYERS':
       return { ...state, players: action.players };
     case 'ADD_PLAYER': {

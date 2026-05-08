@@ -65,6 +65,22 @@ export function daysBetweenYMD(start: string, end: string): number {
   return Math.round(ms / (1000 * 60 * 60 * 24));
 }
 
+/** Format a "HH:MM" 24-hour string to a 12-hour display string with
+ *  AM/PM. "09:00" → "9:00 AM"; "13:30" → "1:30 PM"; "00:00" → "12:00 AM".
+ *  Returns empty string for invalid input. */
+export function formatTime12h(hhmm: string): string {
+  if (!hhmm) return '';
+  const m = hhmm.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return '';
+  const h = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  if (!Number.isFinite(h) || !Number.isFinite(mm)) return '';
+  if (h < 0 || h > 23 || mm < 0 || mm > 59) return '';
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(mm).padStart(2, '0')} ${ampm}`;
+}
+
 export function countdownLabel(s: string): string {
   const days = daysBetweenYMD(todayYMD(), s);
   if (days === 0) return 'TODAY';

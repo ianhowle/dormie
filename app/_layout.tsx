@@ -105,9 +105,13 @@ function RootLayoutNav() {
         {/* Phase 2 wizard — gestureEnabled:false so swipe-back doesn't
             accidentally lose mid-flow state. In-wizard Back button +
             Android hardware back handle step-back; X close = dismiss.
-            Legacy create-trip above stays wired to existing entry
-            points until Phase 2.9 retires it. */}
-        <Stack.Screen name="create-trip-quick" options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: false }} />
+            presentation:'fullScreenModal' (vs 'modal') gives edge-to-
+            edge coverage on iOS so the screen beneath doesn't bleed
+            above the wizard header. Paired with <StatusBar hidden />
+            in WizardLayout to suppress the system clock/signal/battery
+            during the flow — same fix pattern as Phase 1.9b's
+            DormieMomentTripLaunched modal. */}
+        <Stack.Screen name="create-trip-quick" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="course-detail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="h2h-detail" options={{ animation: 'slide_from_right' }} />

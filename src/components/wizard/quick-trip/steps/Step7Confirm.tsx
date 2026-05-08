@@ -311,8 +311,11 @@ export function Step7Confirm() {
   const adaptiveTime = useMemo(() => {
     const start = fromYMD(state.startDate);
     if (!start) return null;
-    return buildAdaptiveTime({ startDate: start });
-  }, [state.startDate]);
+    return buildAdaptiveTime({
+      startDate: start,
+      teeTime: state.teeTime,
+    });
+  }, [state.startDate, state.teeTime]);
 
   const cinematicPlayers: TripLaunchedPlayer[] = useMemo(
     () =>

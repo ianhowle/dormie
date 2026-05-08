@@ -380,6 +380,14 @@ export interface AdaptiveTimeInput {
   /** Override for "now" — defaults to current wall clock. Useful for
    *  storybook / preview environments and unit tests. */
   now?: Date;
+  /** Optional explicit tee time in "HH:MM" 24-hour format. When
+   *  provided, forces tee-time mode regardless of date proximity:
+   *  primary = formatted tee time ("9:30 AM"), secondary = relative
+   *  date label (TODAY / TOMORROW / "OCT 15" / "OCTOBER 2026").
+   *  Used by the Quick Trip wizard's Step 2 enhancement (Phase 2.9)
+   *  where the user can pick a tee time pill independently of how
+   *  far out the date is. */
+  teeTime?: string | null;
 }
 
 /** Builds the adaptive time strings (primary + optional secondary)
@@ -403,6 +411,58 @@ export function buildAdaptiveTime(
   const ONE_DAY = 24 * 60 * 60 * 1000;
   const ONE_MONTH = 30 * ONE_DAY;
   const msUntil = start.getTime() - now.getTime();
+
+  // Explicit tee-time override — user picked a time pill. Forces
+  // tee-time mode regardless of date proximity. Primary is the
+  // formatted clock time; secondary is a relative date label that
+  // mirrors the existing < 24h branch's TODAY/TOMORROW semantics
+  // and extends to MMM D / MONTH YEAR for further-out dates.
+  if (input.teeTime) {
+    const m = input.teeTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      const hh = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      if (
+        Number.isFinite(hh) && Number.isFinite(mm) &&
+        hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59
+      ) {
+        const combined = new Date(
+          start.getFullYear(),
+          start.getMonth(),
+          start.getDate(),
+          hh,
+          mm,
+          0,
+          0,
+        );
+        const startMid = new Date(
+          start.getFullYear(),
+          start.getMonth(),
+          start.getDate(),
+        );
+        const todayMid = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        );
+        const daysDiff = Math.round(
+          (startMid.getTime() - todayMid.getTime()) / ONE_DAY,
+        );
+        let secondary: string;
+        if (daysDiff === 0) {
+          secondary = 'TODAY';
+        } else if (daysDiff === 1) {
+          secondary = 'TOMORROW';
+        } else if (daysDiff > 0 && daysDiff < 30) {
+          secondary = `${MONTH_ABBR[start.getMonth()]} ${start.getDate()}`;
+        } else {
+          secondary = `${MONTH_FULL[start.getMonth()]} ${start.getFullYear()}`;
+        }
+        return { primary: formatTime12h(combined), secondary };
+      }
+    }
+    // Invalid teeTime string — fall through to date-only logic.
+  }
 
   // Tee-time mode (< 24h): clock time + TODAY/TOMORROW label
   if (msUntil < ONE_DAY && msUntil >= 0) {

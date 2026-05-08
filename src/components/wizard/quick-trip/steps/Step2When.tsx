@@ -42,6 +42,7 @@ import {
   formatLongDate,
   daysBetweenYMD,
   countdownLabel,
+  formatTime12h,
 } from '../dateHelpers';
 
 // Re-export for any callers (tests, future shared use).
@@ -54,6 +55,7 @@ export {
   formatLongDate,
   daysBetweenYMD,
   countdownLabel,
+  formatTime12h,
 };
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
@@ -77,6 +79,27 @@ const PILLS: PillSpec[] = [
   { key: 'tomorrow', label: 'Tomorrow', resolveDate: tomorrowYMD },
   { key: 'saturday', label: 'This Saturday', resolveDate: nextSaturdayYMD },
 ];
+
+// ─── Tee time options (Phase 2.9 enhancement) ──────────────────────────
+// 22 pills, 30-minute intervals from 6:00 AM through 4:30 PM. Stored
+// as 24-hour HH:MM strings so the cinematic + back-end speak the same
+// shape; rendered as 12-hour AM/PM via formatTime12h.
+
+interface TeeTimeOption {
+  value: string; // "06:00" through "16:30"
+  label: string; // "6:00 AM" through "4:30 PM"
+}
+
+const TEE_TIME_OPTIONS: TeeTimeOption[] = (() => {
+  const out: TeeTimeOption[] = [];
+  for (let hour = 6; hour <= 16; hour++) {
+    for (const minute of [0, 30] as const) {
+      const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      out.push({ value, label: formatTime12h(value) });
+    }
+  }
+  return out;
+})();
 
 // ─── Inline calendar ──────────────────────────────────────────────────
 
@@ -282,19 +305,43 @@ export function Step2When() {
   }, [state.startDate]);
 
   const longDate = state.startDate ? formatLongDate(state.startDate) : '';
-  const countdown = state.startDate ? countdownLabel(state.startDate) : '';
+  const countdownBase = state.startDate ? countdownLabel(state.startDate) : '';
+
+  // Hero countdown line composes the relative-date label with a
+  // tee-time status suffix. When user has picked a time, show it;
+  // when not, render "TEE TIME TBD" so the surface is honest about
+  // what's still pending.
+  const teeTimeSuffix = state.teeTime
+    ? ` · ${formatTime12h(state.teeTime)} TEE TIME`
+    : ' · TEE TIME TBD';
+  const heroCountdown = countdownBase
+    ? `${countdownBase}${teeTimeSuffix}`
+    : '';
+
+  const handleTeeTimeTap = (value: string) => {
+    haptics.light();
+    // Tapping an already-selected pill deselects (returns to TBD).
+    if (state.teeTime === value) {
+      dispatch({ type: 'SET_TEE_TIME', teeTime: null });
+    } else {
+      dispatch({ type: 'SET_TEE_TIME', teeTime: value });
+    }
+  };
+
+  const handleClearTeeTime = () => {
+    haptics.light();
+    dispatch({ type: 'SET_TEE_TIME', teeTime: null });
+  };
 
   return (
     <ScrollView
       contentContainerStyle={s.scroll}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
+      {/* Header — subtitle dropped per Phase 2.9 voice review; the
+          pills + calendar + tee-time picker carry the affordance. */}
       <Text style={[s.prompt, { color: c.text, fontFamily: GEO }]}>
         When are you playing?
-      </Text>
-      <Text style={[s.subtitle, { color: c.textMuted }]}>
-        Pick a quick option or any day on the calendar.
       </Text>
 
       {/* Smart-default pill row */}
@@ -341,7 +388,7 @@ export function Step2When() {
               {longDate}
             </Text>
             <Text style={[s.heroCountdown, { color: GOLD, fontFamily: GEO }]}>
-              {countdown}
+              {heroCountdown}
             </Text>
           </>
         ) : (
@@ -357,6 +404,61 @@ export function Step2When() {
         minDate={today}
         onSelect={handleSelect}
       />
+
+      {/* Tee time picker (Phase 2.9 enhancement). Optional — Step 2's
+          Next gate doesn't require a time. 22 pills, 30-min intervals
+          from 6:00 AM to 4:30 PM, horizontal scroll. */}
+      <View style={s.teeTimeSection}>
+        <Text style={[s.sectionLabel, { color: GOLD, fontFamily: GEO }]}>
+          TEE TIME
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.teeTimeRow}
+        >
+          {TEE_TIME_OPTIONS.map((opt) => {
+            const active = state.teeTime === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => handleTeeTimeTap(opt.value)}
+                style={({ pressed }) => [
+                  s.pill,
+                  {
+                    backgroundColor: active ? AUGUSTA : '#221F1D',
+                    borderColor: active ? AUGUSTA : HAIRLINE,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    s.pillText,
+                    { color: active ? GOLD : c.text, fontFamily: GEO },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <Pressable
+          onPress={handleClearTeeTime}
+          hitSlop={8}
+          style={({ pressed }) => [
+            s.clearTeeTimeLink,
+            { opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Text
+            style={[s.clearTeeTimeText, { color: c.textMuted, fontFamily: GEO }]}
+          >
+            Tee time TBD →
+          </Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -478,5 +580,29 @@ const s = StyleSheet.create({
     bottom: 6,
     width: 4,
     height: 4,
+  },
+
+  /* Tee time picker (Phase 2.9) */
+  teeTimeSection: {
+    marginTop: 24,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  teeTimeRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  clearTeeTimeLink: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    paddingVertical: 4,
+  },
+  clearTeeTimeText: {
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 });

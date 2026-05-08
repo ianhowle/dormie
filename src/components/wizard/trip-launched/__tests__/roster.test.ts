@@ -528,6 +528,73 @@ describe('buildAdaptiveTime', () => {
     expect(r!.primary).toMatch(/^T-\d+ DAYS$/);
     expect(r!.secondary).toBe('OCTOBER 2026');
   });
+
+  // ─── Phase 2.9: explicit teeTime override ────────────────────
+  it('teeTime override: today → "9:30 AM" / "TODAY"', () => {
+    const now = new Date(2026, 9, 15, 8, 0, 0);
+    const start = new Date(2026, 9, 15);
+    const r = buildAdaptiveTime({ startDate: start, now, teeTime: '09:30' });
+    expect(r!.primary).toBe('9:30 AM');
+    expect(r!.secondary).toBe('TODAY');
+  });
+
+  it('teeTime override: tomorrow → "9:30 AM" / "TOMORROW"', () => {
+    const now = new Date(2026, 9, 15, 8, 0, 0);
+    const start = new Date(2026, 9, 16);
+    const r = buildAdaptiveTime({ startDate: start, now, teeTime: '09:30' });
+    expect(r!.primary).toBe('9:30 AM');
+    expect(r!.secondary).toBe('TOMORROW');
+  });
+
+  it('teeTime override: 5 days out → "9:30 AM" / "OCT 20"', () => {
+    const now = new Date(2026, 9, 15);
+    const start = new Date(2026, 9, 20);
+    const r = buildAdaptiveTime({ startDate: start, now, teeTime: '09:30' });
+    expect(r!.primary).toBe('9:30 AM');
+    expect(r!.secondary).toBe('OCT 20');
+  });
+
+  it('teeTime override: 60 days out → "9:30 AM" / "OCTOBER 2026"', () => {
+    const now = new Date(2026, 7, 15); // Aug 15
+    const start = new Date(2026, 9, 14); // Oct 14 (~60 days)
+    const r = buildAdaptiveTime({ startDate: start, now, teeTime: '09:30' });
+    expect(r!.primary).toBe('9:30 AM');
+    expect(r!.secondary).toBe('OCTOBER 2026');
+  });
+
+  it('teeTime override: tee time formatting matches 12h convention', () => {
+    const now = new Date(2026, 9, 15);
+    const start = new Date(2026, 9, 16);
+    expect(
+      buildAdaptiveTime({ startDate: start, now, teeTime: '06:00' })!.primary,
+    ).toBe('6:00 AM');
+    expect(
+      buildAdaptiveTime({ startDate: start, now, teeTime: '12:00' })!.primary,
+    ).toBe('12:00 PM');
+    expect(
+      buildAdaptiveTime({ startDate: start, now, teeTime: '13:30' })!.primary,
+    ).toBe('1:30 PM');
+    expect(
+      buildAdaptiveTime({ startDate: start, now, teeTime: '16:30' })!.primary,
+    ).toBe('4:30 PM');
+  });
+
+  it('teeTime null/undefined: falls through to existing adaptive logic', () => {
+    const now = new Date(2026, 9, 15);
+    const start = new Date(2026, 9, 20);
+    const r1 = buildAdaptiveTime({ startDate: start, now, teeTime: null });
+    expect(r1!.primary).toBe('OCT 20'); // date-range mode (no override)
+    const r2 = buildAdaptiveTime({ startDate: start, now });
+    expect(r2!.primary).toBe('OCT 20');
+  });
+
+  it('teeTime override: invalid HH:MM string falls through silently', () => {
+    const now = new Date(2026, 9, 15);
+    const start = new Date(2026, 9, 20);
+    const r = buildAdaptiveTime({ startDate: start, now, teeTime: 'garbage' });
+    // Falls through to date-range mode rather than throwing
+    expect(r!.primary).toBe('OCT 20');
+  });
 });
 
 // =============================================================

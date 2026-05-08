@@ -21,6 +21,7 @@ import {
   formatLongDate,
   daysBetweenYMD,
   countdownLabel,
+  formatTime12h,
 } from '../dateHelpers';
 
 import { formatUSPhone, digitsOnly } from '../phoneHelpers';
@@ -148,6 +149,33 @@ describe('formatLongDate', () => {
   });
   it('returns empty on invalid', () => {
     expect(formatLongDate('')).toBe('');
+  });
+});
+
+describe('formatTime12h (HH:MM 24h → 12h AM/PM)', () => {
+  it('morning hours', () => {
+    expect(formatTime12h('06:00')).toBe('6:00 AM');
+    expect(formatTime12h('09:30')).toBe('9:30 AM');
+    expect(formatTime12h('11:30')).toBe('11:30 AM');
+  });
+  it('noon → 12:00 PM', () => {
+    expect(formatTime12h('12:00')).toBe('12:00 PM');
+  });
+  it('afternoon hours', () => {
+    expect(formatTime12h('13:00')).toBe('1:00 PM');
+    expect(formatTime12h('16:30')).toBe('4:30 PM');
+    expect(formatTime12h('23:45')).toBe('11:45 PM');
+  });
+  it('midnight → 12:00 AM', () => {
+    expect(formatTime12h('00:00')).toBe('12:00 AM');
+    expect(formatTime12h('00:30')).toBe('12:30 AM');
+  });
+  it('returns empty on invalid input', () => {
+    expect(formatTime12h('')).toBe('');
+    expect(formatTime12h('garbage')).toBe('');
+    expect(formatTime12h('25:00')).toBe('');
+    expect(formatTime12h('12:60')).toBe('');
+    expect(formatTime12h('9:30')).toBe('9:30 AM'); // single-digit hour also valid
   });
 });
 

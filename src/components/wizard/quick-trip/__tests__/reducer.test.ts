@@ -45,6 +45,9 @@ describe('initialState', () => {
     expect(init.startDate).toBe('');
     expect(init.endDate).toBe('');
   });
+  it('teeTime null', () => {
+    expect(init.teeTime).toBeNull();
+  });
   it('empty players', () => {
     expect(init.players.length).toBe(0);
   });
@@ -99,6 +102,48 @@ describe('NEXT_STEP / PREV_STEP / GOTO_STEP', () => {
   it('GOTO_STEP clamps above last', () => {
     const s = r(init, { type: 'GOTO_STEP', step: 99 });
     expect(s.step).toBe(TOTAL_WIZARD_STEPS - 1);
+  });
+});
+
+// =============================================================
+// RESET_WIZARD
+// =============================================================
+
+describe('RESET_WIZARD', () => {
+  it('returns initial state from a fully populated wizard', () => {
+    let s = r(init, { type: 'SELECT_PERSONA', persona: 'quick' });
+    s = r(s, {
+      type: 'SET_COURSE',
+      course: { id: 'c1', name: 'Pinehurst' },
+    });
+    s = r(s, {
+      type: 'SET_DATES',
+      startDate: '2026-10-15',
+      endDate: '2026-10-15',
+    });
+    s = r(s, { type: 'SET_TEE_TIME', teeTime: '09:30' });
+    s = r(s, { type: 'SET_FORMAT', format: 'stroke_play' });
+    s = r(s, { type: 'GOTO_STEP', step: 4 });
+
+    s = r(s, { type: 'RESET_WIZARD' });
+
+    expect(s.step).toBe(0);
+    expect(s.persona).toBeNull();
+    expect(s.course).toBeNull();
+    expect(s.startDate).toBe('');
+    expect(s.teeTime).toBeNull();
+    expect(s.format).toBeNull();
+    expect(s.players.length).toBe(0);
+    expect(s.sideGames.length).toBe(0);
+    expect(Object.keys(s.perGameStakes).length).toBe(0);
+    expect(s.tripName).toBe('');
+    expect(s.tripNameOverridden).toBeFalsy();
+  });
+
+  it('reset on already-empty state is idempotent', () => {
+    const s = r(init, { type: 'RESET_WIZARD' });
+    expect(s.step).toBe(0);
+    expect(s.persona).toBeNull();
   });
 });
 
@@ -181,6 +226,42 @@ describe('SET_DATES', () => {
       endDate: '2026-10-15',
     });
     expect(s.startDate).toBe(s.endDate);
+  });
+});
+
+// =============================================================
+// SET_TEE_TIME
+// =============================================================
+
+describe('SET_TEE_TIME', () => {
+  it('sets a HH:MM tee time', () => {
+    const s = r(init, { type: 'SET_TEE_TIME', teeTime: '09:30' });
+    expect(s.teeTime).toBe('09:30');
+  });
+
+  it('clears via null', () => {
+    const seeded: WizardState = { ...init, teeTime: '09:30' };
+    const s = r(seeded, { type: 'SET_TEE_TIME', teeTime: null });
+    expect(s.teeTime).toBeNull();
+  });
+
+  it('persists across SET_DATES (date change does not clear time)', () => {
+    let s = r(init, { type: 'SET_TEE_TIME', teeTime: '09:30' });
+    s = r(s, {
+      type: 'SET_DATES',
+      startDate: '2026-10-15',
+      endDate: '2026-10-15',
+    });
+    expect(s.teeTime).toBe('09:30');
+    expect(s.startDate).toBe('2026-10-15');
+  });
+
+  it('persists across step navigation', () => {
+    let s = r(init, { type: 'SET_TEE_TIME', teeTime: '13:00' });
+    s = r(s, { type: 'NEXT_STEP' });
+    s = r(s, { type: 'NEXT_STEP' });
+    s = r(s, { type: 'PREV_STEP' });
+    expect(s.teeTime).toBe('13:00');
   });
 });
 

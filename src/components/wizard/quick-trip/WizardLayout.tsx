@@ -136,7 +136,11 @@ export function WizardLayout({ children }: WizardLayoutProps) {
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>
-      <ExpoStatusBar style={theme.isDark ? 'light' : 'dark'} />
+      {/* Hide system status bar (time / signal / battery) so the
+          wizard reads as a self-contained surface — paired with the
+          fullScreenModal presentation registered in app/_layout.tsx.
+          expo-status-bar restores prior state when the route unmounts. */}
+      <ExpoStatusBar hidden />
 
       {/* Header */}
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
