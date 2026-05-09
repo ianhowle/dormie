@@ -20,8 +20,14 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { ScoringFormat, SideGame } from '../../../data/scoring';
+import {
+  SCORING_FORMATS,
+  SIDE_GAMES,
+  type ScoringFormat,
+  type SideGame,
+} from '../../../data/scoring';
 import type { PerGameStakeConfig } from '../PerGameStakeInput';
+import { checkFormatCompatibility } from './compatibility';
 
 /** Unified location shape covering both catalog matches and free-text
  *  fallback. A picker selection has `id` set (with optional city/state
@@ -286,13 +292,34 @@ export function computeCanAdvance(state: WizardState): boolean {
       // contains at least the organizer once auth resolves. Any
       // non-empty roster passes.
       return state.players.length >= 1;
-    case 4:
-      // Need exactly one format selected.
-      return state.format !== null;
-    case 5:
+    case 4: {
+      // Need exactly one format selected AND that format must be
+      // compatible with the current roster size. If the user picked
+      // a format then went back to Step 3 and reduced the roster,
+      // the format becomes 'locked-too-few' and Step 4's footer Next
+      // gate falls (Phase 2.9 UI lock-out invalidation logic).
+      // 'recommended-mismatch' is advisory only — still advances.
+      if (!state.format) return false;
+      const fmt = SCORING_FORMATS.find((f) => f.key === state.format);
+      if (!fmt) return true; // defensive — unknown format key
+      const compat = checkFormatCompatibility(fmt, state.players.length);
+      return compat.state !== 'locked-too-few';
+    }
+    case 5: {
       // Side games are optional — zero selections is valid. The Skip
       // link in the step body advances directly without lifting state.
+      // BUT any selected side game must be compatible with the roster.
+      // Same invalidation pattern as Step 4: backing into Step 3 to
+      // shrink the roster locks BBB / Wolf-side-game etc. and falls
+      // the gate until the user deselects or grows the roster.
+      for (const key of state.sideGames) {
+        const sg = SIDE_GAMES.find((g) => g.key === key);
+        if (!sg) continue;
+        const compat = checkFormatCompatibility(sg, state.players.length);
+        if (compat.state === 'locked-too-few') return false;
+      }
       return true;
+    }
     case 6:
       // Stakes are optional — zero stakes is valid (settled offline).
       // PerGameStakeInput clamps amounts to non-negative; the Skip link

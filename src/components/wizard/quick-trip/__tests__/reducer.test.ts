@@ -574,9 +574,20 @@ describe('computeCanAdvance', () => {
     expect(computeCanAdvance({ ...init, step: 3, players: [] })).toBeFalsy();
   });
 
-  it('Step 4: format set → true', () => {
+  it('Step 4: format set + compatible roster → true', () => {
     expect(
-      computeCanAdvance({ ...init, step: 4, format: 'stroke_play' }),
+      computeCanAdvance({
+        ...init,
+        step: 4,
+        format: 'stroke_play', // min 1
+        players: [
+          {
+            id: 'u',
+            name: 'Ian',
+            deliveryMethod: 'self',
+          },
+        ],
+      }),
     ).toBeTruthy();
   });
 
@@ -584,11 +595,82 @@ describe('computeCanAdvance', () => {
     expect(computeCanAdvance({ ...init, step: 4, format: null })).toBeFalsy();
   });
 
-  it('Step 5: optional → always true', () => {
-    expect(computeCanAdvance({ ...init, step: 5 })).toBeTruthy();
+  it('Step 4: format set but locked roster → false (Phase 2.9 invalidation)', () => {
+    // wolf requires exact 4; only 1 player → locked
     expect(
-      computeCanAdvance({ ...init, step: 5, sideGames: ['skins'] }),
+      computeCanAdvance({
+        ...init,
+        step: 4,
+        format: 'wolf',
+        players: [
+          { id: 'u', name: 'Ian', deliveryMethod: 'self' },
+        ],
+      }),
+    ).toBeFalsy();
+  });
+
+  it('Step 4: format with recommended-mismatch → still true (advisory only)', () => {
+    // fourball recommends 4, with 2 players it's recommended-mismatch
+    // but still advances per spec.
+    expect(
+      computeCanAdvance({
+        ...init,
+        step: 4,
+        format: 'fourball',
+        players: [
+          { id: 'a', name: 'Ian', deliveryMethod: 'self' },
+          { id: 'b', name: 'Drew', deliveryMethod: 'dormie' },
+        ],
+      }),
     ).toBeTruthy();
+  });
+
+  it('Step 5: zero side games → true (always optional)', () => {
+    expect(computeCanAdvance({ ...init, step: 5 })).toBeTruthy();
+  });
+
+  it('Step 5: side game compatible with roster → true', () => {
+    expect(
+      computeCanAdvance({
+        ...init,
+        step: 5,
+        sideGames: ['skins'], // min 2
+        players: [
+          { id: 'a', name: 'Ian', deliveryMethod: 'self' },
+          { id: 'b', name: 'Drew', deliveryMethod: 'dormie' },
+        ],
+      }),
+    ).toBeTruthy();
+  });
+
+  it('Step 5: side game locked by roster → false (Phase 2.9 invalidation)', () => {
+    // bingo_bango_bongo requires min 3; 2 players → locked
+    expect(
+      computeCanAdvance({
+        ...init,
+        step: 5,
+        sideGames: ['bingo_bango_bongo'],
+        players: [
+          { id: 'a', name: 'Ian', deliveryMethod: 'self' },
+          { id: 'b', name: 'Drew', deliveryMethod: 'dormie' },
+        ],
+      }),
+    ).toBeFalsy();
+  });
+
+  it('Step 5: any locked side game blocks advance, even if others are compatible', () => {
+    // skins compatible (min 2), wolf locked (exact 4) — overall false.
+    expect(
+      computeCanAdvance({
+        ...init,
+        step: 5,
+        sideGames: ['skins', 'wolf'],
+        players: [
+          { id: 'a', name: 'Ian', deliveryMethod: 'self' },
+          { id: 'b', name: 'Drew', deliveryMethod: 'dormie' },
+        ],
+      }),
+    ).toBeFalsy();
   });
 
   it('Step 6: optional → always true', () => {

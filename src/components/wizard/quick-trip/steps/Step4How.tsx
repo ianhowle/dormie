@@ -42,12 +42,22 @@ import {
 } from '../../../../data/scoring';
 import { InfoDisclosureModal } from '../../InfoDisclosureModal';
 import { HelpMeChoose } from '../../HelpMeChoose';
+import { useToast } from '../../../Toast';
 import { useWizard } from '../WizardContext';
+import { checkFormatCompatibility, type CompatibilityResult } from '../compatibility';
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
+// Compatibility lock-out tokens (Phase 2.9 UI sub-phase) — muted gold
+// matching the multi-course off-ramp link from Step 1, used here for
+// requirement tags + the lock icon. Banner uses a warmer red-tinted
+// surface to signal "this needs your attention" without screaming.
+const COMPAT_TAG_COLOR = 'rgba(201,162,39,0.65)';
+const LOCK_ICON_COLOR = 'rgba(201,162,39,0.5)';
+const BANNER_BG = 'rgba(196,30,58,0.08)';
+const BANNER_BORDER = 'rgba(196,30,58,0.35)';
 
 // Match InfoDisclosureModal's complexity palette so the badges read
 // consistently across the two surfaces.
@@ -66,6 +76,27 @@ export function Step4How() {
   const { theme } = useTheme();
   const c = theme.colors;
   const { user } = useAuth();
+  const { showToast } = useToast();
+
+  const playerCount = state.players.length;
+
+  // Currently-selected format compatibility. When the user backs into
+  // Step 3 and shrinks the roster below this format's requirement, the
+  // selection becomes invalid — surface a banner above the list and
+  // gate Next via computeCanAdvance (handled in WizardContext).
+  const selectedFormatInfo = useMemo(
+    () => (state.format ? SCORING_FORMATS.find((f) => f.key === state.format) ?? null : null),
+    [state.format],
+  );
+  const selectedCompat: CompatibilityResult | null = useMemo(
+    () =>
+      selectedFormatInfo
+        ? checkFormatCompatibility(selectedFormatInfo, playerCount)
+        : null,
+    [selectedFormatInfo, playerCount],
+  );
+  const selectionInvalidated =
+    !!selectedFormatInfo && selectedCompat?.state === 'locked-too-few';
 
   // ─── Recent formats (Layer-1+2+3 fallback) ─────────────────────
   const [recentFormats, setRecentFormats] = useState<ScoringFormat[]>([]);
@@ -100,7 +131,19 @@ export function Step4How() {
   // ─── Help-me-choose state ──────────────────────────────────────
   const [showHelpMeChoose, setShowHelpMeChoose] = useState(false);
 
-  const handleSelect = (format: ScoringFormat) => {
+  const handleSelect = (format: ScoringFormat, compat: CompatibilityResult) => {
+    if (compat.state === 'locked-too-few') {
+      // Locked rows: tap surfaces a toast instead of selecting.
+      // ⓘ icon still works for education (handled separately).
+      haptics.warning();
+      showToast({
+        message: 'Add more players to unlock this format',
+        type: 'info',
+      });
+      return;
+    }
+    // 'compatible' and 'recommended-mismatch' both proceed — the
+    // mismatch tag is advisory only.
     haptics.light();
     dispatch({ type: 'SET_FORMAT', format });
   };
@@ -152,17 +195,19 @@ export function Step4How() {
           >
             {recentInfos.map((info) => {
               const selected = state.format === info.key;
+              const compat = checkFormatCompatibility(info, playerCount);
+              const locked = compat.state === 'locked-too-few';
               return (
                 <Pressable
                   key={info.key}
-                  onPress={() => handleSelect(info.key)}
+                  onPress={() => handleSelect(info.key, compat)}
                   style={({ pressed }) => [
                     s.recentPill,
                     {
                       backgroundColor: CARD_BG,
                       borderColor: selected ? AUGUSTA : HAIRLINE,
                       borderWidth: selected ? 1.5 : 1,
-                      opacity: pressed ? 0.85 : 1,
+                      opacity: locked ? 0.4 : pressed ? 0.85 : 1,
                     },
                   ]}
                 >
@@ -186,6 +231,23 @@ export function Step4How() {
         </View>
       ) : null}
 
+      {/* Invalidation banner — appears when state.format is set but
+          the current roster size puts that format into 'locked-too-few'.
+          Typical trigger: user picked a format on Step 4, went back
+          to Step 3, removed players. Footer Next is disabled via
+          computeCanAdvance until the user picks a different (compat)
+          format or grows the roster. */}
+      {selectionInvalidated && selectedFormatInfo && selectedCompat ? (
+        <View style={s.invalidationBanner}>
+          <Ionicons name="alert-circle" size={18} color="#C41E3A" />
+          <Text style={s.invalidationBannerText}>
+            {selectedFormatInfo.label} {selectedCompat.message
+              ? `— ${selectedCompat.message.toLowerCase()}`
+              : 'no longer fits this roster'}. Pick a different format or add more players.
+          </Text>
+        </View>
+      ) : null}
+
       {/* Section 2 — All formats */}
       <View style={s.section}>
         <Text style={[s.sectionLabel, { color: c.gold, fontFamily: GEO }]}>
@@ -193,10 +255,13 @@ export function Step4How() {
         </Text>
         {SCORING_FORMATS.map((info) => {
           const selected = state.format === info.key;
+          const compat = checkFormatCompatibility(info, playerCount);
+          const locked = compat.state === 'locked-too-few';
+          const advisory = compat.state === 'recommended-mismatch';
           return (
             <Pressable
               key={info.key}
-              onPress={() => handleSelect(info.key)}
+              onPress={() => handleSelect(info.key, compat)}
               style={({ pressed }) => [
                 s.formatRow,
                 {
@@ -204,12 +269,24 @@ export function Step4How() {
                   borderColor: HAIRLINE,
                   borderLeftColor: selected ? AUGUSTA : 'transparent',
                   borderLeftWidth: selected ? 3 : 0,
+                  // Press feedback applies at row level. Locked-state
+                  // dim is applied only to the inner body so the ⓘ
+                  // button stays at full opacity (users can still
+                  // read the disclosure on locked formats).
                   opacity: pressed ? 0.85 : 1,
                 },
               ]}
             >
-              <View style={s.formatRowBody}>
+              <View style={[s.formatRowBody, locked && s.lockedBody]}>
                 <View style={s.formatRowHead}>
+                  {locked ? (
+                    <Ionicons
+                      name="lock-closed"
+                      size={14}
+                      color={LOCK_ICON_COLOR}
+                      style={s.lockIcon}
+                    />
+                  ) : null}
                   <Text
                     style={[
                       s.formatName,
@@ -230,6 +307,9 @@ export function Step4How() {
                 >
                   {info.description}
                 </Text>
+                {(locked || advisory) && compat.message ? (
+                  <Text style={s.compatTag}>{compat.message}</Text>
+                ) : null}
               </View>
               <Pressable
                 onPress={() => handleOpenDisclosure(info)}
@@ -372,6 +452,43 @@ const s = StyleSheet.create({
   },
   formatRowBody: {
     flex: 1,
+  },
+  lockedBody: {
+    // Applied to the row body when compat.state === 'locked-too-few'.
+    // The ⓘ button is a sibling, NOT inside formatRowBody, so it
+    // stays at full opacity.
+    opacity: 0.4,
+  },
+  lockIcon: {
+    marginRight: 2,
+  },
+  compatTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: COMPAT_TAG_COLOR,
+    marginTop: 6,
+    fontFamily: 'Georgia',
+  },
+  /* Invalidation banner — shown above the format list when state.format
+     is set but no longer compatible (user shrunk the roster after
+     selecting). */
+  invalidationBanner: {
+    backgroundColor: BANNER_BG,
+    borderColor: BANNER_BORDER,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  invalidationBannerText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#E8E4DE',
   },
   formatRowHead: {
     flexDirection: 'row',

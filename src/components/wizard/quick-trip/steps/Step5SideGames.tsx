@@ -42,12 +42,20 @@ import {
 } from '../../../../data/scoring';
 import { InfoDisclosureModal } from '../../InfoDisclosureModal';
 import { HelpMeChoose } from '../../HelpMeChoose';
+import { useToast } from '../../../Toast';
 import { useWizard } from '../WizardContext';
+import { checkFormatCompatibility, type CompatibilityResult } from '../compatibility';
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
+// Compatibility lock-out tokens — same palette as Step 4 for visual
+// continuity across the two surfaces.
+const COMPAT_TAG_COLOR = 'rgba(201,162,39,0.65)';
+const LOCK_ICON_COLOR = 'rgba(201,162,39,0.5)';
+const BANNER_BG = 'rgba(196,30,58,0.08)';
+const BANNER_BORDER = 'rgba(196,30,58,0.35)';
 
 // Match InfoDisclosureModal + Step 4 complexity palette so all three
 // surfaces read consistently.
@@ -100,13 +108,50 @@ export function Step5SideGames() {
     [state.sideGames],
   );
 
+  const playerCount = state.players.length;
+  const { showToast } = useToast();
+
+  // Side games that were previously selected but are now incompatible
+  // with the current roster (user shrunk roster after selecting).
+  // Surfaces a banner above the list and gates Next via computeCanAdvance.
+  const invalidatedSideGames = useMemo(
+    () =>
+      state.sideGames
+        .map((key) => SIDE_GAMES.find((g) => g.key === key))
+        .filter((sg): sg is SideGameInfo => !!sg)
+        .filter(
+          (sg) =>
+            checkFormatCompatibility(sg, playerCount).state === 'locked-too-few',
+        ),
+    [state.sideGames, playerCount],
+  );
+
   // ─── Disclosure modal state ───────────────────────────────────
   const [disclosure, setDisclosure] = useState<SideGameInfo | null>(null);
 
   // ─── Help-me-choose state ─────────────────────────────────────
   const [showHelpMeChoose, setShowHelpMeChoose] = useState(false);
 
-  const handleToggle = (sideGame: SideGame) => {
+  const handleToggle = (sideGame: SideGame, compat: CompatibilityResult) => {
+    if (compat.state === 'locked-too-few') {
+      // Locked side game tap → toast, no toggle. Allows the user to
+      // deselect a previously-selected side game even if it's now
+      // locked (the toggle still fires for currently-selected
+      // entries — see selected check below).
+      const isSelected = selectedSet.has(sideGame);
+      if (isSelected) {
+        // Deselect path: always allowed, even if locked.
+        haptics.light();
+        dispatch({ type: 'TOGGLE_SIDE_GAME', sideGame });
+        return;
+      }
+      haptics.warning();
+      showToast({
+        message: 'Add more players to unlock this side game',
+        type: 'info',
+      });
+      return;
+    }
     haptics.light();
     dispatch({ type: 'TOGGLE_SIDE_GAME', sideGame });
   };
@@ -167,17 +212,19 @@ export function Step5SideGames() {
           >
             {recentInfos.map((info) => {
               const selected = selectedSet.has(info.key);
+              const compat = checkFormatCompatibility(info, playerCount);
+              const locked = compat.state === 'locked-too-few' && !selected;
               return (
                 <Pressable
                   key={info.key}
-                  onPress={() => handleToggle(info.key)}
+                  onPress={() => handleToggle(info.key, compat)}
                   style={({ pressed }) => [
                     s.recentPill,
                     {
                       backgroundColor: CARD_BG,
                       borderColor: selected ? AUGUSTA : HAIRLINE,
                       borderWidth: selected ? 1.5 : 1,
-                      opacity: pressed ? 0.85 : 1,
+                      opacity: locked ? 0.4 : pressed ? 0.85 : 1,
                     },
                   ]}
                 >
@@ -210,6 +257,21 @@ export function Step5SideGames() {
         </View>
       ) : null}
 
+      {/* Invalidation banner — shown when one or more selected side
+          games are now locked due to a roster shrink. Footer Next is
+          gated by computeCanAdvance until the user deselects the
+          locked entries or grows the roster. */}
+      {invalidatedSideGames.length > 0 ? (
+        <View style={s.invalidationBanner}>
+          <Ionicons name="alert-circle" size={18} color="#C41E3A" />
+          <Text style={s.invalidationBannerText}>
+            {invalidatedSideGames.length === 1
+              ? `${invalidatedSideGames[0].label} no longer fits this roster. Tap to deselect or add more players.`
+              : `${invalidatedSideGames.length} selected side games no longer fit this roster. Deselect them or add more players.`}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Section 2 — All side games */}
       <View style={s.section}>
         <Text style={[s.sectionLabel, { color: c.gold, fontFamily: GEO }]}>
@@ -217,10 +279,17 @@ export function Step5SideGames() {
         </Text>
         {SIDE_GAMES.map((info) => {
           const selected = selectedSet.has(info.key);
+          const compat = checkFormatCompatibility(info, playerCount);
+          // A row is "locked" only when compat fails AND it's NOT
+          // currently selected. Selected-but-now-locked rows render
+          // with a warning state (banner above) but stay tappable
+          // for deselection.
+          const locked = compat.state === 'locked-too-few' && !selected;
+          const advisory = compat.state === 'recommended-mismatch';
           return (
             <Pressable
               key={info.key}
-              onPress={() => handleToggle(info.key)}
+              onPress={() => handleToggle(info.key, compat)}
               style={({ pressed }) => [
                 s.sideGameRow,
                 {
@@ -228,12 +297,23 @@ export function Step5SideGames() {
                   borderColor: HAIRLINE,
                   borderLeftColor: selected ? AUGUSTA : 'transparent',
                   borderLeftWidth: selected ? 3 : 0,
+                  // Press feedback at row level. Locked-state dim is
+                  // applied to the inner body so the ⓘ button stays
+                  // at full opacity for education.
                   opacity: pressed ? 0.85 : 1,
                 },
               ]}
             >
-              <View style={s.sideGameRowBody}>
+              <View style={[s.sideGameRowBody, locked && s.lockedBody]}>
                 <View style={s.sideGameRowHead}>
+                  {locked ? (
+                    <Ionicons
+                      name="lock-closed"
+                      size={14}
+                      color={LOCK_ICON_COLOR}
+                      style={s.lockIcon}
+                    />
+                  ) : null}
                   <Text
                     style={[
                       s.sideGameName,
@@ -254,6 +334,9 @@ export function Step5SideGames() {
                 >
                   {info.description}
                 </Text>
+                {(locked || advisory) && compat.message ? (
+                  <Text style={s.compatTag}>{compat.message}</Text>
+                ) : null}
               </View>
               {selected ? (
                 <Ionicons
@@ -424,6 +507,37 @@ const s = StyleSheet.create({
   },
   sideGameRowBody: {
     flex: 1,
+  },
+  lockedBody: {
+    opacity: 0.4,
+  },
+  lockIcon: {
+    marginRight: 2,
+  },
+  compatTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: COMPAT_TAG_COLOR,
+    marginTop: 6,
+    fontFamily: 'Georgia',
+  },
+  invalidationBanner: {
+    backgroundColor: BANNER_BG,
+    borderColor: BANNER_BORDER,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  invalidationBannerText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#E8E4DE',
   },
   sideGameRowHead: {
     flexDirection: 'row',
