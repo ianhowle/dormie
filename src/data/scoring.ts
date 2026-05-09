@@ -45,6 +45,21 @@ export type ScoreMode = 'gross' | 'net';
 
 export type Complexity = 'Beginner' | 'Casual' | 'Expert';
 
+/** Player-count constraint per format / side game. Used by Step 4 +
+ *  Step 5 of the wizard to gate selectability against state.players.length
+ *  (UI lock-out lands in a follow-up phase — Phase 2.9 ships the data). */
+export type PlayerRequirement = {
+  /** 'min'         — minimum N players, no upper bound
+   *  'exact'       — exactly N players (typical for partner formats)
+   *  'recommended' — N is the recommended sweet spot; range may
+   *                  describe a wider workable window */
+  type: 'min' | 'exact' | 'recommended';
+  count: number;
+  /** Optional display label like "2-4 players" for the recommended
+   *  case where count is the canonical default but a range works. */
+  range?: string;
+};
+
 // ─── Format config (ordered for pill display) ────────────────────────
 export type FormatInfo = {
   key: ScoringFormat;
@@ -59,6 +74,14 @@ export type FormatInfo = {
   complexity: Complexity;
   /** "When to use" callout — helps the user decide between formats. */
   whenToUse: string;
+  /** Roster shape this format wants. Drives Step 4's eventual UI
+   *  lock-out against the wizard's selected players list. */
+  playerRequirement: PlayerRequirement;
+  /** Whether the format works asynchronously across different courses
+   *  (per-player scorecard) or requires same-course timing for the
+   *  mechanic to function (real-time strategy, partner negotiation,
+   *  or per-hole pacing). Dormie-specific data point. */
+  remoteSafe: boolean;
 };
 
 export const SCORING_FORMATS: FormatInfo[] = [
@@ -72,6 +95,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Clean head-to-head measure of who played best across the whole round. The default for casual rounds and most tournaments.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'stableford',
@@ -84,6 +109,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Mixed-handicap groups, or anyone who doesn\'t want one bad hole to torpedo a whole round. Forgiving and fast-paced.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'modified_stableford',
@@ -96,30 +123,36 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Confident players who want a format that rewards risk. Best for a round where you want the scorecard to tell a story.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'match_play',
     label: 'Match Play',
-    description: 'Hole-by-hole, head-to-head',
+    description: 'Head-to-head play, hole by hole',
     fullDescription:
-      'Forget your total score. Each hole is its own match — win it, lose it, or halve it. Whoever wins more holes wins the round. The pressure is per-hole, and the math gets interesting: 4-up with 4 to play and the match is closed out.',
+      'Head-to-head play, hole by hole. Singles (1v1), Fourball (2v2), or larger team play. Requires even-numbered roster. Each hole is its own match — win it, lose it, or halve it. Whoever wins more holes wins the round. The pressure is per-hole, and the math gets interesting: 4-up with 4 to play and the match is closed out.',
     example:
       'Drew wins 1, 2, 4, 7, 9. Tommy wins 3, 5, 8. Halved on 6. Drew leads 5-3 with 9 to play.',
     complexity: 'Casual',
     whenToUse:
       'Two-person duels and 2v2 team matches. The format that produces "I\'ll close you out on 14" moments.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: false,
   },
   {
     key: 'best_ball',
     label: 'Best Ball',
-    description: "Two-player teams; lower partner's score counts",
+    description: 'Team format — flexible team structure, best score per hole counts',
     fullDescription:
-      'Two-person teams. Each player plays their own ball. Every hole, the team takes the lower of the two scores. One partner blows up while the other birdies? Team gets the birdie. Half scramble feel, all individual play.',
+      'Team format: 2 vs 2 traditional, but flexible — works with any team structure. Each player plays own ball, team uses best score per hole. One partner blows up while the other birdies? Team gets the birdie. Half scramble feel, all individual play.',
     example:
       'Drew makes 5 on hole 4, Jake makes 4. Team score: 4. Add up the team\'s better-ball scores across 18.',
     complexity: 'Casual',
     whenToUse:
       'Mixed-handicap pairs where one player can save the team on a tough hole. Strong foursome format.',
+    playerRequirement: { type: 'recommended', count: 4 },
+    remoteSafe: true,
   },
   {
     key: 'scramble',
@@ -131,6 +164,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Mixed-skill groups, charity tournaments, anyone who wants a fast pace and a low team score. The format you can play with someone who\'s never picked up a club.',
+    playerRequirement: { type: 'recommended', count: 4, range: '2-4' },
+    remoteSafe: false,
   },
   {
     key: 'wolf',
@@ -143,6 +178,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Foursomes who want strategic depth and trash talk. The most social golf format — every hole has a decision.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'shamble',
@@ -154,17 +191,21 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'When you want some scramble forgiveness without losing the individual scoring feel. Common in member-guest tournaments.',
+    playerRequirement: { type: 'recommended', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'fourball',
     label: 'Four-Ball',
-    description: "Two-player teams; better-ball every hole",
+    description: '2 vs 2 — each player plays own ball, lower score per hole',
     fullDescription:
-      'Two-person teams, each player plays their own ball, team takes the lower individual score per hole. Same engine as Best Ball — the names are interchangeable in most clubhouses. The default Ryder Cup session format.',
+      'Team format: 2 vs 2, each player plays own ball, team takes lower score per hole. Scoring engine identical to best ball but typically used for match play. The default Ryder Cup session format.',
     example: 'Drew and Tommy as a team. Hole 5: Drew makes 4, Tommy makes 5. Team score 4.',
     complexity: 'Casual',
     whenToUse:
       'Team format where every player\'s round still matters. The standard partner-format for cup competitions.',
+    playerRequirement: { type: 'recommended', count: 4 },
+    remoteSafe: true,
   },
   {
     key: 'low_high',
@@ -177,6 +218,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Even-handicap pairs who want both partners to feel pressure. Adds depth to the standard 2v2.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: true,
   },
   {
     key: 'sixsixsix',
@@ -189,6 +232,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Foursomes that want the team feel without committing to one partner. Equalizes pairings across the round — but tracking three rotating partnerships demands attention.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'alternate_shot',
@@ -200,6 +245,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Tournament partner formats. Demands trust — your partner\'s miss is your problem.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'chapman',
@@ -212,6 +259,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Partner play that tests both drives and alternate-shot rhythm. The American foursomes standard.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'greensomes',
@@ -224,6 +273,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Mixed-skill partner pairs. The strong driver still drives; the partner with the better short game finishes.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'pinehurst',
@@ -236,6 +287,8 @@ export const SCORING_FORMATS: FormatInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Member-guest tournaments and partner formats with regional traditions. Functionally Chapman.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
 ];
 
@@ -248,6 +301,14 @@ export type SideGameInfo = {
   example: string;
   complexity: Complexity;
   whenToUse: string;
+  /** Roster shape this side game wants. See FormatInfo.playerRequirement
+   *  for the type contract — same shape across both surfaces. */
+  playerRequirement: PlayerRequirement;
+  /** Whether the side game works async across different courses. Per-
+   *  player achievement bets (sandies, barkies, hogans) are remote-
+   *  safe; comparison/competition bets that need timing (Nassau,
+   *  hammer, BBB) aren't. See FormatInfo.remoteSafe for full contract. */
+  remoteSafe: boolean;
 };
 
 export const SIDE_GAMES: SideGameInfo[] = [
@@ -262,6 +323,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Casual rounds where you want a side bet that rewards lots of small moments. Every group has its own dot list.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'snake',
@@ -274,6 +337,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Any round where you want pressure on the greens. Light stakes — the snake is more about pride than money.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'greenies',
@@ -286,6 +351,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Any round on a course with multiple par 3s. Easy to track, low-stakes incentive to actually go for the pin.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'skins',
@@ -298,6 +365,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Foursome rounds that want a long-arc bet across the whole 18. Carry-overs are the magic — every halved hole raises the next one\'s stakes.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'hammer',
@@ -310,6 +379,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Match play between confident players who want to swing the round on a single hole. Best when both sides know the format.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: false,
   },
   {
     key: 'nassau',
@@ -321,6 +392,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'The default match-play side bet. Survives a bad start because the back 9 is its own bet.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: false,
   },
   {
     key: 'wolf',
@@ -333,6 +406,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Expert',
     whenToUse:
       'Foursomes playing stroke or stableford as the primary format who want partner-rotation cash on the side. Adds spice without rewriting the scorecard.',
+    playerRequirement: { type: 'exact', count: 4 },
+    remoteSafe: false,
   },
   {
     key: 'bingo_bango_bongo',
@@ -345,6 +420,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Mixed-skill foursomes. The high handicappers get points just for being away and putting first — keeps everyone in it.',
+    playerRequirement: { type: 'min', count: 3 },
+    remoteSafe: false,
   },
   {
     key: 'sandies',
@@ -357,6 +434,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Any round. Rewards the part of the game you\'re not supposed to need but always do — short-game grit.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'bark',
@@ -369,6 +448,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Any wooded course. Pure novelty — barkies are stories more than serious money.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'arnies',
@@ -380,6 +461,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Any round. Rewards the scrambler over the precision player. Pairs well with Sandies.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'close_shave',
@@ -392,6 +475,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Any round on a course with par 3s. Simple, fast, and the kind of side bet that produces a real moment when someone stuffs it.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'three_putt_poker',
@@ -404,6 +489,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Long rounds with persistent putting troubles. Turns 3-putts from a single-hole disappointment into round-long suspense.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'trash',
@@ -416,6 +503,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Groups that want all the small bets without the bookkeeping. A lazy aggregation that keeps the pace.',
+    playerRequirement: { type: 'min', count: 2 },
+    remoteSafe: true,
   },
   {
     key: 'hogans',
@@ -428,6 +517,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Confident ball-strikers who want a side bet rewarding the fundamentals. Pairs well with Sandies and Barkies (which pay when fundamentals fail).',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'murphys',
@@ -440,6 +531,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Casual',
     whenToUse:
       'Players confident in their short game who want a per-shot side bet. The wager is opt-in — only call when you\'re feeling it.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
   {
     key: 'poleys',
@@ -452,6 +545,8 @@ export const SIDE_GAMES: SideGameInfo[] = [
     complexity: 'Beginner',
     whenToUse:
       'Any round where you want a putting incentive that rewards confidence on mid-length putts.',
+    playerRequirement: { type: 'min', count: 1 },
+    remoteSafe: true,
   },
 ];
 
