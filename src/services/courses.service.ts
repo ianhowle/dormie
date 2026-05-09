@@ -175,8 +175,11 @@ export const coursesService = {
     for (const gender of ['male', 'female'] as const) {
       const genderTees = teeData[gender] ?? [];
       for (const t of genderTees) {
-        const holes: HoleInfo[] = (t.holes ?? []).map((h: any) => ({
-          number: h.number ?? h.hole_number ?? 0,
+        // GolfCourseAPI returns holes position-indexed without a `number` field;
+        // fall back to i + 1 so downstream side-game logic that keys by
+        // hole.number (greenies, skins, nassau) gets correct hole identifiers.
+        const holes: HoleInfo[] = (t.holes ?? []).map((h: any, i: number) => ({
+          number: h.number ?? h.hole_number ?? i + 1,
           par: h.par ?? 4,
           strokeIndex: h.handicap ?? h.stroke_index ?? 0,
           yards: h.yardage ?? h.yards ?? 0,
@@ -313,7 +316,35 @@ export const coursesService = {
                 strippedLocal.includes(strippedApiName));
       });
       if (seededIndividual.length > 1) {
-        // We found multiple seeded sub-courses for this resort — add them instead
+        // We found multiple seeded sub-courses for this resort — add them instead.
+        // Also: if this specific API entry's course_name matches one of the
+        // seeded sub-courses (e.g. API returns "President'S Reserve" while the
+        // seeded row is "Hermitage Golf Course - Presidents Reserve"), refresh
+        // that seeded row with the API's per-hole data. Previously this branch
+        // skipped caching entirely.
+        const apiCourseName = (course.course_name ?? '').trim();
+        if (apiCourseName) {
+          const apiCourseStripped = stripGolfWords(apiCourseName);
+          const matchingSub = apiCourseStripped
+            ? seededIndividual.find((sub) => {
+                const subStripped = stripGolfWords(sub.name);
+                return subStripped.includes(apiCourseStripped) ||
+                       apiCourseStripped.includes(subStripped);
+              })
+            : null;
+          if (matchingSub) {
+            const subTeeBoxes = this.parseTeeBoxes(course);
+            const subMaleTees = subTeeBoxes.filter((t) => t.gender === 'male');
+            const subDefaultTee = subMaleTees[0] ?? subTeeBoxes[0];
+            const subPar = subDefaultTee?.par ?? (matchingSub as any).par ?? 72;
+            const subLoc = (matchingSub as any).location ??
+              ([(matchingSub as any).city, (matchingSub as any).state].filter(Boolean).join(', '));
+            this.cacheAPICoursToSupabase(course, subTeeBoxes, subPar, subDefaultTee, {
+              name: matchingSub.name,
+              location: subLoc,
+            }).catch(() => {});
+          }
+        }
         for (const sub of seededIndividual) {
           if (!isDuplicate(sub.name)) {
             addToSeen(sub.name);
@@ -513,18 +544,25 @@ export const coursesService = {
     }
   },
 
-  /** Cache an API-found course to Supabase with data_source: 'api' for future searches. */
+  /** Cache an API-found course to Supabase with data_source: 'api' for future searches.
+   *  When `override` is provided, the row is identified by the override name/location
+   *  instead of the API-derived ones — used to refresh seeded sub-course rows
+   *  (e.g. "Hermitage Golf Course - Presidents Reserve") with API per-hole data
+   *  even when the API entry's club_name is the parent club. */
   async cacheAPICoursToSupabase(
     course: any,
     teeBoxes: TeeBox[],
     par: number,
     defaultTee?: TeeBox,
+    override?: { name: string; location: string },
   ): Promise<void> {
     try {
-      const name = course.club_name ?? course.name ?? '';
+      const apiName = course.club_name ?? course.name ?? '';
       const city = course.city ?? course.location?.city ?? '';
       const state = course.state ?? course.location?.state ?? '';
-      const loc = city && state ? `${city}, ${state}` : city || state || '';
+      const apiLoc = city && state ? `${city}, ${state}` : city || state || '';
+      const name = override?.name ?? apiName;
+      const loc = override?.location ?? apiLoc;
 
       if (!name) return;
 
@@ -558,7 +596,7 @@ export const coursesService = {
         .from('courses')
         .select('id, hole_data')
         .eq('name', name)
-        .ilike('location', `%${city || loc}%`)
+        .ilike('location', `%${city || loc || ''}%`)
         .maybeSingle();
 
       if (existing) {

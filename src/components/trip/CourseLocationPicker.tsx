@@ -25,6 +25,11 @@ export type SelectedCourse = {
   state?: string;
   par?: number;
   source?: 'local' | 'golfapi' | 'google';
+  /** Raw GolfCourseAPI course payload, attached only on results from the
+   *  searchGolfApi fallback so handleSelect can persist per-hole data
+   *  to Supabase before resolving the row id. Stripped at handleSelect
+   *  before propagating — never reaches the wizard state. */
+  _apiCourse?: any;
 };
 
 interface CourseLocationPickerProps {
@@ -132,6 +137,7 @@ export default function CourseLocationPicker({
           state: course.state ?? course.location?.state ?? '',
           par: defaultTee?.par ?? 72,
           source: 'golfapi' as const,
+          _apiCourse: course,
         };
       }).filter((c: SelectedCourse) => c.name);
 
@@ -184,11 +190,31 @@ export default function CourseLocationPicker({
     if (course.source === 'golfapi' || course.source === 'google') {
       try {
         const loc = [course.city, course.state].filter(Boolean).join(', ');
+
+        // Trip wizard previously called only ensureCourse here, which dropped
+        // the per-hole data the API had already returned. When we have the
+        // raw API payload, cache the full hole_data first so the row gets
+        // populated with par/yardage/strokeIndex per hole + per-tee aggregates.
+        if (course.source === 'golfapi' && course._apiCourse) {
+          const teeBoxes = coursesService.parseTeeBoxes(course._apiCourse);
+          const maleTees = teeBoxes.filter((t) => t.gender === 'male');
+          const defaultTee = maleTees[0] ?? teeBoxes[0];
+          const par = defaultTee?.par ?? course.par ?? 72;
+          await coursesService.cacheAPICoursToSupabase(
+            course._apiCourse,
+            teeBoxes,
+            par,
+            defaultTee,
+          );
+        }
+
         const saved = await coursesService.ensureCourse({
           name: course.name,
           location: loc,
         } as any);
-        course = { ...course, id: saved.id };
+        // Strip _apiCourse before propagating — it must not reach wizard state.
+        const { _apiCourse: _drop, ...rest } = course;
+        course = { ...rest, id: saved.id };
 
         if (course.source === 'google') {
           showToast({ message: 'Rating and slope will be filled when first played', type: 'info' });
