@@ -322,16 +322,24 @@ export const coursesService = {
         // seeded row is "Hermitage Golf Course - Presidents Reserve"), refresh
         // that seeded row with the API's per-hole data. Previously this branch
         // skipped caching entirely.
+        //
+        // Gate: only proceed when course_name names a SPECIFIC sub-course —
+        // i.e. it's distinct from the umbrella club_name. Skips API entries
+        // where course_name === club_name (umbrella records like "Hermitage /
+        // Hermitage") which would otherwise false-match shared parent fragments.
         const apiCourseName = (course.course_name ?? '').trim();
-        if (apiCourseName) {
-          const apiCourseStripped = stripGolfWords(apiCourseName);
-          const matchingSub = apiCourseStripped
-            ? seededIndividual.find((sub) => {
-                const subStripped = stripGolfWords(sub.name);
-                return subStripped.includes(apiCourseStripped) ||
-                       apiCourseStripped.includes(subStripped);
-              })
-            : null;
+        const apiCourseStripped = stripGolfWords(apiCourseName);
+        const apiClubStripped = stripGolfWords(course.club_name ?? '');
+        const isSpecificSubCourse = apiCourseStripped &&
+          apiCourseStripped !== apiClubStripped &&
+          !apiClubStripped.includes(apiCourseStripped) &&
+          !apiCourseStripped.includes(apiClubStripped);
+        if (isSpecificSubCourse) {
+          const matchingSub = seededIndividual.find((sub) => {
+            const subStripped = stripGolfWords(sub.name);
+            return subStripped.includes(apiCourseStripped) ||
+                   apiCourseStripped.includes(subStripped);
+          });
           if (matchingSub) {
             const subTeeBoxes = this.parseTeeBoxes(course);
             const subMaleTees = subTeeBoxes.filter((t) => t.gender === 'male');
