@@ -13,6 +13,46 @@
 
 ## Active Compost
 
+- 2026-05-06 — HOLE-AWARE SIDE GAMES INFRASTRUCTURE GAP (Phase 2.9 audit finding)
+
+  Audit revealed Dormie's per-hole par data is incomplete and several side games silently degrade when data is missing.
+
+  Schema reality:
+  - courses.hole_data jsonb is a single column, not a separate holes table
+  - 324 courses in production: 8 null, 216 with hole COUNT only (no per-hole pars), 100 with real per-hole arrays from GolfCourseAPI cache
+  - Hermitage Presidents Reserve (and most catalog courses) have count-only data
+  - Fallback synthesis (generateDefaultHoles) places par 3s at holes 3/8/12/17 and par 5s at 5/9/13/16 — these are guesses, not reality
+
+  Side games affected by missing per-hole pars:
+  - Greenies: filters h.par === 3 — silently uses synthesized par 3s when real data missing
+  - Dots: uses h.par for par-relative scoring — same silent degradation
+  - Bingo Bango Bongo: needs hole_number (not par specifically) — still works without par data
+  - Other side games (Skins, Snake, Sandies, etc.): no par dependency, work fine
+
+  KP (close_shave) infrastructure status:
+  - No par 3 designation anywhere
+  - trips.side_games stores flat array of game keys, no per-game configuration
+  - No buildKPResult — uses buildGenericResult ('Results tracked — detailed scoring coming soon')
+  - Manual toast prompts collect distance-to-pin entries but aren't persisted into structured KP results
+  - No auto-settlement (only nassau and skins auto-settle today)
+
+  Multi-layer feature build required to ship hole-aware side games:
+  1. Course hole data backfill — populate per-hole pars for the 216 count-only courses (likely via GolfCourseAPI batch import)
+  2. Schema migration — add side_game_config jsonb to trips OR new trip_side_game_config table for per-game per-trip configuration (KP designation, BBB hole-by-hole, etc.)
+  3. Scoring engine — buildKPResult, buildGreeniesResult improvements that handle missing par data gracefully, auto-settlement for KP
+  4. UI — Step 5 side games picker should surface 'this course doesn't have hole data, results may be approximate' warnings for greenies/dots/KP when applicable
+  5. Trip-detail/scoring flow — proper KP designation UI ('which par 3 is THE KP hole?') if going beyond per-par-3 mode
+  6. Result display — PostRoundSummary needs proper KP results card
+
+  Strategic options for v1:
+  - Option A: 'KP-on-every-par-3 + greenies-on-every-par-3' mode — no designation needed. Requires only course data backfill + result builders. Most work for least UX complexity.
+  - Option B: 'Designate one KP par 3' mode — adds designation UI in Step 5 or trip-detail. Standard golf bet structure but requires schema changes.
+  - Option C: 'Designate KP per round in multi-round trips' mode — most flexible but most complex storage.
+
+  Estimated work: 6-12 hours across at least 2-3 dedicated sessions. Pairs naturally with the existing 'catalog product debt' compost item (fourball/best_ball disambiguation, wolf format/side-game duplication, pinehurst/chapman consolidation). All of these are scoring catalog quality work.
+
+  Pre-beta priority: medium-high. Greenies and Dots SILENTLY DEGRADE on incomplete data — users won't know their KP/greenies results are computed against fake par 3s. This is a trust issue worth addressing before public launch.
+
 - 2026-05-06 — Voice diagnostic pattern: when wizard copy reads informational ("Pick a quick option or any day on the calendar"), it violates Dormie's "19th hole at the clubhouse" design DNA. The test: would this sentence appear in a generic golf app? If yes, rewrite it. The Quick Trip persona description shift from "Single-day round with friends. Locked-in date, casual format, ready to launch." to "Next on the tee — Ian, plus the crew." is the canonical example.
 - 2026-05-06 — Wizard layout convention — gap-ABOVE rule: section headers should have meaningful vertical space ABOVE them, not below. The vertical separation between distinct sections (FIND A COURSE → YOUR HOME COURSE → RECENT COURSES) should read as composition breaks. Implementation: marginTop on each section's container, NOT marginBottom on the previous section.
 - 2026-05-06 — Build pattern — data-then-UI: when adding data layer + UI together, ship data layer first (foundation), then UI second (visual treatment). Two commits, single responsibility each. Lets you fix data assignments without touching UI, and isolate UI changes for review. Used in Phase 2.9 for player-count compatibility (playerRequirement + remoteSafe added as data layer, UI lock-out queued as separate sub-phase).
