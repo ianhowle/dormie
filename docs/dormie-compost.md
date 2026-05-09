@@ -31,20 +31,53 @@
 
   This is foundational infrastructure that pairs with the previously-composted 'hole-aware side games infrastructure gap' work. Once both land, KP/greenies/dots can compute against real course data for the majority of trips.
 
-- 2026-05-06 — PAYOUT STRUCTURE OVERHAUL (Phase 2.9 audit finding, deferred)
+- 2026-05-06 — SCORING ENGINE INTEGRATION GAP (Phase 2.9 audit finding, deferred to dedicated sprint)
 
-  Current PerGameStakeInput config kinds (5 types: none / strokePlayPayout / skinsCarryOver / nassauTriple / stablefordPayoutKind) cover only basic format payout structures. Audit identified gaps:
+  Earlier compost framing assumed Dormie needed engines BUILT for missing formats. Investigation revealed the truth is messier: most engines exist but are orphaned. This is an integration problem with a tail of true gaps, not a greenfield engine build.
 
-  - Match Play: needs winner-takes-all / per-hole-won variants
-  - Best Ball / Fourball / Foursomes / Alternate Shot / Chapman / Greensomes / Pinehurst: need team-format payout (winning team splits) + match-play vs stroke-play scoring choice
-  - Wolf: needs per-point / per-hole / leader-takes-pot variants
-  - Sixsixsix: needs three-segment payout structure (similar shape to nassauTriple but for 6-hole segments)
+  Six engine layers exist in the codebase, mostly disconnected:
 
-  Estimated 60-90 minutes build + 30 minutes phone testing. Pairs naturally with the result builder audit (which side games have actual buildXResult vs fall through to buildGenericResult).
+  1. src/data/scoring.ts calculate* functions (Apr 11-12) — calculateMatchPlay (full: 2&1, 1 UP, AS, dormie, close-out), calculateBestBall, calculateScrambleTeamScore, validateScrambleScore, calculateChapmanHoleScore, calculateChapmanTotal, calculateStablefordPoints (handicap-aware), calculateModifiedStablefordPoints, calculateBestNHoles. ~600 lines, 53 + 48 passing tests. NEVER imported by any production code path. Pure orphan.
 
-  Pre-beta priority: high. Current 'none' config kind for team formats means users entering stakes for Best Ball etc. can only set a flat dollar amount — no UX support for the team-split / per-hole structures golfers actually use. Will create user confusion and force offline payout management.
+  2. src/scoring/calculations.ts build* functions (Apr 12-19) — buildSkinsResult, buildSnakeResult, buildGreeniesResult, buildNassauResult, buildDotsResult, buildWolfResult, buildBBBResult, buildGenericResult fallback. Wired into PostRoundSummary. SIDE GAMES ONLY — no format-level builders.
 
-  Scope for follow-up session: PerGameStakeConfig discriminated union extension (add matchPlayPayout, teamFormatPayout, wolfPayout, sixsixsixTriple kinds), format → kind mapping update, defaultConfigFor and defaultAmountFor extension, summarizeStakesForCinematic copy update, ~30 new tests.
+  3. useScoringState.ts inline computation — bestBallTeamScores, lowHighResults, lowHighPoints, sixSixSixResult (full per-segment with rotations). Real engines, computed in state but most have no PostRoundSummary surface (sixsixsix shipped without buildSixSixSixResult).
+
+  4. src/services/scoring.service.ts — calculateStablefordFromRound. DUPLICATE of #1's calculateStablefordPoints, no handicap support. Used by processSeasonRound when round saves to a season. The Apr 19 audit (docs/scoring-audit-2026-04-19.md line 238) flags this as 'if a season uses Net Stableford, all points calculated as gross' — known bug.
+
+  5. RyderCupHub.tsx computeMatchStatus — separate match play engine for Ryder Cup mode. Full state machine (red/blue, dormie, close-out, halved, finalResult). Used live in RC view only. Disconnected from the rest of the scoring stack.
+
+  6. Supabase RPC get_trip_leaderboard (commit 8080ba2 Apr 19) — server-side stableford point computation for trip leaderboard view. Completely separate from any TS engine.
+
+  Plus src/lib/scoring-utils.ts:matchStatus — third match play status formatter. No production consumers.
+
+  IMPLICATIONS:
+  - Match Play has TWO working engines (calculateMatchPlay + computeMatchStatus), neither wired into live /scoring screen
+  - Stableford has THREE implementations that disagree on handicap support; none surface during live play (only at season-write or leaderboard-render)
+  - Best Ball, Scramble, Chapman, Pinehurst all have orphan engines waiting to be wired
+  - True engine gaps remain for: fourball, alternate_shot, greensomes, shamble (no engine anywhere)
+  - Side games genuinely missing engines: hammer, sandies, arnies, hogans, murphys, poleys, bark, KP/close_shave, three_putt_poker (settlement)
+
+  RE-SCOPED SPRINT: 'Scoring Engine Integration Sprint' (~15-25 hrs, 3-4 sessions)
+
+  Tier 1 — WIRE-UP (~4-8 hrs, highest leverage): Add buildMatchPlayResult, buildBestBallResult, buildScrambleResult, buildChapmanResult, buildStablefordResult, buildModifiedStablefordResult adapters in src/scoring/calculations.ts that import from src/data/scoring.ts. Wire into PostRoundSummary's switch (currently side-game-only). Add buildSixSixSixResult exposing the existing useScoringState computation. Each adapter is ~30-50 lines because the math already exists.
+
+  Tier 2 — DE-DUPLICATION (~2-4 hrs): Consolidate three Stableford implementations to a single canonical source (calculateStablefordPoints). Update scoring.service.ts to call it with handicap support. Update get_trip_leaderboard RPC OR move trip leaderboard format-switching to client. Pick one match play engine as canonical (recommend src/data/scoring.ts), have RyderCupHub adapt. Remove src/lib/scoring-utils.ts:matchStatus orphan.
+
+  Tier 3 — TRUE ENGINE WORK (~6-10 hrs): Build engines that don't exist anywhere — fourball, alternate_shot, greensomes, shamble (formats); hammer, sandies, arnies, hogans, murphys, poleys, bark, close_shave, three_putt_poker settlement (side games). Some of these may consolidate (e.g., chapman/pinehurst are functionally identical — see existing 'catalog product debt' compost item).
+
+  Tier 4 — SERVER + UX SURFACING (~2-4 hrs): Update Supabase RPCs to use canonical TS engines via Edge Functions OR keep server-side and ensure parity. Add user-visible 'this format uses live scoring' vs 'this format computes at end of round' affordances. Wire payout config kinds (matchPlayPayout, teamFormatPayout, wolfPayout, sixsixsixTriple) on top of the now-real engines.
+
+  This sprint subsumes the previously-scoped 'payout structure overhaul' work — payout configs only stop being theater once their underlying engines are wired up. Build engines first, payout UX second.
+
+  PRE-BETA PRIORITY: HIGH. Currently the wizard's 15-format catalog advertises capabilities the live scoring engine can't deliver on for ~8 of 15 formats. Beta users selecting Match Play, Stableford, Scramble, Chapman, Pinehurst etc. will see undifferentiated stroke play during live scoring with no settlement display — eroding trust at exactly the moment we're proving Dormie does scoring better than its competitors.
+
+  PAIRS WITH (one cluster, three compost items):
+  - 'COURSE DATA QUALITY' (above) — backfill 216 stale courses so engines have real par data
+  - 'HOLE-AWARE SIDE GAMES INFRASTRUCTURE GAP' (below) — schema + UI for KP designation, BBB hole tracking
+  - 'CATALOG PRODUCT DEBT' (earlier compost item) — fourball/best_ball disambiguation, chapman/pinehurst consolidation, wolf format-vs-side-game cleanup
+
+  All three are 'does Dormie's scoring engine actually deliver on what the catalog advertises' work. Worth treating as one pre-beta sprint with three ordered phases: course data backfill (foundation) → engine integration (this entry) → UX/payout surfacing.
 
 - 2026-05-06 — HOLE-AWARE SIDE GAMES INFRASTRUCTURE GAP (Phase 2.9 audit finding)
 
