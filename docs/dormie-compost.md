@@ -13,6 +13,40 @@
 
 ## Active Compost
 
+- 2026-05-06 — STEP 6 (STAKES) REDESIGN BACKLOG (deferred items, post-revision)
+
+  Phase 2 revision pass resolved the headline voice failure, currency input premium treatment, side-game render bug, and Nassau three-input pattern. The screen now reads as on-DNA. Deferred items below are what stands between "shipped" and "Dormie moment."
+
+  DEFERRED ITEMS (in priority order):
+
+  1. Live running total — Still the #1 unaddressed lever. Headline asks "What's it worth?" — screen should answer in real time. Position: subhead slot below headline, OR sticky footer row above [BACK]/[NEXT]. Updates as fields fill: "About $25 a head, $100 in the pot." Converts emotional arc into single composition. ~1 session (compute logic + reactive subhead/footer component).
+
+  2. Headline breathing room + alignment — Headline currently shares left-gutter with form columns. Reads as form label rather than hero composition. Linear/Things 3 pattern: hero text breathes wider than form (smaller left margin, ~24-32px). ~quarter session (alignment tokens). [Partial fix landed Phase 2.9 — vertical breathing increased to 48pt, horizontal alignment still pending.]
+
+  3. Greenies config asymmetry — Skins has carry-over toggle; Greenies has no toggle despite having real config questions (par-3 only vs any green-in-regulation, validation method). Pairs directly with KP par 3 audit — same hole-metadata infrastructure question. Defer until KP audit findings clarify scope. ~half to 1 session pending audit.
+
+  4. Skins individual-vs-team mode — Skins card assumes individual play. Real Skins games run 2-man team variants frequently. Either lock to individual at this step with disclosure, or surface the choice. ~half session (mode toggle + payout logic branch).
+
+  5. Unit label commit microinteraction — When input has real value, "per player"/"per skin"/"per greenie" subtly shifts weight/color to confirm commit. No current acknowledgment of filled state. ~half session.
+
+  6. Carry-over "why" affordance — Tap label → brief in-card explanation. First-time Skins players don't know what carry-over means. Premium apps teach without lecturing. ~half session (disclosure pattern + copy).
+
+  7. Currency input field width — Currently sized for ~5 digits, most stakes are 1-3. Empty space inside field reads as form bloat. Tighten to content-appropriate width. ~quarter session.
+
+  8. Footer chrome density — "SKIP STAKES — HANDLE OFFLINE" link visually crowded between content and [BACK]/[NEXT]. Needs more breathing room above so escape-valve language doesn't read as third button. ~quarter session.
+
+  9. Card-to-card spacing inside SIDE GAME STAKES — Currently ~24pt (no-decision middle). Pick a side: 16pt (one ledger) or 40pt (distinct objects). ~quarter session, design call required first.
+
+  10. Voice tightening pass — "Split top 3" → "Pays three deep"; "Carry-over on tied holes" → "Carry ties." Marginal but compounding. ~quarter session.
+
+  11. Stableford "Fixed per place" toggle is THEATER. Investigation confirmed: tap mutates state.perGameStakes config to { kind: 'stablefordPayoutKind', stableford: { payout: 'per_place' } }, but per_place value is never read by step7Helpers.ts, roster.ts, cinematic copy, or trip persistence. No per-place dollar inputs reveal. No downstream consumer. Belongs in the Scoring Engine Integration Sprint scope (Tier 4 payout structure overhaul depends on per-place input UI + downstream consumption).
+
+  Pre-beta priority: MEDIUM
+
+  Item 1 alone is HIGH priority. Items 2, 3, 4 are MEDIUM. Items 5-11 are post-beta polish. Total remaining backlog is materially smaller than after the first diagnostic pass — most of the original 13 items shipped or are obsolete.
+
+  Pairs naturally with: KP par 3 audit findings (item 3 directly depends); future "currency input component" if treated as reusable primitive (will appear in trip-detail stake editing, settle-up, future Venmo flows); Step 7 confirm/launch screen (running-total language from item 1 should echo into the launch summary — same data, different surface, narrative continuity).
+
 - 2026-05-06 — COURSE DATA QUALITY: BACKFILL + LEAK FIXES (Phase 2.9 audit finding)
 
   Diagnostic confirmed GolfCourseAPI integration works correctly for new lookups via score tab and onboarding paths. 100 of 324 production courses have full per-hole data (par, yardage, handicap per hole + per-tee slope/rating).

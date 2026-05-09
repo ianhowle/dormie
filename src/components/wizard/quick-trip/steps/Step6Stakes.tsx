@@ -80,11 +80,7 @@ export function Step6Stakes() {
     >
       {/* Header */}
       <Text style={[s.prompt, { color: c.text, fontFamily: GEO }]}>
-        Set the stakes
-      </Text>
-      <Text style={[s.subtitle, { color: c.textMuted }]}>
-        Add dollar amounts for each game. Skip if you'll handle stakes off
-        the app.
+        What&apos;s it worth?
       </Text>
 
       {/* Format stakes — defensive null check; Step 4 validation gates
@@ -99,15 +95,21 @@ export function Step6Stakes() {
         </View>
       ) : null}
 
-      {/* Side game stakes — conditional on at least one selected. */}
+      {/* Side game stakes — conditional on at least one selected.
+          Wrapped in a gap: 8 list so consecutive cards read as one
+          ledger. Format section keeps its single-card layout — the
+          gap-wrapper pattern is only needed where multiple cards
+          stack. */}
       {state.sideGames.length > 0 ? (
         <View style={s.section}>
           <Text style={[s.sectionLabel, { color: c.gold, fontFamily: GEO }]}>
             SIDE GAME STAKES
           </Text>
-          {state.sideGames.map((game) => (
-            <StakeInputRow key={game} gameKey={game} />
-          ))}
+          <View style={s.sideGameList}>
+            {state.sideGames.map((game) => (
+              <StakeInputRow key={game} gameKey={game} />
+            ))}
+          </View>
         </View>
       ) : null}
 
@@ -179,12 +181,9 @@ const s = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 24,
-    lineHeight: 18,
+    /* 48pt below headline gives "What's it worth?" room to land
+       without crowding the FORMAT STAKES tracking-caps below it. */
+    marginBottom: 48,
   },
 
   /* Section primitives */
@@ -196,6 +195,13 @@ const s = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
     marginBottom: 10,
+  },
+  sideGameList: {
+    /* Mirrors Nassau's internal gap-pattern (PerGameStakeInput
+       nassauCol). Consecutive side game cards read as one ledger,
+       not isolated islands. Card itself has no marginBottom — spacing
+       is parent-decided. */
+    gap: 8,
   },
 
   /* Skip link */

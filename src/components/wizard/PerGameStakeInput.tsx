@@ -347,7 +347,10 @@ export function PerGameStakeInput({
                       value={String(cfg[field] ?? 0)}
                       onChangeText={(text) => updateField(field, text)}
                       keyboardType="number-pad"
-                      style={[s.amountInput, { color: c.text, fontFamily: GEO }]}
+                      style={[
+                        s.amountInput,
+                        { color: (cfg[field] ?? 0) > 0 ? c.gold : c.textMuted, fontFamily: GEO },
+                      ]}
                       maxLength={6}
                     />
                   </View>
@@ -385,7 +388,10 @@ export function PerGameStakeInput({
               value={String(amount)}
               onChangeText={updateAmount}
               keyboardType="number-pad"
-              style={[s.amountInput, { color: c.text, fontFamily: GEO }]}
+              style={[
+                s.amountInput,
+                { color: amount > 0 ? c.gold : c.textMuted, fontFamily: GEO },
+              ]}
               maxLength={6}
             />
           </View>
@@ -404,7 +410,10 @@ const s = StyleSheet.create({
   card: {
     borderWidth: 1,
     padding: 16,
-    marginBottom: 12,
+    /* Spacing is parent-decided — Step6Stakes uses a gap: 8 wrapper
+       around the side game list so cards read as one ledger. The
+       sole format card sits inside a section with its own bottom
+       margin, so no internal margin is needed here. */
   },
   title: {
     fontSize: 16,
@@ -466,6 +475,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginTop: 12,
+    /* paddingLeft matches amountInputWrap's paddingHorizontal so the
+       checkbox left-edge aligns with the dollar sign — the visual
+       "input column" the eye tracks, not the input field's border. */
+    paddingLeft: 12,
   },
   toggleBox: {
     width: 18,
