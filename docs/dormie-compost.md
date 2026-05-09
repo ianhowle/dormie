@@ -13,6 +13,50 @@
 
 ## Active Compost
 
+- 2026-05-06 — STEP 7 (CONFIRM + LAUNCH) REDESIGN BACKLOG (deferred from Phase 2.9 audit, post-revision)
+
+  Phase 2 revision pass resolved the trip card title truncation/duplication bug — auto-derive is firing correctly via shortVenueName helper, and the card now reads as a real Dormie object ("Hermitage May 2026"). Footer button ambiguity also resolved this pass — [DONE] removed at Step 7 so the in-screen CTA is unambiguous. Deferred items below are largely unchanged from the prior pass; the screen still reads as form-around-a-card rather than launch threshold.
+
+  DEFERRED ITEMS (in priority order):
+
+  1. Subhead → trip-as-sentence — Still the #1 unaddressed lever. "Review your trip and either save as a draft or launch it now." is help-doc voice; should be one Georgia serif sentence assembled from trip data: e.g. "Hermitage in May. You and Kara. Stroke Play, Skins, Greenies on the line." Asymmetry between strong card and weak subhead is louder because the card got better. ~half session.
+
+  2. Footer button ambiguity — [RESOLVED Phase 2.9]. [DONE] hidden at Step 7. In-screen CREATE TRIP & INVITE ALL is sole primary action. [BACK] preserved for navigation correction.
+
+  3. Drop step chrome at Step 7 — "STEP 7 OF 7 / Confirm" header still present. Pattern from Linear / Things 3: wizards lose chrome at threshold. Pairs with item #2 (now resolved) — both about the wizard chrome stepping back at the launch moment. ~quarter session.
+
+  4. Cinematic anticipation cue — Step 7 → cinematic transition still feels like form submit. Add subtle anticipation: button gold underglow, press-state hold, or thin gold rule above CTA. Cinematic only feels earned if prelude builds tension. ~half to 1 session.
+
+  5. Subtitle truncation cleanup — "Hermitage Golf Course - Presidents Reserve · …" still truncates with dot-ellipsis. Title fix solved the hero but subtitle is still hiding data. Either show full string, drop "·" separator, or wrap to two lines. Decision needed on what comes after "Reserve" (likely date or tees) and whether it's worth showing. ~quarter session.
+
+  6. Voice rewrites: chrome subtitle, headline, metadata labels — "Confirm" / "Ready to launch?" / "2 players" / "No invite needed" / "via Dormie." Voice problem concentrated in three places — chrome, subhead, metadata labels. ~quarter session (copy work, no engineering beyond label refactor).
+
+  7. Trip card visual dominance — Card got compositionally better with title fix; spatial dominance still equal-weight to INVITING + actions. Card should dominate further. Pattern from Things 3 review screens. ~half session.
+
+  8. "Edit trip details" link reposition — Still inline-left under format chip, interrupting card narrative. Should be corner-anchored top-right of card. ~quarter session.
+
+  9. Dashed-border "ADD ANOTHER PLAYER" visual quiet-down — Still competing with primary CTA. Reduce to inline link or quieter affordance. ~quarter session.
+
+  10. Trip card surface depth — Card still flat-on-flat aside from green left rail. Add subtle inner-glow or top-edge highlight for WHOOP-style lift. ~quarter session.
+
+  11. Avatar size consistency — Trip card ~48pt overlapping vs INVITING ~64pt non-overlapping. Pick one system. ~quarter session.
+
+  12. Trip card haptic + tap feedback — Most premium element on screen still inert. Light haptic on tap. Possibly long-press preview affordance (likely too much, defer decision). ~quarter session.
+
+  13. Section header → content spacing on INVITING — "INVITING" → first invite row at ~24pt is still tight relative to gap-above rule applied elsewhere. ~quarter session.
+
+  14. Viewport behavior verification — "SAVE AS DRAFT" appears to have moved below fold or been removed in this pass. Confirm safety valve is visible at launch moment without scroll. ~quarter session diagnostic.
+
+  15. CTA voice escalation at launch moment — "CREATE TRIP & INVITE ALL →" still functional but procedural. At the actual launch moment, voice could stretch: "Launch the trip" / "Tee it up" / "Send it." Defer to post-beta voice pass. ~quarter session.
+
+  Pre-beta priority: HIGH
+
+  Items 1, 3, 4 are pre-beta priority HIGH (voice transformation, chrome reduction, cinematic anticipation). Items 5, 6, 7, 9 are pre-beta priority MEDIUM. Items 8, 10-15 are post-beta polish. Items 1 (title bug) and 2 (footer ambiguity) resolved Phase 2.9.
+
+  This screen has higher beta-blocking weight than other wizard steps because it is the threshold screen — the last impression before the cinematic and the first time the trip exists as an object. A weak Step 7 dampens the cinematic that follows. Items 1, 3, 4 alone shift the screen materially.
+
+  Pairs naturally with: cinematic mount-in transition (item 4 bridges directly to Phase 1.9 cinematic — both are part of the same "launch moment" composition); wizard-wide footer chrome audit (item 2 may surface a broader pattern about how wizard footers should behave on terminal steps — could affect future wizards beyond Quick Trip); auto-derive trip-name logic (now stable primitive — shortVenueName helper could be reused on trip-detail and other surfaces); voice-system compost (items 1, 6, 15 should inform a wizard-wide voice audit covering all 8 steps).
+
 - 2026-05-06 — STEP 6 (STAKES) REDESIGN BACKLOG (deferred items, post-revision)
 
   Phase 2 revision pass resolved the headline voice failure, currency input premium treatment, side-game render bug, and Nassau three-input pattern. The screen now reads as on-DNA. Deferred items below are what stands between "shipped" and "Dormie moment."

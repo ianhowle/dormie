@@ -129,10 +129,16 @@ export function WizardLayout({ children }: WizardLayoutProps) {
   const isLastStep = state.step === TOTAL_WIZARD_STEPS - 1;
   // Step 0 is the persona fork (no "Step 0 of 7" label — its own header).
   const showStepCounter = state.step > 0;
-  // Step 0 advances via the persona cards (each tap dispatches
-  // SELECT_PERSONA + NEXT_STEP), so the footer Next button is redundant
-  // there. Hide it; the Back button doubles as Close at step 0.
-  const showNextButton = state.step > 0;
+  // Hide the footer NEXT/DONE button at:
+  //   - Step 0: persona cards advance via SELECT_PERSONA + NEXT_STEP,
+  //     so the footer button is redundant there. Back doubles as Close.
+  //   - Final step (Step 7): the in-screen "CREATE TRIP & INVITE ALL"
+  //     CTA is the unambiguous launch action. A footer DONE button
+  //     creates cognitive ambiguity at the most important tap moment —
+  //     two green right-aligned buttons both implying completion. The
+  //     X in the header still provides an abort path.
+  const showNextButton =
+    state.step > 0 && state.step < TOTAL_WIZARD_STEPS - 1;
 
   return (
     <View style={[s.screen, { backgroundColor: c.bg }]}>

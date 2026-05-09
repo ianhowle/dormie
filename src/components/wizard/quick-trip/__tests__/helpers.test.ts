@@ -30,6 +30,7 @@ import {
   deriveTripName,
   formatDateRange,
   fireFloorReasonCopy,
+  shortVenueName,
   summarizeStakesForCinematic,
 } from '../step7Helpers';
 
@@ -220,20 +221,68 @@ describe('digitsOnly', () => {
 // step7Helpers
 // =============================================================
 
+describe('shortVenueName', () => {
+  it('passes single-word names through unchanged', () => {
+    expect(shortVenueName('Pinehurst')).toBe('Pinehurst');
+  });
+  it('strips trailing Resort suffix', () => {
+    expect(shortVenueName('Pinehurst Resort')).toBe('Pinehurst');
+  });
+  it('strips trailing Golf Course suffix', () => {
+    expect(shortVenueName('Hermitage Golf Course')).toBe('Hermitage');
+  });
+  it('strips trailing Country Club suffix', () => {
+    expect(shortVenueName('Augusta National Country Club')).toBe('Augusta National');
+  });
+  it('strips trailing Golf Links suffix', () => {
+    expect(shortVenueName('Pebble Beach Golf Links')).toBe('Pebble Beach');
+  });
+  it('takes the leading segment before " - " for multi-course resorts', () => {
+    expect(shortVenueName('Hermitage Golf Course - Presidents Reserve')).toBe(
+      'Hermitage',
+    );
+  });
+  it('handles em-dash and en-dash separators', () => {
+    expect(shortVenueName('Bandon Dunes – Pacific Dunes')).toBe('Bandon Dunes');
+    expect(shortVenueName('Streamsong — Red')).toBe('Streamsong');
+  });
+  it('preserves names without strippable suffix', () => {
+    expect(shortVenueName('TPC Sawgrass')).toBe('TPC Sawgrass');
+  });
+  it('returns empty for empty input', () => {
+    expect(shortVenueName('')).toBe('');
+  });
+  it('falls back to leading segment when stripping would empty the name', () => {
+    // Defensive — pathological "Golf Course" alone should not return empty.
+    expect(shortVenueName('Golf Course')).toBe('Golf Course');
+  });
+});
+
 describe('deriveTripName', () => {
-  it('combines course + month + year', () => {
+  it('combines short venue + month + year', () => {
     expect(deriveTripName('Pinehurst', '2026-10-15')).toBe('Pinehurst Oct 2026');
   });
-  it('handles long course names', () => {
+  it('strips trailing Resort/Golf Course/etc. suffixes from the title', () => {
     expect(deriveTripName('Pinehurst Resort', '2026-10-15')).toBe(
-      'Pinehurst Resort Oct 2026',
+      'Pinehurst Oct 2026',
     );
+    expect(deriveTripName('Pebble Beach Golf Links', '2026-10-15')).toBe(
+      'Pebble Beach Oct 2026',
+    );
+  });
+  it('collapses multi-course resorts to the leading venue name', () => {
+    // Phase 2.9 bug fix — title was duplicating the (truncated) full
+    // course name shown in the subtitle slot. Now collapses to a short
+    // venue ("Hermitage") so title and subtitle read as distinct.
+    expect(
+      deriveTripName('Hermitage Golf Course - Presidents Reserve', '2026-11-15'),
+    ).toBe('Hermitage Nov 2026');
   });
   it('returns empty when courseName empty', () => {
     expect(deriveTripName('', '2026-10-15')).toBe('');
   });
-  it('returns just course when date invalid', () => {
-    expect(deriveTripName('Pinehurst', '')).toBe('Pinehurst');
+  it('returns just the short venue when date invalid', () => {
+    expect(deriveTripName('Pinehurst Resort', '')).toBe('Pinehurst');
   });
 });
 

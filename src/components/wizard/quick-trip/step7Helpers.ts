@@ -22,15 +22,41 @@ export interface WizardPerGameStake {
   config: unknown; // PerGameStakeConfig — opaque to summarizer
 }
 
+/** Display-safe short venue name for the auto-derived trip title.
+ *  Splits on " - " first so multi-course resorts ("Hermitage Golf
+ *  Course - Presidents Reserve") collapse to the leading venue
+ *  ("Hermitage Golf Course"), then strips trailing common golf nouns
+ *  so the title reads "Hermitage Nov 2026" not "Hermitage Golf
+ *  Course Nov 2026". Preserves casing (display, not comparison —
+ *  see stripGolfWords in courses.service for the lowercase fuzzy
+ *  variant). Defensive fallback prevents stripping from returning
+ *  empty when the input had content. */
+export function shortVenueName(courseName: string): string {
+  if (!courseName) return '';
+  const beforeDash = courseName.split(/\s+[-–—]\s+/)[0];
+  const stripped = beforeDash
+    .replace(
+      /\s+(Golf\s+(Course|Club)|Country\s+Club|Golf\s+Links|Links|Resort|Club)$/i,
+      '',
+    )
+    .trim();
+  return stripped || beforeDash || courseName;
+}
+
 /** Title-case auto-derivation: "Pinehurst Oct 2026". The cinematic
  *  kicker / Trips-list card apply textTransform if uppercase is
- *  desired — keeps the underlying string clean. */
+ *  desired — keeps the underlying string clean. Course name is
+ *  shortened via shortVenueName so multi-course resorts and long
+ *  full names ("Hermitage Golf Course - Presidents Reserve")
+ *  collapse to a display-friendly venue ("Hermitage") before the
+ *  date suffix is appended. */
 export function deriveTripName(courseName: string, ymd: string): string {
   if (!courseName) return '';
+  const venue = shortVenueName(courseName);
   const date = fromYMD(ymd);
-  if (!date) return courseName;
+  if (!date) return venue;
   const month = date.toLocaleDateString('en-US', { month: 'short' });
-  return `${courseName} ${month} ${date.getFullYear()}`;
+  return `${venue} ${month} ${date.getFullYear()}`;
 }
 
 /** Quick Trip is single-day — formats the start date as "Oct 15, 2026". */
