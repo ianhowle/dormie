@@ -13,6 +13,39 @@
 
 ## Active Compost
 
+- 2026-05-06 — COURSE DATA QUALITY: BACKFILL + LEAK FIXES (Phase 2.9 audit finding)
+
+  Diagnostic confirmed GolfCourseAPI integration works correctly for new lookups via score tab and onboarding paths. 100 of 324 production courses have full per-hole data (par, yardage, handicap per hole + per-tee slope/rating).
+
+  Stale data cohort: 216 courses imported as bulk seed batch on 2026-04-03 (data_source: 'verified' or 'community') with hole_data containing only the count, not per-hole arrays. These are recoverable — fetchable via current API integration.
+
+  Three leaks identified, patched in Phase 2.9 commit:
+  - CourseLocationPicker.handleSelect was discarding per-hole API data during trip wizard course selection
+  - searchAll was skipping cacheAPICoursToSupabase when API returned a parent club name with seeded sub-courses
+  - parseTeeBoxes was writing hole.number: 0 for all holes (API uses position indexing, not number field) — broke greenies/skins logic keying by hole.number
+
+  Remaining items for future scoped session ('data quality sprint'):
+  - Backfill script: loop 216 count-only courses, fetch via searchAPI, refresh via cacheAPICoursToSupabase. Estimated ~216 API calls, 1-2 hours work + verification.
+  - AsyncStorage 30-day TTL: currently hides stale local caches from API for 30 days. Worth shortening to 7 days OR adding cache-bust on user action.
+  - Verify no other hole-keyed logic relies on the broken hole.number field beyond greenies/skins (audit calculations.ts comprehensively).
+
+  This is foundational infrastructure that pairs with the previously-composted 'hole-aware side games infrastructure gap' work. Once both land, KP/greenies/dots can compute against real course data for the majority of trips.
+
+- 2026-05-06 — PAYOUT STRUCTURE OVERHAUL (Phase 2.9 audit finding, deferred)
+
+  Current PerGameStakeInput config kinds (5 types: none / strokePlayPayout / skinsCarryOver / nassauTriple / stablefordPayoutKind) cover only basic format payout structures. Audit identified gaps:
+
+  - Match Play: needs winner-takes-all / per-hole-won variants
+  - Best Ball / Fourball / Foursomes / Alternate Shot / Chapman / Greensomes / Pinehurst: need team-format payout (winning team splits) + match-play vs stroke-play scoring choice
+  - Wolf: needs per-point / per-hole / leader-takes-pot variants
+  - Sixsixsix: needs three-segment payout structure (similar shape to nassauTriple but for 6-hole segments)
+
+  Estimated 60-90 minutes build + 30 minutes phone testing. Pairs naturally with the result builder audit (which side games have actual buildXResult vs fall through to buildGenericResult).
+
+  Pre-beta priority: high. Current 'none' config kind for team formats means users entering stakes for Best Ball etc. can only set a flat dollar amount — no UX support for the team-split / per-hole structures golfers actually use. Will create user confusion and force offline payout management.
+
+  Scope for follow-up session: PerGameStakeConfig discriminated union extension (add matchPlayPayout, teamFormatPayout, wolfPayout, sixsixsixTriple kinds), format → kind mapping update, defaultConfigFor and defaultAmountFor extension, summarizeStakesForCinematic copy update, ~30 new tests.
+
 - 2026-05-06 — HOLE-AWARE SIDE GAMES INFRASTRUCTURE GAP (Phase 2.9 audit finding)
 
   Audit revealed Dormie's per-hole par data is incomplete and several side games silently degrade when data is missing.
