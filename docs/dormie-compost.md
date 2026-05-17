@@ -13,6 +13,19 @@
 
 ## Active Compost
 
+- 2026-05-06 — TIMEZONE BUG CLEANUP IN LEGACY CREATE PATHS (deferred to Phase 4 Ryder Cup migration)
+
+  Audit-grep during Phase 2.9 closeout surfaced same-shape duplicates of the trip persistence timezone bug in legacy create-trip and RyderCupWizard fallback date paths. Both fire when user submits without picking a date — rare but real. Defer to Phase 4 when Ryder Cup migration touches these files anyway.
+
+  Affected:
+  - app/create-trip.tsx:594-595 (fallback start_date + end_date)
+  - src/components/RyderCupWizard.tsx:1392-1393 (same shape)
+
+  Fix: swap new Date().toISOString().slice(0, 10) for todayYMD() from dateHelpers.
+
+  PRE-BETA PRIORITY: LOW (only triggers on rare submit-without-date edge case)
+  PAIRS WITH: Phase 4 Ryder Cup migration
+
 - 2026-05-06 — CLAUDE DESIGN PASS ON REMAINING USER-FACING SCREENS (pre-beta workstream)
 
   Phase 1.9 cinematic moment + Phase 2 wizard polish established the design DNA standard for Dormie's most emotionally-loaded surfaces. Other user-facing screens haven't yet received the same Claude Design treatment and may not match that standard.
