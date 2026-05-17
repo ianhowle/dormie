@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
+import { todayYMD } from '../../src/components/wizard/quick-trip/dateHelpers';
 import { Avatar } from '../../src/components/Avatar';
 import { DestinationImage } from '../../src/components/CourseImage';
 import GoldDivider from '../../src/components/GoldDivider';
@@ -137,8 +138,11 @@ function adaptSupabaseTrip(t: TripWithMembers): Trip {
 
 function isCompletedTrip(t: TripWithMembers): boolean {
   if (t.status === 'completed') return true;
-  const today = new Date().toISOString().slice(0, 10);
-  return t.end_date < today;
+  // Local-timezone YMD comparison — toISOString would shift the day
+  // boundary into UTC and bucket today's trips as "completed" after
+  // ~7pm local in CDT/CST, causing newly-created trips to disappear
+  // from the upcoming section into the Completed grouping.
+  return t.end_date < todayYMD();
 }
 
 // ─── Search matchers (real vs mock have different shapes) ─────────────
