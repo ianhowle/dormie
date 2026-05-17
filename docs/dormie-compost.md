@@ -13,6 +13,44 @@
 
 ## Active Compost
 
+- 2026-05-06 — CLAUDE DESIGN PASS ON REMAINING USER-FACING SCREENS (pre-beta workstream)
+
+  Phase 1.9 cinematic moment + Phase 2 wizard polish established the design DNA standard for Dormie's most emotionally-loaded surfaces. Other user-facing screens haven't yet received the same Claude Design treatment and may not match that standard.
+
+  CANDIDATE SCREENS FOR DESIGN PASS:
+
+  1. Trip Detail screen — where users land after the cinematic. Currently functional but composition + voice may not match the wizard or cinematic. The cinematic ends with 'TAP TO VIEW TRIP →' which leads here; Trip Detail needs to feel like a continuation of that moment, not a downgrade.
+
+  2. Post-Round Summary — what users see after submitting scores. Already composted that most side games fall through to 'Results tracked — coming soon' (theater). Beyond fixing the engine theater, the visual presentation of round results deserves a design pass: how does the moment of seeing your round play out? Skins won, money owed, leaderboard movement.
+
+  3. Leaderboard — how rankings render across friend groups, both at trip-level and season-level. Currently uses get_trip_leaderboard RPC. Visual treatment unknown without audit.
+
+  4. Profile screen — the 'front door' of user identity in Dormie. Avatar, handicap, home course, friends, settings, season history. Currently has Developer section (about to be cleaned), home course, profile visibility — visual hierarchy and voice unaudited.
+
+  5. Onboarding flow — auth/onboarding.tsx captures home course during signup. Currently functional but probably hasn't had a design pass. First impression matters disproportionately.
+
+  6. Friends list / Add Friends — social surface, key for trip invites. Visual treatment unknown.
+
+  7. Score entry screen (app/scoring.tsx) — where users actually score rounds. Shared between trip-context and standalone scoring. Critical functional + emotional surface.
+
+  8. Discover screen — destinations, dream board, future trip aspirations. Mock data currently per audit findings.
+
+  9. Season detail / Season ledger — multi-trip season rollup with FedEx-Cup-style standings. Differentiating Dormie feature, deserves cinematic-level treatment.
+
+  ESTIMATED SCOPE: Per-screen design pass ~2-4 hours each (exploration + spec lock + implementation). Full sweep across 9 candidate screens = significant workstream, ~20-30 hours total. Pre-beta priority varies per screen.
+
+  RECOMMENDED PRIORITIZATION:
+  - HIGHEST (pre-beta blocker): Trip Detail, Post-Round Summary, Score entry — these are the post-launch flows users will hit immediately and repeatedly.
+  - HIGH: Leaderboard, Profile, Onboarding — first-impression + recurring-attention surfaces.
+  - MEDIUM: Friends/Add Friends, Season detail — important but less frequent touchpoints.
+  - LOWER: Discover — currently mock data, depends on Dream Board feature scoping.
+
+  PAIRS NATURALLY WITH:
+  - Scoring engine integration sprint (Post-Round Summary depends on engine wire-up + has visual presentation gap)
+  - Step 6 redesign backlog (currency input could become reusable primitive across Trip Detail + Score entry)
+  - Step 7 redesign backlog (Trip Detail visual language should echo the trip card object Step 7 launches with)
+  - The wizard's gap-above rule + voice principles could become Dormie-wide design DNA documented in dormie-design-dna.md
+
 - 2026-05-06 — STEP 7 (CONFIRM + LAUNCH) REDESIGN BACKLOG (deferred from Phase 2.9 audit, post-revision)
 
   Phase 2 revision pass resolved the trip card title truncation/duplication bug — auto-derive is firing correctly via shortVenueName helper, and the card now reads as a real Dormie object ("Hermitage May 2026"). Footer button ambiguity also resolved this pass — [DONE] removed at Step 7 so the in-screen CTA is unambiguous. Deferred items below are largely unchanged from the prior pass; the screen still reads as form-around-a-card rather than launch threshold.

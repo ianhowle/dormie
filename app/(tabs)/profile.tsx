@@ -50,195 +50,8 @@ import {
 } from '../../src/services/handicap.service';
 import { PlayerStatsTabs } from '../../src/components/PlayerStatsTabs';
 import { MOCK_PLAYER_STATS } from '../../src/data/playerStats';
-// [DEV HARNESS] Preview wiring for the Trip Launched cinematic — kept through Beats 3+4 buildout, remove before shipping.
-import { DormieMomentTripLaunched } from '../../src/components/wizard/trip-launched/DormieMomentTripLaunched';
-import type { RyderTeams, TripLaunchedPlayer } from '../../src/components/wizard/trip-launched/roster';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 54;
-
-// [DEV HARNESS] Trip Launched preview rotation. Each tap cycles through
-// 4 roster variants × 3 time modes (12 combos) so every spec branch
-// (solo/standard/medium/large × tee-time/date-range/countdown) can be
-// reviewed on phone without a code edit. A handful of test players
-// have avatarUrls so the Image render path is exercised alongside the
-// monogram fallback. Ian is "you" in every variant.
-const PRAVATAR = (n: number) => `https://i.pravatar.cc/150?img=${n}`;
-
-const HARNESS_PLAYERS = {
-  solo: [{ name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) }],
-  four: [
-    { name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) },
-    { name: 'Drew', avatarUrl: PRAVATAR(2) },
-    { name: 'Jake' },
-    { name: 'Tommy' },
-  ],
-  seven: [
-    { name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) },
-    { name: 'Drew', avatarUrl: PRAVATAR(2) },
-    { name: 'Jake' },
-    { name: 'Tommy', avatarUrl: PRAVATAR(3) },
-    { name: 'Marcus' },
-    { name: 'Cal', avatarUrl: PRAVATAR(4) },
-    { name: 'Dev' },
-  ],
-  eleven: [
-    { name: 'Ian', isYou: true, avatarUrl: PRAVATAR(1) },
-    { name: 'Drew', avatarUrl: PRAVATAR(2) },
-    { name: 'Jake' },
-    { name: 'Tommy', avatarUrl: PRAVATAR(3) },
-    { name: 'Marcus' },
-    { name: 'Cal', avatarUrl: PRAVATAR(4) },
-    { name: 'Dev' },
-    { name: 'Will', avatarUrl: PRAVATAR(5) },
-    { name: 'Pete' },
-    { name: 'Sam' },
-    { name: 'Ryan', avatarUrl: PRAVATAR(6) },
-  ],
-} satisfies Record<string, TripLaunchedPlayer[]>;
-
-const HARNESS_TIME_MODES: Array<{
-  label: string;
-  primary: string;
-  secondary?: string;
-  stakes: string;
-}> = [
-  // Each time mode pairs with a different stakes line so Beat 4
-  // exercises a few realistic format strings across the rotation.
-  { label: 'date-range', primary: 'OCT 15 – 17', secondary: '2026', stakes: 'NASSAU · CLASSIC' },
-  { label: 'countdown', primary: 'T-149 DAYS', secondary: 'OCTOBER 2026', stakes: 'SCRAMBLE · TEAM PLAY' },
-  { label: 'tee-time', primary: '8:42 AM', secondary: 'TOMORROW', stakes: 'MATCH PLAY · 18 HOLES' },
-];
-
-const HARNESS_VARIANTS: Array<{
-  label: string;
-  players: TripLaunchedPlayer[];
-}> = [
-  { label: 'solo', players: HARNESS_PLAYERS.solo },
-  { label: '4', players: HARNESS_PLAYERS.four },
-  { label: '7', players: HARNESS_PLAYERS.seven },
-  { label: '11', players: HARNESS_PLAYERS.eleven },
-];
-
-// Ryder Cup harness rosters (Phase 1.9e). 12 players each.
-const RYDER_NAMES = [
-  'Ian', 'Drew', 'Jake', 'Tommy', 'Marcus', 'Cal',
-  'Dev', 'Will', 'Pete', 'Sam', 'Ryan', 'Chris',
-];
-
-// Undrafted: 12 players, NO team assignments. Drew + Jake are the
-// two captains (mark via isCaptain). Ian is "you" but doesn't anchor
-// the rail per the undrafted exception (original order preserved).
-const RYDER_UNDRAFTED_PLAYERS: TripLaunchedPlayer[] = RYDER_NAMES.map(
-  (name, i) => ({
-    name,
-    isYou: i === 0, // Ian
-    isCaptain: i === 1 || i === 2, // Drew + Jake
-    avatarUrl: i < 6 ? PRAVATAR(i + 1) : undefined, // mix photos + monograms
-  }),
-);
-
-// Drafted (default + custom): 12 players, 6 per team. Ian on team 'a'.
-// First 6 names go to team 'a', second 6 to team 'b'.
-const RYDER_DRAFTED_PLAYERS: TripLaunchedPlayer[] = RYDER_NAMES.map(
-  (name, i) => ({
-    name,
-    isYou: i === 0, // Ian
-    team: i < 6 ? 'a' : 'b',
-    avatarUrl: i < 6 ? PRAVATAR(i + 1) : undefined,
-  }),
-);
-
-const RYDER_CUSTOM_TEAMS: RyderTeams = {
-  a: { name: 'The Generals', color: '#5C4033', glow: 'rgba(92,64,51,0.30)' },
-  b: { name: 'The Outlaws', color: '#2C2C2C', glow: 'rgba(255,255,255,0.20)' },
-};
-
-type RotationEntry = {
-  label: string;
-  players: TripLaunchedPlayer[];
-  primary: string;
-  secondary?: string;
-  stakes: string;
-  format?: string;
-  ryderTeams?: RyderTeams;
-  /** Multi-destination overrides (Phase 1.9f). When tripName is set,
-   *  it becomes the hero and subtitle renders below it. */
-  destination?: string;
-  tripName?: string;
-  subtitle?: string;
-};
-
-// Cartesian product (12) for non-Ryder + 3 Ryder Cup entries (15 total).
-// Ryder variants use the countdown time mode only per Ian's spec.
-const TRIP_LAUNCHED_ROTATION: RotationEntry[] = [
-  ...HARNESS_VARIANTS.flatMap((v) =>
-    HARNESS_TIME_MODES.map<RotationEntry>((t) => ({
-      label: `${v.label} · ${t.label}`,
-      players: v.players,
-      primary: t.primary,
-      secondary: t.secondary,
-      // Solo overrides the format-derived stakes with the spec's
-      // "no-stakes" copy when paired with the casual-feeling time modes.
-      stakes:
-        v.label === 'solo' ? 'QUIET ROUND · NO STAKES' : t.stakes,
-    })),
-  ),
-  {
-    label: 'ryder undrafted · countdown',
-    players: RYDER_UNDRAFTED_PLAYERS,
-    primary: 'T-149 DAYS',
-    secondary: 'OCTOBER 2026',
-    stakes: 'RYDER CUP · DRAFT PENDING',
-    format: 'ryderCup',
-  },
-  {
-    label: 'ryder drafted-default · countdown',
-    players: RYDER_DRAFTED_PLAYERS,
-    primary: 'T-149 DAYS',
-    secondary: 'OCTOBER 2026',
-    stakes: 'RYDER CUP · 6 vs 6',
-    format: 'ryderCup',
-  },
-  {
-    label: 'ryder drafted-custom · countdown',
-    players: RYDER_DRAFTED_PLAYERS,
-    primary: 'T-149 DAYS',
-    secondary: 'OCTOBER 2026',
-    stakes: 'RYDER CUP · 6 vs 6',
-    format: 'ryderCup',
-    ryderTeams: RYDER_CUSTOM_TEAMS,
-  },
-  // ─── Multi-destination variants (Phase 1.9f) ──────────────────
-  // tripName overrides destination as the hero; subtitle below renders
-  // course list / regional context. Type tier scales by tripName length.
-  {
-    label: 'sand belt run (52pt)',
-    players: HARNESS_PLAYERS.four,
-    primary: 'OCT 15 – 17',
-    secondary: '2026',
-    stakes: 'NASSAU · CLASSIC',
-    tripName: 'Sand Belt Run',
-    subtitle: 'Royal Melbourne · Kingston Heath · Victoria',
-  },
-  {
-    label: 'tennessee tour (36pt 2-line)',
-    players: HARNESS_PLAYERS.seven,
-    primary: 'T-149 DAYS',
-    secondary: 'OCTOBER 2026',
-    stakes: 'SCRAMBLE · TEAM PLAY',
-    tripName: 'Tennessee Three-Course Tour',
-    subtitle: 'Hermitage · Gaylord Springs · Vanderbilt Legends',
-  },
-  {
-    label: 'big dawgs (36pt 2-line)',
-    players: HARNESS_PLAYERS.eleven,
-    primary: 'OCT 15 – 17',
-    secondary: '2026',
-    stakes: 'MATCH PLAY · 18 HOLES',
-    tripName: 'The Big Dawgs Invitational',
-    subtitle: 'Pebble · Spyglass · Spanish Bay · MPCC',
-  },
-];
 
 type RecentRound = {
   id: string;
@@ -403,12 +216,6 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [showIntegrity, setShowIntegrity] = useState(false);
   const { isDemoMode: showDemoData, setDemoMode: setShowDemoData, hasRealData: demoHasRealData } = useDemoMode();
-  // [DEV HARNESS] Trip Launched preview state — kept through Beats 3+4 buildout.
-  // Each tap on the preview button rotates through roster variants for
-  // visual review: solo → 4 → 7 → 11 → solo. The variant currently loaded
-  // is shown in the button label.
-  const [tripLaunchedPreview, setTripLaunchedPreview] = useState(false);
-  const [tripLaunchedVariantIdx, setTripLaunchedVariantIdx] = useState(0);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [favoriteCourse, setFavoriteCourse] = useState<string | null>(
     user?.user_metadata?.home_course_name ?? user?.user_metadata?.home_course ?? null
@@ -1442,44 +1249,6 @@ export default function ProfileScreen() {
                 </View>
               </Pressable>
 
-              {/* [DEV HARNESS] Trip Launched cinematic preview button — kept through Beats 3+4 buildout.
-                  Tapping opens the modal with the current variant; on dismiss, the variant index advances. */}
-              <Pressable
-                onPress={() => {
-                  haptics.light();
-                  setTripLaunchedPreview(true);
-                }}
-                style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-                accessibilityLabel="Preview Trip Launched cinematic"
-              >
-                <Ionicons name="film-outline" size={20} color={c.gold} />
-                <Text style={[s.settingText, { color: c.text }]}>{`Preview Trip Launched · ${TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].label}`}</Text>
-                <Ionicons name="play-outline" size={16} color={c.textMuted} />
-              </Pressable>
-              <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
-                12 non-Ryder + 3 Ryder + 3 multi-dest (18 total)
-              </Text>
-
-              {/* [DEV HARNESS] Phase 2.0 — Quick Trip wizard preview.
-                  Routes to the new /create-trip-quick wizard chassis.
-                  Production entry points (Trips tab "+", Discover, etc.)
-                  still go to the legacy /create-trip until Phase 2.9
-                  retires it. Removed when Phase 2 ships. */}
-              <Pressable
-                onPress={() => {
-                  haptics.light();
-                  router.push('/create-trip-quick');
-                }}
-                style={({ pressed }) => [s.settingRow, { backgroundColor: c.cardBg, borderWidth: 1, borderColor: c.border, ...cardShadow, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }], marginTop: 12 }]}
-                accessibilityLabel="Preview Quick Trip wizard"
-              >
-                <Ionicons name="construct-outline" size={20} color={c.gold} />
-                <Text style={[s.settingText, { color: c.text }]}>Preview Quick Trip Wizard (2.0)</Text>
-                <Ionicons name="play-outline" size={16} color={c.textMuted} />
-              </Pressable>
-              <Text style={{ fontSize: 11, color: c.textMuted, marginTop: -4, marginLeft: 4 }}>
-                Phase 2.0 scaffolding — placeholder steps, real content in 2.1–2.8
-              </Text>
             </>
           )}
 
@@ -1488,30 +1257,6 @@ export default function ProfileScreen() {
       </Animated.ScrollView>
 
       {/* Course picker now uses the /course-search screen */}
-
-      {/* [DEV HARNESS] Trip Launched cinematic preview modal — kept through Beats 3+4 buildout.
-          __devTapToDismiss: tap anywhere on screen to dismiss the moment
-          (the real CTA tap target lands in Phase 1.9d). On dismiss the
-          variant index advances so the next tap previews a new roster. */}
-      {__DEV__ && (
-        <DormieMomentTripLaunched
-          visible={tripLaunchedPreview}
-          onViewTrip={() => {
-            setTripLaunchedPreview(false);
-            setTripLaunchedVariantIdx((idx) => (idx + 1) % TRIP_LAUNCHED_ROTATION.length);
-          }}
-          destination={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].destination ?? 'Hermitage'}
-          tripName={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].tripName}
-          subtitle={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].subtitle}
-          datePrimary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].primary}
-          dateSecondary={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].secondary}
-          players={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].players}
-          stakes={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].stakes}
-          format={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].format}
-          ryderTeams={TRIP_LAUNCHED_ROTATION[tripLaunchedVariantIdx].ryderTeams}
-          __devTapToDismiss
-        />
-      )}
     </View>
   );
 }
