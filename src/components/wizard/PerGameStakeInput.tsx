@@ -9,12 +9,28 @@ import {
 import { useTheme } from '../../theme/ThemeContext';
 import { GEO } from '../../theme/fonts';
 import { haptics } from '../../lib/haptics';
-import {
-  SCORING_FORMATS,
-  SIDE_GAMES,
-  type ScoringFormat,
-  type SideGame,
-} from '../../data/scoring';
+import { SCORING_FORMATS, SIDE_GAMES } from '../../data/scoring';
+import type {
+  PerGameStakeKey,
+  PerGameStakeConfig,
+  StrokePlayPayoutKind,
+  StablefordPayoutKind,
+  NassauTripleConfig,
+} from './perGameStakeTypes';
+
+// Re-export types so existing call sites (WizardContext, Step6Stakes,
+// step7Helpers, tests) can continue importing from this module while
+// the pure types live in perGameStakeTypes.ts.
+export type {
+  PerGameStakeKey,
+  PerGameStakeConfig,
+  StrokePlayConfig,
+  StrokePlayPayoutKind,
+  SkinsConfig,
+  NassauTripleConfig,
+  StablefordConfig,
+  StablefordPayoutKind,
+} from './perGameStakeTypes';
 
 const HAIRLINE = 'rgba(255,255,255,0.06)';
 
@@ -35,8 +51,6 @@ type ConfigKind =
   | 'skinsCarryOver'          // carry-over toggle
   | 'nassauTriple'            // front 9 / back 9 / total amounts (3 inputs)
   | 'stablefordPayoutKind';   // per-point vs per-place
-
-export type PerGameStakeKey = ScoringFormat | SideGame;
 
 interface GameStakeMeta {
   amountUnit: string;       // " per player" | " per skin" | etc.
@@ -86,33 +100,9 @@ const FALLBACK_META: GameStakeMeta = {
   configKind: 'none',
 };
 
-// ─── Config value shapes ─────────────────────────────────────────────
-// Strongly-typed per kind. The component returns one of these in onChange
-// alongside the dollar amount.
-
-export type StrokePlayPayoutKind = 'winner_takes_all' | 'split_top_3';
-export interface StrokePlayConfig { payout: StrokePlayPayoutKind }
-
-export interface SkinsConfig { carryOver: boolean }
-
-export interface NassauTripleConfig {
-  /** Stake on the front 9 match. */
-  front9: number;
-  /** Stake on the back 9 match. */
-  back9: number;
-  /** Stake on the overall 18-hole match. */
-  total: number;
-}
-
-export type StablefordPayoutKind = 'per_point' | 'per_place';
-export interface StablefordConfig { payout: StablefordPayoutKind }
-
-export type PerGameStakeConfig =
-  | { kind: 'none' }
-  | { kind: 'strokePlayPayout';      strokePlay: StrokePlayConfig }
-  | { kind: 'skinsCarryOver';        skins: SkinsConfig }
-  | { kind: 'nassauTriple';          nassau: NassauTripleConfig }
-  | { kind: 'stablefordPayoutKind';  stableford: StablefordConfig };
+// Config value shapes (PerGameStakeConfig + its kind-specific helpers)
+// live in ./perGameStakeTypes and are re-exported above. The component
+// returns one of those variants in onChange alongside the dollar amount.
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 

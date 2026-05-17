@@ -11,15 +11,16 @@ import {
   type ScoringFormat,
   type SideGame,
 } from '../../../data/scoring';
+import type { PerGameStakeConfig } from '../perGameStakeTypes';
 import { fromYMD } from './dateHelpers';
 
-/** Per-game stake shape used by the wizard reducer. Duplicated here
- *  rather than imported from WizardContext (which has React deps) so
- *  the helpers compile cleanly in test isolation. Keep the shape in
- *  sync — TS will catch mismatches via the export site. */
+/** Per-game stake shape used by the wizard reducer. Mirrors the
+ *  WizardContext shape; types are imported from the pure
+ *  perGameStakeTypes module so this file stays free of RN deps and
+ *  compiles cleanly in test isolation. */
 export interface WizardPerGameStake {
   amount: number;
-  config: unknown; // PerGameStakeConfig — opaque to summarizer
+  config: PerGameStakeConfig;
 }
 
 /** Display-safe short venue name for the auto-derived trip title.
