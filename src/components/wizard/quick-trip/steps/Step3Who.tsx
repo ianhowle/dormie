@@ -53,8 +53,6 @@ import { formatUSPhone, digitsOnly } from '../phoneHelpers';
 // Re-export for any callers (tests, future shared use).
 export { formatUSPhone, digitsOnly };
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 
@@ -142,7 +140,7 @@ export function Step3Who() {
       </View>
 
       {/* Tab bar */}
-      <View style={[s.tabBar, { borderBottomColor: HAIRLINE }]}>
+      <View style={[s.tabBar, { borderBottomColor: c.border }]}>
         {(['friends', 'recent', 'invite', 'guest'] as TabKey[]).map((key) => {
           const active = key === activeTab;
           const label =
@@ -232,8 +230,8 @@ function PlayerRow({
       style={[
         s.playerRow,
         {
-          backgroundColor: CARD_BG,
-          borderColor: isSelf ? GOLD : HAIRLINE,
+          backgroundColor: c.cardBg,
+          borderColor: isSelf ? GOLD : c.border,
           borderWidth: isSelf ? 1.5 : 1,
         },
       ]}
@@ -354,7 +352,7 @@ function FriendsTab({ selectedIds }: { selectedIds: Set<string> }) {
       <View
         style={[
           s.searchWrap,
-          { backgroundColor: CARD_BG, borderColor: HAIRLINE },
+          { backgroundColor: c.cardBg, borderColor: c.border },
         ]}
       >
         <Ionicons name="search" size={14} color={c.textMuted} />
@@ -380,8 +378,8 @@ function FriendsTab({ selectedIds }: { selectedIds: Set<string> }) {
             style={({ pressed }) => [
               s.selectRow,
               {
-                backgroundColor: CARD_BG,
-                borderColor: selected ? AUGUSTA : HAIRLINE,
+                backgroundColor: c.cardBg,
+                borderColor: selected ? AUGUSTA : c.border,
                 opacity: pressed ? 0.85 : 1,
               },
             ]}
@@ -503,8 +501,8 @@ function RecentTab({ selectedIds }: { selectedIds: Set<string> }) {
             style={({ pressed }) => [
               s.selectRow,
               {
-                backgroundColor: CARD_BG,
-                borderColor: selected ? AUGUSTA : HAIRLINE,
+                backgroundColor: c.cardBg,
+                borderColor: selected ? AUGUSTA : c.border,
                 opacity: pressed ? 0.85 : 1,
               },
             ]}
@@ -596,7 +594,7 @@ function InviteTab() {
         autoCapitalize="words"
         style={[
           s.formInput,
-          { backgroundColor: CARD_BG, borderColor: HAIRLINE, color: c.text, fontFamily: GEO },
+          { backgroundColor: c.cardBg, borderColor: c.border, color: c.text, fontFamily: GEO },
         ]}
       />
 
@@ -611,7 +609,7 @@ function InviteTab() {
         keyboardType="phone-pad"
         style={[
           s.formInput,
-          { backgroundColor: CARD_BG, borderColor: HAIRLINE, color: c.text, fontFamily: GEO },
+          { backgroundColor: c.cardBg, borderColor: c.border, color: c.text, fontFamily: GEO },
         ]}
       />
 
@@ -692,7 +690,7 @@ function GuestTab() {
         autoCapitalize="words"
         style={[
           s.formInput,
-          { backgroundColor: CARD_BG, borderColor: HAIRLINE, color: c.text, fontFamily: GEO },
+          { backgroundColor: c.cardBg, borderColor: c.border, color: c.text, fontFamily: GEO },
         ]}
       />
 

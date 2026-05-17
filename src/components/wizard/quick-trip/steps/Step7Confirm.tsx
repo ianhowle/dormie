@@ -65,8 +65,6 @@ export {
   fromYMD,
 };
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 
@@ -361,7 +359,7 @@ export function Step7Confirm() {
         <View
           style={[
             s.nameEditor,
-            { backgroundColor: CARD_BG, borderColor: HAIRLINE },
+            { backgroundColor: c.cardBg, borderColor: c.border },
           ]}
         >
           <Text style={[s.editorLabel, { color: c.gold, fontFamily: GEO }]}>
@@ -372,7 +370,7 @@ export function Step7Confirm() {
             onChangeText={setNameInput}
             placeholder={derivedTripName}
             placeholderTextColor={c.textMuted}
-            style={[s.editorInput, { color: c.text, fontFamily: GEO }]}
+            style={[s.editorInput, { color: c.text, fontFamily: GEO, borderBottomColor: c.border }]}
             autoCapitalize="words"
             autoFocus
           />
@@ -453,7 +451,7 @@ export function Step7Confirm() {
             {
               backgroundColor: !buttonsDisabled ? AUGUSTA : c.elevated,
               borderWidth: !buttonsDisabled ? 0 : 1,
-              borderColor: !buttonsDisabled ? 'transparent' : HAIRLINE,
+              borderColor: !buttonsDisabled ? 'transparent' : c.border,
               opacity: pressed && !buttonsDisabled ? 0.85 : 1,
             },
             buttonsDisabled && { opacity: 0.6 },
@@ -489,7 +487,7 @@ export function Step7Confirm() {
           style={({ pressed }) => [
             s.secondaryBtn,
             {
-              borderColor: HAIRLINE,
+              borderColor: c.border,
               opacity: pressed && !buttonsDisabled ? 0.7 : 1,
             },
             buttonsDisabled && { opacity: 0.5 },
@@ -571,7 +569,6 @@ const s = StyleSheet.create({
     fontWeight: '600',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: HAIRLINE,
   },
   editorActions: {
     flexDirection: 'row',

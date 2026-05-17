@@ -14,15 +14,10 @@ import { GEO } from '../../theme/fonts';
 import { haptics } from '../../lib/haptics';
 import type { Complexity } from '../../data/scoring';
 
-// ─── Complexity badge palette ─────────────────────────────────────────
 // Per spec: Beginner = Augusta green, Casual = muted, Expert = gold.
-const COMPLEXITY_COLOR: Record<Complexity, string> = {
-  Beginner: '#006747',
-  Casual: '#8A857F',
-  Expert: '#C9A227',
-};
-
-const HAIRLINE = 'rgba(255,255,255,0.06)';
+// Beginner/Expert are brand accents (theme-invariant); Casual maps to
+// the theme's muted text token so the badge reads on both themes —
+// inlined inside the component since hooks can't run at module scope.
 
 export interface InfoDisclosureModalProps {
   visible: boolean;
@@ -92,7 +87,10 @@ export function InfoDisclosureModal({
     onClose();
   };
 
-  const complexityColor = COMPLEXITY_COLOR[complexity];
+  const complexityColor =
+    complexity === 'Beginner' ? '#006747'
+    : complexity === 'Expert'  ? '#C9A227'
+    : c.textMuted;
 
   return (
     <Modal
@@ -107,7 +105,8 @@ export function InfoDisclosureModal({
           style={[
             s.card,
             {
-              backgroundColor: '#1A1816',
+              backgroundColor: c.elevated,
+              borderColor: c.border,
               transform: [{ scale }],
             },
           ]}
@@ -138,17 +137,17 @@ export function InfoDisclosureModal({
             <Text style={[s.description, { color: c.textMuted }]}>{description}</Text>
 
             {/* Section: How it works */}
-            <View style={[s.divider, { backgroundColor: HAIRLINE }]} />
+            <View style={[s.divider, { backgroundColor: c.border }]} />
             <Text style={[s.sectionHeader, { color: c.gold, fontFamily: GEO }]}>HOW IT WORKS</Text>
             <Text style={[s.body, { color: c.text }]}>{fullDescription}</Text>
 
             {/* Section: Example */}
-            <View style={[s.divider, { backgroundColor: HAIRLINE }]} />
+            <View style={[s.divider, { backgroundColor: c.border }]} />
             <Text style={[s.sectionHeader, { color: c.gold, fontFamily: GEO }]}>EXAMPLE</Text>
             <Text style={[s.example, { color: c.text }]}>{example}</Text>
 
             {/* Section: When to use */}
-            <View style={[s.divider, { backgroundColor: HAIRLINE }]} />
+            <View style={[s.divider, { backgroundColor: c.border }]} />
             <Text style={[s.sectionHeader, { color: c.gold, fontFamily: GEO }]}>WHEN TO USE</Text>
             <Text style={[s.body, { color: c.text }]}>{whenToUse}</Text>
           </ScrollView>
@@ -185,7 +184,6 @@ const s = StyleSheet.create({
     maxWidth: 420,
     maxHeight: '80%',
     borderWidth: 1,
-    borderColor: HAIRLINE,
   },
   scrollContent: {
     padding: 24,

@@ -46,8 +46,6 @@ import { useToast } from '../../../Toast';
 import { useWizard } from '../WizardContext';
 import { checkFormatCompatibility, type CompatibilityResult } from '../compatibility';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 // Compatibility lock-out tokens (Phase 2.9 UI sub-phase) — muted gold
@@ -60,12 +58,9 @@ const BANNER_BG = 'rgba(196,30,58,0.08)';
 const BANNER_BORDER = 'rgba(196,30,58,0.35)';
 
 // Match InfoDisclosureModal's complexity palette so the badges read
-// consistently across the two surfaces.
-const COMPLEXITY_COLOR: Record<Complexity, string> = {
-  Beginner: '#006747',  // Augusta green
-  Casual: '#8A857F',    // muted
-  Expert: '#C9A227',    // gold
-};
+// consistently across the two surfaces. Beginner/Expert are brand
+// accents (theme-invariant); Casual maps to the theme's muted text
+// token so the badge reads on both dark and light backgrounds.
 
 // =============================================================
 // Component
@@ -204,8 +199,8 @@ export function Step4How() {
                   style={({ pressed }) => [
                     s.recentPill,
                     {
-                      backgroundColor: CARD_BG,
-                      borderColor: selected ? AUGUSTA : HAIRLINE,
+                      backgroundColor: c.cardBg,
+                      borderColor: selected ? AUGUSTA : c.border,
                       borderWidth: selected ? 1.5 : 1,
                       opacity: locked ? 0.4 : pressed ? 0.85 : 1,
                     },
@@ -239,8 +234,8 @@ export function Step4How() {
           format or grows the roster. */}
       {selectionInvalidated && selectedFormatInfo && selectedCompat ? (
         <View style={s.invalidationBanner}>
-          <Ionicons name="alert-circle" size={18} color="#C41E3A" />
-          <Text style={s.invalidationBannerText}>
+          <Ionicons name="alert-circle" size={18} color={c.urgent} />
+          <Text style={[s.invalidationBannerText, { color: c.text }]}>
             {selectedFormatInfo.label} {selectedCompat.message
               ? `— ${selectedCompat.message.toLowerCase()}`
               : 'no longer fits this roster'}. Pick a different format or add more players.
@@ -265,8 +260,8 @@ export function Step4How() {
               style={({ pressed }) => [
                 s.formatRow,
                 {
-                  backgroundColor: CARD_BG,
-                  borderColor: HAIRLINE,
+                  backgroundColor: c.cardBg,
+                  borderColor: c.border,
                   borderLeftColor: selected ? AUGUSTA : 'transparent',
                   borderLeftWidth: selected ? 3 : 0,
                   // Press feedback applies at row level. Locked-state
@@ -374,7 +369,12 @@ export function Step4How() {
 // =============================================================
 
 function ComplexityBadge({ complexity }: { complexity: Complexity }) {
-  const color = COMPLEXITY_COLOR[complexity];
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const color =
+    complexity === 'Beginner' ? '#006747'
+    : complexity === 'Expert'  ? '#C9A227'
+    : c.textMuted;
   return (
     <View
       style={[
@@ -488,7 +488,6 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 16,
-    color: '#E8E4DE',
   },
   formatRowHead: {
     flexDirection: 'row',

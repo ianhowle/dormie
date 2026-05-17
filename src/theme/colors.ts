@@ -22,6 +22,7 @@ export const dark = {
   textTertiary: '#6B6560', // Tertiary text (dark mode)
   border: 'rgba(255,255,255,0.06)', // Barely visible edge definition
   borderLight: 'rgba(255,255,255,0.04)',
+  accentEdge: 'rgba(255,255,255,0.12)', // Decorative top-edge highlight (e.g. wizard persona cards)
   /** Score color coding — PGA Tour broadcast convention */
   scoreUnder: '#1D9E75',   // Under par green
   scoreEven: '#E8E4DE',    // Even par neutral
@@ -39,6 +40,7 @@ export const light = {
   textTertiary: '#9C9894', // Muted/tertiary text
   border: 'rgba(0,0,0,0.06)',      // Barely visible edge definition
   borderLight: 'rgba(0,0,0,0.04)', // Row separator
+  accentEdge: 'rgba(0,0,0,0.08)',  // Decorative top-edge highlight (e.g. wizard persona cards)
   /** Score color coding — adjusted saturation for white backgrounds */
   scoreUnder: '#0E7A5B',   // Deeper green for readability on white
   scoreEven: '#6B6966',    // Warm gray even par

@@ -50,9 +50,6 @@ function quickTripDescription(firstName: string | null): string {
     : 'Next on the tee — your group is up.';
 }
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-const TOP_ACCENT = 'rgba(255,255,255,0.12)';
-const CARD_BG = '#151312';
 
 interface PersonaCardConfig {
   persona: Exclude<WizardPersona, null>;
@@ -152,9 +149,9 @@ export function Step0Persona() {
             style={({ pressed }) => [
               s.card,
               {
-                backgroundColor: CARD_BG,
-                borderColor: HAIRLINE,
-                borderTopColor: TOP_ACCENT,
+                backgroundColor: c.cardBg,
+                borderColor: c.border,
+                borderTopColor: c.accentEdge,
                 opacity: pressed ? 0.85 : 1,
                 transform: [{ scale: pressed ? 0.99 : 1 }],
               },

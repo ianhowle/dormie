@@ -19,7 +19,6 @@ import {
   type SideGame,
 } from '../../data/scoring';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
 
 // ─── Question schemas ────────────────────────────────────────────────
 // One question per step. Spec is fixed: 3 questions for formats, 3 for
@@ -397,7 +396,8 @@ export function HelpMeChoose({ visible, mode, onComplete, onCancel }: HelpMeChoo
           style={[
             s.card,
             {
-              backgroundColor: '#1A1816',
+              backgroundColor: c.elevated,
+              borderColor: c.border,
               transform: [{ scale: cardScale }],
             },
           ]}
@@ -428,8 +428,9 @@ export function HelpMeChoose({ visible, mode, onComplete, onCancel }: HelpMeChoo
                       style={({ pressed }) => [
                         s.option,
                         {
-                          backgroundColor: pressed ? '#2A2724' : '#221F1D',
-                          borderColor: HAIRLINE,
+                          backgroundColor: c.elevated,
+                          borderColor: c.border,
+                          opacity: pressed ? 0.85 : 1,
                         },
                       ]}
                     >
@@ -451,7 +452,7 @@ export function HelpMeChoose({ visible, mode, onComplete, onCancel }: HelpMeChoo
                 <Text style={[s.recTitle, { color: c.text, fontFamily: GEO }]}>
                   {recommendation.label}
                 </Text>
-                <View style={[s.divider, { backgroundColor: HAIRLINE }]} />
+                <View style={[s.divider, { backgroundColor: c.border }]} />
                 <Text style={[s.recRationale, { color: c.text }]}>
                   {recommendation.rationale}
                 </Text>
@@ -481,7 +482,7 @@ export function HelpMeChoose({ visible, mode, onComplete, onCancel }: HelpMeChoo
                 onPress={handleShowOthers}
                 style={({ pressed }) => [
                   s.secondaryBtn,
-                  { borderColor: HAIRLINE, opacity: pressed ? 0.7 : 1 },
+                  { borderColor: c.border, opacity: pressed ? 0.7 : 1 },
                 ]}
               >
                 <Text style={[s.secondaryBtnText, { color: c.textMuted }]}>
@@ -512,7 +513,6 @@ const s = StyleSheet.create({
     maxWidth: 420,
     maxHeight: '80%',
     borderWidth: 1,
-    borderColor: HAIRLINE,
   },
   scrollContent: {
     padding: 24,

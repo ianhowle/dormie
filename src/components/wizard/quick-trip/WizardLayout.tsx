@@ -47,8 +47,6 @@ const STEP_NAMES: Record<number, string> = {
   7: 'Confirm',
 };
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-
 interface WizardLayoutProps {
   children: ReactNode;
 }
@@ -179,7 +177,7 @@ export function WizardLayout({ children }: WizardLayoutProps) {
           s.footer,
           {
             paddingBottom: insets.bottom + 12,
-            borderTopColor: HAIRLINE,
+            borderTopColor: c.border,
             backgroundColor: c.bg,
           },
         ]}
@@ -208,7 +206,7 @@ export function WizardLayout({ children }: WizardLayoutProps) {
               {
                 backgroundColor: canAdvance ? '#006747' : c.elevated,
                 borderWidth: canAdvance ? 0 : 1,
-                borderColor: canAdvance ? 'transparent' : HAIRLINE,
+                borderColor: canAdvance ? 'transparent' : c.border,
                 opacity: pressed ? 0.85 : 1,
               },
               !canAdvance && { opacity: 0.6 },

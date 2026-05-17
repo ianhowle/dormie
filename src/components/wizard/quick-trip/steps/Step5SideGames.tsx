@@ -46,8 +46,6 @@ import { useToast } from '../../../Toast';
 import { useWizard } from '../WizardContext';
 import { checkFormatCompatibility, type CompatibilityResult } from '../compatibility';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-const CARD_BG = '#151312';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 // Compatibility lock-out tokens — same palette as Step 4 for visual
@@ -58,12 +56,9 @@ const BANNER_BG = 'rgba(196,30,58,0.08)';
 const BANNER_BORDER = 'rgba(196,30,58,0.35)';
 
 // Match InfoDisclosureModal + Step 4 complexity palette so all three
-// surfaces read consistently.
-const COMPLEXITY_COLOR: Record<Complexity, string> = {
-  Beginner: '#006747',
-  Casual: '#8A857F',
-  Expert: '#C9A227',
-};
+// surfaces read consistently. Beginner/Expert are brand accents
+// (theme-invariant); Casual maps to the theme's muted text token so
+// the badge reads on both dark and light backgrounds.
 
 // =============================================================
 // Component
@@ -221,8 +216,8 @@ export function Step5SideGames() {
                   style={({ pressed }) => [
                     s.recentPill,
                     {
-                      backgroundColor: CARD_BG,
-                      borderColor: selected ? AUGUSTA : HAIRLINE,
+                      backgroundColor: c.cardBg,
+                      borderColor: selected ? AUGUSTA : c.border,
                       borderWidth: selected ? 1.5 : 1,
                       opacity: locked ? 0.4 : pressed ? 0.85 : 1,
                     },
@@ -263,8 +258,8 @@ export function Step5SideGames() {
           locked entries or grows the roster. */}
       {invalidatedSideGames.length > 0 ? (
         <View style={s.invalidationBanner}>
-          <Ionicons name="alert-circle" size={18} color="#C41E3A" />
-          <Text style={s.invalidationBannerText}>
+          <Ionicons name="alert-circle" size={18} color={c.urgent} />
+          <Text style={[s.invalidationBannerText, { color: c.text }]}>
             {invalidatedSideGames.length === 1
               ? `${invalidatedSideGames[0].label} no longer fits this roster. Tap to deselect or add more players.`
               : `${invalidatedSideGames.length} selected side games no longer fit this roster. Deselect them or add more players.`}
@@ -293,8 +288,8 @@ export function Step5SideGames() {
               style={({ pressed }) => [
                 s.sideGameRow,
                 {
-                  backgroundColor: CARD_BG,
-                  borderColor: HAIRLINE,
+                  backgroundColor: c.cardBg,
+                  borderColor: c.border,
                   borderLeftColor: selected ? AUGUSTA : 'transparent',
                   borderLeftWidth: selected ? 3 : 0,
                   // Press feedback at row level. Locked-state dim is
@@ -422,7 +417,12 @@ export function Step5SideGames() {
 // =============================================================
 
 function ComplexityBadge({ complexity }: { complexity: Complexity }) {
-  const color = COMPLEXITY_COLOR[complexity];
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const color =
+    complexity === 'Beginner' ? '#006747'
+    : complexity === 'Expert'  ? '#C9A227'
+    : c.textMuted;
   return (
     <View
       style={[
@@ -537,7 +537,6 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 16,
-    color: '#E8E4DE',
   },
   sideGameRowHead: {
     flexDirection: 'row',

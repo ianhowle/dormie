@@ -11,8 +11,6 @@ import {
   type SideGame,
 } from '../../data/scoring';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-
 // Avatar stack constants — slightly larger than the Trips-list TripCard
 // to fit the confirmation-context emphasis (28px vs 26px). Overlap and
 // ring width follow the same proportions.
@@ -94,8 +92,8 @@ export function TripCardPreview({
       style={[
         s.card,
         {
-          backgroundColor: '#151312',
-          borderColor: HAIRLINE,
+          backgroundColor: c.cardBg,
+          borderColor: c.border,
           borderLeftColor: accentColor,
         },
       ]}
@@ -127,9 +125,9 @@ export function TripCardPreview({
                   marginLeft: i > 0 ? -AVATAR_OVERLAP : 0,
                   zIndex: visible.length - i,
                   borderWidth: AVATAR_RING_WIDTH,
-                  borderColor: '#151312',
+                  borderColor: c.cardBg,
                   borderRadius: wrapSize / 2,
-                  backgroundColor: '#151312',
+                  backgroundColor: c.cardBg,
                 },
               ]}
             >
@@ -151,8 +149,8 @@ export function TripCardPreview({
                   marginLeft: -AVATAR_OVERLAP,
                   borderRadius: wrapSize / 2,
                   borderWidth: AVATAR_RING_WIDTH,
-                  borderColor: '#151312',
-                  backgroundColor: '#1A1816',
+                  borderColor: c.cardBg,
+                  backgroundColor: c.elevated,
                 },
               ]}
             >

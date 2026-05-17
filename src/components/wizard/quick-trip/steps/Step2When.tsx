@@ -58,7 +58,6 @@ export {
   formatTime12h,
 };
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
 const AUGUSTA = '#006747';
 const GOLD = '#C9A227';
 
@@ -210,7 +209,7 @@ function InlineCalendar({ selected, minDate, onSelect }: InlineCalendarProps) {
       </View>
 
       {/* Day-of-week header */}
-      <View style={s.dowRow}>
+      <View style={[s.dowRow, { borderBottomColor: c.border }]}>
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dow, i) => (
           <Text
             key={`${dow}-${i}`}
@@ -255,7 +254,7 @@ function InlineCalendar({ selected, minDate, onSelect }: InlineCalendarProps) {
                       : isSelected
                         ? GOLD
                         : isPast
-                          ? 'rgba(255,255,255,0.18)'
+                          ? c.textTertiary
                           : c.text,
                     fontFamily: GEO,
                     // Today is NOT bolded — only selected gets weight.
@@ -359,8 +358,8 @@ export function Step2When() {
               style={({ pressed }) => [
                 s.pill,
                 {
-                  backgroundColor: active ? AUGUSTA : '#221F1D',
-                  borderColor: active ? AUGUSTA : HAIRLINE,
+                  backgroundColor: active ? AUGUSTA : c.elevated,
+                  borderColor: active ? AUGUSTA : c.border,
                   opacity: pressed ? 0.85 : 1,
                 },
               ]}
@@ -430,8 +429,8 @@ export function Step2When() {
                 style={({ pressed }) => [
                   s.pill,
                   {
-                    backgroundColor: active ? AUGUSTA : '#221F1D',
-                    borderColor: active ? AUGUSTA : HAIRLINE,
+                    backgroundColor: active ? AUGUSTA : c.elevated,
+                    borderColor: active ? AUGUSTA : c.border,
                     opacity: pressed ? 0.85 : 1,
                   },
                 ]}
@@ -556,7 +555,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: HAIRLINE,
   },
   dowText: {
     flex: 1,

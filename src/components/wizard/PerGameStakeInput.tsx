@@ -32,8 +32,6 @@ export type {
   StablefordPayoutKind,
 } from './perGameStakeTypes';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-
 // ─── Game-specific config schemas ────────────────────────────────────
 // Each format / side game gets:
 //   - label: shown above the dollar input ("$ X per player", "$ X per skin", etc.)
@@ -217,8 +215,8 @@ export function PerGameStakeInput({
                   style={({ pressed }) => [
                     s.pill,
                     {
-                      backgroundColor: active ? '#006747' : '#221F1D',
-                      borderColor: active ? '#006747' : HAIRLINE,
+                      backgroundColor: active ? '#006747' : c.elevated,
+                      borderColor: active ? '#006747' : c.border,
                       opacity: pressed ? 0.8 : 1,
                     },
                   ]}
@@ -259,8 +257,8 @@ export function PerGameStakeInput({
                   style={({ pressed }) => [
                     s.pill,
                     {
-                      backgroundColor: active ? '#006747' : '#221F1D',
-                      borderColor: active ? '#006747' : HAIRLINE,
+                      backgroundColor: active ? '#006747' : c.elevated,
+                      borderColor: active ? '#006747' : c.border,
                       opacity: pressed ? 0.8 : 1,
                     },
                   ]}
@@ -327,7 +325,7 @@ export function PerGameStakeInput({
                   <View
                     style={[
                       s.amountInputWrap,
-                      { backgroundColor: '#221F1D', borderColor: HAIRLINE },
+                      { backgroundColor: c.elevated, borderColor: c.border },
                     ]}
                   >
                     <Text style={[s.dollarSign, { color: c.textMuted, fontFamily: GEO }]}>
@@ -362,7 +360,7 @@ export function PerGameStakeInput({
   const isNassau = config.kind === 'nassauTriple';
 
   return (
-    <View style={[s.card, { backgroundColor: '#1A1816', borderColor: HAIRLINE }]}>
+    <View style={[s.card, { backgroundColor: c.elevated, borderColor: c.border }]}>
       <Text style={[s.title, { color: c.text, fontFamily: GEO }]}>{label}</Text>
 
       {!isNassau && (
@@ -370,7 +368,7 @@ export function PerGameStakeInput({
           <View
             style={[
               s.amountInputWrap,
-              { backgroundColor: '#221F1D', borderColor: HAIRLINE },
+              { backgroundColor: c.elevated, borderColor: c.border },
             ]}
           >
             <Text style={[s.dollarSign, { color: c.textMuted, fontFamily: GEO }]}>$</Text>

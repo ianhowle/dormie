@@ -7,8 +7,6 @@ import { haptics } from '../../lib/haptics';
 import { useToast } from '../Toast';
 import { Avatar } from '../Avatar';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-
 const AVATAR_SIZE = 32;
 
 export type InviteDeliveryMethod = 'dormie' | 'sms' | 'guest';
@@ -74,7 +72,7 @@ export function InvitePreview({ members, inviteUrl, onAddPlayer }: InvitePreview
       <Text style={[s.sectionHeader, { color: c.gold, fontFamily: GEO }]}>INVITING</Text>
 
       {isSoloTrip ? (
-        <View style={[s.emptyCard, { backgroundColor: '#151312', borderColor: HAIRLINE }]}>
+        <View style={[s.emptyCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
           <Text style={[s.emptyText, { color: c.textMuted }]}>
             No invitations to send — solo trip.
           </Text>
@@ -98,7 +96,7 @@ export function InvitePreview({ members, inviteUrl, onAddPlayer }: InvitePreview
           onPress={handleAddPlayer}
           style={({ pressed }) => [
             s.addPlayerBtn,
-            { borderColor: HAIRLINE, opacity: pressed ? 0.65 : 1 },
+            { borderColor: c.border, opacity: pressed ? 0.65 : 1 },
           ]}
         >
           <Ionicons name="person-add-outline" size={14} color={c.textMuted} />
@@ -128,7 +126,7 @@ function InviteRow({
   const isOrganizer = !!member.isOrganizer;
 
   return (
-    <View style={[s.row, { backgroundColor: '#151312', borderColor: HAIRLINE }]}>
+    <View style={[s.row, { backgroundColor: c.cardBg, borderColor: c.border }]}>
       <Avatar
         id={member.id}
         name={member.name}

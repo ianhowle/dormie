@@ -38,8 +38,6 @@ import CourseLocationPicker from '../../../trip/CourseLocationPicker';
 import type { SelectedCourse } from '../../../trip/CourseLocationPicker';
 import { useWizard, type WizardLocationSelection } from '../WizardContext';
 
-const HAIRLINE = 'rgba(255,255,255,0.06)';
-const CARD_BG = '#151312';
 
 interface RecentCourse {
   id: string;
@@ -371,8 +369,8 @@ export function Step1Where() {
             style={({ pressed }) => [
               s.recentCard,
               {
-                backgroundColor: CARD_BG,
-                borderColor: homeCourseSelected ? '#006747' : HAIRLINE,
+                backgroundColor: c.cardBg,
+                borderColor: homeCourseSelected ? '#006747' : c.border,
                 opacity: pressed ? 0.85 : 1,
               },
             ]}
@@ -448,8 +446,8 @@ export function Step1Where() {
                 style={({ pressed }) => [
                   s.recentCard,
                   {
-                    backgroundColor: CARD_BG,
-                    borderColor: selected ? '#006747' : HAIRLINE,
+                    backgroundColor: c.cardBg,
+                    borderColor: selected ? '#006747' : c.border,
                     opacity: pressed ? 0.85 : 1,
                   },
                 ]}
@@ -520,7 +518,7 @@ export function Step1Where() {
           <View
             style={[
               s.freeTextInputWrap,
-              { backgroundColor: CARD_BG, borderColor: HAIRLINE },
+              { backgroundColor: c.cardBg, borderColor: c.border },
             ]}
           >
             <Ionicons
