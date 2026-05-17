@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient } from '../../src/theme/colors';
-import { todayYMD } from '../../src/components/wizard/quick-trip/dateHelpers';
+import { todayYMD, fromYMD } from '../../src/components/wizard/quick-trip/dateHelpers';
 import { Avatar } from '../../src/components/Avatar';
 import { DestinationImage } from '../../src/components/CourseImage';
 import GoldDivider from '../../src/components/GoldDivider';
@@ -76,7 +76,14 @@ function deriveGradientColors(seed: string): [string, string] {
 }
 
 function startOfLocalDay(d: Date | string): Date {
-  const dt = typeof d === 'string' ? new Date(d) : new Date(d.getTime());
+  // YMD strings ('2026-05-17') must be parsed via fromYMD so they land
+  // on the local day. new Date(s) treats date-only ISO strings as UTC
+  // midnight, which becomes the previous local day in CDT/CST (any
+  // negative-offset zone) — wrong day for isTripLive / currentDay math.
+  const dt =
+    typeof d === 'string'
+      ? fromYMD(d) ?? new Date(d)
+      : new Date(d.getTime());
   dt.setHours(0, 0, 0, 0);
   return dt;
 }
