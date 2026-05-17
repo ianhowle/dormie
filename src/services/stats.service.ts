@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { todayYMD, fromYMD } from '../components/wizard/quick-trip/dateHelpers';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -79,12 +80,13 @@ function avg(nums: number[]): number {
 }
 
 // Trip is "completed" for stats purposes when status === 'completed' OR
-// the end_date has already passed. Same heuristic as the Trips list.
+// the end_date has already passed. Same heuristic as the Trips list —
+// uses local-timezone YMD via todayYMD() so the day boundary doesn't
+// shift into UTC and bucket today's trips as completed after ~7pm CDT.
 function isTripCompleted(t: { status: string | null; end_date: string | null }): boolean {
   if (t.status === 'completed') return true;
   if (!t.end_date) return false;
-  const today = new Date().toISOString().slice(0, 10);
-  return t.end_date < today;
+  return t.end_date < todayYMD();
 }
 
 async function fetchCompletedTripsForUser(userId: string): Promise<{
@@ -261,10 +263,12 @@ export const statsService = {
     }
 
     // Year derived from start_date — a trip that spans Dec 31 → Jan 1 counts
-    // as the start year per spec.
+    // as the start year per spec. fromYMD parses the date string in local
+    // time so a trip dated 2026-01-01 doesn't bucket as 2025 in CDT (where
+    // new Date('2026-01-01') = 2025-12-31 19:00 local).
     const yearMap = new Map<number, { trips: number; scores: number[] }>();
     for (const t of completedTrips) {
-      const year = new Date(t.start_date).getFullYear();
+      const year = fromYMD(t.start_date)?.getFullYear() ?? new Date(t.start_date).getFullYear();
       const bucket = yearMap.get(year) ?? { trips: 0, scores: [] };
       bucket.trips += 1;
       const tripRounds = tripRoundsByTripId.get(t.id) ?? [];
