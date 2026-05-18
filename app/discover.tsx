@@ -237,7 +237,7 @@ export default function DiscoverScreen() {
                     <Text style={s.dreamCourses}>{dest.courseCount} courses</Text>
                   </LinearGradient>
                   <Pressable
-                    onPress={() => { haptics.light(); router.push(`/create-trip?destination=${encodeURIComponent(dest.name)}`); }}
+                    onPress={() => { haptics.light(); router.push(`/create-trip-quick?destination=${encodeURIComponent(dest.name)}`); }}
                     style={[s.dreamFooter, { backgroundColor: c.cardBg }]}
                   >
                     <Text style={[s.dreamAction, { color: c.teal }]}>Plan Trip →</Text>

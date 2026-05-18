@@ -232,7 +232,7 @@ export function TripsEmpty() {
         Plan your first golf trip.
       </Text>
       <Pressable
-        onPress={() => { haptics.light(); router.push('/create-trip'); }}
+        onPress={() => { haptics.light(); router.push('/create-trip-quick'); }}
         style={({ pressed }) => [es.btn, { backgroundColor: isDark ? c.teal : '#006747' }, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
       >
         <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />

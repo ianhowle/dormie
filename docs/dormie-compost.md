@@ -26,6 +26,36 @@
   PRE-BETA PRIORITY: LOW (only triggers on rare submit-without-date edge case)
   PAIRS WITH: Phase 4 Ryder Cup migration
 
+- 2026-05-06 — DUPLICATE TRIP FLOW MIGRATION (deferred from Phase 2.9 closeout)
+
+  Phase 2.9 legacy /create-trip caller sweep redirected 4 of 5 production callers to /create-trip-quick. Caller #3 (duplicate trip flow at app/(tabs)/trips.tsx:1202) was preserved on legacy because the new wizard at /create-trip-quick does not currently consume the duplicate prefill params (duplicateFromName, duplicateFromFormat, duplicateFromSideGames, duplicateFromStakes). Migrating this caller to the new wizard would silently degrade the duplicate intent — user taps Duplicate, lands on Step 0 with no prefilled trip details.
+
+  Two paths now reach /create-trip in production:
+  1. Step 0 persona fork → Ryder Cup path (deliberate, until Phase 4 migrates Ryder Cup)
+  2. Trips tab → trip card → Duplicate action (preserved working feature, until Phase 3+ wires duplicate-prefill through the new wizard)
+
+  WORK REQUIRED FOR DUPLICATE FLOW MIGRATION:
+
+  1. WizardContext extension — accept duplicate prefill params and seed wizard state on mount:
+     - duplicateFromName → state.tripName + tripNameOverridden flag
+     - duplicateFromFormat → state.format (if compatible with current player count, else show 'Format requires X players' warning)
+     - duplicateFromSideGames → state.sideGames
+     - duplicateFromStakes → state.perGameStakes (deserialize from URL-safe format)
+
+  2. URL param schema — define how duplicate state serializes/deserializes. Current legacy implementation reads these as comma-separated strings; new wizard probably wants JSON-encoded or individual params per field.
+
+  3. Edge case handling — what if the source trip's course or date is in the past, or the format requires more players than current selection allows? Should the wizard pre-fill what it can and skip invalid fields gracefully, or refuse to load and show a warning?
+
+  4. Step navigation hint — if user duplicates a complete trip, should wizard jump to Step 7 confirm (review and launch) or start at Step 0 (let user review each step)? Probably depends on how complete the prefill is.
+
+  5. UI surface — after migration, the trip card's 'Duplicate' menu item could remain unchanged, but Step 0 Persona Fork should show 'Duplicating from: {sourceTripName}' as a header element so user knows they're in duplicate mode.
+
+  ESTIMATED SCOPE: 2-4 hours. Pairs naturally with Phase 3 Plan Ahead extensions since Plan Ahead already adds state-restoration capabilities (draft persistence). The same primitives that restore a draft can restore from a duplicate source.
+
+  PRE-BETA PRIORITY: MEDIUM. Duplicate is a nice-to-have feature not load-bearing on initial trips. Current state (legacy path still works) is acceptable for closed beta.
+
+  PAIRS NATURALLY WITH: Phase 3 Plan Ahead (state-restoration primitives), Phase 4 Ryder Cup migration (both finish retiring /create-trip legacy traffic), Step 0 Persona Fork (duplicate intent has a 'Duplicate an existing trip' affordance there already showing a 'coming next release' toast — same UI surface).
+
 - 2026-05-06 — CLAUDE DESIGN PASS ON REMAINING USER-FACING SCREENS (pre-beta workstream)
 
   Phase 1.9 cinematic moment + Phase 2 wizard polish established the design DNA standard for Dormie's most emotionally-loaded surfaces. Other user-facing screens haven't yet received the same Claude Design treatment and may not match that standard.

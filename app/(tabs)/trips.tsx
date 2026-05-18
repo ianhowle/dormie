@@ -219,7 +219,7 @@ function Header({ onPressJoin }: { onPressJoin: () => void }) {
           <Text style={[s.headerBtnText, { color: 'rgba(255,255,255,0.8)' }]}>Join</Text>
         </Pressable>
         <Pressable
-          onPress={() => router.push('/create-trip')}
+          onPress={() => router.push('/create-trip-quick')}
           style={({ pressed }) => [
             s.headerBtn,
             { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
@@ -1185,7 +1185,7 @@ export default function TripsScreen() {
 
   const handlePlanTrip = useCallback((region: string) => {
     haptics.light();
-    router.push({ pathname: '/create-trip', params: { location: region } });
+    router.push({ pathname: '/create-trip-quick', params: { location: region } });
   }, [router]);
 
   const handleExploreTilePress = useCallback((dest: ExploreDestination) => {
