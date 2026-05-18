@@ -671,7 +671,21 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
 
 // ─── Main screen ──────────────────────────────────────────────────────
 export default function CreateTripScreen() {
-  const [tripType, setTripType] = useState<TripType | null>(null);
+  const params = useLocalSearchParams<{
+    duplicateFromName?: string;
+    duplicateFromFormat?: string;
+    duplicateFromSideGames?: string;
+    duplicateFromStakes?: string;
+  }>();
+  const isDuplicating =
+    typeof params.duplicateFromName === 'string' ||
+    typeof params.duplicateFromFormat === 'string' ||
+    typeof params.duplicateFromSideGames === 'string' ||
+    typeof params.duplicateFromStakes === 'string';
+
+  const [tripType, setTripType] = useState<TripType | null>(
+    isDuplicating ? 'planned' : null,
+  );
 
   if (tripType === null) {
     return <TypeSelection onSelect={setTripType} />;
