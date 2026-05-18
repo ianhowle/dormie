@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useTheme } from '../../src/theme/ThemeContext';
+import { todayYMD, daysBetweenYMD } from '../../src/components/wizard/quick-trip/dateHelpers';
 import { useAuth } from '../../src/lib/auth';
 import { GEO, SANS } from '../../src/theme/fonts';
 import { cardShadowDark, cardShadowLight, greenHeaderGradient, tickerShadowDark, tickerShadowLight } from '../../src/theme/colors';
@@ -1164,12 +1165,13 @@ export default function HomeScreen() {
         setRealFriends([...active, ...sent]);
       });
 
-      // Build upcoming items from real trips and seasons
-      const now = new Date();
+      // Build upcoming items from real trips and seasons. daysBetweenYMD
+      // parses both ends via fromYMD so the comparison is local-timezone
+      // safe — new Date('YYYY-MM-DD') would parse as UTC midnight and bucket
+      // tomorrow's trip as "0 days away" after ~7pm local in CDT/CST.
       const upcoming: UpcomingItem[] = [];
       for (const trip of trips as any[]) {
-        const start = new Date(trip.start_date);
-        const daysAway = Math.ceil((start.getTime() - now.getTime()) / 86400000);
+        const daysAway = daysBetweenYMD(todayYMD(), trip.start_date);
         if (daysAway > 0) {
           upcoming.push({
             id: trip.id,
