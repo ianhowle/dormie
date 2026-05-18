@@ -13,6 +13,24 @@
 
 ## Active Compost
 
+- 2026-05-06 — DREAM BOARD CATALOG SEARCH + FILTERING (product question raised during Phase 2.9 closeout)
+
+  Phase 2.9 testing surfaced a product question: should the Add to Dream Board catalog have a search affordance?
+
+  Current state: 8-destination curated catalog, vertical scrollable list. Search would be overkill at this size.
+
+  Future-state considerations:
+  - If catalog grows to 30+ destinations, search becomes useful for discoverability
+  - Filtering by region (Southeast, West Coast, UK/Ireland, etc.), course type (links/parkland/desert/heathland), access (public/invitation/private), or season (year-round vs. summer-only) could add value
+  - Search + filters pair with the Discover/Explore section concept already in the app — could share a destinations primitive
+
+  PRE-BETA PRIORITY: LOW. Not blocking. Catalog is small enough that search isn't needed.
+
+  PAIRS NATURALLY WITH:
+  - Dream Board catalog curation expansion (15+ destination workstream)
+  - Discover/Explore section redesign
+  - Claude Design pass on remaining screens
+
 - 2026-05-06 — TIMEZONE BUG CLEANUP IN LEGACY CREATE PATHS (deferred to Phase 4 Ryder Cup migration)
 
   Audit-grep during Phase 2.9 closeout surfaced same-shape duplicates of the trip persistence timezone bug in legacy create-trip and RyderCupWizard fallback date paths. Both fire when user submits without picking a date — rare but real. Defer to Phase 4 when Ryder Cup migration touches these files anyway.
