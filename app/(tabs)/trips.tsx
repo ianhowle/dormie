@@ -580,10 +580,16 @@ function AddDestinationModal({
           {spotsOpen} of 3 spots open
         </Text>
         <ScrollView contentContainerStyle={s.addDestList}>
-          {available.length === 0 ? (
+          {catalog.length === 0 ? (
             <View style={[s.addDestEmpty, { borderColor: c.border }]}>
               <Text style={[s.addDestEmptyText, { color: c.textMuted }]}>
-                You've added every destination on the catalog. More coming soon.
+                No destinations available yet. Check back soon.
+              </Text>
+            </View>
+          ) : available.length === 0 ? (
+            <View style={[s.addDestEmpty, { borderColor: c.border }]}>
+              <Text style={[s.addDestEmptyText, { color: c.textMuted }]}>
+                You've added every destination. More coming soon.
               </Text>
             </View>
           ) : (
@@ -1071,10 +1077,14 @@ export default function TripsScreen() {
         setRealTrips(trips);
         if (trips.length > 0) checkAndDisableRef.current();
       })
-      .catch(() => {})
+      .catch((err) => console.warn('[Dormie] trips fetch failed:', err))
       .finally(() => setTripsLoading(false));
-    destinationsService.getDreamBoard(userId).then(setDreamEntries).catch(() => {});
-    destinationsService.listAll().then(setDestinationCatalog).catch(() => {});
+    destinationsService.getDreamBoard(userId)
+      .then(setDreamEntries)
+      .catch((err) => console.warn('[Dormie] DreamBoard fetch failed:', err));
+    destinationsService.listAll()
+      .then(setDestinationCatalog)
+      .catch((err) => console.warn('[Dormie] destinations catalog fetch failed:', err));
     statsService.getOverview(userId)
       .then(setStatsOverview)
       .catch(() => setStatsOverview(null))
