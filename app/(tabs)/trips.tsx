@@ -1046,7 +1046,6 @@ export default function TripsScreen() {
     filteredUpcomingMock.length +
     filteredCompletedMock.length;
   const noFilteredResults = filterIsActive && totalFilteredCount === 0;
-  const searchDisabled = realTrips.length === 0 && !showDemoData;
 
   // Stash checkAndDisable in a ref so the fetch effect doesn't re-fire when
   // its identity changes (which it does whenever the auth user ref or the
@@ -1403,67 +1402,60 @@ export default function TripsScreen() {
             onPlanTrip={handlePlanTrip}
           />
 
-          {/* Search + filter chips. Visible always so power users learn it; disabled when there's nothing to search. */}
-          {(realTrips.length > 0 || showDemoData || searchDisabled) && (
-            <>
-              <GoldDivider style={{ marginTop: 24 }} />
-              <View style={[s.searchBar, { backgroundColor: c.cardBg, borderColor: c.border, opacity: searchDisabled ? 0.5 : 1 }]}>
-                <Ionicons name="search-outline" size={16} color={c.textMuted} />
-                <TextInput
-                  style={[s.searchInput, { color: c.text }]}
-                  placeholder="Search trips by name, location, or member"
-                  placeholderTextColor={c.textMuted}
-                  value={searchInput}
-                  onChangeText={setSearchInput}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="search"
-                  editable={!searchDisabled}
-                />
-                {searchInput.length > 0 && (
-                  <Pressable onPress={() => setSearchInput('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={16} color={c.textMuted} />
-                  </Pressable>
-                )}
-              </View>
-              <View style={s.filterRow}>
-                {(['all', 'live', 'upcoming', 'completed'] as const).map((f) => {
-                  const active = activeFilter === f;
-                  return (
-                    <Pressable
-                      key={f}
-                      onPress={() => {
-                        if (searchDisabled) return;
-                        haptics.light();
-                        setActiveFilter(f);
-                      }}
-                      disabled={searchDisabled}
-                      style={({ pressed }) => [
-                        s.filterChip,
-                        {
-                          backgroundColor: active ? '#006747' : c.cardBg,
-                          borderColor: active ? '#006747' : c.border,
-                          opacity: searchDisabled ? 0.5 : pressed ? 0.7 : 1,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.filterChipText,
-                          {
-                            color: active ? '#C9A227' : c.textMuted,
-                            fontFamily: GEO,
-                          },
-                        ]}
-                      >
-                        {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          )}
+          {/* Search + filter chips. Always interactive so empty-state users can still explore. */}
+          <GoldDivider style={{ marginTop: 24 }} />
+          <View style={[s.searchBar, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <Ionicons name="search-outline" size={16} color={c.textMuted} />
+            <TextInput
+              style={[s.searchInput, { color: c.text }]}
+              placeholder="Search trips by name, location, or member"
+              placeholderTextColor={c.textMuted}
+              value={searchInput}
+              onChangeText={setSearchInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {searchInput.length > 0 && (
+              <Pressable onPress={() => setSearchInput('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color={c.textMuted} />
+              </Pressable>
+            )}
+          </View>
+          <View style={s.filterRow}>
+            {(['all', 'live', 'upcoming', 'completed'] as const).map((f) => {
+              const active = activeFilter === f;
+              return (
+                <Pressable
+                  key={f}
+                  onPress={() => {
+                    haptics.light();
+                    setActiveFilter(f);
+                  }}
+                  style={({ pressed }) => [
+                    s.filterChip,
+                    {
+                      backgroundColor: active ? '#006747' : c.cardBg,
+                      borderColor: active ? '#006747' : c.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.filterChipText,
+                      {
+                        color: active ? '#C9A227' : c.textMuted,
+                        fontFamily: GEO,
+                      },
+                    ]}
+                  >
+                    {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* Empty state — search/filter combo yields nothing */}
           {noFilteredResults && (
