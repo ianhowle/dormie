@@ -13,6 +13,19 @@
 
 ## Active Compost
 
+- 2026-05-20 — TIER 2 SCORING DE-DUPLICATION TRACKING (rolling list — fold into the audit's Tier 2 dedup workstream)
+
+  Rolling list of code-level duplications introduced or unresolved during scoring engine work. Per the audit (docs/audits/2026-05-17-scoring-engine-audit.md §3 + Tier 2), duplicate scoring logic is a real bug surface — silent divergence between two copies has bitten Stableford already.
+
+  Currently tracked:
+  - isGreenInRegulation duplicated in src/data/scoring.ts (copied from src/scoring/calculations.ts:49 to avoid ThemeContext JSX import breaking ts-node when the test runner compiles data/scoring). Consolidate when the ts-node/import boundary is resolved — likely extract pure GIR helper to a JSX-free module both can import.
+  - Hogans 4-condition definition (calculateHogansCount) is over-specified — FIR + GIR + 2-putt mathematically implies par-or-better in standard scoring. The fourth check (gross <= par) is harmless but redundant. Matches the stated SIDE_GAMES definition; trim when re-examining at consolidation time.
+  - (Pre-existing from audit) 3 Stableford implementations: calculateStablefordPoints (handicap-aware orphan), calculateStablefordFromRound (gross-only season path), test-file inline copy. See audit §3a.
+  - (Pre-existing from audit) Match Play × 2: calculateMatchPlay (general) vs evaluateMatch (Ryder Cup, pre-resolved hole records). See Match Play architecture compost entry — intentional domain split, NOT urgent.
+  - (Pre-existing from audit) 6-6-6 segment "match_play" mode collides naming-wise with the match_play format key. See audit §3c. Rename to mp_segment or head_to_head_low_high before wiring match_play as a primary format.
+
+  PRE-BETA PRIORITY: LOW. None of these cause active bugs; they're maintenance debt. Address as a single focused "Tier 2 de-dup" session after the Phase 5 + 6 work lands.
+
 - 2026-05-20 — ONE-BALL FORMAT SCORE-ENTRY UX + GUIDANCE (design workstream, pairs with team-handicap cluster)
 
   Covers the score-entry model and in-round guidance for one-ball team formats: Scramble, Chapman/Pinehurst, and upcoming Alternate Shot + Greensomes. These share a shape, so design ONCE for the family, not per-format.
