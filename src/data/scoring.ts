@@ -601,6 +601,30 @@ export function calculateStablefordPoints(score: number, par: number, handicapSt
 }
 
 /**
+ * Calculate standard Stableford points for a full round (handicap-aware).
+ *
+ * Pass handicapStrokesPerHole to compute net Stableford. Omit (or pass
+ * undefined) for gross Stableford — each hole computed with 0 strokes.
+ *
+ * Named distinctly from calculateStablefordFromRound in scoring.service.ts
+ * (the gross-only season-path version). This wrapper is the canonical
+ * handicap-aware version for live-scoring display.
+ */
+export function calculateNetStablefordTotal(
+  holeScores: number[],
+  coursePars: number[],
+  handicapStrokesPerHole?: number[],
+): number {
+  const len = Math.min(holeScores.length, coursePars.length);
+  let total = 0;
+  for (let i = 0; i < len; i++) {
+    const hcpStrokes = handicapStrokesPerHole?.[i] ?? 0;
+    total += calculateStablefordPoints(holeScores[i], coursePars[i], hcpStrokes);
+  }
+  return total;
+}
+
+/**
  * Calculate Modified Stableford points for a single hole.
  * Uses an aggressive scale rewarding birdies/eagles and penalizing bogeys.
  *

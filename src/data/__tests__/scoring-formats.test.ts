@@ -16,6 +16,7 @@
 // Import pure functions from modules that don't pull in Supabase/RN
 import {
   calculateStablefordPoints,
+  calculateNetStablefordTotal,
   calculateModifiedStablefordPoints,
   calculateModifiedStablefordFromRound,
   calculateBestNHoles,
@@ -190,6 +191,132 @@ describe('FORMAT 1: STABLEFORD', () => {
     expect(calculateStablefordPoints(2, 3, 0)).toBe(3); // birdie on par 3
     expect(calculateStablefordPoints(5, 5, 0)).toBe(2); // par on par 5
     expect(calculateStablefordPoints(3, 5, 0)).toBe(4); // eagle on par 5
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 1 WRAPPER: calculateNetStablefordTotal (handicap-aware full-round)
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('FORMAT 1 WRAPPER: calculateNetStablefordTotal', () => {
+  it('1W.1: All-pars round = 36 (18 × 2)', () => {
+    const pars = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 5, 3, 4, 4, 4, 3, 5, 4];
+    const scores = [...pars]; // every hole at par
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.1', '18 pars on par-72 course', '36', String(total), total === 36);
+    expect(total).toBe(36);
+  });
+
+  it('1W.2: All-birdies round = 54 (18 × 3)', () => {
+    const pars = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 5, 3, 4, 4, 4, 3, 5, 4];
+    const scores = pars.map((p) => p - 1); // every hole 1 under par
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.2', '18 birdies on par-72 course', '54', String(total), total === 54);
+    expect(total).toBe(54);
+  });
+
+  it('1W.3: All-bogeys round = 18 (18 × 1)', () => {
+    const pars = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 5, 3, 4, 4, 4, 3, 5, 4];
+    const scores = pars.map((p) => p + 1); // every hole 1 over par
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.3', '18 bogeys on par-72 course', '18', String(total), total === 18);
+    expect(total).toBe(18);
+  });
+
+  it('1W.4: Mixed realistic round — FULL_18_SCORES → 33', () => {
+    // Hand-computed per-hole: 2,1,2,1,2,2,0,3,3,1,2,3,2,1,2,2,2,2 = 33
+    // (H7 score 5 vs par 3 = double bogey → 0; H8 birdie 3; H9 birdie 4-on-5; H12 birdie 2-on-3)
+    const total = calculateNetStablefordTotal(FULL_18_SCORES, FULL_18_PARS);
+    record('1W.4', 'FULL_18_SCORES on FULL_18_PARS, no handicap', '33', String(total), total === 33);
+    expect(total).toBe(33);
+  });
+
+  it('1W.5: Handicap-aware — 18 bogeys + 9 strokes on first 9 holes = 27', () => {
+    // Front 9 net pars (4-1=3 net, par 4): 2 pts each → 18
+    // Back 9 raw bogeys (5 net, par 4): 1 pt each → 9
+    // Total: 18 + 9 = 27 (vs gross 18)
+    const pars = Array(18).fill(4);
+    const scores = Array(18).fill(5); // every hole bogey gross
+    const hcpStrokes = [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const total = calculateNetStablefordTotal(scores, pars, hcpStrokes);
+    record('1W.5', '18 bogeys + 9 hcp strokes on front 9', '27', String(total), total === 27);
+    expect(total).toBe(27);
+  });
+
+  it('1W.6: Gross vs net diverge correctly — same scores, no/with handicap', () => {
+    const pars = [4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const scores = [5, 5, 5, 5, 5, 5, 5, 5, 5]; // all bogeys
+    const gross = calculateNetStablefordTotal(scores, pars);
+    const net = calculateNetStablefordTotal(scores, pars, [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    record('1W.6', 'Gross=9 (9 bogeys), Net=18 (9 net pars)', 'gross 9, net 18', `gross ${gross}, net ${net}`, gross === 9 && net === 18);
+    expect(gross).toBe(9);
+    expect(net).toBe(18);
+  });
+
+  it('1W.7: Double-bogey-or-worse caps at 0 (never negative)', () => {
+    const pars = [4, 4, 4];
+    const scores = [6, 8, 10]; // double, quad, sextuple bogey
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.7', '3 blow-up holes all cap at 0', '0', String(total), total === 0);
+    expect(total).toBe(0);
+  });
+
+  it('1W.8: Partial round — front 9 only = 18 (9 pars)', () => {
+    const pars = [4, 4, 3, 5, 4, 4, 3, 4, 5];
+    const scores = [...pars];
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.8', '9 pars front-9 only', '18', String(total), total === 18);
+    expect(total).toBe(18);
+  });
+
+  it('1W.9: Albatross + eagle high-points — 1 on par 4 + 3 on par 5 + 1 on par 5 = 5+4+5 = 14', () => {
+    const pars = [4, 5, 5];
+    const scores = [1, 3, 1]; // albatross, eagle, albatross (4-under = 5)
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.9', 'albatross + eagle + 4-under albatross', '14', String(total), total === 14);
+    expect(total).toBe(14);
+  });
+
+  it('1W.10: handicapStrokesPerHole undefined ≡ all-zeros array', () => {
+    const pars = [4, 4, 3, 5, 4, 4, 3, 4, 5];
+    const scores = [4, 5, 3, 6, 4, 4, 5, 3, 4]; // mixed
+    const noArr = calculateNetStablefordTotal(scores, pars);
+    const zeros = calculateNetStablefordTotal(scores, pars, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    record('1W.10', 'undefined hcp ≡ all-zeros hcp', `equal: ${noArr}`, `noArr ${noArr}, zeros ${zeros}`, noArr === zeros);
+    expect(noArr).toBe(zeros);
+  });
+
+  it('1W.11: Two strokes on a single hole (high handicap) — score 6 par 4 + 2 strokes = net par', () => {
+    const pars = [4];
+    const scores = [6];
+    const hcpStrokes = [2];
+    const total = calculateNetStablefordTotal(scores, pars, hcpStrokes);
+    record('1W.11', 'Score 6, par 4, 2 hcp strokes (net 4 = par)', '2', String(total), total === 2);
+    expect(total).toBe(2);
+  });
+
+  it('1W.12: Length mismatch — uses min(scores, pars), extra entries ignored', () => {
+    const pars = [4, 4, 4, 4, 4];
+    const scores = [4, 4]; // only 2 hole scores
+    const total = calculateNetStablefordTotal(scores, pars);
+    record('1W.12', '2 scores vs 5 pars → uses 2 holes', '4', String(total), total === 4);
+    expect(total).toBe(4); // 2 pars × 2 pts
+  });
+
+  it('1W.13: Empty round = 0', () => {
+    const total = calculateNetStablefordTotal([], []);
+    record('1W.13', 'empty round', '0', String(total), total === 0);
+    expect(total).toBe(0);
+  });
+
+  it('1W.14: Cross-check — delegating to per-hole engine matches manual sum on FULL_18', () => {
+    const manual = FULL_18_SCORES.reduce(
+      (sum, score, i) => sum + calculateStablefordPoints(score, FULL_18_PARS[i], 0),
+      0,
+    );
+    const wrapped = calculateNetStablefordTotal(FULL_18_SCORES, FULL_18_PARS);
+    record('1W.14', 'manual per-hole sum ≡ wrapper', String(manual), String(wrapped), manual === wrapped);
+    expect(manual).toBe(wrapped);
   });
 });
 
