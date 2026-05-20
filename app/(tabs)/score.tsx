@@ -33,6 +33,7 @@ import { useAuth } from '../../src/lib/auth';
 import type { FriendshipWithUser } from '../../src/lib/database.types';
 import type { Season, Trip } from '../../src/lib/database.types';
 import { haptics } from '../../src/lib/haptics';
+import { logWarn, logError } from '../../src/lib/logger';
 import { useToast } from '../../src/components/Toast';
 import {
   SCORING_FORMATS,
@@ -229,7 +230,8 @@ function CourseSearch({
       try {
         const results = await coursesService.searchAll(q);
         setRemoteResults(results);
-      } catch {
+      } catch (e) {
+        logWarn('Score: course search failed', e);
         setRemoteResults([]);
       }
     }, 300);
@@ -1164,7 +1166,7 @@ export default function ScoreScreen() {
       } else {
         coursesService.generateHoleData?.(course.name, sc.par)
           ?.then((h) => { if (!cancelled) setHoleData(h); })
-          ?.catch(() => {});
+          ?.catch((e) => logWarn('Score: hole data auto-fill failed', e));
       }
     })();
 
@@ -1250,7 +1252,7 @@ export default function ScoreScreen() {
         course as any,
         { par: effectivePar, rating, slope, tee: customTee },
         dataSource as any,
-      ).catch(() => {});
+      ).catch((e) => logError('Score: saveCourseWithData write failed', e));
     }
 
     // Determine selected tee name for display
