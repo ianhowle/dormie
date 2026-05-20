@@ -13,6 +13,48 @@
 
 ## Active Compost
 
+- 2026-05-20 — CHAPMAN TEAM-HANDICAP ENGINE + ChapmanHoleScore DEAD-DATA FIELDS (blocked on product decisions)
+
+  Phase 2 added tests for calculateChapmanHoleScore + calculateChapmanTotal (committed 22a98ea) but did NOT add a calculateNetChapmanTotal wrapper. The Chapman engine breaks the Tier 1 wrapper template the same way Scramble did — both use a one-ball team-scoring model where the team plays a single ball from shot 3 onward, so there is no per-player score to apply per-hole strokes to. The roadmap (docs/scoring-completion-roadmap.md Phase 2) listed Chapman as "wrap-and-test"; investigation found it is "test-and-compost like Scramble." Roadmap decision-log update flagged for next session.
+
+  TWO BLOCKED DECISIONS:
+
+  A. CHAPMAN TEAM-HANDICAP ENGINE
+     Chapman handicap is a TEAM-LEVEL SCALAR applied at the trip total, not per-hole. USGA standard is 60% of low partner + 40% of high partner. Some clubs use 50/50, some use handicap-differential allowances. This is a NEW engine, not a wrapper around the existing trivial sum.
+
+     Blocked on:
+     1. Which formula — USGA 60/40 standard, 50/50, differential-based, or configurable per trip?
+     2. Configurable vs hardcoded — does the trip organizer pick percentages, or is one default fine?
+     3. Gross-only vs trip-flag-driven — does every Chapman trip compute a handicap, or only when a "use handicap" trip flag is set?
+     4. Where the handicap is computed and stored — at trip creation, at round finalize, at display only?
+
+     PAIRS NATURALLY WITH the composted Scramble team-handicap workstream (same one-ball-model problem, same team-scalar shape, same blocking decisions). Worth tackling in a single "team-handicap formats" focused session that handles both Chapman and Scramble together.
+
+  B. ChapmanHoleScore DEAD-DATA FIELDS — design question affecting score-entry UI
+     The ChapmanHoleScore struct collects 6 fields but the engine math (return 2 + hole.alternateShots) consumes only 1 of them:
+
+     | Field | Used by engine? |
+     | driveA | ❌ Dead (always 1 stroke by golf rules) |
+     | driveB | ❌ Dead |
+     | secondShotA | ❌ Dead |
+     | secondShotB | ❌ Dead |
+     | selectedBall ('A' \| 'B') | ❌ Dead — engine doesn't care which ball was picked |
+     | alternateShots | ✅ Used (the only field that affects the result) |
+
+     Test 10.3 ("DEAD-DATA LOCK") locks this contract — passing garbage (NaN, -42, 999) into the 5 unused fields still yields a deterministic 2 + alternateShots result. Tripwire for any future dev who adds reliance on those fields.
+
+     Pre-beta design questions when Chapman score-entry UI gets built:
+     1. Drop the dead fields from the struct? (cleanest schema)
+     2. Keep them for stats tracking — drive distance, fairway hits, etc.? (richer data, but requires defining the semantic)
+     3. Repurpose for a richer Chapman variant — e.g., scoring quality of drives/second shots? (engine change, not data-only)
+
+     Affects the score-entry UI design directly: which numbers do we ask the team scorekeeper to record per hole? Today the answer is "alternateShots only" but the struct shape suggests we should ask for more.
+
+  C. PINEHURST VARIANT QUESTION (one-line note, part of the Chapman-cluster decision set)
+     SCORING_FORMATS describes pinehurst as "Same engine as Chapman" but adds: "Some clubs use Pinehurst and Chapman interchangeably; others differ on when the ball is selected." The current engine doesn't differentiate — both pinehurst and chapman map to the same calculateChapmanHoleScore call. If the variant difference ever matters, that's a deeper engine change. Nothing to act on yet; flag is part of the Chapman-cluster decision set so it gets considered when (A) and (B) get decided.
+
+  PRE-BETA PRIORITY: MEDIUM. Chapman trips will display correctly with gross totals via the render pass (calculateChapmanTotal works). Adding handicap is a polish item, not a correctness blocker. The dead-data question matters when score-entry UI is designed — that's a Phase 1+ task in the roadmap. Pinehurst variant is informational only.
+
 - 2026-05-20 — SCRAMBLE TEAM-HANDICAP ENGINE (separate workstream, blocked on formula decision)
 
   Session 2B added tests for calculateScrambleTeamScore (trivial sum) and validateScrambleScore (real validator logic) but did NOT add a calculateNetScrambleTeamScore wrapper. The Tier 1 handicap-conversion template (subtract per-player per-hole strokes → delegate) doesn't fit scramble: the team plays one ball and posts one score per hole — there is no per-player score to apply strokes to.
