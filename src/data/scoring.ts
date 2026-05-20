@@ -759,6 +759,38 @@ export function calculateMatchPlay(
   return { holesWonA, holesWonB, holesHalved, holeResults, result, winner, matchEndedAtHole };
 }
 
+/**
+ * Calculate Match Play with handicap-aware net scoring.
+ *
+ * Subtracts per-hole strokes from each player's gross scores, then
+ * delegates to calculateMatchPlay (which is gross-only). Handicap arrays
+ * are optional — when omitted (or with missing indices), the corresponding
+ * strokes default to 0, producing a gross match.
+ *
+ * Pass per-hole strokes for each player independently (e.g., from Dormie's
+ * handicapStrokes Map<playerId, Map<holeNumber, strokes>>). Comparing
+ * net-vs-net produces identical hole-by-hole resolution to the strict USGA
+ * "lower handicap plays scratch, higher gets the difference" allocation,
+ * since (grossA − strokesA) − (grossB − strokesB) ≡ (grossA − grossB) −
+ * (strokesA − strokesB).
+ *
+ * Named distinctly from:
+ * - calculateMatchPlay (above) — the gross-only engine this wraps
+ * - evaluateMatch (src/services/fourTeamRyder.service.ts) — the Ryder Cup
+ *   four-team variant operating on a different input shape (pre-resolved
+ *   hole-winner records, not raw scores). Intentional domain split.
+ */
+export function calculateNetMatchPlay(
+  playerAScores: number[],
+  playerBScores: number[],
+  handicapStrokesA?: number[],
+  handicapStrokesB?: number[],
+): MatchPlayResult {
+  const netA = playerAScores.map((s, i) => s - (handicapStrokesA?.[i] ?? 0));
+  const netB = playerBScores.map((s, i) => s - (handicapStrokesB?.[i] ?? 0));
+  return calculateMatchPlay(netA, netB);
+}
+
 // ─── Best Ball (team) ────────────────────────────────────────────────
 
 export type BestBallResult = {

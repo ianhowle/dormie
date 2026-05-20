@@ -20,6 +20,8 @@ import {
   calculateModifiedStablefordPoints,
   calculateModifiedStablefordFromRound,
   calculateBestNHoles,
+  calculateMatchPlay,
+  calculateNetMatchPlay,
 } from '../scoring';
 
 import { quotaTarget, quotaResult } from '../../lib/scoring-utils';
@@ -611,6 +613,198 @@ describe('FORMAT 6: BEST 9', () => {
     record('6.6', 'Full 18 → Stableford → Best 9', `Full: 33, Best 9: 21`, `Full: ${fullTotal}, Best 9: ${best9Total}`, best9Total === 21);
     expect(fullTotal).toBe(33);
     expect(best9Total).toBe(21);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 7: MATCH PLAY (calculateMatchPlay — bare gross engine)
+// ═══════════════════════════════════════════════════════════════════════
+// NOTE: The engine's 'AS' result branch (line ~747 of scoring.ts) is an
+// intentionally-unreachable defensive case — early close-out only fires
+// when lead > holesRemaining, which cannot occur with a tied score, so
+// matchEndedAtHole < totalHoles && finalDiff === 0 is mathematically
+// impossible. 'HALVED' (full 18 played, tied) is reachable; 'AS' is not.
+// Not a missing test case.
+
+describe('FORMAT 7: MATCH PLAY', () => {
+  it('7.1: All 18 halved → HALVED, winner null, no early close', () => {
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.1', '18 halved holes', 'HALVED winner=null at hole 18', `${r.result} winner=${r.winner} at ${r.matchEndedAtHole}`, r.result === 'HALVED' && r.winner === null && r.matchEndedAtHole === 18);
+    expect(r.result).toBe('HALVED');
+    expect(r.winner).toBe(null);
+    expect(r.matchEndedAtHole).toBe(18);
+    expect(r.holesHalved).toBe(18);
+  });
+
+  it('7.2: A wins 2 UP on final hole (halve 1–16, A wins 17 & 18)', () => {
+    // After hole 17: lead 1, remaining 1 → 1>1 false → continue
+    // After hole 18: lead 2, remaining 0 → 2>0 → close at 18
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.2', 'A wins 2 UP on hole 18', '"2 UP" winner=A at hole 18', `${r.result} winner=${r.winner} at ${r.matchEndedAtHole}`, r.result === '2 UP' && r.winner === 'A' && r.matchEndedAtHole === 18);
+    expect(r.result).toBe('2 UP');
+    expect(r.winner).toBe('A');
+    expect(r.matchEndedAtHole).toBe(18);
+  });
+
+  it('7.3: Early close 3&2 (A wins 1–3, halve 4–16, closes at hole 16)', () => {
+    // After hole 16: lead 3, remaining 2 → 3>2 → close at 16
+    const a = [3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.3', 'A wins 3 holes, halves to 16', '"3&2" winner=A at hole 16', `${r.result} winner=${r.winner} at ${r.matchEndedAtHole}`, r.result === '3&2' && r.winner === 'A' && r.matchEndedAtHole === 16);
+    expect(r.result).toBe('3&2');
+    expect(r.winner).toBe('A');
+    expect(r.matchEndedAtHole).toBe(16);
+  });
+
+  it('7.4: Dormie case — 2 UP with 2 to play continues, closes 2&1 at hole 17', () => {
+    // Halve 1–14, A wins 15 & 16, halve 17.
+    // After hole 16: lead 2, remaining 2 → 2>2 false → continue (Dormie preserved)
+    // After hole 17: lead 2, remaining 1 → 2>1 → close at hole 17
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.4', 'Dormie at 16 → closes 2&1 at 17', '"2&1" at hole 17 (NOT 16)', `${r.result} at ${r.matchEndedAtHole}`, r.result === '2&1' && r.matchEndedAtHole === 17);
+    expect(r.matchEndedAtHole).toBeGreaterThan(16); // Did not close early at Dormie
+    expect(r.result).toBe('2&1');
+    expect(r.matchEndedAtHole).toBe(17);
+    expect(r.winner).toBe('A');
+  });
+
+  it('7.5: Big margin 6&5 — A sweeps first 6, halves to hole 13', () => {
+    // After hole 13: lead 6, remaining 5 → 6>5 → close at 13
+    const a = [3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.5', 'A sweeps 1–6, halves 7–13', '"6&5" winner=A at hole 13', `${r.result} winner=${r.winner} at ${r.matchEndedAtHole}`, r.result === '6&5' && r.winner === 'A' && r.matchEndedAtHole === 13);
+    expect(r.result).toBe('6&5');
+    expect(r.winner).toBe('A');
+    expect(r.matchEndedAtHole).toBe(13);
+    expect(r.holesWonA).toBe(6);
+    expect(r.holesHalved).toBe(7);
+  });
+
+  it('7.6: Single-hole match — A wins → "1 UP" at hole 1', () => {
+    const r = calculateMatchPlay([3], [4]);
+    record('7.6', '1-hole match, A wins', '"1 UP" winner=A at hole 1', `${r.result} winner=${r.winner} at ${r.matchEndedAtHole}`, r.result === '1 UP' && r.winner === 'A' && r.matchEndedAtHole === 1);
+    expect(r.result).toBe('1 UP');
+    expect(r.winner).toBe('A');
+    expect(r.matchEndedAtHole).toBe(1);
+  });
+
+  it('7.7: holeResults array tags per-hole winners correctly', () => {
+    // A wins hole 1, B wins hole 2, halve hole 3 → final HALVED (1-1 tied)
+    const r = calculateMatchPlay([3, 4, 4], [4, 3, 4]);
+    record('7.7', 'A wins 1, B wins 2, halve 3', "['A','B','halved']", JSON.stringify(r.holeResults), r.holeResults.length === 3 && r.holeResults[0] === 'A' && r.holeResults[1] === 'B' && r.holeResults[2] === 'halved');
+    expect(r.holeResults).toEqual(['A', 'B', 'halved']);
+    expect(r.result).toBe('HALVED');
+  });
+
+  it('7.8: Mismatched array lengths — uses min(A, B)', () => {
+    // A has 18 scores, B has 9 → totalHoles=9, all halved → HALVED at hole 9
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.8', 'A len 18, B len 9', 'HALVED at hole 9 (uses min)', `${r.result} at ${r.matchEndedAtHole}`, r.result === 'HALVED' && r.matchEndedAtHole === 9);
+    expect(r.matchEndedAtHole).toBe(9);
+    expect(r.result).toBe('HALVED');
+    expect(r.holesHalved).toBe(9);
+  });
+
+  it('7.9: B as winner — B sweeps, closes 10&8 at hole 10', () => {
+    // After hole 10: B=10, A=0, lead 10, remaining 8 → 10>8 → close at 10
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+    const r = calculateMatchPlay(a, b);
+    record('7.9', 'B sweeps 10 holes', '"10&8" winner=B at hole 10', `${r.result} winner=${r.winner} at ${r.matchEndedAtHole}`, r.result === '10&8' && r.winner === 'B' && r.matchEndedAtHole === 10);
+    expect(r.result).toBe('10&8');
+    expect(r.winner).toBe('B');
+    expect(r.matchEndedAtHole).toBe(10);
+  });
+
+  it('7.10: 9-hole partial round all halved → HALVED at hole 9', () => {
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const r = calculateMatchPlay(a, b);
+    record('7.10', '9-hole halved match', 'HALVED at hole 9', `${r.result} at ${r.matchEndedAtHole}`, r.result === 'HALVED' && r.matchEndedAtHole === 9);
+    expect(r.result).toBe('HALVED');
+    expect(r.matchEndedAtHole).toBe(9);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 7 WRAPPER: calculateNetMatchPlay (handicap-aware net match)
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('FORMAT 7 WRAPPER: calculateNetMatchPlay', () => {
+  it('7W.1: No handicap arrays → identical to bare calculateMatchPlay', () => {
+    const a = [3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const bare = calculateMatchPlay(a, b);
+    const wrapped = calculateNetMatchPlay(a, b);
+    record('7W.1', 'wrapper(A,B) ≡ engine(A,B)', `deep-equal: ${bare.result}`, `bare ${bare.result}, wrapped ${wrapped.result}`, JSON.stringify(bare) === JSON.stringify(wrapped));
+    expect(wrapped).toEqual(bare);
+  });
+
+  it("7W.2: B's per-hole strokes flip A's sweep to all-halved", () => {
+    // Gross: A birdies every hole, B pars every hole — A would sweep
+    const a = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const hcpB = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+    const r = calculateNetMatchPlay(a, b, undefined, hcpB);
+    record('7W.2', "A birdies vs B pars + 1 hcp/hole to B", 'HALVED', `${r.result} winner=${r.winner}`, r.result === 'HALVED' && r.winner === null);
+    expect(r.result).toBe('HALVED');
+    expect(r.winner).toBe(null);
+    expect(r.holesHalved).toBe(18);
+  });
+
+  it('7W.3: Asymmetric — A with strokes, B undefined → B defaults to 0', () => {
+    // Gross: A bogeys (5), B pars (4) — A would lose every hole
+    // With 1 stroke per hole to A: A net = 4 (= B's 4) → all halved
+    const a = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
+    const b = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const hcpA = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+    const r = calculateNetMatchPlay(a, b, hcpA);
+    record('7W.3', 'A bogeys + 1 hcp/hole, B undefined ≡ 0', 'HALVED', `${r.result} winner=${r.winner}`, r.result === 'HALVED' && r.winner === null);
+    expect(r.result).toBe('HALVED');
+    expect(r.winner).toBe(null);
+  });
+
+  it('7W.4: All-zeros stroke arrays ≡ undefined stroke arrays', () => {
+    const a = [4, 5, 4, 5, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [5, 4, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const zeros = Array(18).fill(0);
+    const undef = calculateNetMatchPlay(a, b);
+    const allZeros = calculateNetMatchPlay(a, b, zeros, zeros);
+    record('7W.4', 'undefined ≡ all-zeros parity', `equal: ${undef.result}`, `undef ${undef.result}, zeros ${allZeros.result}`, JSON.stringify(undef) === JSON.stringify(allZeros));
+    expect(allZeros).toEqual(undef);
+  });
+
+  it('7W.5: Strokes flip winner AND preserve close-out vocab — gross "6&5" B becomes net "7&5" A', () => {
+    // Gross: B sweeps holes 1–6 by 1 stroke, halves rest
+    //   → After hole 13: B=6, halved=6, lead=6, remaining=5 → close, "6&5" B wins
+    const a = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const b = [3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+    const grossResult = calculateMatchPlay(a, b);
+    expect(grossResult.result).toBe('6&5');
+    expect(grossResult.winner).toBe('B');
+    expect(grossResult.matchEndedAtHole).toBe(13);
+
+    // Now give A 1 stroke every hole. A net = 3.
+    // Holes 1–6: 3 vs 3 → halved. Holes 7–13: 3 vs 4 → A wins 7.
+    //   → After hole 13: A=7, halved=6, lead=7, remaining=5 → close, "7&5" A wins
+    const hcpA = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+    const netResult = calculateNetMatchPlay(a, b, hcpA);
+    record('7W.5', 'gross B 6&5 → net A 7&5 after strokes', '"7&5" winner=A at 13', `${netResult.result} winner=${netResult.winner} at ${netResult.matchEndedAtHole}`, netResult.result === '7&5' && netResult.winner === 'A' && netResult.matchEndedAtHole === 13);
+    expect(netResult.result).toBe('7&5');
+    expect(netResult.winner).toBe('A');
+    expect(netResult.matchEndedAtHole).toBe(13);
+    expect(netResult.holesWonA).toBe(7);
+    expect(netResult.holesHalved).toBe(6);
   });
 });
 
