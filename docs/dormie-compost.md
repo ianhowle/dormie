@@ -13,6 +13,39 @@
 
 ## Active Compost
 
+- 2026-05-20 — PHONE-VERIFY + COMMIT STAGED STABLEFORD POSTROUND RENDER (Session 2A Phase 2B)
+
+  Phase 2A landed committed (d581ca4): calculateNetStablefordTotal handicap-aware wrapper + 14 unit tests, all green. Phase 2B is the display-layer integration in the LIVE PostRoundSummary — STAGED (not committed) because it changes what users see on the post-round screen and needs device verification.
+
+  STAGED FILE (working-tree only, unstaged):
+  - src/components/scoring/PostRoundSummary.tsx — adds isStableford = formatLabel === 'Stableford' branch. When true: computes per-player points via calculateNetStablefordTotal from existing props (playerTotals.scores + handicapStrokes — no new prop threading), renders POINTS column instead of GROSS/NET/TO PAR, sorts descending. When false: existing render byte-identical (copied verbatim into the else branch). TSC stays at 34.
+
+  PHONE VERIFICATION STEPS (on normal network):
+  1. Create a trip with format = Stableford (or update an existing one).
+  2. Start a round on that trip and play several holes with varied scores (include at least one birdie, one bogey, one double-bogey-or-worse to exercise the cap).
+  3. Tap through to the post-round summary.
+  4. Confirm FINAL STANDINGS shows: POS | PLAYER | POINTS columns (NOT gross/net/to par).
+  5. Confirm players are sorted POINTS DESCENDING (higher = better).
+  6. Confirm the POINTS value matches hand-computed Stableford for your scorecard.
+  7. Negative test: open an in-flight or completed STROKE PLAY trip's summary. Confirm it still renders POS | PLAYER | GROSS | NET (if net mode) | TO PAR exactly as before — non-Stableford path is byte-identical.
+
+  THEN commit:
+  '[Scoring] Render Stableford points in PostRoundSummary final standings (Tier 1 template)'
+
+  FOLLOW-UPS COMPOSTED (separate sessions, surfaced by Session 2A):
+
+  A. formatKey THREADING (brittle string match → stable identifier)
+     Currently params.format is the display LABEL ('Stableford', 'Modified Stableford', 'Stroke Play') — passed from app/(tabs)/score.tsx:1273 as activeFormat?.label. The Phase 2B branch uses formatLabel === 'Stableford' as a string match. This works for Tier 1 but is brittle: any rename of the label string silently breaks the format branch. Follow-up: also pass the ScoringFormat key (e.g., 'stableford') alongside the label and branch on key.
+
+  B. STABLEFORD-POINTS PERSISTENCE
+     Today the computed points are display-only — not written to Supabase. The round is saved with gross/net only (useScoringState.ts:724-740 in handlePostRound). Follow-up: extend the round shape to persist stableford_points so the value survives reloads, appears in trip leaderboards, and unifies with the season scoring path.
+
+  C. #1-vs-#2 STABLEFORD ENGINE DIVERGENCE RISK
+     Two Stableford engines exist: calculateNetStablefordTotal (src/data/scoring.ts, handicap-aware, NOW wired into live display) and calculateStablefordFromRound (src/services/scoring.service.ts, GROSS-ONLY, wired into season path via processSeasonRound). For a Stableford season round, the live summary will show net-aware points while the season standings show gross-only points — same player, same scorecard, two different totals. Follow-up: pick one engine as canonical for both paths. The handicap-aware version is the correct golf semantics, but switching the season path requires either threading handicapStrokesPerHole through processSeasonRound or computing it server-side. Worth a focused session — this is a data-divergence bug waiting to surface.
+
+  D. DELETE DEAD src/components/PostRoundSummary.tsx
+     Audit confirmed zero importers. Session 1B's LinearGradient sweep edited this dead file harmlessly. Safe to delete entirely. 1-line follow-up commit ('[Cleanup] Delete dead PostRoundSummary duplicate — confirmed 0 importers in scoring engine audit') any time the working tree is clean.
+
 - 2026-05-20 — PHONE-VERIFY + COMMIT 3 STAGED TIMEZONE FIXES (Session 1C Phase 3)
 
   Three timezone bug fixes were applied and STAGED (not committed) during Session 1C — held because hospital WiFi blocked phone verification. They change runtime behavior and need device testing before commit.
