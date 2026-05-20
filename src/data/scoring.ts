@@ -821,6 +821,37 @@ export function calculateBestBall(playerScores: number[][]): BestBallResult {
   return { teamScorePerHole, teamTotal };
 }
 
+/**
+ * Calculate Best Ball with handicap-aware net scoring.
+ *
+ * Subtracts per-hole strokes for each player to build per-player net score
+ * arrays, then delegates to calculateBestBall (which is gross-only). The
+ * "net before best-pick" order is the correctness crux: a player getting
+ * a stroke on a hard hole may post the team's better ball even though
+ * their gross was higher. Picking the best gross then subtracting strokes
+ * would silently lose that player's contribution.
+ *
+ * handicapStrokesPerPlayer[i] corresponds to playerScores[i] by index.
+ * Missing inner arrays (undefined / empty / index out of range) default
+ * to 0 strokes for that player/hole — useful for asymmetric rosters
+ * where only some players carry handicaps.
+ *
+ * Shared engine with Four-Ball (fourball): identical per-hole best-ball
+ * mechanic. Match-play composition (fourball as 2v2 match) is a separate
+ * display-layer concern — feed each team's teamScorePerHole into
+ * calculateNetMatchPlay rather than adding a new engine.
+ */
+export function calculateNetBestBall(
+  playerScores: number[][],
+  handicapStrokesPerPlayer?: number[][],
+): BestBallResult {
+  const netScores = playerScores.map((scores, playerIdx) => {
+    const playerStrokes = handicapStrokesPerPlayer?.[playerIdx];
+    return scores.map((s, holeIdx) => s - (playerStrokes?.[holeIdx] ?? 0));
+  });
+  return calculateBestBall(netScores);
+}
+
 // ─── Scramble ────────────────────────────────────────────────────────
 
 /**

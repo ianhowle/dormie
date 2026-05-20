@@ -22,6 +22,8 @@ import {
   calculateBestNHoles,
   calculateMatchPlay,
   calculateNetMatchPlay,
+  calculateBestBall,
+  calculateNetBestBall,
 } from '../scoring';
 
 import { quotaTarget, quotaResult } from '../../lib/scoring-utils';
@@ -805,6 +807,193 @@ describe('FORMAT 7 WRAPPER: calculateNetMatchPlay', () => {
     expect(netResult.matchEndedAtHole).toBe(13);
     expect(netResult.holesWonA).toBe(7);
     expect(netResult.holesHalved).toBe(6);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 8: BEST BALL (calculateBestBall — bare gross engine)
+// ═══════════════════════════════════════════════════════════════════════
+// Engine also serves Four-Ball (per SCORING_FORMATS description); the
+// match-play composition for fourball is a display-layer concern handled
+// by feeding teamScorePerHole into calculateNetMatchPlay, not a new engine.
+
+describe('FORMAT 8: BEST BALL', () => {
+  it('8.1: Single player → team total equals player total (degenerate)', () => {
+    const scores = [4, 5, 4, 5, 4, 5, 4, 5, 4]; // 40
+    const r = calculateBestBall([scores]);
+    record('8.1', '1 player, 9 holes', 'teamTotal=40, perHole=scores', `total=${r.teamTotal}`, r.teamTotal === 40 && JSON.stringify(r.teamScorePerHole) === JSON.stringify(scores));
+    expect(r.teamTotal).toBe(40);
+    expect(r.teamScorePerHole).toEqual(scores);
+  });
+
+  it('8.2: 2 players, mixed best-per-hole', () => {
+    // Per-hole min: hole 0 min(4,5)=4, hole 1 min(5,4)=4, hole 2 min(4,4)=4, hole 3 min(5,4)=4, hole 4 min(4,5)=4
+    const p1 = [4, 5, 4, 5, 4];
+    const p2 = [5, 4, 4, 4, 5];
+    const r = calculateBestBall([p1, p2]);
+    const expectedPerHole = [4, 4, 4, 4, 4];
+    record('8.2', '2 players mixed best', '[4,4,4,4,4] total 20', `${JSON.stringify(r.teamScorePerHole)} total ${r.teamTotal}`, r.teamTotal === 20 && JSON.stringify(r.teamScorePerHole) === JSON.stringify(expectedPerHole));
+    expect(r.teamScorePerHole).toEqual(expectedPerHole);
+    expect(r.teamTotal).toBe(20);
+  });
+
+  it('8.3: 4 players, rotating winner per hole', () => {
+    // Each player wins exactly one hole; all others post higher
+    const p1 = [4, 5, 5, 5];
+    const p2 = [5, 4, 5, 5];
+    const p3 = [5, 5, 4, 5];
+    const p4 = [5, 5, 5, 4];
+    const r = calculateBestBall([p1, p2, p3, p4]);
+    // Per-hole min: 4, 4, 4, 4
+    record('8.3', '4 players, each wins 1 hole', '[4,4,4,4] total 16', `${JSON.stringify(r.teamScorePerHole)} total ${r.teamTotal}`, r.teamTotal === 16);
+    expect(r.teamScorePerHole).toEqual([4, 4, 4, 4]);
+    expect(r.teamTotal).toBe(16);
+  });
+
+  it('8.4: Empty playerScores → { teamScorePerHole: [], teamTotal: 0 }', () => {
+    const r = calculateBestBall([]);
+    record('8.4', 'empty array', '{ [], 0 }', `${JSON.stringify(r.teamScorePerHole)} total ${r.teamTotal}`, r.teamScorePerHole.length === 0 && r.teamTotal === 0);
+    expect(r.teamScorePerHole).toEqual([]);
+    expect(r.teamTotal).toBe(0);
+  });
+
+  it('8.5: Uneven array lengths — partial scorecards handled', () => {
+    // numHoles = playerScores[0].length = 5
+    // P2 has only 3 scores. For holes 3 and 4, only P1 contributes.
+    const p1 = [4, 5, 4, 5, 4]; // full 5 holes
+    const p2 = [5, 4, 4];        // partial — 3 holes
+    const r = calculateBestBall([p1, p2]);
+    // Hole 0: min(4,5)=4; Hole 1: min(5,4)=4; Hole 2: min(4,4)=4
+    // Hole 3: only P1 (P2 out of bounds) → 5; Hole 4: only P1 → 4
+    record('8.5', 'P1 5 holes, P2 3 holes', '[4,4,4,5,4] total 21', `${JSON.stringify(r.teamScorePerHole)} total ${r.teamTotal}`, r.teamTotal === 21);
+    expect(r.teamScorePerHole).toEqual([4, 4, 4, 5, 4]);
+    expect(r.teamTotal).toBe(21);
+  });
+
+  it('8.6: All players identical → team total equals each player total', () => {
+    const same = [4, 5, 4, 5, 4]; // 22
+    const r = calculateBestBall([same, same, same]);
+    record('8.6', '3 identical players', 'teamTotal=22 (not 66)', `total=${r.teamTotal}`, r.teamTotal === 22);
+    expect(r.teamScorePerHole).toEqual(same);
+    expect(r.teamTotal).toBe(22);
+  });
+
+  it('8.7: Tie behavior — no double-count when two players post same score', () => {
+    // Both players post 4 on every hole. Team should post 4 per hole, not 8.
+    const p1 = [4, 4, 4];
+    const p2 = [4, 4, 4];
+    const r = calculateBestBall([p1, p2]);
+    record('8.7', '2 identical players, no double-count', 'teamTotal=12 (not 24)', `total=${r.teamTotal}`, r.teamTotal === 12);
+    expect(r.teamScorePerHole).toEqual([4, 4, 4]);
+    expect(r.teamTotal).toBe(12);
+  });
+
+  it('8.8: NaN fallback — if no player has a valid score for a hole, posts 0', () => {
+    // NaN < Infinity is false (all NaN comparisons return false), so best stays Infinity
+    // → engine's defensive fallback at scoring.ts:817 pushes 0
+    const r = calculateBestBall([[NaN, NaN, NaN]]);
+    record('8.8', 'single player, all NaN', '[0,0,0] total 0', `${JSON.stringify(r.teamScorePerHole)} total ${r.teamTotal}`, r.teamTotal === 0 && r.teamScorePerHole.every((s) => s === 0));
+    expect(r.teamScorePerHole).toEqual([0, 0, 0]);
+    expect(r.teamTotal).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 8 WRAPPER: calculateNetBestBall (handicap-aware net best ball)
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('FORMAT 8 WRAPPER: calculateNetBestBall', () => {
+  it('8W.1: No handicap arrays → identical to bare calculateBestBall', () => {
+    const p1 = [4, 5, 5, 5];
+    const p2 = [5, 4, 5, 5];
+    const p3 = [5, 5, 4, 5];
+    const p4 = [5, 5, 5, 4];
+    const bare = calculateBestBall([p1, p2, p3, p4]);
+    const wrapped = calculateNetBestBall([p1, p2, p3, p4]);
+    record('8W.1', 'wrapper(scores) ≡ engine(scores)', `deep-equal total=${bare.teamTotal}`, `bare ${bare.teamTotal}, wrapped ${wrapped.teamTotal}`, JSON.stringify(bare) === JSON.stringify(wrapped));
+    expect(wrapped).toEqual(bare);
+  });
+
+  it('8W.2: STROKE FLIPS THE BEST-BALL PICK — correctness crux', () => {
+    // 2 players, 3 holes
+    // P1 (low hcp, no strokes):  gross [4, 5, 5]
+    // P2 (high hcp, 2 strokes):  gross [5, 5, 6], strokes [0, 1, 2] → net [5, 4, 4]
+    //
+    // GROSS best per hole:
+    //   Hole 0: min(4, 5) = 4 (P1)
+    //   Hole 1: min(5, 5) = 5 (tie, P1 wins via strict <)
+    //   Hole 2: min(5, 6) = 5 (P1)
+    //   Gross teamTotal = 4 + 5 + 5 = 14
+    //
+    // NET best per hole (strokes subtracted FIRST, then best-pick):
+    //   Hole 0: min(4, 5) = 4 (P1 still — no stroke on hole 0)
+    //   Hole 1: min(5, 4) = 4 (P2 FLIPS — stroke on hole 1 made net 4 beat P1's 5)
+    //   Hole 2: min(5, 4) = 4 (P2 FLIPS — 2 strokes made net 4 beat P1's 5)
+    //   Net teamTotal = 4 + 4 + 4 = 12
+    //
+    // The 2-stroke delta in teamTotal (14 → 12) proves the wrapper applies strokes
+    // BEFORE the best-pick. Gross-first-then-subtract would have lost P2's contribution.
+    const p1 = [4, 5, 5];
+    const p2 = [5, 5, 6];
+    const hcpP2 = [0, 1, 2];
+
+    const gross = calculateBestBall([p1, p2]);
+    expect(gross.teamScorePerHole).toEqual([4, 5, 5]);
+    expect(gross.teamTotal).toBe(14);
+
+    const net = calculateNetBestBall([p1, p2], [[0, 0, 0], hcpP2]);
+    record('8W.2', 'gross [4,5,5]=14 → net [4,4,4]=12 (P2 strokes flip holes 1+2)', '[4,4,4] total 12', `${JSON.stringify(net.teamScorePerHole)} total ${net.teamTotal}`, net.teamTotal === 12 && JSON.stringify(net.teamScorePerHole) === '[4,4,4]');
+    expect(net.teamScorePerHole).toEqual([4, 4, 4]);
+    expect(net.teamTotal).toBe(12);
+  });
+
+  it('8W.3: All-zeros stroke arrays ≡ undefined stroke arrays', () => {
+    const p1 = [4, 5, 4, 5, 4];
+    const p2 = [5, 4, 4, 4, 5];
+    const zeros = [0, 0, 0, 0, 0];
+    const undef = calculateNetBestBall([p1, p2]);
+    const allZeros = calculateNetBestBall([p1, p2], [zeros, zeros]);
+    record('8W.3', 'undefined ≡ all-zeros parity', `equal total=${undef.teamTotal}`, `undef ${undef.teamTotal}, zeros ${allZeros.teamTotal}`, JSON.stringify(undef) === JSON.stringify(allZeros));
+    expect(allZeros).toEqual(undef);
+  });
+
+  it('8W.4: Asymmetric — only P1 has strokes; P0 and P2 default to 0 (empty inner arrays)', () => {
+    // 3 players. Only middle player carries handicap strokes.
+    // P0: [5,5,5], no strokes (empty inner array) → net [5,5,5]
+    // P1: [5,5,5], strokes [1,1,1]                → net [4,4,4]
+    // P2: [5,5,5], no strokes (empty inner array) → net [5,5,5]
+    // Best per hole: min(5,4,5) = 4 each → teamTotal 12
+    const p0 = [5, 5, 5];
+    const p1 = [5, 5, 5];
+    const p2 = [5, 5, 5];
+    const r = calculateNetBestBall([p0, p1, p2], [[], [1, 1, 1], []]);
+    record('8W.4', 'asymmetric — only P1 strokes', '[4,4,4] total 12', `${JSON.stringify(r.teamScorePerHole)} total ${r.teamTotal}`, r.teamTotal === 12);
+    expect(r.teamScorePerHole).toEqual([4, 4, 4]);
+    expect(r.teamTotal).toBe(12);
+  });
+
+  it('8W.5: Mixed handicaps — each player\'s strokes applied independently before best-pick', () => {
+    // 4 players, each gets exactly 1 stroke on a different hole.
+    // All gross [5,5,5,5]. Each player nets [4,5,5,5] (rotating) for one hole.
+    // P0: net [4,5,5,5]  P1: net [5,4,5,5]  P2: net [5,5,4,5]  P3: net [5,5,5,4]
+    // Best per hole: hole 0→P0=4, hole 1→P1=4, hole 2→P2=4, hole 3→P3=4
+    // Net teamTotal = 16. Gross would have been 5+5+5+5 = 20.
+    const allGross = [5, 5, 5, 5];
+    const players = [allGross, allGross, allGross, allGross];
+    const hcps = [
+      [1, 0, 0, 0],
+      [0, 1, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1],
+    ];
+
+    const gross = calculateBestBall(players);
+    expect(gross.teamTotal).toBe(20); // all 5s, no strokes
+
+    const net = calculateNetBestBall(players, hcps);
+    record('8W.5', '4 players, 1 stroke each on diff hole', '[4,4,4,4] total 16', `${JSON.stringify(net.teamScorePerHole)} total ${net.teamTotal}`, net.teamTotal === 16);
+    expect(net.teamScorePerHole).toEqual([4, 4, 4, 4]);
+    expect(net.teamTotal).toBe(16);
   });
 });
 
