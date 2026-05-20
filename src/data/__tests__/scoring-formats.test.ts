@@ -26,6 +26,9 @@ import {
   calculateNetBestBall,
   calculateScrambleTeamScore,
   validateScrambleScore,
+  calculateChapmanHoleScore,
+  calculateChapmanTotal,
+  type ChapmanHoleScore,
 } from '../scoring';
 
 import { quotaTarget, quotaResult } from '../../lib/scoring-utils';
@@ -1128,6 +1131,108 @@ describe('FORMAT 9 VALIDATOR: validateScrambleScore', () => {
     record('9V.7', 'empty team scores', 'valid, no violations', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === true && r.violations.length === 0);
     expect(r.valid).toBe(true);
     expect(r.violations).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 10: CHAPMAN / PINEHURST (calculateChapmanHoleScore + calculateChapmanTotal)
+// ═══════════════════════════════════════════════════════════════════════
+// NOTE: No "FORMAT 10 WRAPPER" block exists — like Scramble (FORMAT 9),
+// Chapman uses a one-ball team-scoring model where the team plays a single
+// ball from shot 3 onward. The engine takes one team-level integer per hole
+// (alternateShots) plus a +2 constant for the drive + second shot. There is
+// no per-player score to apply per-hole strokes to. Chapman handicap is a
+// team-level scalar (USGA standard: 60% of low partner + 40% of high)
+// requiring a NEW engine, not a wrapper. Composted as a separate workstream
+// alongside the dead-data finding (5 of 6 ChapmanHoleScore fields are
+// captured but unused in scoring) and the Pinehurst-variant question
+// (engine currently doesn't differentiate when ball is selected).
+// Pinehurst free-rides on this same engine.
+
+describe('FORMAT 10: CHAPMAN (calculateChapmanHoleScore)', () => {
+  it('10.1: Canonical case — drive + second + 3 alternate shots = score 5', () => {
+    const hole: ChapmanHoleScore = {
+      driveA: 1, driveB: 1, secondShotA: 1, secondShotB: 1,
+      selectedBall: 'A', alternateShots: 3,
+    };
+    const score = calculateChapmanHoleScore(hole);
+    // 2 (drive + partner's second shot) + 3 (alternate shots) = 5
+    record('10.1', 'alternateShots=3', '5', String(score), score === 5);
+    expect(score).toBe(5);
+  });
+
+  it('10.2: Degenerate edge — ball holed after second shot (alternateShots=0) → score 2', () => {
+    // Drivable par 3 + chip-in scenario: team holes out on shot 2
+    const hole: ChapmanHoleScore = {
+      driveA: 1, driveB: 1, secondShotA: 1, secondShotB: 1,
+      selectedBall: 'B', alternateShots: 0,
+    };
+    const score = calculateChapmanHoleScore(hole);
+    record('10.2', 'alternateShots=0 (holed in 2)', '2', String(score), score === 2);
+    expect(score).toBe(2);
+  });
+
+  it('10.3: DEAD-DATA LOCK — nonsense in 5 unused fields; score depends ONLY on alternateShots', () => {
+    // The engine math is `2 + alternateShots`. The driveA/driveB/secondShotA/
+    // secondShotB/selectedBall fields are captured by the struct but UNUSED
+    // by the score computation. This test locks that contract: pass garbage
+    // values into those fields and the result must equal `2 + alternateShots`
+    // exactly. Tripwire for a future dev who adds reliance on those fields —
+    // they'll hit this failure and find the Chapman compost entry explaining
+    // the open design questions (drop / keep-for-stats / repurpose).
+    const hole: ChapmanHoleScore = {
+      driveA: 999,
+      driveB: -42,
+      secondShotA: NaN,
+      secondShotB: 0,
+      selectedBall: 'A',
+      alternateShots: 4,
+    };
+    const score = calculateChapmanHoleScore(hole);
+    // Expected: 2 + 4 = 6, NOT NaN, NOT affected by any of the 5 garbage fields
+    record('10.3', 'garbage in dead fields, alternateShots=4', '6 (deterministic, not NaN)', String(score), score === 6);
+    expect(score).toBe(6);
+  });
+});
+
+describe('FORMAT 10 TOTAL: calculateChapmanTotal (full-round wrapper)', () => {
+  it('10.4: 18-hole sum with varied alternateShots', () => {
+    // alternateShots per hole: [3,4,1,5,3,3,4,3,4,3,5,1,3,3,3,2,5,3] sum=58
+    // perHoleScores: each is (2 + alt): [5,6,3,7,5,5,6,5,6,5,7,3,5,5,5,4,7,5]
+    // total = 36 (18 × +2) + 58 (sum of alt) = 94
+    const altShots = [3, 4, 1, 5, 3, 3, 4, 3, 4, 3, 5, 1, 3, 3, 3, 2, 5, 3];
+    const holes: ChapmanHoleScore[] = altShots.map((alt) => ({
+      driveA: 1, driveB: 1, secondShotA: 1, secondShotB: 1,
+      selectedBall: 'A', alternateShots: alt,
+    }));
+    const r = calculateChapmanTotal(holes);
+    const expectedPerHole = altShots.map((alt) => 2 + alt);
+    record('10.4', '18-hole Chapman, sum altShots=58', 'total 94, perHole [5,6,3,7,5,...,5]', `total ${r.total}`, r.total === 94 && JSON.stringify(r.perHoleScores) === JSON.stringify(expectedPerHole));
+    expect(r.total).toBe(94);
+    expect(r.perHoleScores).toEqual(expectedPerHole);
+  });
+
+  it('10.5: Empty holes → { perHoleScores: [], total: 0 }', () => {
+    const r = calculateChapmanTotal([]);
+    record('10.5', 'empty holes array', '{ [], 0 }', `${JSON.stringify(r.perHoleScores)} total ${r.total}`, r.perHoleScores.length === 0 && r.total === 0);
+    expect(r.perHoleScores).toEqual([]);
+    expect(r.total).toBe(0);
+  });
+
+  it('10.6: Partial 9-hole round (front 9)', () => {
+    // alternateShots: [3,4,1,5,3,3,4,3,4] sum=30
+    // perHoleScores: [5,6,3,7,5,5,6,5,6]
+    // total = 9 × 2 + 30 = 48
+    const altShots = [3, 4, 1, 5, 3, 3, 4, 3, 4];
+    const holes: ChapmanHoleScore[] = altShots.map((alt) => ({
+      driveA: 1, driveB: 1, secondShotA: 1, secondShotB: 1,
+      selectedBall: 'B', alternateShots: alt,
+    }));
+    const r = calculateChapmanTotal(holes);
+    const expectedPerHole = altShots.map((alt) => 2 + alt);
+    record('10.6', '9-hole front Chapman', 'total 48, perHole [5,6,3,7,5,5,6,5,6]', `total ${r.total}`, r.total === 48 && JSON.stringify(r.perHoleScores) === JSON.stringify(expectedPerHole));
+    expect(r.total).toBe(48);
+    expect(r.perHoleScores).toEqual(expectedPerHole);
   });
 });
 
