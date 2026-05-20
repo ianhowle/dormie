@@ -29,7 +29,31 @@ import {
   calculateChapmanHoleScore,
   calculateChapmanTotal,
   type ChapmanHoleScore,
+  calculateArniesCount,
+  calculateHogansCount,
+  calculateTrashTotal,
 } from '../scoring';
+import type { HoleScore, HoleData } from '../../scoring/types';
+
+// ─── Test helpers for Tier A side-game counters ───────────────────────
+// Constructs the Map<holeNumber, Map<playerId, HoleScore>> shape used by
+// the live scoring path. Tests build small synthetic rounds inline.
+function makeHole(number: number, par: number, strokeIndex = 1): HoleData {
+  return { number, par, strokeIndex };
+}
+function makeScore(gross: number, putts: number, fir: boolean | null): HoleScore {
+  return { gross, putts, fir };
+}
+function makeAllScores(
+  rows: Array<{ hole: number; playerId: string; score: HoleScore }>,
+): Map<number, Map<string, HoleScore>> {
+  const m = new Map<number, Map<string, HoleScore>>();
+  for (const r of rows) {
+    if (!m.has(r.hole)) m.set(r.hole, new Map());
+    m.get(r.hole)!.set(r.playerId, r.score);
+  }
+  return m;
+}
 
 import { quotaTarget, quotaResult } from '../../lib/scoring-utils';
 
@@ -1233,6 +1257,196 @@ describe('FORMAT 10 TOTAL: calculateChapmanTotal (full-round wrapper)', () => {
     record('10.6', '9-hole front Chapman', 'total 48, perHole [5,6,3,7,5,5,6,5,6]', `total ${r.total}`, r.total === 48 && JSON.stringify(r.perHoleScores) === JSON.stringify(expectedPerHole));
     expect(r.total).toBe(48);
     expect(r.perHoleScores).toEqual(expectedPerHole);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// SIDE-GAME COUNTERS — Tier A (pure auto-detect from HoleScore data)
+// ═══════════════════════════════════════════════════════════════════════
+// arnies, hogans: scan per-player per-hole HoleScore data and count
+// qualifying holes. Par 3 holes have fir === null and are excluded from
+// both (no fairway off the tee). trash: parametric composition over the
+// small "junk" bets — caller passes per-player counts, function sums.
+// No persistence scaffolding required for these three — they're pure
+// functions over data the live scoring path already captures.
+
+describe('SIDE-GAME COUNTERS — ARNIES (calculateArniesCount)', () => {
+  it('A.1: Single qualifying hole — par with !fir && !isGir', () => {
+    // Hole 1, par 4: gross 4 (par), missed fairway, putts 2 → gross-putts=2 > par-2=2 → NOT GIR (regulation requires 2 putts to be on green, i.e., reached green in par-2 strokes or fewer)
+    // Wait: isGIR formula = (gross - putts) <= (par - 2). For gross=4, putts=2, par=4: (4-2)=2 <= (4-2)=2 → TRUE, IS GIR.
+    // So to NOT be GIR, we need (gross - putts) > (par - 2). E.g., gross=4, putts=1 → 3>2 TRUE → not GIR (held green in 3, one-putt).
+    // Build the scenario: par 4, gross 4, fir false, putts 1 → made par via long putt off the green (chip-in equivalent). Not FIR, not GIR. Arnie.
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 1, false) },
+    ]);
+    const holes = [makeHole(1, 4)];
+    const counts = calculateArniesCount(scores, holes);
+    record('A.1', 'par-4 chip-in: gross 4 putts 1 fir false', 'p1=1', `p1=${counts.get('p1')}`, counts.get('p1') === 1);
+    expect(counts.get('p1')).toBe(1);
+  });
+
+  it('A.2: Non-qualifying — par 3 (fir null, excluded)', () => {
+    // Par 3 holes have fir === null; arnies need fir === false strictly
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(3, 1, null) },
+    ]);
+    const counts = calculateArniesCount(scores, [makeHole(1, 3)]);
+    record('A.2', 'par-3 hole, fir=null', 'no arnies', `p1=${counts.get('p1') ?? 0}`, !counts.has('p1'));
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('A.3: Non-qualifying — fir true (hit the fairway, so not Arnie)', () => {
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 2, true) },
+    ]);
+    const counts = calculateArniesCount(scores, [makeHole(1, 4)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('A.4: Non-qualifying — GIR (hit green in regulation, so not Arnie)', () => {
+    // par 4, gross 4, fir false, putts 2 → (4-2)=2 <= (4-2)=2 → IS GIR → not Arnie
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 2, false) },
+    ]);
+    const counts = calculateArniesCount(scores, [makeHole(1, 4)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('A.5: Non-qualifying — bogey (over par)', () => {
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(5, 1, false) },
+    ]);
+    const counts = calculateArniesCount(scores, [makeHole(1, 4)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('A.6: Multi-player partial round — independent counts', () => {
+    // Hole 1 (par 4): p1 makes Arnie (4 / 1 / false), p2 bogey
+    // Hole 2 (par 5): p1 par with GIR (no Arnie), p2 birdie via Arnie route (4/1/false → 4 strokes, putts 1 → green in 3, one-putt → !GIR, !fir)
+    // Hole 3 (par 3): both par 3s — excluded
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 1, false) }, // Arnie
+      { hole: 1, playerId: 'p2', score: makeScore(5, 2, false) }, // bogey, no Arnie
+      { hole: 2, playerId: 'p1', score: makeScore(5, 2, true) },  // par via fairway, no Arnie
+      { hole: 2, playerId: 'p2', score: makeScore(4, 1, false) }, // birdie scramble: !fir, putts 1, gross-putts=3, par-2=3 → 3<=3 IS GIR → no Arnie
+      { hole: 3, playerId: 'p1', score: makeScore(3, 2, null) },  // par 3, excluded
+      { hole: 3, playerId: 'p2', score: makeScore(3, 2, null) },  // par 3, excluded
+    ]);
+    const holes = [makeHole(1, 4), makeHole(2, 5), makeHole(3, 3)];
+    const counts = calculateArniesCount(scores, holes);
+    record('A.6', 'multi-player partial round', 'p1=1, p2=0', `p1=${counts.get('p1')} p2=${counts.get('p2') ?? 0}`, counts.get('p1') === 1 && !counts.has('p2'));
+    expect(counts.get('p1')).toBe(1);
+    expect(counts.has('p2')).toBe(false);
+  });
+
+  it('A.7: Empty scores → empty counts map', () => {
+    const counts = calculateArniesCount(new Map(), [makeHole(1, 4)]);
+    expect(counts.size).toBe(0);
+  });
+});
+
+describe('SIDE-GAME COUNTERS — HOGANS (calculateHogansCount)', () => {
+  it('H.1: All four conditions met — par 4 par with fir + GIR + 2-putt', () => {
+    // par 4, gross 4, fir true, putts 2 → (4-2)=2 <= (4-2)=2 IS GIR, 2-putt, par or better → Hogan
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 2, true) },
+    ]);
+    const counts = calculateHogansCount(scores, [makeHole(1, 4)]);
+    record('H.1', 'par-4: 4/2/true (par+FIR+GIR+2-putt)', 'p1=1', `p1=${counts.get('p1')}`, counts.get('p1') === 1);
+    expect(counts.get('p1')).toBe(1);
+  });
+
+  it('H.2: Fail FIR — same scoring shape but fir false', () => {
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 2, false) },
+    ]);
+    const counts = calculateHogansCount(scores, [makeHole(1, 4)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('H.3: Fail GIR — fir true but missed green', () => {
+    // par 4, gross 4, fir true, putts 1 → (4-1)=3 > (4-2)=2 → not GIR (got up-and-down)
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 1, true) },
+    ]);
+    const counts = calculateHogansCount(scores, [makeHole(1, 4)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('H.4: Fail putts<=2 — 3-putt par 5', () => {
+    // par 5, gross 5, fir true, putts 3 → (5-3)=2 <= (5-2)=3 IS GIR, but 3 putts > 2 → no Hogan
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(5, 3, true) },
+    ]);
+    const counts = calculateHogansCount(scores, [makeHole(1, 5)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('H.5: Fail par-or-better — bogey with FIR+GIR+2-putt', () => {
+    // par 4, gross 5, fir true, putts 2 → (5-2)=3 > (4-2)=2 → not GIR anyway (and bogey)
+    // To isolate the par-or-better fail: need GIR + 2-putt + FIR but gross > par. Math requires putts <= par-2 to be GIR, but gross = par+1 means strokes-to-green = (par+1)-2 = par-1 > par-2, not GIR.
+    // The "par or better" check is therefore co-implied by FIR+GIR+2-putt at par-or-better in stable golf: if you hit GIR in regulation and 2-putt, you score par (or better via 1-putt → counted) or bogey only if you took an extra penalty stroke between green and hole.
+    // So a real-world fail-par with the other three conditions is unusual. Construct it: par 4, gross 5, fir true, putts 2, gross-putts=3 → 3 > 2 NOT GIR. So this isn't a clean isolation test; H.5 is "non-par" coverage via a realistic over-par case that also fails GIR.
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(5, 2, true) }, // bogey, also not GIR
+    ]);
+    const counts = calculateHogansCount(scores, [makeHole(1, 4)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('H.6: Par 3 excluded — fir === null', () => {
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(3, 2, null) },
+    ]);
+    const counts = calculateHogansCount(scores, [makeHole(1, 3)]);
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('H.7: Multi-player — p1 Hogan, p2 misses on putts', () => {
+    const scores = makeAllScores([
+      { hole: 1, playerId: 'p1', score: makeScore(4, 2, true) },  // Hogan
+      { hole: 1, playerId: 'p2', score: makeScore(5, 3, true) },  // FIR but 3-putt bogey, no Hogan
+      { hole: 2, playerId: 'p1', score: makeScore(5, 2, true) },  // par 5 with FIR + 2-putt — check GIR: (5-2)=3 <= (5-2)=3 IS GIR → Hogan
+      { hole: 2, playerId: 'p2', score: makeScore(5, 2, true) },  // same → Hogan
+    ]);
+    const holes = [makeHole(1, 4), makeHole(2, 5)];
+    const counts = calculateHogansCount(scores, holes);
+    record('H.7', 'p1 two Hogans, p2 one Hogan', 'p1=2 p2=1', `p1=${counts.get('p1')} p2=${counts.get('p2')}`, counts.get('p1') === 2 && counts.get('p2') === 1);
+    expect(counts.get('p1')).toBe(2);
+    expect(counts.get('p2')).toBe(1);
+  });
+
+  it('H.8: Empty scores → empty counts map', () => {
+    const counts = calculateHogansCount(new Map(), [makeHole(1, 4)]);
+    expect(counts.size).toBe(0);
+  });
+});
+
+describe('SIDE-GAME COUNTERS — TRASH (calculateTrashTotal)', () => {
+  it('T.1: Full subset — sums all four components', () => {
+    const total = calculateTrashTotal({ greenies: 3, sandies: 1, bark: 2, arnies: 4 });
+    record('T.1', '3+1+2+4', '10', String(total), total === 10);
+    expect(total).toBe(10);
+  });
+
+  it('T.2: Empty input → 0', () => {
+    const total = calculateTrashTotal({});
+    record('T.2', 'empty record', '0', String(total), total === 0);
+    expect(total).toBe(0);
+  });
+
+  it('T.3: Partial subset — only greenies + arnies', () => {
+    // Caller chose to track only two component games this round
+    const total = calculateTrashTotal({ greenies: 2, arnies: 3 });
+    record('T.3', 'partial: greenies 2 + arnies 3', '5', String(total), total === 5);
+    expect(total).toBe(5);
+  });
+
+  it('T.4: Zeros explicit ≡ missing keys', () => {
+    const zeros = calculateTrashTotal({ greenies: 0, sandies: 0, bark: 0, arnies: 0 });
+    const empty = calculateTrashTotal({});
+    expect(zeros).toBe(empty);
+    expect(zeros).toBe(0);
   });
 });
 

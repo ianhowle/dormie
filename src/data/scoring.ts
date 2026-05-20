@@ -1,3 +1,13 @@
+import type { HoleScore, HoleData } from '../scoring/types';
+
+// Local copy of isGIR to keep src/data/scoring.ts in pure-data territory
+// for the ts-node test runner (importing from scoring/calculations.ts
+// pulls in ThemeContext JSX). Same formula as the canonical isGIR in
+// src/scoring/calculations.ts — update both if the GIR rule ever changes.
+function isGreenInRegulation(gross: number, putts: number, par: number): boolean {
+  return (gross - putts) <= (par - 2);
+}
+
 export type ScoringFormat =
   | 'stroke_play'
   | 'match_play'
@@ -929,4 +939,89 @@ export function calculateChapmanTotal(holes: ChapmanHoleScore[]): {
   const perHoleScores = holes.map(calculateChapmanHoleScore);
   const total = perHoleScores.reduce((sum, s) => sum + s, 0);
   return { perHoleScores, total };
+}
+
+// ─── Auto-detect counter side-game engines ──────────────────────────
+// Pure functions over captured HoleScore data — no toast confirmation
+// required, no persistence scaffolding needed. Counter outputs feed
+// later render passes and the parametric Trash composition.
+
+/**
+ * Count Arnies per player. An Arnie = par or better on a hole where the
+ * player did NOT hit the fairway and did NOT hit green in regulation.
+ * Named after Arnold Palmer's scrambling game.
+ *
+ * Mirrors the auto-detect condition used by the existing semi-auto
+ * toast for arnies (SideGameToast.tsx). Par 3 holes have fir === null
+ * and are excluded (no fairway to miss).
+ */
+export function calculateArniesCount(
+  allScores: Map<number, Map<string, HoleScore>>,
+  holes: HoleData[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  holes.forEach((h) => {
+    const holeScores = allScores.get(h.number);
+    if (!holeScores) return;
+    holeScores.forEach((s, playerId) => {
+      if (s.gross <= h.par && s.fir === false && !isGreenInRegulation(s.gross, s.putts, h.par)) {
+        counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+      }
+    });
+  });
+  return counts;
+}
+
+/**
+ * Count Hogans per player. A Hogan requires all four conditions on a
+ * single hole: (1) hit the fairway off the tee, (2) hit green in
+ * regulation, (3) two-putt or better, (4) par or better. Named after
+ * Ben Hogan's ball-striking precision.
+ *
+ * Pure auto-detect from HoleScore — no toast exists for Hogans today.
+ * Par 3 holes have fir === null and are excluded (no fairway off the
+ * tee). Same par-3 exclusion semantics as Arnies for consistency.
+ */
+export function calculateHogansCount(
+  allScores: Map<number, Map<string, HoleScore>>,
+  holes: HoleData[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  holes.forEach((h) => {
+    const holeScores = allScores.get(h.number);
+    if (!holeScores) return;
+    holeScores.forEach((s, playerId) => {
+      if (
+        s.gross <= h.par &&
+        s.fir === true &&
+        isGreenInRegulation(s.gross, s.putts, h.par) &&
+        s.putts <= 2
+      ) {
+        counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+      }
+    });
+  });
+  return counts;
+}
+
+/**
+ * Trash component side-game keys. Per SIDE_GAMES description, Trash
+ * bundles the small "junk" bets (greenies, sandies, barkies, arnies)
+ * into a single tally. Parametric so callers can include any subset
+ * (e.g., only the side games that are wired in a given trip).
+ */
+export type TrashComponent = 'greenies' | 'sandies' | 'bark' | 'arnies';
+
+/**
+ * Sum a player's Trash component counts. Caller iterates per player
+ * and provides whichever components are tracked for the round.
+ * Missing component keys default to 0.
+ */
+export function calculateTrashTotal(
+  counts: Partial<Record<TrashComponent, number>>,
+): number {
+  return (counts.greenies ?? 0)
+    + (counts.sandies ?? 0)
+    + (counts.bark ?? 0)
+    + (counts.arnies ?? 0);
 }
