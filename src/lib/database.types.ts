@@ -41,6 +41,8 @@ export interface Course {
   id: string;
   name: string;
   location: string;
+  city: string | null;
+  state: string | null;
   par: number;
   slope: number | null;
   rating: number | null;
