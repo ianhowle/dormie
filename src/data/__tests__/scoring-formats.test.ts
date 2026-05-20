@@ -24,6 +24,8 @@ import {
   calculateNetMatchPlay,
   calculateBestBall,
   calculateNetBestBall,
+  calculateScrambleTeamScore,
+  validateScrambleScore,
 } from '../scoring';
 
 import { quotaTarget, quotaResult } from '../../lib/scoring-utils';
@@ -994,6 +996,138 @@ describe('FORMAT 8 WRAPPER: calculateNetBestBall', () => {
     record('8W.5', '4 players, 1 stroke each on diff hole', '[4,4,4,4] total 16', `${JSON.stringify(net.teamScorePerHole)} total ${net.teamTotal}`, net.teamTotal === 16);
     expect(net.teamScorePerHole).toEqual([4, 4, 4, 4]);
     expect(net.teamTotal).toBe(16);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 9: SCRAMBLE — calculateScrambleTeamScore (engine sum)
+// ═══════════════════════════════════════════════════════════════════════
+// NOTE: No "FORMAT 9 WRAPPER" block exists — the handicap-conversion
+// template breaks here. In a scramble the team plays one ball, posts one
+// score per hole; there's no per-player score to subtract per-hole strokes
+// from. Scramble handicap is a team-level scalar via a size-dependent
+// fractional formula (e.g., 35/15 for 2-player teams, 20/15/10/5 for
+// 4-player) and requires a NEW engine, not a wrapper around this trivial
+// sum. Composted as a separate workstream blocked on formula decision.
+
+describe('FORMAT 9: SCRAMBLE (calculateScrambleTeamScore)', () => {
+  it('9.1: Sums 18-hole team scores', () => {
+    // Front 9 [4,5,3,4,5,4,3,4,5] = 37; Back 9 [4,5,3,4,5,4,3,5,4] = 37; total 74
+    const teamScores = [4, 5, 3, 4, 5, 4, 3, 4, 5, 4, 5, 3, 4, 5, 4, 3, 5, 4];
+    const r = calculateScrambleTeamScore(teamScores);
+    record('9.1', '18-hole scramble', 'teamTotal=74', `teamTotal=${r.teamTotal}`, r.teamTotal === 74);
+    expect(r.teamTotal).toBe(74);
+  });
+
+  it('9.2: Empty array → { teamTotal: 0 }', () => {
+    const r = calculateScrambleTeamScore([]);
+    record('9.2', 'empty teamScoresPerHole', 'teamTotal=0', `teamTotal=${r.teamTotal}`, r.teamTotal === 0);
+    expect(r.teamTotal).toBe(0);
+  });
+
+  it('9.3: Partial round (9 holes) sums correctly', () => {
+    // [4,5,3,4,5,4,3,4,5] = 37
+    const r = calculateScrambleTeamScore([4, 5, 3, 4, 5, 4, 3, 4, 5]);
+    record('9.3', 'front-9 scramble', 'teamTotal=37', `teamTotal=${r.teamTotal}`, r.teamTotal === 37);
+    expect(r.teamTotal).toBe(37);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORMAT 9 VALIDATOR: validateScrambleScore (data-integrity check)
+// ═══════════════════════════════════════════════════════════════════════
+// Real orphan logic, untested until now. Enforces the scramble physical
+// constraint: the team always has the option to use any individual's ball,
+// so the team's hole score can never be WORSE than the lowest individual's
+// score on that hole. Team scores BELOW best individual are valid (real
+// scramble case — combining best shots from multiple players can beat any
+// single player's score).
+
+describe('FORMAT 9 VALIDATOR: validateScrambleScore', () => {
+  it('9V.1: Valid — team score equals best individual on every hole', () => {
+    const team = [4, 5, 4];
+    const individuals = [
+      [4, 5, 4],
+      [5, 6, 5],
+    ];
+    // bestIndividual per hole: min(4,5)=4, min(5,6)=5, min(4,5)=4 — team matches each
+    const r = validateScrambleScore(team, individuals);
+    record('9V.1', 'team = best individual', 'valid, no violations', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === true && r.violations.length === 0);
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
+  });
+
+  it('9V.2: Valid — team BELOW best individual (real scramble case)', () => {
+    // Team combines best shots from multiple players → posts lower than
+    // any single individual's score. Validator must allow this.
+    const team = [3, 3, 3];
+    const individuals = [
+      [4, 5, 4],
+      [5, 4, 5],
+    ];
+    // bestIndividual per hole: [4, 4, 4]; team [3,3,3] is below each — all valid
+    const r = validateScrambleScore(team, individuals);
+    record('9V.2', 'team below best individual (combined best shots)', 'valid, no violations', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === true && r.violations.length === 0);
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
+  });
+
+  it('9V.3: Invalid — team above best individual on one hole → single violation', () => {
+    const team = [4, 6, 4];
+    const individuals = [
+      [4, 5, 4],
+      [5, 5, 5],
+    ];
+    // bestIndividual per hole: [4, 5, 4]. Hole 1: team 6 > best 5 → violation at index 1
+    const r = validateScrambleScore(team, individuals);
+    record('9V.3', 'team 6 vs best 5 at hole 1', 'valid=false violations=[1]', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === false && JSON.stringify(r.violations) === '[1]');
+    expect(r.valid).toBe(false);
+    expect(r.violations).toEqual([1]);
+  });
+
+  it('9V.4: Multiple non-contiguous violations', () => {
+    const team = [6, 4, 6, 4, 6];
+    const individuals = [
+      [4, 4, 4, 4, 4],
+      [5, 5, 5, 5, 5],
+    ];
+    // bestIndividual = [4,4,4,4,4]. Team > best at holes 0, 2, 4
+    const r = validateScrambleScore(team, individuals);
+    record('9V.4', '3 non-contiguous violations', 'violations=[0,2,4]', `${JSON.stringify(r.violations)}`, JSON.stringify(r.violations) === '[0,2,4]');
+    expect(r.valid).toBe(false);
+    expect(r.violations).toEqual([0, 2, 4]);
+  });
+
+  it('9V.5: Empty individualScoresPerHole → no constraint, all holes valid', () => {
+    // No individuals to compare against → bestIndividual stays Infinity
+    // → defensive guard at scoring.ts:886 skips violation check
+    const team = [4, 5, 4];
+    const r = validateScrambleScore(team, []);
+    record('9V.5', 'no individual scores', 'valid, no violations', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === true && r.violations.length === 0);
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
+  });
+
+  it('9V.6: Mismatched lengths — bestIndividual < Infinity guard skips unconstrained holes', () => {
+    // Team has 12 holes recorded; individuals only have 9.
+    // For holes 9–11, no individual contributes → bestIndividual stays Infinity
+    // → the guard skips the violation check, even though team scored 99.
+    const team = [4, 5, 4, 5, 4, 5, 4, 5, 4, 99, 99, 99];
+    const individuals = [[4, 5, 4, 5, 4, 5, 4, 5, 4]];
+    // Holes 0–8: team matches bestIndividual exactly → no violations
+    // Holes 9–11: individual out of bounds → bestIndividual=Infinity → guard skips
+    const r = validateScrambleScore(team, individuals);
+    record('9V.6', 'team len 12, individuals len 9', 'valid, no violations (guard skips holes 9-11)', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === true && r.violations.length === 0);
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
+  });
+
+  it('9V.7: Empty team scores → empty violations array, valid', () => {
+    // Outer loop iterates 0 times → no violations possible
+    const r = validateScrambleScore([], [[4, 5, 4]]);
+    record('9V.7', 'empty team scores', 'valid, no violations', `valid=${r.valid} violations=${JSON.stringify(r.violations)}`, r.valid === true && r.violations.length === 0);
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
   });
 });
 
