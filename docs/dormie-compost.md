@@ -13,6 +13,29 @@
 
 ## Active Compost
 
+- 2026-05-20 — SCRAMBLE TEAM-HANDICAP ENGINE (separate workstream, blocked on formula decision)
+
+  Session 2B added tests for calculateScrambleTeamScore (trivial sum) and validateScrambleScore (real validator logic) but did NOT add a calculateNetScrambleTeamScore wrapper. The Tier 1 handicap-conversion template (subtract per-player per-hole strokes → delegate) doesn't fit scramble: the team plays one ball and posts one score per hole — there is no per-player score to apply strokes to.
+
+  Scramble handicap is a TEAM-LEVEL SCALAR applied at the trip total, not per-hole. The USGA standard is a size-dependent fractional formula:
+  - 2-player team: 35% of low handicap + 15% of high
+  - 3-player team: 20% low + 15% middle + 10% high
+  - 4-player team: 20% lowest + 15% + 10% + 5% highest
+
+  Then team net = team gross − team handicap. This is a NEW engine, not a wrapper around the existing trivial sum.
+
+  BLOCKED ON PRODUCT DECISIONS:
+  1. Which formula to ship — USGA standard, custom Dormie variant, or configurable per trip?
+  2. Configurable vs hardcoded — should the trip organizer pick percentages, or is one default fine?
+  3. Gross-only vs trip-flag-driven — does every scramble trip compute a handicap, or only when a "use handicap" trip flag is set?
+  4. Where the handicap is computed and stored — at trip creation, at round finalize, at display only?
+
+  PAIRS WITH:
+  - The future render-pass work (Tier 1 PostRoundSummary integrations) — scramble display needs to either show gross only (no handicap) or surface a team handicap somewhere. That decision drives the engine shape.
+  - The fourball composition note (above) — both are about how multi-player team formats surface results without a per-player wrapper. Worth tackling in the same focused session.
+
+  PRE-BETA PRIORITY: MEDIUM. Scramble trips will display correctly with gross totals out of the box (calculateScrambleTeamScore works). Adding handicap is a polish item, not a correctness blocker. Decide after the more pressing renders land.
+
 - 2026-05-20 — FOURBALL WIRING = DISPLAY-LAYER COMPOSITION (no new engine needed)
 
   When the render pass arrives for Four-Ball trips, the implementation is composition of two existing wrappers, NOT a new scoring engine. For each team, call calculateNetBestBall(team.playerScores, team.handicapStrokesPerPlayer) to get teamScorePerHole, then feed the two teams' teamScorePerHole arrays into calculateNetMatchPlay(team1.teamScorePerHole, team2.teamScorePerHole) to resolve the 2v2 match hole-by-hole. The Best Ball engine handles the per-hole best-ball mechanic; the Match Play engine handles the head-to-head resolution and "X&Y" close-out vocabulary. Per SCORING_FORMATS (scoring.ts:202), fourball shares the Best Ball engine — only the post-engine treatment differs.
