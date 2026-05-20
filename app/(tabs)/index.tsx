@@ -15,6 +15,7 @@ import { Avatar } from '../../src/components/Avatar';
 import { SkeletonFeed, SkeletonStats } from '../../src/components/Skeleton';
 import { useToast } from '../../src/components/Toast';
 import { haptics } from '../../src/lib/haptics';
+import { logWarn } from '../../src/lib/logger';
 import { roundsService } from '../../src/services/rounds.service';
 import { friendsService } from '../../src/services/friends.service';
 import { tripsService } from '../../src/services/trips.service';
@@ -494,7 +495,7 @@ function SeasonStandingsSection({ groupName }: { groupName: string }) {
             points: d.total_points,
           })));
         } catch {}
-      }).catch(() => {});
+      }).catch((e) => logWarn('Home: group standings fetch failed', e));
     });
   }, [user?.id, groupName]);
 
@@ -1067,7 +1068,7 @@ export default function HomeScreen() {
       if (round && holesCompleted(round) > 0) {
         setInterruptedRound(round);
       }
-    }).catch(() => {});
+    }).catch((e) => logWarn('Home: active round check failed', e));
   }, []);
 
   // Register offline round sync — auto-push queued rounds when back online
@@ -1095,7 +1096,7 @@ export default function HomeScreen() {
           icon: 'cloud-done-outline',
         });
       }
-    }).catch(() => {});
+    }).catch((e) => logWarn('Home: offline sync on mount failed', e));
 
     return unsub;
   }, [showToast]);
@@ -1138,14 +1139,14 @@ export default function HomeScreen() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     // Refresh auth metadata so checklist picks up handicap/home_course changes
-    refreshUser().catch(() => {});
+    refreshUser().catch((e) => logWarn('Home: refreshUser auth metadata failed', e));
     try {
       const [rounds, requests, trips, seasons, userGroups] = await Promise.all([
-        roundsService.getByUser(user.id, 10).catch(() => [] as RoundWithCourse[]),
-        friendsService.getPendingRequests(user.id).catch(() => [] as FriendshipWithUser[]),
-        tripsService.getByUser(user.id).catch(() => []),
-        import('../../src/services/seasons.service').then(m => m.seasonsService.getByUser(user.id)).catch(() => []),
-        groupsService.getUserGroups(user.id).catch(() => [] as Group[]),
+        roundsService.getByUser(user.id, 10).catch((e) => { logWarn('Home: rounds fetch failed', e); return [] as RoundWithCourse[]; }),
+        friendsService.getPendingRequests(user.id).catch((e) => { logWarn('Home: pending requests fetch failed', e); return [] as FriendshipWithUser[]; }),
+        tripsService.getByUser(user.id).catch((e) => { logWarn('Home: trips fetch failed', e); return []; }),
+        import('../../src/services/seasons.service').then(m => m.seasonsService.getByUser(user.id)).catch((e) => { logWarn('Home: seasons fetch failed', e); return []; }),
+        groupsService.getUserGroups(user.id).catch((e) => { logWarn('Home: groups fetch failed', e); return [] as Group[]; }),
       ]);
       setRealRounds(rounds);
       setPendingRequests(requests);
@@ -1159,8 +1160,8 @@ export default function HomeScreen() {
       });
       // Load active friends + sent requests for checklist
       Promise.all([
-        friendsService.getActiveFriends(user.id).catch(() => [] as FriendshipWithUser[]),
-        friendsService.getSentRequests(user.id).catch(() => [] as FriendshipWithUser[]),
+        friendsService.getActiveFriends(user.id).catch((e) => { logWarn('Home: active friends fetch failed', e); return [] as FriendshipWithUser[]; }),
+        friendsService.getSentRequests(user.id).catch((e) => { logWarn('Home: sent requests fetch failed', e); return [] as FriendshipWithUser[]; }),
       ]).then(([active, sent]) => {
         setRealFriends([...active, ...sent]);
       });
