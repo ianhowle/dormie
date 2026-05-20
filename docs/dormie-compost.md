@@ -13,6 +13,18 @@
 
 ## Active Compost
 
+- 2026-05-20 — ROTATE EXPOSED CREDENTIALS (security, pre-launch blocker)
+
+  During Sentry setup, several client-side keys were exposed and should be rotated before production launch:
+  - Sentry DSN (already flagged)
+  - Google Places API key — rotate in Google Cloud Console + ADD application restrictions (bundle ID + API restrictions)
+  - Golf API key — regenerate with provider
+  - Supabase anon key — publishable/RLS-protected by design (low risk) but verify RLS policies are airtight; rotate if desired
+
+  None are server-admin keys (all EXPO_PUBLIC_ client-side), so exposure is not catastrophic — but rotation + restrictions are correct pre-launch hygiene.
+
+  ALSO: deleted stray 'Sentry .env' duplicate file; hardened .gitignore with *.env pattern.
+
 - 2026-05-17 — VERIFY SENTRY CAPTURE END-TO-END (deferred from Session 1B)
 
   Sentry DSN configured in .env (EXPO_PUBLIC_SENTRY_DSN), confirmed loading via env export line. Sentry code wiring verified correct in Phase 2 audit (initSentry at app/_layout.tsx:15, setSentryUser/clearSentryUser wired, plugin configured in app.json). Logger (src/lib/logger.ts) routes logError → Sentry.captureException.
