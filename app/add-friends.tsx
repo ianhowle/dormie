@@ -25,6 +25,7 @@ import { friendsService } from '../src/services/friends.service';
 import { supabase } from '../src/lib/supabase';
 import { useToast } from '../src/components/Toast';
 import { haptics } from '../src/lib/haptics';
+import { logWarn } from '../src/lib/logger';
 import GoldDivider from '../src/components/GoldDivider';
 import type { User, FriendshipWithUser } from '../src/lib/database.types';
 
@@ -95,7 +96,7 @@ export default function AddFriendsScreen() {
     setLoadingPending(true);
     friendsService.getPendingRequests(user.id)
       .then(setPendingRequests)
-      .catch(() => {})
+      .catch((e) => logWarn('Friends: pending requests fetch failed', e))
       .finally(() => setLoadingPending(false));
   }, [user?.id]);
 
@@ -171,7 +172,8 @@ export default function AddFriendsScreen() {
       }
 
       setContactMatches(matches);
-    } catch {
+    } catch (e) {
+      logWarn('Friends: contact matching failed', e);
       setContactMatches([]);
     } finally {
       setLoadingContacts(false);
@@ -211,7 +213,8 @@ export default function AddFriendsScreen() {
       try {
         const data = await friendsService.searchUsers(text.trim());
         setResults(data.filter((u) => u.id !== user?.id));
-      } catch {
+      } catch (e) {
+        logWarn('Friends: user search failed', e);
         setResults([]);
       } finally {
         setSearching(false);
@@ -246,7 +249,8 @@ export default function AddFriendsScreen() {
       setPendingRequests((prev) => prev.filter((r) => r.id !== friendship.id));
       showToast({ message: 'Friend added', type: 'success', icon: 'checkmark-circle' });
       disableDemoIfNeeded().catch(() => {});
-    } catch {
+    } catch (e) {
+      logWarn('Friends: accept request failed', e);
       showToast({ message: 'Failed to accept request', type: 'error' });
     } finally {
       setAcceptingId(null);
@@ -261,7 +265,8 @@ export default function AddFriendsScreen() {
       await friendsService.rejectRequest(friendship.id);
       setPendingRequests((prev) => prev.filter((r) => r.id !== friendship.id));
       showToast({ message: 'Request declined', type: 'success' });
-    } catch {
+    } catch (e) {
+      logWarn('Friends: decline request failed', e);
       showToast({ message: 'Failed to decline request', type: 'error' });
     } finally {
       setDecliningId(null);
