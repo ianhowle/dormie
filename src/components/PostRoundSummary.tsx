@@ -525,7 +525,7 @@ function PostRoundSummaryInner({ players, sideGames, onSaveRound, onClose }: Pos
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       {/* Hero header */}
-      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.hero}>
+      <LinearGradient colors={greenHeaderGradient} style={styles.hero}>
         <View style={styles.heroTop}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={24} color="#FFFFFF" />

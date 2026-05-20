@@ -83,7 +83,7 @@ export default function GroupsScreen() {
     <View style={[gs.screen, { backgroundColor: c.bg }]}>
       {/* Header */}
       <LinearGradient
-        colors={greenHeaderGradient as unknown as string[]}
+        colors={greenHeaderGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[gs.header, { paddingTop: insets.top + 4 }]}

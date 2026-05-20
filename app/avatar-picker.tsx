@@ -250,7 +250,7 @@ export default function AvatarPickerScreen() {
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
       {/* Header */}
       <LinearGradient
-        colors={greenHeaderGradient as unknown as string[]}
+        colors={greenHeaderGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 4 }]}

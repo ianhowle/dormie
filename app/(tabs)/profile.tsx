@@ -536,7 +536,7 @@ export default function ProfileScreen() {
         {/* ─── GREEN GRADIENT HEADER (parallax) ──────────────────── */}
         <Animated.View style={{ minHeight: profileHeaderHeight, overflow: 'hidden' }}>
           <LinearGradient
-            colors={greenHeaderGradient as unknown as string[]}
+            colors={greenHeaderGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[s.header, { paddingTop: insets.top + 4 }]}
@@ -916,7 +916,7 @@ export default function ProfileScreen() {
             style={({ pressed }) => [s.integrityHeader, { opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
           >
             <LinearGradient
-              colors={greenHeaderGradient as unknown as string[]}
+              colors={greenHeaderGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.integrityHeaderGradient}
@@ -992,7 +992,7 @@ export default function ProfileScreen() {
               <SectionLabel title="FAVORITE COURSE" />
               <View style={[s.favCourseCard, { ...cardShadow }]}>
                 <LinearGradient
-                  colors={greenHeaderGradient as unknown as string[]}
+                  colors={greenHeaderGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={s.favCourseGradient}

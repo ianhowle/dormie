@@ -1601,7 +1601,7 @@ function RSVPPreview({
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Masters green hero */}
         <LinearGradient
-          colors={greenHeaderGradient as unknown as string[]}
+          colors={greenHeaderGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={tt.rsvpHero}
@@ -2082,7 +2082,7 @@ function CompetitionView({
     <View style={[s.screen, { backgroundColor: c.bg }]}>
       {/* Masters green header */}
       <LinearGradient
-        colors={greenHeaderGradient as unknown as string[]}
+        colors={greenHeaderGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={cm.compHeader}
@@ -2225,7 +2225,7 @@ function CompetitionView({
           {/* ACTION BUTTONS */}
           <View style={cm.actionBtns}>
             <Pressable onPress={onScoreHole} style={cm.actionPrimary}>
-              <LinearGradient colors={greenHeaderGradient as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={greenHeaderGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
               <Ionicons name="golf" size={18} color="#C9A227" />
               <Text style={[cm.actionPrimaryText, { fontFamily: GEO }]}>Score Hole-by-Hole</Text>
             </Pressable>
@@ -2339,7 +2339,7 @@ function CompetitionView({
 
       {/* Floating chat button */}
       <Pressable style={cm.chatFab}>
-        <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={greenHeaderGradient} style={StyleSheet.absoluteFill} />
         <Ionicons name="chatbubbles" size={22} color="#fff" />
         {unreadChat > 0 && (
           <View style={cm.chatBadge}>

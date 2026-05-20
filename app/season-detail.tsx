@@ -1526,7 +1526,7 @@ function SeasonDetailScreenInner() {
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ExpoStatusBar style="light" />
       {/* Header */}
-      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={styles.header}>
+      <LinearGradient colors={greenHeaderGradient} style={styles.header}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />

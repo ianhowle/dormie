@@ -85,7 +85,7 @@ export default function SeasonSettingsScreen() {
   return (
     <View style={[s.container, { backgroundColor: c.bg }]}>
       {/* Header */}
-      <LinearGradient colors={greenHeaderGradient as unknown as string[]} style={s.header}>
+      <LinearGradient colors={greenHeaderGradient} style={s.header}>
         <View style={s.headerTop}>
           <Pressable onPress={() => { haptics.light(); router.back(); }} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />

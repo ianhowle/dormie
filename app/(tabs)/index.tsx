@@ -302,7 +302,7 @@ function LogoMenu({
 // ─── Greeting section — Hero banner with course photo or green gradient ──
 function GreetingSection({ name, groupName, weather, courseName }: { name: string; groupName: string; weather: WeatherData | null; courseName: string | null }) {
   const mastersGradient: [string, string] = ['#2A2318', '#1A1510'];
-  const gradientColors = isMastersTheme() ? mastersGradient : (greenHeaderGradient as unknown as string[]);
+  const gradientColors = isMastersTheme() ? mastersGradient : (greenHeaderGradient);
   const subtitle = getGreetingSubtitle();
   const eventAccent = getEventAccentColor();
   const playoffs = isPlayoffsTheme();
