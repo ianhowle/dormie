@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { haptics } from '../lib/haptics';
+import { logError } from '../lib/logger';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight, dark as darkColors } from '../theme/colors';
 import GoldDivider from './GoldDivider';
@@ -705,7 +706,7 @@ function RCTeamDraft({
     }
     // Persist each pick immediately
     if (tripId) {
-      tripsService.updateMemberTeam(tripId, playerId, team).catch(() => {});
+      tripsService.updateMemberTeam(tripId, playerId, team).catch((e) => logError('RyderCup: updateMemberTeam write failed', e));
     }
   };
 
@@ -1922,7 +1923,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
           finalScore: { red: redTotal, blue: blueTotal },
           matchResults: allMatchResults,
         } as any,
-      }).catch(() => {});
+      }).catch((e) => logError('RyderCup: cup final result write failed', e));
       // Auto-navigate to completion after moment dismisses
       setTimeout(() => {
         setMomentVisible(false);
@@ -2016,7 +2017,7 @@ function RyderCupHubInner({ trip }: { trip: Trip }) {
                     sessionResults,
                     matchResults,
                   } as any,
-                }).catch(() => {});
+                }).catch((e) => logError('RyderCup: session results write failed', e));
               }
               return updated;
             });
