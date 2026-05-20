@@ -13,6 +13,10 @@
 
 ## Active Compost
 
+- 2026-05-20 — FOURBALL WIRING = DISPLAY-LAYER COMPOSITION (no new engine needed)
+
+  When the render pass arrives for Four-Ball trips, the implementation is composition of two existing wrappers, NOT a new scoring engine. For each team, call calculateNetBestBall(team.playerScores, team.handicapStrokesPerPlayer) to get teamScorePerHole, then feed the two teams' teamScorePerHole arrays into calculateNetMatchPlay(team1.teamScorePerHole, team2.teamScorePerHole) to resolve the 2v2 match hole-by-hole. The Best Ball engine handles the per-hole best-ball mechanic; the Match Play engine handles the head-to-head resolution and "X&Y" close-out vocabulary. Per SCORING_FORMATS (scoring.ts:202), fourball shares the Best Ball engine — only the post-engine treatment differs.
+
 - 2026-05-20 — MATCH PLAY ENGINE ARCHITECTURE REVIEW (LOW priority — intentional domain split, NOT a correctness divergence)
 
   Two Match Play engines exist in the codebase. Unlike the Stableford #1-vs-#2 case (composted earlier as a real urgent divergence), these two are intentionally architected for different domains and do NOT compute the same thing from the same input:
