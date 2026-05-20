@@ -13,6 +13,32 @@
 
 ## Active Compost
 
+- 2026-05-20 — ONE-BALL FORMAT SCORE-ENTRY UX + GUIDANCE (design workstream, pairs with team-handicap cluster)
+
+  Covers the score-entry model and in-round guidance for one-ball team formats: Scramble, Chapman/Pinehurst, and upcoming Alternate Shot + Greensomes. These share a shape, so design ONCE for the family, not per-format.
+
+  ALREADY-DECIDED (from earlier design sessions — confirm still current when building):
+  - Score entry uses TEAM TABS instead of player tabs; one score entry per team per hole
+  - Setup reuses the Best Ball team-selection UI, relabeled per format ('SCRAMBLE TEAMS', 'CHAPMAN TEAMS')
+  - In-round screen shows a team indicator banner with a hint: 'Enter team score' (Scramble), 'Alternate shot' (Chapman)
+  - Leaderboard shows team vs team; side games apply at team level
+
+  OPEN QUESTIONS raised (need decisions before/during the UI wiring pass):
+
+  1. UI-model vs engine-shape reconciliation (Chapman): Earlier design = 'enter one team score per hole like Scramble.' But the Chapman engine (calculateChapmanHoleScore) computes 2 + alternateShots and keys on an alternateShots count, not a raw team score. Decision needed: either (a) UI collects team total and converts (alternateShots = teamScore − 2), or (b) simplify the engine to take a team score directly like calculateScrambleTeamScore. Pairs with the ChapmanHoleScore dead-data finding (5 of 6 struct fields unused).
+
+  2. Data collection depth — do we ask 'whose drive was used' / capture drive + second-shot detail, or just the team number? Tradeoff: richer capture future-proofs stats + makes the round feel engaged + un-deads the dead ChapmanHoleScore fields, BUT adds per-hole friction and collects data nothing currently consumes. Lean for beta: collect the minimum the engine needs (one team number); treat shot-level capture as a deliberate later feature only if a specific stat/feature wants it. Revisit if product vision wants shot-level detail from day one.
+
+  3. Guidance placement — these formats are confusing (most golfers don't play Chapman regularly). Recommended pattern: TEACH AT SETUP (brief format explainer when the format is selected in the wizard — natural teaching moment, nobody's mid-round) + INLINE REFERENCE (tappable '?' / expandable hint at score entry for whoever forgot). AVOID per-hole tutorial prompts (friction trap). The existing 'Alternate shot' banner hint IS a lightweight version of inline reference — question is whether Chapman needs a fuller setup explainer given its complexity.
+
+  4. Scramble likely needs LESS guidance than Chapman — scramble is intuitive (everyone hits, take the best, play from there). Chapman/Alt Shot/Greensomes are the confusing ones. Guidance depth should scale with format complexity, not be uniform across the family.
+
+  PAIRS WITH:
+  - The team-handicap cluster compost (Scramble + Chapman team-scalar handicap, blocked on formula decision) — same family of formats, same 'decide once' opportunity. A single focused session could resolve team-handicap formulas AND score-entry-UX AND guidance for the whole one-ball family at once.
+  - Alternate Shot + Greensomes (Phase 4 roadmap) — design the score-entry + guidance pattern to cover these before building them, so they inherit the family treatment rather than getting bespoke flows.
+
+  PRE-BETA PRIORITY: MEDIUM. The formats render gross team totals and function for beta; this workstream is about making them clear and well-guided, which matters for the 'full scope, everything visible' decision (a visible-but-confusing format is a poor experience).
+
 - 2026-05-20 — CHAPMAN TEAM-HANDICAP ENGINE + ChapmanHoleScore DEAD-DATA FIELDS (blocked on product decisions)
 
   Phase 2 added tests for calculateChapmanHoleScore + calculateChapmanTotal (committed 22a98ea) but did NOT add a calculateNetChapmanTotal wrapper. The Chapman engine breaks the Tier 1 wrapper template the same way Scramble did — both use a one-ball team-scoring model where the team plays a single ball from shot 3 onward, so there is no per-player score to apply per-hole strokes to. The roadmap (docs/scoring-completion-roadmap.md Phase 2) listed Chapman as "wrap-and-test"; investigation found it is "test-and-compost like Scramble." Roadmap decision-log update flagged for next session.
