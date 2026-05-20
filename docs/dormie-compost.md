@@ -13,6 +13,24 @@
 
 ## Active Compost
 
+- 2026-05-17 — VERIFY SENTRY CAPTURE END-TO-END (deferred from Session 1B)
+
+  Sentry DSN configured in .env (EXPO_PUBLIC_SENTRY_DSN), confirmed loading via env export line. Sentry code wiring verified correct in Phase 2 audit (initSentry at app/_layout.tsx:15, setSentryUser/clearSentryUser wired, plugin configured in app.json). Logger (src/lib/logger.ts) routes logError → Sentry.captureException.
+
+  NOT YET VERIFIED: that a captured error actually lands in the Sentry dashboard. Phone verification blocked at config time (hospital WiFi network isolation + single-iPhone hotspot limitation).
+
+  TO VERIFY (on a normal network):
+  1. Run app on phone (same WiFi as Mac) or iOS Simulator (press i in Metro)
+  2. Confirm no '[Dormie] Sentry DSN not set' warning at boot
+  3. Trigger a logError path (kill network, trigger a failing fetch with a logError catch)
+  4. Confirm event appears in Sentry dashboard → Issues tab within ~30 seconds
+
+  ALSO FLAGGED: @sentry/react-native@6.5.0 installed vs expected ~7.2.0, plus 13 other Expo SDK packages behind expected versions. Consider a dependency-update session before beta.
+
+  ROTATE DSN: A DSN was exposed in a chat session during setup. Rotate the Sentry client key before public launch.
+
+  PRE-BETA PRIORITY: MEDIUM. Logger provides console value immediately. Sentry capture verification matters before relying on it for production monitoring.
+
 - 2026-05-06 — DREAM BOARD CATALOG SEARCH + FILTERING (product question raised during Phase 2.9 closeout)
 
   Phase 2.9 testing surfaced a product question: should the Add to Dream Board catalog have a search affordance?
