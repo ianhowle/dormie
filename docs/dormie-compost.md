@@ -13,6 +13,27 @@
 
 ## Active Compost
 
+- 2026-05-20 — PHONE-VERIFY + COMMIT 3 STAGED TIMEZONE FIXES (Session 1C Phase 3)
+
+  Three timezone bug fixes were applied and STAGED (not committed) during Session 1C — held because hospital WiFi blocked phone verification. They change runtime behavior and need device testing before commit.
+
+  STAGED FIXES (apply via git diff to recover if working tree was reset):
+  1. src/data/trips.ts:83 getDaysUntilTrip — was new Date(startDate).getTime() - Date.now(); now daysBetweenYMD(todayYMD(), startDate). HIGH IMPACT: powers Trips tab 'X DAYS AWAY' badge (trips.tsx:725) + trip-detail countdown (trip-detail.tsx:2406). This is the Phase 2.9 bug that escaped — Home was fixed inline (69a3ffd) but these two screens call getDaysUntilTrip which was never touched.
+  2. app/create-trip.tsx:594-595 — start_date/end_date no-date fallback was new Date().toISOString().slice(0,10) (UTC); now todayYMD() (local).
+  3. src/components/RyderCupWizard.tsx:1392-1393 — same fallback fix for Ryder Cup wizard.
+
+  PHONE VERIFICATION STEPS (on normal network):
+  - Fix #1: Create or view a trip dated TOMORROW, check after ~7pm local. Trips tab badge should read '1 DAY AWAY' not 'TODAY'/'0'. Same for trip-detail countdown.
+  - Fix #2/#3: In create-trip and Ryder Cup wizard, submit a trip WITHOUT picking a date after ~7pm local. Should default to TODAY's local date, not tomorrow.
+
+  THEN commit (suggested, one or split):
+  '[DateHelpers] Fix getDaysUntilTrip timezone bug (Trips tab + trip-detail countdown) — the Phase 2.9 escapee'
+  '[DateHelpers] Fix UTC date-default fallback in create-trip + RyderCup wizard'
+
+  ALSO COMPOST (separate follow-ups surfaced by the audit):
+  - roster.ts:413 caller-side audit — trace where input.startDate is constructed to confirm local-time Date (function itself correct, callers unverified)
+  - Migrate 3 external dateHelpers callers (index.tsx, trips.tsx, stats.service.ts) off the wizard re-export shim to src/lib/dateHelpers directly, then delete the shim (trivial cleanup from Phase 1)
+
 - 2026-05-20 — ROTATE EXPOSED CREDENTIALS (security, pre-launch blocker)
 
   During Sentry setup, several client-side keys were exposed and should be rotated before production launch:
