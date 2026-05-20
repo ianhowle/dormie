@@ -13,6 +13,22 @@
 
 ## Active Compost
 
+- 2026-05-20 — MATCH PLAY ENGINE ARCHITECTURE REVIEW (LOW priority — intentional domain split, NOT a correctness divergence)
+
+  Two Match Play engines exist in the codebase. Unlike the Stableford #1-vs-#2 case (composted earlier as a real urgent divergence), these two are intentionally architected for different domains and do NOT compute the same thing from the same input:
+
+  - src/data/scoring.ts calculateMatchPlay — operates on raw gross score arrays (number[][]). General Match Play engine. Just got wrapped by calculateNetMatchPlay (commit 1f4ee35) for handicap-aware use, with comprehensive engine + wrapper tests.
+  - src/services/fourTeamRyder.service.ts evaluateMatch — operates on pre-resolved hole-winner records (Record<number, FourTeamRyderHoleResult>). Ryder Cup four-team variant. Caller resolves who won each hole; engine tallies. Has in-progress status semantics (returns 'in_progress' if played < totalHoles); the scoring.ts engine assumes complete rounds.
+
+  Why this is NOT urgent like Stableford:
+  - The two engines take fundamentally different input shapes. Unifying would require either pre-resolving holes outside the Ryder Cup engine (loses its in-progress semantics) or threading raw scores through the four-team flow (significant refactor).
+  - Each engine is correct for its domain — no production bug, no data divergence between paths.
+  - Stableford had two functions that COULD compute the same number differently (orphan handicap-aware vs wired gross-only). Match Play has two functions that compute DIFFERENT things from different inputs.
+
+  IF taken up later: pick one canonical Match Play engine and re-architect the other as a thin wrapper or eliminate it. Likely scope: 1-2 days of focused work. Not blocking beta. Not urgent.
+
+  PAIRS WITH: future "scoring engine architecture pass" workstream — once all Tier 1 formats are wrapped + tested, a unified architectural review could address both this and the Stableford #1-vs-#2 case in one focused session.
+
 - 2026-05-20 — PHONE-VERIFY + COMMIT STAGED STABLEFORD POSTROUND RENDER (Session 2A Phase 2B)
 
   Phase 2A landed committed (d581ca4): calculateNetStablefordTotal handicap-aware wrapper + 14 unit tests, all green. Phase 2B is the display-layer integration in the LIVE PostRoundSummary — STAGED (not committed) because it changes what users see on the post-round screen and needs device verification.
