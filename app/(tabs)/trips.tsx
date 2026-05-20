@@ -36,6 +36,7 @@ import { tripInvitesService } from '../../src/services/tripInvites.service';
 import { destinationsService, type Destination, type DreamBoardEntry, type DestinationStatus } from '../../src/services/destinations.service';
 import { statsService, type TripStatsOverview } from '../../src/services/stats.service';
 import { haptics } from '../../src/lib/haptics';
+import { logWarn } from '../../src/lib/logger';
 import { useToast } from '../../src/components/Toast';
 import { DataFreshness } from '../../src/components/DataFreshness';
 import { getDreamImage } from '../../src/services/courseImages.service';
@@ -1099,7 +1100,7 @@ export default function TripsScreen() {
           tripsService.getByUser(userId),
           destinationsService.getDreamBoard(userId),
           destinationsService.listAll(),
-          statsService.getOverview(userId).catch(() => null),
+          statsService.getOverview(userId).catch((e) => { logWarn('Trips: stats overview fetch failed', e); return null; }),
         ]);
         setRealTrips(trips);
         setDreamEntries(dream);
@@ -1109,7 +1110,8 @@ export default function TripsScreen() {
       }
       setLastRefreshed(new Date());
       showToast({ message: 'Trips updated', type: 'success' });
-    } catch {
+    } catch (e) {
+      logWarn('Trips: refresh failed', e);
       showToast({ message: "Couldn't refresh trips", type: 'error' });
     }
     setRefreshing(false);
@@ -1120,7 +1122,9 @@ export default function TripsScreen() {
     try {
       const dream = await destinationsService.getDreamBoard(user.id);
       setDreamEntries(dream);
-    } catch {}
+    } catch (e) {
+      logWarn('Trips: dream board refresh failed', e);
+    }
   }, [user]);
 
   const handleAddDestination = useCallback(async (destinationId: string) => {
