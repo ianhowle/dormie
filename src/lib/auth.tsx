@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { logWarn } from './logger';
 
 type AuthContextType = {
   session: Session | null;
@@ -27,16 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data, error } = await supabase.auth.refreshSession();
           if (error || !data.session) {
             // Stale/invalid session — clear it silently and start fresh
-            await supabase.auth.signOut().catch(() => {});
+            await supabase.auth.signOut().catch((e) => logWarn('Auth: signOut cleanup after stale session', e));
             setSession(null);
             setUser(null);
           } else {
             setSession(data.session);
             setUser(data.session.user);
           }
-        } catch {
+        } catch (e) {
           // Network error or corrupt token — clear silently
-          await supabase.auth.signOut().catch(() => {});
+          logWarn('Auth: token refresh failed, clearing session', e);
+          await supabase.auth.signOut().catch((err) => logWarn('Auth: signOut cleanup after refresh failure', err));
           setSession(null);
           setUser(null);
         }

@@ -11,6 +11,7 @@ import { DemoModeProvider } from '../src/contexts/DemoModeContext';
 import { initSentry, setSentryUser, clearSentryUser, Sentry } from '../src/lib/sentry';
 import { initPushForUser } from '../src/services/pushNotification.service';
 import { parseInviteUrl } from '../src/lib/inviteLinks';
+import { logWarn } from '../src/lib/logger';
 
 initSentry();
 
@@ -38,7 +39,7 @@ function RootLayoutNav() {
   // Register for push notifications once authenticated
   useEffect(() => {
     if (session?.user?.id) {
-      initPushForUser(session.user.id).catch(() => {});
+      initPushForUser(session.user.id).catch((e) => logWarn('Push: registration failed for user', e));
     }
   }, [session?.user?.id]);
 
