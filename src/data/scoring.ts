@@ -1025,3 +1025,83 @@ export function calculateTrashTotal(
     + (counts.bark ?? 0)
     + (counts.arnies ?? 0);
 }
+
+// ─── Side-game persistence slice + Tier B counter engines ───────────
+// Unified persistence shape for toast-confirmed side-game events:
+// gameKey → playerId → holeNumber → value (boolean for sandies/bark,
+// numeric distance for poleys). Engines consume type-narrowed per-game
+// sub-slices rather than the heterogeneous top-level shape.
+
+/**
+ * Top-level persistence slice for toast-confirmed side-game events.
+ * Outer key: gameKey ('sandies' | 'bark' | 'poleys' | future games).
+ * Middle key: playerId. Inner key: holeNumber.
+ * Value: boolean (sandies/bark = confirmed) or number (poleys = distance).
+ * Lives on useScoringState alongside sideGameToastEvents.
+ */
+export type SideGameEventSlice = Map<string, Map<string, Map<number, boolean | number>>>;
+
+/** Per-game sub-slice for boolean-valued side games (sandies, bark). */
+export type SideGameBooleanSlice = Map<string, Map<number, boolean>>;
+
+/** Per-game sub-slice for numeric-valued side games (poleys distance). */
+export type SideGameNumericSlice = Map<string, Map<number, number>>;
+
+/**
+ * Poleys distance threshold in feet. A poley = a one-putt made from
+ * MORE THAN this distance (strict greater-than). Hardcoded for beta;
+ * configurability composted as a future option.
+ */
+export const POLEYS_THRESHOLD_FEET = 4;
+
+/** Internal: count `true` entries per player. Shared by sandies + bark. */
+function countConfirmedBoolean(slice: SideGameBooleanSlice): Map<string, number> {
+  const counts = new Map<string, number>();
+  slice.forEach((perHoleMap, playerId) => {
+    let count = 0;
+    perHoleMap.forEach((value) => {
+      if (value === true) count++;
+    });
+    if (count > 0) counts.set(playerId, count);
+  });
+  return counts;
+}
+
+/**
+ * Count Sandies per player from confirmed toast responses.
+ * A sandie = up-and-down from a bunker (par or better, played from sand).
+ * Cannot be auto-detected — requires user confirmation that the player
+ * was in a bunker. Counts entries where the user tapped "yes" on the
+ * semi-auto sandies toast.
+ */
+export function calculateSandiesCount(slice: SideGameBooleanSlice): Map<string, number> {
+  return countConfirmedBoolean(slice);
+}
+
+/**
+ * Count Barkies per player from confirmed toast responses.
+ * A barkie = par or better on a hole where the ball hit a tree.
+ * Cannot be auto-detected — requires user confirmation of tree contact.
+ * Counts entries where the user tapped "yes" on the semi-auto bark toast.
+ */
+export function calculateBarkiesCount(slice: SideGameBooleanSlice): Map<string, number> {
+  return countConfirmedBoolean(slice);
+}
+
+/**
+ * Count Poleys per player from confirmed toast responses.
+ * A poley = one-putt made from MORE THAN POLEYS_THRESHOLD_FEET (4 ft).
+ * Caller stores the numeric distance from the manual-input toast; engine
+ * filters by threshold. Strict greater-than: exactly 4 ft does NOT count.
+ */
+export function calculatePoleysCount(slice: SideGameNumericSlice): Map<string, number> {
+  const counts = new Map<string, number>();
+  slice.forEach((perHoleMap, playerId) => {
+    let count = 0;
+    perHoleMap.forEach((distance) => {
+      if (distance > POLEYS_THRESHOLD_FEET) count++;
+    });
+    if (count > 0) counts.set(playerId, count);
+  });
+  return counts;
+}

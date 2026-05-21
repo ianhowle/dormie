@@ -32,6 +32,12 @@ import {
   calculateArniesCount,
   calculateHogansCount,
   calculateTrashTotal,
+  calculateSandiesCount,
+  calculateBarkiesCount,
+  calculatePoleysCount,
+  POLEYS_THRESHOLD_FEET,
+  type SideGameBooleanSlice,
+  type SideGameNumericSlice,
 } from '../scoring';
 import type { HoleScore, HoleData } from '../../scoring/types';
 
@@ -1447,6 +1453,179 @@ describe('SIDE-GAME COUNTERS — TRASH (calculateTrashTotal)', () => {
     const empty = calculateTrashTotal({});
     expect(zeros).toBe(empty);
     expect(zeros).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// SIDE-GAME COUNTERS — Tier B (toast-confirmed via persistence slice)
+// ═══════════════════════════════════════════════════════════════════════
+// Sandies + Barkies: count `true` entries in boolean sub-slices. Tested
+// shape: Map<playerId, Map<holeNumber, boolean>>. The single-source
+// helper countConfirmedBoolean is shared; both engines just delegate.
+// Poleys: count entries where distance > POLEYS_THRESHOLD_FEET (4 ft,
+// hardcoded per beta decision). Strict greater-than — 4 ft = NOT a poley.
+
+function makeBooleanSlice(
+  rows: Array<{ playerId: string; hole: number; value: boolean }>,
+): SideGameBooleanSlice {
+  const m = new Map<string, Map<number, boolean>>();
+  for (const r of rows) {
+    if (!m.has(r.playerId)) m.set(r.playerId, new Map());
+    m.get(r.playerId)!.set(r.hole, r.value);
+  }
+  return m;
+}
+function makeNumericSlice(
+  rows: Array<{ playerId: string; hole: number; value: number }>,
+): SideGameNumericSlice {
+  const m = new Map<string, Map<number, number>>();
+  for (const r of rows) {
+    if (!m.has(r.playerId)) m.set(r.playerId, new Map());
+    m.get(r.playerId)!.set(r.hole, r.value);
+  }
+  return m;
+}
+
+describe('SIDE-GAME COUNTERS — SANDIES (calculateSandiesCount)', () => {
+  it('S.1: Single confirmed entry → p1 count 1', () => {
+    const slice = makeBooleanSlice([
+      { playerId: 'p1', hole: 1, value: true },
+    ]);
+    const counts = calculateSandiesCount(slice);
+    record('S.1', '1 confirmed sandie', 'p1=1', `p1=${counts.get('p1')}`, counts.get('p1') === 1);
+    expect(counts.get('p1')).toBe(1);
+  });
+
+  it('S.2: Multiple confirmed for one player → counted correctly', () => {
+    const slice = makeBooleanSlice([
+      { playerId: 'p1', hole: 1, value: true },
+      { playerId: 'p1', hole: 5, value: true },
+      { playerId: 'p1', hole: 12, value: true },
+    ]);
+    const counts = calculateSandiesCount(slice);
+    record('S.2', '3 sandies for p1', 'p1=3', `p1=${counts.get('p1')}`, counts.get('p1') === 3);
+    expect(counts.get('p1')).toBe(3);
+  });
+
+  it('S.3: Mix of true/false — only true entries counted', () => {
+    // Dismissed events (false) shouldn't count even if persisted as false.
+    // (Part 3 handler may persist false on dismiss, or just not write — engine handles either.)
+    const slice = makeBooleanSlice([
+      { playerId: 'p1', hole: 1, value: true },
+      { playerId: 'p1', hole: 2, value: false },
+      { playerId: 'p1', hole: 3, value: true },
+      { playerId: 'p1', hole: 4, value: false },
+    ]);
+    const counts = calculateSandiesCount(slice);
+    record('S.3', '2 true, 2 false → count 2', 'p1=2', `p1=${counts.get('p1')}`, counts.get('p1') === 2);
+    expect(counts.get('p1')).toBe(2);
+  });
+
+  it('S.4: Multi-player independent counts', () => {
+    const slice = makeBooleanSlice([
+      { playerId: 'p1', hole: 1, value: true },
+      { playerId: 'p1', hole: 5, value: true },
+      { playerId: 'p2', hole: 3, value: true },
+      { playerId: 'p3', hole: 1, value: false }, // dismissed → no count
+    ]);
+    const counts = calculateSandiesCount(slice);
+    record('S.4', 'p1=2, p2=1, p3 dismissed', 'p1=2 p2=1 p3=absent', `p1=${counts.get('p1')} p2=${counts.get('p2')} p3=${counts.get('p3') ?? 0}`, counts.get('p1') === 2 && counts.get('p2') === 1 && !counts.has('p3'));
+    expect(counts.get('p1')).toBe(2);
+    expect(counts.get('p2')).toBe(1);
+    expect(counts.has('p3')).toBe(false); // all false → player omitted from result
+  });
+
+  it('S.5: Empty slice → empty result map', () => {
+    const counts = calculateSandiesCount(new Map());
+    expect(counts.size).toBe(0);
+  });
+});
+
+describe('SIDE-GAME COUNTERS — BARKIES (calculateBarkiesCount)', () => {
+  it('B.1: Single confirmed barkie → p1 count 1', () => {
+    const slice = makeBooleanSlice([
+      { playerId: 'p1', hole: 6, value: true },
+    ]);
+    const counts = calculateBarkiesCount(slice);
+    record('B.1', '1 barkie p1', 'p1=1', `p1=${counts.get('p1')}`, counts.get('p1') === 1);
+    expect(counts.get('p1')).toBe(1);
+  });
+
+  it('B.2: Multi-player independent — same engine as sandies, exercise on different data', () => {
+    const slice = makeBooleanSlice([
+      { playerId: 'p1', hole: 3, value: true },
+      { playerId: 'p2', hole: 3, value: true },
+      { playerId: 'p2', hole: 12, value: true },
+      { playerId: 'p3', hole: 15, value: false },
+    ]);
+    const counts = calculateBarkiesCount(slice);
+    record('B.2', 'p1=1, p2=2, p3=dismissed', 'p1=1 p2=2 p3=absent', `p1=${counts.get('p1')} p2=${counts.get('p2')} p3=${counts.get('p3') ?? 0}`, counts.get('p1') === 1 && counts.get('p2') === 2 && !counts.has('p3'));
+    expect(counts.get('p1')).toBe(1);
+    expect(counts.get('p2')).toBe(2);
+    expect(counts.has('p3')).toBe(false);
+  });
+
+  it('B.3: Empty slice → empty result', () => {
+    const counts = calculateBarkiesCount(new Map());
+    expect(counts.size).toBe(0);
+  });
+});
+
+describe('SIDE-GAME COUNTERS — POLEYS (calculatePoleysCount, threshold 4 ft strict)', () => {
+  it('P.1: Distance > 4 counted (5 ft poley)', () => {
+    const slice = makeNumericSlice([
+      { playerId: 'p1', hole: 7, value: 5 },
+    ]);
+    const counts = calculatePoleysCount(slice);
+    record('P.1', '5 ft one-putt', 'p1=1', `p1=${counts.get('p1')}`, counts.get('p1') === 1);
+    expect(counts.get('p1')).toBe(1);
+  });
+
+  it('P.2: Distance EXACTLY 4 → NOT counted (strict greater-than)', () => {
+    const slice = makeNumericSlice([
+      { playerId: 'p1', hole: 7, value: 4 },
+    ]);
+    const counts = calculatePoleysCount(slice);
+    record('P.2', '4 ft (boundary, ">" strict)', 'p1=absent (0 not counted)', `p1=${counts.get('p1') ?? 0}`, !counts.has('p1'));
+    expect(counts.has('p1')).toBe(false);
+  });
+
+  it('P.3: Threshold constant is 4 (locks the hardcoded beta value)', () => {
+    record('P.3', 'POLEYS_THRESHOLD_FEET constant', '4', String(POLEYS_THRESHOLD_FEET), POLEYS_THRESHOLD_FEET === 4);
+    expect(POLEYS_THRESHOLD_FEET).toBe(4);
+  });
+
+  it('P.4: Mixed qualifying + non-qualifying distances for one player', () => {
+    // p1: 3 ft (no), 4 ft (no, boundary), 5 ft (yes), 12 ft (yes), 35 ft (yes) → 3 poleys
+    const slice = makeNumericSlice([
+      { playerId: 'p1', hole: 1, value: 3 },
+      { playerId: 'p1', hole: 2, value: 4 },
+      { playerId: 'p1', hole: 3, value: 5 },
+      { playerId: 'p1', hole: 4, value: 12 },
+      { playerId: 'p1', hole: 5, value: 35 },
+    ]);
+    const counts = calculatePoleysCount(slice);
+    record('P.4', '5 distances, 3 qualify (>4)', 'p1=3', `p1=${counts.get('p1')}`, counts.get('p1') === 3);
+    expect(counts.get('p1')).toBe(3);
+  });
+
+  it('P.5: Multi-player independent counts', () => {
+    const slice = makeNumericSlice([
+      { playerId: 'p1', hole: 1, value: 6 },
+      { playerId: 'p1', hole: 7, value: 20 },
+      { playerId: 'p2', hole: 5, value: 4 }, // boundary, no count
+      { playerId: 'p3', hole: 9, value: 8 },
+    ]);
+    const counts = calculatePoleysCount(slice);
+    record('P.5', 'p1=2, p2=boundary-skip, p3=1', 'p1=2 p3=1 p2 absent', `p1=${counts.get('p1')} p2=${counts.get('p2') ?? 0} p3=${counts.get('p3')}`, counts.get('p1') === 2 && counts.get('p3') === 1 && !counts.has('p2'));
+    expect(counts.get('p1')).toBe(2);
+    expect(counts.has('p2')).toBe(false);
+    expect(counts.get('p3')).toBe(1);
+  });
+
+  it('P.6: Empty slice → empty result', () => {
+    const counts = calculatePoleysCount(new Map());
+    expect(counts.size).toBe(0);
   });
 });
 
