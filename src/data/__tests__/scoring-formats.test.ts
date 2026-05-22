@@ -51,6 +51,12 @@ import {
   dealCards,
   evaluatePokerRound,
 } from '../three-putt-poker';
+import {
+  calculateTeamHandicap,
+  teamHandicapForFormat,
+  TEAM_HANDICAP_PRESETS,
+  type TeamHandicapRule,
+} from '../team-handicap';
 
 // ─── Test helpers for Tier A side-game counters ───────────────────────
 // Constructs the Map<holeNumber, Map<playerId, HoleScore>> shape used by
@@ -2003,6 +2009,153 @@ describe('3-PUTT POKER — evaluatePokerRound (end-to-end)', () => {
     expect(r.payouts.get('p1')).toBe(0);
     expect(r.payouts.get('p2')).toBe(0);
     expect(payoutSum).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEAM-HANDICAP RULES ENGINE
+// ═══════════════════════════════════════════════════════════════════════
+// Pure preset + custom-rule arithmetic. The engine returns decimals;
+// these tests assert against expected decimals using a 1e-9 epsilon
+// (presets use 0.35 / 0.6 etc. which are not IEEE-754 exact).
+//
+// Coverage: each preset (TH.1–TH.6), the custom-rule override path
+// (TH.7–TH.8) that proves the engine accepts arbitrary rules
+// identically to presets, sort independence (TH.9), edges (TH.10–13),
+// the format-resolver convenience (TH.14), and the two throw cases
+// (TH.15–16) that fail loud on caller bugs.
+
+const TH_EPS = 1e-9;
+function thNear(actual: number, expected: number): boolean {
+  return Math.abs(actual - expected) < TH_EPS;
+}
+
+describe('TEAM-HANDICAP — preset formulas', () => {
+  it('TH.1: Scramble 2P [8,16] → 0.35×8 + 0.15×16 = 5.2', () => {
+    const h = calculateTeamHandicap([8, 16], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const ok = thNear(h, 5.2);
+    record('TH.1', 'Scramble 2P [8,16]', '5.2', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.2: Scramble 4P [4,10,16,22] → 0.25×4+0.20×10+0.15×16+0.10×22 = 7.6', () => {
+    const h = calculateTeamHandicap([4, 10, 16, 22], TEAM_HANDICAP_PRESETS.scramble_4p);
+    const ok = thNear(h, 7.6);
+    record('TH.2', 'Scramble 4P [4,10,16,22]', '7.6', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.3: Chapman [6,14] → 0.60×6 + 0.40×14 = 9.2', () => {
+    const h = calculateTeamHandicap([6, 14], TEAM_HANDICAP_PRESETS.chapman);
+    const ok = thNear(h, 9.2);
+    record('TH.3', 'Chapman [6,14]', '9.2', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.4: Pinehurst [6,14] === Chapman result (same preset object)', () => {
+    const h = calculateTeamHandicap([6, 14], TEAM_HANDICAP_PRESETS.pinehurst);
+    const same = TEAM_HANDICAP_PRESETS.pinehurst === TEAM_HANDICAP_PRESETS.chapman;
+    const ok = thNear(h, 9.2) && same;
+    record('TH.4', 'Pinehurst === Chapman', '9.2 & shared ref', `${h.toFixed(4)} shared=${same}`, ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.5: Greensomes [10,20] → 0.60×10 + 0.40×20 = 14.0', () => {
+    const h = calculateTeamHandicap([10, 20], TEAM_HANDICAP_PRESETS.greensomes);
+    const ok = thNear(h, 14.0);
+    record('TH.5', 'Greensomes [10,20]', '14.0', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.6: Alt Shot [8,12] combined 50% → 0.5×(8+12) = 10.0 (textbook average)', () => {
+    const h = calculateTeamHandicap([8, 12], TEAM_HANDICAP_PRESETS.alternate_shot);
+    const ok = thNear(h, 10.0);
+    record('TH.6', 'Alt Shot [8,12] 50% × sum', '10.0', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+});
+
+describe('TEAM-HANDICAP — custom rule override (proves the capability)', () => {
+  it('TH.7: same handicaps [8,16] with CUSTOM 50/50 weighted → 12.0 (vs preset 5.2)', () => {
+    const custom: TeamHandicapRule = { method: 'weighted', weights: [0.5, 0.5] };
+    const customResult = calculateTeamHandicap([8, 16], custom);
+    const presetResult = calculateTeamHandicap([8, 16], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const ok = thNear(customResult, 12.0) && thNear(presetResult, 5.2) && !thNear(customResult, presetResult);
+    record('TH.7', 'custom 50/50 vs preset 35/15', 'custom=12 preset=5.2 differ', `custom=${customResult.toFixed(2)} preset=${presetResult.toFixed(2)}`, ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.8: custom combined 75% on [10,20] → 0.75×30 = 22.5 (non-default percent)', () => {
+    const custom: TeamHandicapRule = { method: 'combined', combinedPercent: 75 };
+    const h = calculateTeamHandicap([10, 20], custom);
+    const ok = thNear(h, 22.5);
+    record('TH.8', 'custom combined 75%', '22.5', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+});
+
+describe('TEAM-HANDICAP — sort independence + edges', () => {
+  it('TH.9: unsorted input [16,8] → same result as sorted [8,16] (engine sorts internally)', () => {
+    const a = calculateTeamHandicap([8, 16], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const b = calculateTeamHandicap([16, 8], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const ok = thNear(a, b) && thNear(a, 5.2);
+    record('TH.9', 'unsorted [16,8] vs sorted [8,16]', 'equal, both 5.2', `a=${a.toFixed(4)} b=${b.toFixed(4)}`, ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.10: single handicap [8] weighted [0.35] → 2.8', () => {
+    const h = calculateTeamHandicap([8], { method: 'weighted', weights: [0.35] });
+    const ok = thNear(h, 2.8);
+    record('TH.10', 'single [8] × 0.35', '2.8', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.11: equal handicaps [10,10] Scramble 2P → 0.35×10 + 0.15×10 = 5.0', () => {
+    const h = calculateTeamHandicap([10, 10], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const ok = thNear(h, 5.0);
+    record('TH.11', 'equal [10,10] Scramble 2P', '5.0', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.12: all-zero handicaps [0,0] any rule → 0', () => {
+    const w = calculateTeamHandicap([0, 0], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const c = calculateTeamHandicap([0, 0], TEAM_HANDICAP_PRESETS.alternate_shot);
+    const ok = w === 0 && c === 0;
+    record('TH.12', '[0,0] any rule', '0,0', `${w},${c}`, ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.13: empty array [] → 0 (transient state, not a bug)', () => {
+    const w = calculateTeamHandicap([], TEAM_HANDICAP_PRESETS.scramble_2p);
+    const c = calculateTeamHandicap([], TEAM_HANDICAP_PRESETS.alternate_shot);
+    const ok = w === 0 && c === 0;
+    record('TH.13', 'empty []', '0,0', `${w},${c}`, ok);
+    expect(ok).toBe(true);
+  });
+});
+
+describe('TEAM-HANDICAP — format resolver + throw semantics', () => {
+  it('TH.14: teamHandicapForFormat([8,16], "scramble") → 5.2 (dispatches to scramble_2p)', () => {
+    const h = teamHandicapForFormat([8, 16], 'scramble');
+    const ok = thNear(h, 5.2);
+    record('TH.14', 'resolver scramble → 2P preset', '5.2', h.toFixed(4), ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.15: teamHandicapForFormat([...], "unknown_format") → throws (caller bug, fail loud)', () => {
+    let threw = false;
+    let msg = '';
+    try {
+      teamHandicapForFormat([8, 16], 'definitely_not_a_format');
+    } catch (e: any) {
+      threw = true;
+      msg = String(e.message);
+    }
+    const ok = threw && msg.includes('definitely_not_a_format');
+    record('TH.15', 'unknown format', 'throws with key in msg', threw ? `threw: ${msg}` : 'did NOT throw', ok);
+    expect(ok).toBe(true);
+  });
+  it('TH.16: mismatched weights.length vs handicaps.length → throws', () => {
+    let threw = false;
+    let msg = '';
+    try {
+      calculateTeamHandicap([8, 16, 20], { method: 'weighted', weights: [0.5, 0.5] });
+    } catch (e: any) {
+      threw = true;
+      msg = String(e.message);
+    }
+    const ok = threw && msg.includes('mismatch');
+    record('TH.16', 'weights/handicaps length mismatch', 'throws', threw ? `threw: ${msg}` : 'did NOT throw', ok);
+    expect(ok).toBe(true);
   });
 });
 
