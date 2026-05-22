@@ -51,14 +51,16 @@
 
   Rolling list of code-level duplications introduced or unresolved during scoring engine work. Per the audit (docs/audits/2026-05-17-scoring-engine-audit.md §3 + Tier 2), duplicate scoring logic is a real bug surface — silent divergence between two copies has bitten Stableford already.
 
-  Currently tracked:
-  - isGreenInRegulation duplicated in src/data/scoring.ts (copied from src/scoring/calculations.ts:49 to avoid ThemeContext JSX import breaking ts-node when the test runner compiles data/scoring). Consolidate when the ts-node/import boundary is resolved — likely extract pure GIR helper to a JSX-free module both can import.
-  - Hogans 4-condition definition (calculateHogansCount) is over-specified — FIR + GIR + 2-putt mathematically implies par-or-better in standard scoring. The fourth check (gross <= par) is harmless but redundant. Matches the stated SIDE_GAMES definition; trim when re-examining at consolidation time.
-  - (Pre-existing from audit) 3 Stableford implementations: calculateStablefordPoints (handicap-aware orphan), calculateStablefordFromRound (gross-only season path), test-file inline copy. See audit §3a.
-  - (Pre-existing from audit) Match Play × 2: calculateMatchPlay (general) vs evaluateMatch (Ryder Cup, pre-resolved hole records). See Match Play architecture compost entry — intentional domain split, NOT urgent.
-  - (Pre-existing from audit) 6-6-6 segment "match_play" mode collides naming-wise with the match_play format key. See audit §3c. Rename to mp_segment or head_to_head_low_high before wiring match_play as a primary format.
+  RESOLVED:
+  - ~~isGreenInRegulation duplicated in src/data/scoring.ts (copied from src/scoring/calculations.ts:49 to avoid ThemeContext JSX import breaking ts-node)~~. **RESOLVED 2026-05-21.** Extracted to src/scoring/gir.ts (JSX-free, supabase-free, ts-node-friendly). calculations.ts imports + re-exports (preserves all 5 existing importers); data/scoring.ts imports directly. tsc 34, Arnies + Hogans tests prove identical behavior across the consolidation. **src/scoring/gir.ts is now the template for the Stableford extraction below — same JSX-free-helper pattern.**
 
-  PRE-BETA PRIORITY: LOW. None of these cause active bugs; they're maintenance debt. Address as a single focused "Tier 2 de-dup" session after the Phase 5 + 6 work lands.
+  Currently tracked (still NEEDS-CARE — phone-gated):
+  - Hogans 4-condition definition (calculateHogansCount) is over-specified — FIR + GIR + 2-putt mathematically implies par-or-better in standard scoring. The fourth check (gross <= par) is harmless but redundant. Matches the stated SIDE_GAMES definition; trim when re-examining at consolidation time.
+  - (Pre-existing from audit) 3 Stableford implementations: calculateStablefordPoints (handicap-aware live), calculateStablefordFromRound (gross-only season-write path to Supabase), test-file inline copy. NEEDS-CARE — calculateStablefordFromRound is on the live season-points DB write path (processSeasonRound in scoring.service.ts:84 writes to season_scores). The clean fix mirrors GIR: extract a JSX-free + supabase-free src/scoring/stableford.ts (point-scale function), have both live consumers call it, delete the test-file inline copy. **Phone smoke-test of the season-points path required before/after** — wrong points written to season_scores is silent and hard to fix retroactively. Use gir.ts as the template.
+  - (Pre-existing from audit) 6-6-6 segment "match_play" mode collides with the match_play format key + the BracketScoringMethod 'match_play' value (three-way string collision: ScoringFormat, SixSixSixScoringMethod, BracketScoringMethod). Rename to mp_segment or head_to_head_low_high before wiring match_play as a primary format. NEEDS-CARE — touches live UI (SixSixSixSetupModal at ScoringModals.tsx:723-727) and **persistence behavior is unverified** (need to check whether SixSixSixScoringMethod string round-trips through Supabase; if existing 6-6-6 rounds have 'match_play' stored, renaming creates a deserialization break for those rows). Schema check + phone smoke-test of 6-6-6 setup required.
+  - (Pre-existing from audit) Match Play × 2: calculateMatchPlay (general, raw scores) vs evaluateMatch (Ryder Cup, pre-resolved hole-winner records). **LEAVE-ALONE** — different input shapes, different domains, intentional split documented in src/data/scoring.ts:787-791. No action.
+
+  PRE-BETA PRIORITY: LOW. None of these cause active bugs; they're maintenance debt. Address as focused phone sessions after the Phase 5 + 6 work lands.
 
 - 2026-05-20 — ONE-BALL FORMAT SCORE-ENTRY UX + GUIDANCE (design workstream, pairs with team-handicap cluster)
 
