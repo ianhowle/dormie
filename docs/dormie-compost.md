@@ -13,6 +13,21 @@
 
 ## Active Compost
 
+- 2026-05-21 — TEAM-HANDICAP OVERRIDE UI (phone task — engine already supports custom rules)
+
+  The team-handicap rules engine (src/data/team-handicap.ts) landed tonight with full preset + custom-rule support and 16 tests (TH.1–16). USGA-standard presets ship as defaults (Scramble 2P 35/15, Scramble 4P 25/20/15/10, Chapman/Pinehurst 60/40, Greensomes 60/40, Alt Shot 50% × sum). The engine accepts arbitrary TeamHandicapRule objects identically to presets — proven by TH.7 (same input through preset 35/15 gives 5.2, through custom 50/50 gives 12.0).
+
+  THIS RESOLVES THE FORMULA PORTION of the previously composted Scramble + Chapman product decisions. The formula question is now answered (standard presets, custom-capable). Only the UI work remains.
+
+  UI task (phone-gated, defined and ready to build):
+  - (a) Format-setup screen toggle: "USGA Recommended / Custom" — when "USGA Recommended", the resolved preset is applied at round start with no further input. When "Custom", reveal the fraction inputs.
+  - (b) When Custom: render N fraction inputs (N = team size) for the weighted method, or a single percent input for the combined method. Inputs construct a TeamHandicapRule object — calculateTeamHandicap consumes it identically to a preset (TH.7 proves this).
+  - (c) At round start, snapshot { resolvedRule, computedTeamHandicap, sourcePlayerHandicaps } into round state. SNAPSHOT/LOCK is the critical correctness piece — the engine documents the contract in its header, but enforcement lives at this UI/persistence layer. Recomputing mid-round (e.g. after a player's GHIN handicap updates) would change stroke allocation against scores already entered. The round-state record is the immutable source of truth from round-start onward.
+
+  4P Scramble default (25/20/15/10) is ONE OF SEVERAL VALID CONVENTIONS — alternatives (20/15/10/5, 35/20/10/5, Callaway variants) are accessible immediately via custom rule with zero engine changes. Worth surfacing in the UI as "common presets" if the override flow gets heavy use.
+
+  PRE-BETA PRIORITY: MEDIUM. The presets cover the 95% case (recreational groups using standard formulas). Override UI is a power-user feature for tournament organizers and house-rules groups — useful to have but not gate-blocking for v1.
+
 - 2026-05-21 — 3-PUTT POKER FUTURE EVOLUTION (post-v1 ideas + stale-doc flag)
 
   Phase 0 of the scoring completion roadmap landed the round engine (src/data/three-putt-poker.ts) + comprehensive tests (engine + evaluator). The v1 engine deliberately encodes ONLY the current shipping mechanic — good putting earns cards (chip-in → 2, one-putt → 1), bad putting feeds the pot (3-putt → +$1 × extra-putts), last 3-putter wears a cosmetic chip of shame, best 5-card poker hand wins the pot. Winner-takes-pot payout added; zero-sum signed ledger (winner credited +pot, players debited ante + own 3-putt penalties; or all-zero if no one earned cards).
