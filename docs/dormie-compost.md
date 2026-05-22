@@ -13,6 +13,25 @@
 
 ## Active Compost
 
+- 2026-05-21 — 3-PUTT POKER FUTURE EVOLUTION (post-v1 ideas + stale-doc flag)
+
+  Phase 0 of the scoring completion roadmap landed the round engine (src/data/three-putt-poker.ts) + comprehensive tests (engine + evaluator). The v1 engine deliberately encodes ONLY the current shipping mechanic — good putting earns cards (chip-in → 2, one-putt → 1), bad putting feeds the pot (3-putt → +$1 × extra-putts), last 3-putter wears a cosmetic chip of shame, best 5-card poker hand wins the pot. Winner-takes-pot payout added; zero-sum signed ledger (winner credited +pot, players debited ante + own 3-putt penalties; or all-zero if no one earned cards).
+
+  Stale doc to fix (not in this commit): src/data/scoring.ts:492-503 still describes the INVERTED incentive ("every 3-putt deals a card, worst hand pays"). The code is what ships; the description is wrong. Update on the next pass through SIDE_GAMES copy.
+
+  POST-V1 ideas captured here:
+  - Expanded card-earning rules — birdie → +2 cards, eagle → +3 cards, longest-putt-on-hole bonus card, missed-tap-in (any putt from inside 3ft that doesn't go in) → penalty (pay $1 OR forfeit a card). Each adds a new auto/semi-auto/manual trigger.
+  - Showdown screen — big reveal at round end, cards flip dramatically, winning hand highlighted, pot $$$ animates to winner's name. The recap component (src/components/scoring/ThreePuttPokerRecap.tsx) exists but is unwired — Phase 3 is the actual betrayal repair. Showdown is the dial-it-up version.
+  - Live tension feed — between holes, "X is one card from a flush" / "Y just dealt their 4th heart" callouts. Mid-round suspense, not just end-of-round.
+  - Weekly tournaments / ladders / achievements — season-long 3-Putt Poker leaderboard (most royal flushes, biggest pot won, fewest 3-putts in tournament). Pairs with the FedEx Cup season layer.
+  - Chip of shame with FINANCIAL meaning — currently cosmetic, payout-neutral. Option to make holder pay an additional fixed amount to the pot, or pay each player directly. Engine already returns worstPutter; just needs payout-math hookup if/when this lands.
+  - Configurable ante + threePuttPenalty — currently hardcoded to 1/1 in useScoringState; engine already accepts as parameters. Wizard exposure is one phone-pending PR away whenever desired.
+  - Deck persistence across mounts — today the deck shuffles fresh on every mount via Math.random, and dealt cards live in React state only. If user navigates away mid-round the cards vanish. Either (a) persist deck + dealt cards in HoleScore extension or round state, or (b) accept the gap as live-only theater. Phase 5 lesson applies if (a).
+  - Seeded RNG for reproducible rounds — useful for "replay this round with the same shuffle" and for deterministic E2E. Engine already takes deck as input, so this is a caller-layer concern: swap Math.random shuffle for seedrandom-style.
+  - Dormie Moments for hands — already fires for royal_flush / straight_flush / four_of_kind in useScoringState. Engine returns evaluations; the live caller diffs against the prior evaluation to detect threshold crossings. Same pattern but cleaner once useScoringState calls the engine instead of inlining the dealing logic (Phase 2 of the roadmap).
+
+  PRE-BETA PRIORITY: NONE of these. v1 ships the current mechanic; everything above is "if 3-Putt Poker becomes the breakout side-game we lean into." Revisit at the next scoring-completion review cycle.
+
 - 2026-05-20 — TIER 2 SCORING DE-DUPLICATION TRACKING (rolling list — fold into the audit's Tier 2 dedup workstream)
 
   Rolling list of code-level duplications introduced or unresolved during scoring engine work. Per the audit (docs/audits/2026-05-17-scoring-engine-audit.md §3 + Tier 2), duplicate scoring logic is a real bug surface — silent divergence between two copies has bitten Stableford already.
