@@ -4,6 +4,8 @@ import type {
   PlayerTotals, GameResult, WolfHoleState, BBBHolePoints,
 } from './types';
 import { useTheme } from '../theme/ThemeContext';
+import { isGIR } from './gir';
+export { isGIR };
 
 // ─── Default hole pars (standard layout) ──────────────────────────────
 export function buildHoles(coursePar: number, holeRange: string): HoleData[] {
@@ -44,10 +46,6 @@ export function calcCourseHandicap(
   par: number,
 ): number {
   return Math.round(hcpIndex * (slope / 113) + (rating - par));
-}
-
-export function isGIR(gross: number, putts: number, par: number): boolean {
-  return (gross - putts) <= (par - 2);
 }
 
 export function computePlayerTotals(

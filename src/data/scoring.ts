@@ -1,12 +1,5 @@
 import type { HoleScore, HoleData } from '../scoring/types';
-
-// Local copy of isGIR to keep src/data/scoring.ts in pure-data territory
-// for the ts-node test runner (importing from scoring/calculations.ts
-// pulls in ThemeContext JSX). Same formula as the canonical isGIR in
-// src/scoring/calculations.ts — update both if the GIR rule ever changes.
-function isGreenInRegulation(gross: number, putts: number, par: number): boolean {
-  return (gross - putts) <= (par - 2);
-}
+import { isGIR } from '../scoring/gir';
 
 export type ScoringFormat =
   | 'stroke_play'
@@ -964,7 +957,7 @@ export function calculateArniesCount(
     const holeScores = allScores.get(h.number);
     if (!holeScores) return;
     holeScores.forEach((s, playerId) => {
-      if (s.gross <= h.par && s.fir === false && !isGreenInRegulation(s.gross, s.putts, h.par)) {
+      if (s.gross <= h.par && s.fir === false && !isGIR(s.gross, s.putts, h.par)) {
         counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
       }
     });
@@ -994,7 +987,7 @@ export function calculateHogansCount(
       if (
         s.gross <= h.par &&
         s.fir === true &&
-        isGreenInRegulation(s.gross, s.putts, h.par) &&
+        isGIR(s.gross, s.putts, h.par) &&
         s.putts <= 2
       ) {
         counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
