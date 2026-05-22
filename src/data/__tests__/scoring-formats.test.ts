@@ -40,6 +40,17 @@ import {
   type SideGameNumericSlice,
 } from '../scoring';
 import type { HoleScore, HoleData } from '../../scoring/types';
+import type { Card } from '../../services/poker.service';
+import {
+  cardsToDealForHole,
+  countThreePutts,
+  countOnePutts,
+  countChipIns,
+  computePot,
+  computeWorstPutter,
+  dealCards,
+  evaluatePokerRound,
+} from '../three-putt-poker';
 
 // ─── Test helpers for Tier A side-game counters ───────────────────────
 // Constructs the Map<holeNumber, Map<playerId, HoleScore>> shape used by
@@ -1626,6 +1637,372 @@ describe('SIDE-GAME COUNTERS — POLEYS (calculatePoleysCount, threshold 4 ft st
   it('P.6: Empty slice → empty result', () => {
     const counts = calculatePoleysCount(new Map());
     expect(counts.size).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// 3-PUTT POKER ROUND ENGINE
+// ═══════════════════════════════════════════════════════════════════════
+// Tests the CURRENT mechanic (good putting earns cards, bad putting
+// feeds the pot, last 3-putter holds the cosmetic chip, best hand wins
+// pot). Engine is pure + deck-as-input — tests use a fixture deck so
+// assertions can name exact cards. The doc-spec at scoring.ts:492-503
+// is stale; encoded behavior matches src/scoring/useScoringState.ts
+// lines 1033-1108 (the live implementation).
+
+// Fixture deck, top-of-deck first. Card 0 = A♥, then K♥, Q♥, J♥, 10♥
+// (positions 0-4 form a royal flush in hearts).
+const FIXTURE_DECK: Card[] = [
+  { suit: 'hearts',   rank: 'A',  value: 14 },
+  { suit: 'hearts',   rank: 'K',  value: 13 },
+  { suit: 'hearts',   rank: 'Q',  value: 12 },
+  { suit: 'hearts',   rank: 'J',  value: 11 },
+  { suit: 'hearts',   rank: '10', value: 10 },
+  { suit: 'diamonds', rank: '9',  value: 9 },
+  { suit: 'diamonds', rank: '8',  value: 8 },
+  { suit: 'diamonds', rank: '7',  value: 7 },
+  { suit: 'clubs',    rank: '6',  value: 6 },
+  { suit: 'clubs',    rank: '5',  value: 5 },
+  { suit: 'spades',   rank: '4',  value: 4 },
+  { suit: 'spades',   rank: '3',  value: 3 },
+];
+
+function makeScoreMap(
+  rows: Array<{ hole: number; playerId: string; gross: number; putts: number }>,
+): Map<number, Map<string, HoleScore>> {
+  const m = new Map<number, Map<string, HoleScore>>();
+  for (const r of rows) {
+    if (!m.has(r.hole)) m.set(r.hole, new Map());
+    m.get(r.hole)!.set(r.playerId, { gross: r.gross, putts: r.putts, fir: null });
+  }
+  return m;
+}
+
+function makeHoles(...nums: number[]): HoleData[] {
+  return nums.map((n) => ({ number: n, par: 4, strokeIndex: n }));
+}
+
+describe('3-PUTT POKER — cardsToDealForHole', () => {
+  it('CD.1: chip-in (putts=0, gross>0) → 2 cards', () => {
+    const n = cardsToDealForHole({ putts: 0, gross: 3 });
+    record('CD.1', 'chip-in (0 putts, gross=3)', '2', String(n), n === 2);
+    expect(n).toBe(2);
+  });
+  it('CD.2: one-putt (putts=1) → 1 card', () => {
+    const n = cardsToDealForHole({ putts: 1, gross: 4 });
+    record('CD.2', '1 putt', '1', String(n), n === 1);
+    expect(n).toBe(1);
+  });
+  it('CD.3: two-putt → 0 cards', () => {
+    const n = cardsToDealForHole({ putts: 2, gross: 4 });
+    record('CD.3', '2 putts', '0', String(n), n === 0);
+    expect(n).toBe(0);
+  });
+  it('CD.4: three-putt → 0 cards (bad putting feeds pot, NOT cards)', () => {
+    const n = cardsToDealForHole({ putts: 3, gross: 5 });
+    record('CD.4', '3 putts (feeds pot)', '0', String(n), n === 0);
+    expect(n).toBe(0);
+  });
+  it('CD.5: empty hole (putts=0, gross=0) → 0 cards (not a chip-in)', () => {
+    const n = cardsToDealForHole({ putts: 0, gross: 0 });
+    record('CD.5', '0 putts, 0 gross (not played)', '0', String(n), n === 0);
+    expect(n).toBe(0);
+  });
+});
+
+describe('3-PUTT POKER — countThreePutts / countOnePutts / countChipIns', () => {
+  it('TP.1: count 3-putts across players + holes', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 5, putts: 3 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+      { hole: 2, playerId: 'p1', gross: 6, putts: 3 },
+      { hole: 2, playerId: 'p2', gross: 5, putts: 1 },
+      { hole: 3, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 3, playerId: 'p2', gross: 7, putts: 4 },
+    ]);
+    const c = countThreePutts(scores);
+    record('TP.1', '2 players, 3 holes', 'p1=2 p2=1', `p1=${c.get('p1')} p2=${c.get('p2')}`, c.get('p1') === 2 && c.get('p2') === 1);
+    expect(c.get('p1')).toBe(2);
+    expect(c.get('p2')).toBe(1);
+  });
+  it('OP.1: count one-putts (putts===1 strict)', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 3, putts: 1 },
+      { hole: 1, playerId: 'p2', gross: 3, putts: 0 }, // chip-in, NOT one-putt
+      { hole: 2, playerId: 'p1', gross: 4, putts: 1 },
+      { hole: 2, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const c = countOnePutts(scores);
+    record('OP.1', 'chip-in excluded from one-putts', 'p1=2 p2=absent', `p1=${c.get('p1')} p2=${c.get('p2') ?? 0}`, c.get('p1') === 2 && !c.has('p2'));
+    expect(c.get('p1')).toBe(2);
+    expect(c.has('p2')).toBe(false);
+  });
+  it('CI.1: count chip-ins (putts=0 AND gross>0)', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 3, putts: 0 }, // chip-in
+      { hole: 2, playerId: 'p1', gross: 0, putts: 0 }, // not played — NOT a chip-in
+      { hole: 3, playerId: 'p1', gross: 4, putts: 0 }, // chip-in
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const c = countChipIns(scores);
+    record('CI.1', 'gross=0 not counted as chip-in', 'p1=2 p2=absent', `p1=${c.get('p1')} p2=${c.get('p2') ?? 0}`, c.get('p1') === 2 && !c.has('p2'));
+    expect(c.get('p1')).toBe(2);
+    expect(c.has('p2')).toBe(false);
+  });
+});
+
+describe('3-PUTT POKER — computePot', () => {
+  const ante = 1;
+  const threePuttPenalty = 1;
+  it('PT.1: ante-only baseline (no 3-putts) → playerCount × ante', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 1 },
+    ]);
+    const pot = computePot({ playerCount: 2, ante, threePuttPenalty, scores });
+    record('PT.1', 'no 3-putts, 2 players × $1 ante', '2', String(pot), pot === 2);
+    expect(pot).toBe(2);
+  });
+  it('PT.2: one 3-putt → ante + $1 penalty', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 5, putts: 3 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const pot = computePot({ playerCount: 2, ante, threePuttPenalty, scores });
+    record('PT.2', '1×3-putt (extra=1)', '3', String(pot), pot === 3);
+    expect(pot).toBe(3);
+  });
+  it('PT.3: 4-putt contributes 2 (extra = putts-2 = 2)', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 6, putts: 4 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const pot = computePot({ playerCount: 2, ante, threePuttPenalty, scores });
+    record('PT.3', '1×4-putt (extra=2)', '4', String(pot), pot === 4);
+    expect(pot).toBe(4);
+  });
+  it('PT.4: mixed — one 3-putt + one 4-putt across holes', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 5, putts: 3 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 1 },
+      { hole: 2, playerId: 'p1', gross: 6, putts: 4 },
+      { hole: 2, playerId: 'p2', gross: 5, putts: 2 },
+    ]);
+    const pot = computePot({ playerCount: 2, ante, threePuttPenalty, scores });
+    record('PT.4', 'ante 2 + 3-putt 1 + 4-putt 2 = 5', '5', String(pot), pot === 5);
+    expect(pot).toBe(5);
+  });
+});
+
+describe('3-PUTT POKER — computeWorstPutter (cosmetic, payout-neutral)', () => {
+  const playerIds = ['p1', 'p2'];
+  it('WP.1: single 3-putt → that player', () => {
+    const scores = makeScoreMap([
+      { hole: 5, playerId: 'p1', gross: 5, putts: 3 },
+      { hole: 5, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const w = computeWorstPutter(scores, makeHoles(1, 2, 3, 4, 5, 6), playerIds);
+    record('WP.1', 'only p1 3-putts', 'p1', String(w), w === 'p1');
+    expect(w).toBe('p1');
+  });
+  it('WP.2: two 3-putts on different holes → LAST hole wins', () => {
+    const scores = makeScoreMap([
+      { hole: 3, playerId: 'p1', gross: 5, putts: 3 }, // first 3-putt
+      { hole: 7, playerId: 'p2', gross: 5, putts: 3 }, // later → wins
+    ]);
+    const w = computeWorstPutter(scores, makeHoles(1, 2, 3, 4, 5, 6, 7, 8), playerIds);
+    record('WP.2', 'p1 hole 3, p2 hole 7 (last)', 'p2', String(w), w === 'p2');
+    expect(w).toBe('p2');
+  });
+  it('WP.3: two 3-putts SAME hole → LAST playerId in supplied order wins', () => {
+    const scores = makeScoreMap([
+      { hole: 4, playerId: 'p1', gross: 5, putts: 3 },
+      { hole: 4, playerId: 'p2', gross: 5, putts: 3 },
+    ]);
+    const w = computeWorstPutter(scores, makeHoles(1, 2, 3, 4, 5), playerIds);
+    record('WP.3', 'same hole, both 3-putt, p2 last in order', 'p2', String(w), w === 'p2');
+    expect(w).toBe('p2');
+  });
+  it('WP.4: no 3-putts anywhere → null', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 1 },
+    ]);
+    const w = computeWorstPutter(scores, makeHoles(1, 2), playerIds);
+    record('WP.4', 'no 3-putts', 'null', String(w), w === null);
+    expect(w).toBe(null);
+  });
+});
+
+describe('3-PUTT POKER — dealCards (deck-as-input, deterministic)', () => {
+  const playerIds = ['p1', 'p2'];
+  it('DK.1: deals correct count + correct cards in hole×player order', () => {
+    // Hole 1: p1 chip-in (2 cards: idx 0,1), p2 one-putt (1 card: idx 2).
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 1, playerId: 'p2', gross: 3, putts: 1 },
+    ]);
+    const { perPlayer, deckCursor } = dealCards({
+      scores, holesInOrder: makeHoles(1), playerIds, deck: FIXTURE_DECK,
+    });
+    const p1 = perPlayer.get('p1')!;
+    const p2 = perPlayer.get('p2')!;
+    const ok = p1.length === 2 && p1[0].rank === 'A' && p1[1].rank === 'K'
+            && p2.length === 1 && p2[0].rank === 'Q'
+            && deckCursor === 3;
+    record('DK.1', 'p1 chip-in + p2 one-putt', 'p1=[A,K] p2=[Q] cur=3', `p1=[${p1.map((c) => c.rank).join(',')}] p2=[${p2.map((c) => c.rank).join(',')}] cur=${deckCursor}`, ok);
+    expect(p1.map((c) => c.rank)).toEqual(['A', 'K']);
+    expect(p2.map((c) => c.rank)).toEqual(['Q']);
+    expect(deckCursor).toBe(3);
+  });
+  it('DK.2: cursor advances correctly across multiple holes', () => {
+    // H1: p1 one-putt (1), p2 chip-in (2).
+    // H2: p1 chip-in (2), p2 one-putt (1).
+    // Expected sequence: p1=A, p2=K,Q, p1=J,10, p2=9. Cursor=6.
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 4, putts: 1 },
+      { hole: 1, playerId: 'p2', gross: 3, putts: 0 },
+      { hole: 2, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 2, playerId: 'p2', gross: 4, putts: 1 },
+    ]);
+    const { perPlayer, deckCursor } = dealCards({
+      scores, holesInOrder: makeHoles(1, 2), playerIds, deck: FIXTURE_DECK,
+    });
+    const p1Ranks = perPlayer.get('p1')!.map((c) => c.rank);
+    const p2Ranks = perPlayer.get('p2')!.map((c) => c.rank);
+    const ok = p1Ranks.join(',') === 'A,J,10' && p2Ranks.join(',') === 'K,Q,9' && deckCursor === 6;
+    record('DK.2', '2 holes mixed dealing', 'p1=A,J,10 p2=K,Q,9 cur=6', `p1=${p1Ranks.join(',')} p2=${p2Ranks.join(',')} cur=${deckCursor}`, ok);
+    expect(p1Ranks).toEqual(['A', 'J', '10']);
+    expect(p2Ranks).toEqual(['K', 'Q', '9']);
+    expect(deckCursor).toBe(6);
+  });
+  it('DK.3: idempotency — same input → same output (engine is pure)', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 1 },
+    ]);
+    const args = { scores, holesInOrder: makeHoles(1), playerIds, deck: FIXTURE_DECK };
+    const a = dealCards(args);
+    const b = dealCards(args);
+    const ok = a.deckCursor === b.deckCursor
+            && JSON.stringify(Array.from(a.perPlayer.entries())) === JSON.stringify(Array.from(b.perPlayer.entries()));
+    record('DK.3', 'pure: two calls deep-equal', 'equal', ok ? 'equal' : 'DIFFER', ok);
+    expect(ok).toBe(true);
+  });
+});
+
+describe('3-PUTT POKER — evaluatePokerRound (end-to-end)', () => {
+  const playerIds = ['p1', 'p2'];
+  const ante = 1;
+  const threePuttPenalty = 1;
+
+  it('PR.1: fixture round → p1 royal flush, pot=2 (no 3-putts), payouts sum to 0', () => {
+    // 4 holes; deck-dealing trace: p1 collects A♥K♥Q♥J♥10♥ → royal flush.
+    //   H1: p1 chip-in (2 cards 0,1=A♥,K♥); p2 two-putt (0).
+    //   H2: p1 chip-in (2 cards 2,3=Q♥,J♥); p2 two-putt (0).
+    //   H3: p1 one-putt (1 card 4=10♥);     p2 one-putt (1 card 5=9♦).
+    //   H4: both two-putt (0 cards).
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+      { hole: 2, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 2, playerId: 'p2', gross: 4, putts: 2 },
+      { hole: 3, playerId: 'p1', gross: 4, putts: 1 },
+      { hole: 3, playerId: 'p2', gross: 4, putts: 1 },
+      { hole: 4, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 4, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const r = evaluatePokerRound({
+      scores, holesInOrder: makeHoles(1, 2, 3, 4), playerIds, deck: FIXTURE_DECK, ante, threePuttPenalty,
+    });
+    const p1Eval = r.perPlayer.get('p1')!.evaluation!;
+    const p2Eval = r.perPlayer.get('p2')!.evaluation!;
+    const payoutSum = Array.from(r.payouts.values()).reduce((a, b) => a + b, 0);
+    const ok = r.winnerId === 'p1'
+            && p1Eval.rank === 'royal_flush'
+            && r.pot === 2
+            && r.payouts.get('p1') === 1   // +pot 2 - ante 1
+            && r.payouts.get('p2') === -1  // -ante 1
+            && payoutSum === 0;
+    record('PR.1', 'p1 royal flush, pot=$2, sum=0',
+      "winner=p1 rank=royal_flush pot=2 sum=0",
+      `winner=${r.winnerId} rank=${p1Eval.rank} pot=${r.pot} sum=${payoutSum}`,
+      ok);
+    expect(r.winnerId).toBe('p1');
+    expect(p1Eval.rank).toBe('royal_flush');
+    expect(p2Eval.rank).toBe('high_card');
+    expect(r.pot).toBe(2);
+    expect(r.payouts.get('p1')).toBe(1);
+    expect(r.payouts.get('p2')).toBe(-1);
+    expect(payoutSum).toBe(0);
+  });
+
+  it('PR.2: 3-putt penalty contributor pays more (ledger nets to 0)', () => {
+    // Same dealing pattern as PR.1 but p2 also 3-putts on hole 4 (extra=1).
+    // Pot = 2 (ante) + 1 (p2's 3-putt) = 3.
+    // p1 contributed: ante 1. Won pot 3. Net = +2.
+    // p2 contributed: ante 1 + penalty 1 = 2. Won 0. Net = -2.
+    // Sum = 0.
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+      { hole: 2, playerId: 'p1', gross: 3, putts: 0 },
+      { hole: 2, playerId: 'p2', gross: 4, putts: 2 },
+      { hole: 3, playerId: 'p1', gross: 4, putts: 1 },
+      { hole: 3, playerId: 'p2', gross: 4, putts: 1 },
+      { hole: 4, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 4, playerId: 'p2', gross: 5, putts: 3 },
+    ]);
+    const r = evaluatePokerRound({
+      scores, holesInOrder: makeHoles(1, 2, 3, 4), playerIds, deck: FIXTURE_DECK, ante, threePuttPenalty,
+    });
+    const payoutSum = Array.from(r.payouts.values()).reduce((a, b) => a + b, 0);
+    const ok = r.winnerId === 'p1'
+            && r.pot === 3
+            && r.worstPutter === 'p2'
+            && r.payouts.get('p1') === 2
+            && r.payouts.get('p2') === -2
+            && payoutSum === 0;
+    record('PR.2', '+3-putt penalty, p2 pays more',
+      "winner=p1 pot=3 worst=p2 p1=+2 p2=-2",
+      `winner=${r.winnerId} pot=${r.pot} worst=${r.worstPutter} p1=${r.payouts.get('p1')} p2=${r.payouts.get('p2')}`,
+      ok);
+    expect(r.winnerId).toBe('p1');
+    expect(r.pot).toBe(3);
+    expect(r.worstPutter).toBe('p2');
+    expect(r.payouts.get('p1')).toBe(2);
+    expect(r.payouts.get('p2')).toBe(-2);
+    expect(payoutSum).toBe(0);
+  });
+
+  it('PR.3: edge — all two-putts → no cards, no winner, pot voided (payouts all 0)', () => {
+    const scores = makeScoreMap([
+      { hole: 1, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 1, playerId: 'p2', gross: 4, putts: 2 },
+      { hole: 2, playerId: 'p1', gross: 4, putts: 2 },
+      { hole: 2, playerId: 'p2', gross: 4, putts: 2 },
+    ]);
+    const r = evaluatePokerRound({
+      scores, holesInOrder: makeHoles(1, 2), playerIds, deck: FIXTURE_DECK, ante, threePuttPenalty,
+    });
+    const payoutSum = Array.from(r.payouts.values()).reduce((a, b) => a + b, 0);
+    const ok = r.winnerId === null
+            && r.perPlayer.get('p1')!.evaluation === null
+            && r.perPlayer.get('p2')!.evaluation === null
+            && r.pot === 2 // ante-only — preserved on result for display, but
+            && r.payouts.get('p1') === 0
+            && r.payouts.get('p2') === 0
+            && payoutSum === 0;
+    record('PR.3', 'no cards earned → winner=null, payouts=0',
+      "winner=null pot=2 payouts all 0 sum=0",
+      `winner=${r.winnerId} pot=${r.pot} p1=${r.payouts.get('p1')} p2=${r.payouts.get('p2')} sum=${payoutSum}`,
+      ok);
+    expect(r.winnerId).toBe(null);
+    expect(r.perPlayer.get('p1')!.evaluation).toBe(null);
+    expect(r.pot).toBe(2);
+    expect(r.payouts.get('p1')).toBe(0);
+    expect(r.payouts.get('p2')).toBe(0);
+    expect(payoutSum).toBe(0);
   });
 });
 
