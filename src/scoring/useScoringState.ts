@@ -12,6 +12,8 @@ import {
   saveActiveRound,
   clearActiveRound,
   serializeScores,
+  deserializeScores,
+  getActiveRound,
   queueOfflineRound,
   type ActiveRoundState,
 } from '../lib/roundStorage';
@@ -288,6 +290,64 @@ export function useScoringState() {
   // ─── Offline resilience ─────────────────────────────────────────────
   const { isConnected, isInternetReachable } = useNetworkStatus();
   const isOffline = !isConnected || !isInternetReachable;
+
+  // ─── Mount-only restore from AsyncStorage ──────────────────────────
+  // If a saved active round matches the round currently being opened,
+  // rehydrate allScores + currentHoleIdx so an ErrorBoundary "Try Again"
+  // or any remount mid-round recovers the scorecard the user entered.
+  //
+  // Identity gate — must restore ONLY when the saved round really is the
+  // one being opened:
+  //   1. Non-empty courseId match (avoids cross-course bleed)
+  //   2. Player ID set match (sorted, length+element equal)
+  //   3. Staleness <= 24h (orphaned saves expire safely)
+  //
+  // Known limitation: starting a new round at the same course with the
+  // same player roster within 24h of an unfinished saved round will
+  // inherit prior scores. Full fix requires the wizard to call
+  // clearActiveRound() before launching a new round (out of scope here).
+  // The existing post-round finalize at L841/L864 already clears on
+  // normal completion, so this trap only fires when the user force-kills
+  // mid-round AND bypasses the Home tab's Resume affordance.
+  useEffect(() => {
+    let cancelled = false;
+    if (!courseId) return; // No identity signal — run as fresh round.
+
+    // Parse URL player IDs once, up front. Malformed → skip restore.
+    let urlPlayerIds: string[];
+    try {
+      const parsed = JSON.parse(params.players ?? '[]') as Array<{ id?: string }>;
+      urlPlayerIds = parsed.map((p) => p?.id ?? '').filter(Boolean).sort();
+    } catch {
+      return;
+    }
+    if (urlPlayerIds.length === 0) return;
+
+    getActiveRound().then((round) => {
+      if (cancelled || !round) return;
+      if (!round.courseId || round.courseId !== courseId) return;
+
+      const savedPlayerIds = (round.players ?? [])
+        .map((p: { id?: string }) => p?.id ?? '')
+        .filter(Boolean)
+        .sort();
+      if (savedPlayerIds.length !== urlPlayerIds.length) return;
+      if (savedPlayerIds.some((id, i) => id !== urlPlayerIds[i])) return;
+
+      const startedAtMs = Date.parse(round.startedAt);
+      if (!Number.isFinite(startedAtMs)) return;
+      if (Date.now() - startedAtMs > 24 * 60 * 60 * 1000) return;
+
+      // Atomic guard: don't clobber state that a user keystroke may have
+      // populated during the async window.
+      setAllScores((prev) => prev.size === 0 ? deserializeScores(round.allScores) : prev);
+      setCurrentHoleIdx((prev) => prev === 0 ? round.currentHoleIdx : prev);
+    }).catch(() => {
+      // AsyncStorage read failure: silently fall through as fresh round.
+    });
+
+    return () => { cancelled = true; };
+  }, []); // mount only — closure captures courseId + params at mount time
 
   // Auto-save round state to AsyncStorage after every hole change
   useEffect(() => {
