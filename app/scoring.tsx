@@ -636,7 +636,55 @@ function ScoringScreenInner() {
       {s.sideGameToastEvents.length > 0 && (
         <SideGameToast
           events={s.sideGameToastEvents}
-          onConfirm={(eventId) => s.setSideGameToastEvents((prev) => prev.filter((e) => e.id !== eventId))}
+          // Block ALL side-game manual-modal presentation while any other
+          // modal on this screen is open. Mirrors each modal's actual
+          // visibility predicate (the format-gated setup modals use the
+          // same AND-clauses as their render sites) so suspended is true
+          // exactly when a competing modal is actually presented. Queued
+          // manual events are NOT dropped — they wait for this gate to
+          // lift (see promotion useEffect in SideGameToast).
+          suspended={
+            s.puttDistPrompt.show ||
+            s.showWolfModal ||
+            s.showHammerModal ||
+            s.showBangoPrompt ||
+            (s.showBestBallSetup && s.isBestBall) ||
+            (s.showLowHighSetup && s.isLowHigh) ||
+            (s.showSixSetup && s.isSixSixSix) ||
+            s.showNoteModal
+          }
+          onConfirm={(eventId, value) => {
+            const ev = s.sideGameToastEvents.find((e) => e.id === eventId);
+            if (ev) {
+              // Direct attribution via the event's stable playerId (no
+              // playerName string-match — that path could silently drop
+              // events on duplicate first-names or guest-player spelling).
+              const playerId = ev.playerId;
+              if (playerId) {
+                // Boolean games (sandies/bark) → true. Numeric games (poleys) → parsed distance.
+                // Unknown gameKey → no write (queue removal still happens below).
+                let writeValue: boolean | number | undefined;
+                if (ev.gameKey === 'sandies' || ev.gameKey === 'bark') {
+                  writeValue = true;
+                } else if (ev.gameKey === 'poleys') {
+                  const n = Number(value);
+                  if (Number.isFinite(n)) writeValue = n;
+                }
+                if (writeValue !== undefined) {
+                  s.setSideGameEventSlice((prev) => {
+                    const next = new Map(prev);
+                    const perGame = new Map(next.get(ev.gameKey) ?? new Map());
+                    const perPlayer = new Map(perGame.get(playerId) ?? new Map());
+                    perPlayer.set(ev.holeNumber, writeValue!);
+                    perGame.set(playerId, perPlayer);
+                    next.set(ev.gameKey, perGame);
+                    return next;
+                  });
+                }
+              }
+            }
+            s.setSideGameToastEvents((prev) => prev.filter((e) => e.id !== eventId));
+          }}
           onDismiss={(eventId) => s.setSideGameToastEvents((prev) => prev.filter((e) => e.id !== eventId))}
         />
       )}

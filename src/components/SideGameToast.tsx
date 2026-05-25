@@ -26,6 +26,12 @@ export type SideGameEvent = {
   gameKey: string;
   label: string;
   trigger: TriggerType;
+  /** Stable player identifier — drives attribution at confirm time so
+   *  consumers don't have to reverse-resolve from playerName string.
+   *  Also a component of `id`, which makes ids deterministic per
+   *  (game, hole, player) and dedup-safe across re-detection of the
+   *  same hole. */
+  playerId: string;
   playerName: string;
   holeNumber: number;
   description: string;
@@ -40,6 +46,13 @@ export type SideGameToastProps = {
   events: SideGameEvent[];
   onConfirm: (eventId: string, value?: string) => void;
   onDismiss: (eventId: string) => void;
+  /** True while ANY other modal on the scoring screen is open. Blocks
+   *  promotion of queued manual events AND visibility of the currently-
+   *  shown ManualInputModal so React Native's native Modal stack can't
+   *  end up with two sibling Modals fighting for presentation (the
+   *  zombie-modal touch-eating freeze). Queued events are NOT dropped
+   *  while suspended — they wait for the gate to lift. */
+  suspended?: boolean;
 };
 
 // ─── Side game triggers map ───────────────────────────────────────────
@@ -49,13 +62,18 @@ export function detectSideGameEvents(
   par: number,
   gross: number,
   putts: number,
+  playerId: string,
   playerName: string,
   isFir: boolean | null,
   isGir: boolean,
   isSave: boolean,
 ): SideGameEvent[] {
   const events: SideGameEvent[] = [];
-  const id = `${gameKey}-${holeNumber}-${Date.now()}`;
+  // Deterministic id keyed by (game, hole, player). Re-detection of the
+  // same hole produces identical ids → existing queue dedup-by-id prevents
+  // pile-up. Two players one-putting in the same millisecond no longer
+  // collide because the id encodes playerId, not Date.now().
+  const id = `${gameKey}-${holeNumber}-${playerId}`;
 
   switch (gameKey) {
     case 'snake':
@@ -65,6 +83,7 @@ export function detectSideGameEvents(
           gameKey: 'snake',
           label: 'Snake',
           trigger: 'auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} three-putted — picks up the snake!`,
@@ -79,6 +98,7 @@ export function detectSideGameEvents(
           gameKey: 'dots',
           label: 'Dots — Birdie',
           trigger: 'auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} made birdie (+1 dot)`,
@@ -90,6 +110,7 @@ export function detectSideGameEvents(
           gameKey: 'dots',
           label: 'Dots — One-putt',
           trigger: 'auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} one-putted (+1 dot)`,
@@ -101,6 +122,7 @@ export function detectSideGameEvents(
           gameKey: 'dots',
           label: 'Dots — Three-putt',
           trigger: 'auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} three-putted (-1 dot)`,
@@ -115,6 +137,7 @@ export function detectSideGameEvents(
           gameKey: 'greenies',
           label: 'Greenie?',
           trigger: 'semi_auto',
+          playerId,
           playerName,
           holeNumber,
           description: `Did ${playerName} hit the green on this par 3?`,
@@ -129,6 +152,7 @@ export function detectSideGameEvents(
           gameKey: 'sandies',
           label: 'Sandy?',
           trigger: 'semi_auto',
+          playerId,
           playerName,
           holeNumber,
           description: `Did ${playerName} save par from a bunker?`,
@@ -143,6 +167,7 @@ export function detectSideGameEvents(
           gameKey: 'bark',
           label: 'Barkie?',
           trigger: 'semi_auto',
+          playerId,
           playerName,
           holeNumber,
           description: `Did ${playerName} save par after hitting a tree?`,
@@ -157,6 +182,7 @@ export function detectSideGameEvents(
           gameKey: 'arnies',
           label: 'Arnie?',
           trigger: 'semi_auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} made par without hitting fairway or green — Arnie?`,
@@ -171,6 +197,7 @@ export function detectSideGameEvents(
           gameKey: 'close_shave',
           label: 'KP',
           trigger: 'manual',
+          playerId,
           playerName,
           holeNumber,
           description: `How close was ${playerName}'s approach?`,
@@ -187,6 +214,7 @@ export function detectSideGameEvents(
           gameKey: 'poleys',
           label: 'Longest Putt',
           trigger: 'manual',
+          playerId,
           playerName,
           holeNumber,
           description: `How long was ${playerName}'s one-putt?`,
@@ -204,6 +232,7 @@ export function detectSideGameEvents(
           gameKey: 'bingo_bango_bongo',
           label: 'Bingo!',
           trigger: 'auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} hit the green in regulation`,
@@ -216,6 +245,7 @@ export function detectSideGameEvents(
           gameKey: 'bingo_bango_bongo',
           label: 'Bongo!',
           trigger: 'auto',
+          playerId,
           playerName,
           holeNumber,
           description: `${playerName} holed out`,
@@ -227,6 +257,7 @@ export function detectSideGameEvents(
         gameKey: 'bingo_bango_bongo',
         label: 'Bango — Closest to pin?',
         trigger: 'semi_auto',
+        playerId,
         playerName,
         holeNumber,
         description: `Was ${playerName} closest to the pin once all were on the green?`,
@@ -342,12 +373,19 @@ function SemiAutoToast({
 }
 
 // ─── Manual Input Modal ───────────────────────────────────────────────
+// Always rendered while SideGameToast is mounted; visibility is driven by
+// the `visible` prop, not by mount/unmount. Decouples the native Modal
+// lifecycle from React reconciliation — the previous hardcoded `visible`
+// combined with mount-gating could leave the native modal in the view
+// hierarchy across rapid re-renders, contributing to touch-eating freezes.
 function ManualInputModal({
   event,
+  visible,
   onSubmit,
   onCancel,
 }: {
-  event: SideGameEvent;
+  event: SideGameEvent | null;
+  visible: boolean;
   onSubmit: (value: string) => void;
   onCancel: () => void;
 }) {
@@ -355,51 +393,58 @@ function ManualInputModal({
   const c = theme.colors;
   const [inputValue, setInputValue] = useState('');
 
+  // Reset the input when a new event is loaded for display.
+  useEffect(() => {
+    if (event) setInputValue('');
+  }, [event?.id]);
+
   return (
-    <Modal transparent animationType="fade" visible>
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onCancel}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: c.cardBg, borderColor: c.border }]}>
-          <View style={styles.modalHeader}>
-            <Ionicons name="create" size={24} color={c.gold} />
-            <Text style={[styles.modalTitle, { color: c.text }]}>{event.label}</Text>
-          </View>
+        {event && (
+          <View style={[styles.modalContent, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="create" size={24} color={c.gold} />
+              <Text style={[styles.modalTitle, { color: c.text }]}>{event.label}</Text>
+            </View>
 
-          <Text style={[styles.modalDesc, { color: c.textMuted }]}>{event.description}</Text>
+            <Text style={[styles.modalDesc, { color: c.textMuted }]}>{event.description}</Text>
 
-          <View style={styles.modalInputRow}>
-            <TextInput
-              value={inputValue}
-              onChangeText={setInputValue}
-              placeholder="0"
-              placeholderTextColor={c.textMuted}
-              keyboardType="numeric"
-              style={[styles.modalInput, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
-              autoFocus
-            />
-            {event.inputUnit && (
-              <Text style={[styles.modalUnit, { color: c.textMuted }]}>{event.inputUnit}</Text>
-            )}
-          </View>
+            <View style={styles.modalInputRow}>
+              <TextInput
+                value={inputValue}
+                onChangeText={setInputValue}
+                placeholder="0"
+                placeholderTextColor={c.textMuted}
+                keyboardType="numeric"
+                style={[styles.modalInput, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
+                autoFocus
+              />
+              {event.inputUnit && (
+                <Text style={[styles.modalUnit, { color: c.textMuted }]}>{event.inputUnit}</Text>
+              )}
+            </View>
 
-          <View style={styles.modalActions}>
-            <Pressable onPress={() => { haptics.light(); onCancel(); }} style={[styles.modalBtn, { backgroundColor: c.elevated }]}>
-              <Text style={[styles.modalBtnText, { color: c.textMuted }]}>Skip</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => { haptics.light(); onSubmit(inputValue); }}
-              style={[styles.modalBtn, { backgroundColor: c.gold }]}
-            >
-              <Text style={[styles.modalBtnText, { color: '#000000' }]}>Confirm</Text>
-            </Pressable>
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => { haptics.light(); onCancel(); }} style={[styles.modalBtn, { backgroundColor: c.elevated }]}>
+                <Text style={[styles.modalBtnText, { color: c.textMuted }]}>Skip</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { haptics.light(); onSubmit(inputValue); }}
+                style={[styles.modalBtn, { backgroundColor: c.gold }]}
+              >
+                <Text style={[styles.modalBtnText, { color: '#000000' }]}>Confirm</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        )}
       </View>
     </Modal>
   );
 }
 
 // ─── Main Component (Toast Queue) ─────────────────────────────────────
-export function SideGameToast({ events, onConfirm, onDismiss }: SideGameToastProps) {
+export function SideGameToast({ events, onConfirm, onDismiss, suspended = false }: SideGameToastProps) {
   const [queue, setQueue] = useState<SideGameEvent[]>([]);
   const [manualEvent, setManualEvent] = useState<SideGameEvent | null>(null);
 
@@ -414,6 +459,24 @@ export function SideGameToast({ events, onConfirm, onDismiss }: SideGameToastPro
     }
   }, [events]);
 
+  // Promote a manual event from the head of the queue into manualEvent.
+  // Runs post-commit so the state update doesn't happen during render
+  // (the previous setTimeout-in-render pattern allowed parent re-renders
+  // to multiply-schedule the slice and thrash the queue).
+  //
+  // Also gated by `suspended`: while another modal on the scoring screen
+  // is open, no promotion happens. When suspended flips false, this
+  // effect re-fires (suspended is in the deps) and the next queued
+  // manual event is promoted at that point.
+  useEffect(() => {
+    if (manualEvent || suspended) return; // one showing already, or blocked by another modal
+    const next = queue[0];
+    if (next && next.trigger === 'manual') {
+      setManualEvent(next);
+      setQueue((q) => q.slice(1));
+    }
+  }, [queue, manualEvent, suspended]);
+
   // Process queue — show one at a time
   const current = queue[0];
 
@@ -427,55 +490,48 @@ export function SideGameToast({ events, onConfirm, onDismiss }: SideGameToastPro
     setQueue((prev) => prev.filter((e) => e.id !== eventId));
   }, [onConfirm]);
 
-  if (!current && !manualEvent) return null;
-
-  // Manual event takes priority as modal
-  if (manualEvent) {
-    return (
+  // Render path is now side-effect-free. The manual modal is ALWAYS
+  // mounted (visibility toggled via the `visible` prop); the auto/semi-auto
+  // container renders only when no manual modal is up AND the queue head
+  // is not a manual event awaiting promotion (handled by the useEffect above).
+  return (
+    <>
       <ManualInputModal
         event={manualEvent}
+        visible={manualEvent !== null && !suspended}
         onSubmit={(val) => {
-          handleConfirm(manualEvent.id, val);
-          setManualEvent(null);
+          if (manualEvent) {
+            handleConfirm(manualEvent.id, val);
+            setManualEvent(null);
+          }
         }}
         onCancel={() => {
-          handleDismiss(manualEvent.id);
-          setManualEvent(null);
+          if (manualEvent) {
+            handleDismiss(manualEvent.id);
+            setManualEvent(null);
+          }
         }}
       />
-    );
-  }
-
-  if (!current) return null;
-
-  // If current is manual, show modal
-  if (current.trigger === 'manual') {
-    // Move to manual state on next render
-    setTimeout(() => {
-      setManualEvent(current);
-      setQueue((prev) => prev.slice(1));
-    }, 0);
-    return null;
-  }
-
-  return (
-    <View style={styles.container} pointerEvents="box-none">
-      {current.trigger === 'auto' && (
-        <AutoToast
-          key={current.id}
-          event={current}
-          onDismiss={() => handleDismiss(current.id)}
-        />
+      {!manualEvent && current && current.trigger !== 'manual' && (
+        <View style={styles.container} pointerEvents="box-none">
+          {current.trigger === 'auto' && (
+            <AutoToast
+              key={current.id}
+              event={current}
+              onDismiss={() => handleDismiss(current.id)}
+            />
+          )}
+          {current.trigger === 'semi_auto' && (
+            <SemiAutoToast
+              key={current.id}
+              event={current}
+              onConfirm={() => handleConfirm(current.id)}
+              onDismiss={() => handleDismiss(current.id)}
+            />
+          )}
+        </View>
       )}
-      {current.trigger === 'semi_auto' && (
-        <SemiAutoToast
-          key={current.id}
-          event={current}
-          onConfirm={() => handleConfirm(current.id)}
-          onDismiss={() => handleDismiss(current.id)}
-        />
-      )}
-    </View>
+    </>
   );
 }
 

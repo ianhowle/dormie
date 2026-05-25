@@ -36,6 +36,7 @@ import { createShuffledDeck, evaluateBestHand, type Card as PokerCardT } from '.
 import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as detectToastEventsUtil } from './sideGames';
 
 import type { SideGameEvent } from '../components/SideGameToast';
+import type { SideGameEventSlice } from '../data/scoring';
 import type { PlayerHoleResult } from '../components/HoleTransitionBanner';
 import type { MomentType } from '../components/DormieMoment';
 
@@ -259,6 +260,9 @@ export function useScoringState() {
 
   // Item 32: Side game toast events
   const [sideGameToastEvents, setSideGameToastEvents] = useState<SideGameEvent[]>([]);
+  // Persisted side-game events from confirmed toasts: gameKey → playerId → holeNumber → value.
+  // Tier B counter engines (sandies/bark/poleys) read this; handlers translate event.playerName → playerId on write.
+  const [sideGameEventSlice, setSideGameEventSlice] = useState<SideGameEventSlice>(new Map());
 
   // Wolf state
   const wolfOrder = useMemo(() => players.map((p) => p.id), [players]);
@@ -483,8 +487,11 @@ export function useScoringState() {
     // Item 31: Check dormie moments
     checkDormieMoments(currentHole.number);
 
-    // Item 32: Detect side game toasts
-    detectToastEventsLocal(currentHole.number);
+    // Side-game toast detection is deferred — see the PuttDistModal branch below.
+    // When PuttDistModal will open, detection runs in handlePuttDistSelect after the
+    // modal closes; otherwise it runs in the else-branch a few lines down. This
+    // prevents PuttDistModal and ManualInputModal from trying to present at the
+    // same time (React Native does not reliably stack native modals).
 
     // BBB auto-detection: bingo (first GIR) and bongo (first to score)
     if (sideGameKeys.includes('bingo_bango_bongo')) {
@@ -617,10 +624,17 @@ export function useScoringState() {
       return s.putts > 0;
     });
 
-    if (playersWithPutts.length > 0 && currentHoleIdx < holes.length - 1) {
+    const willOpenPuttDistModal = playersWithPutts.length > 0 && currentHoleIdx < holes.length - 1;
+    if (willOpenPuttDistModal) {
+      // PuttDistModal will open — defer side-game toast detection to handlePuttDistSelect
+      // so ManualInputModal can't try to present while PuttDistModal is still up.
       setPuttDistPrompt({ show: true, playerIdx: 0, holeNumber: currentHole.number });
-    } else if (currentHoleIdx < holes.length - 1) {
-      setCurrentHoleIdx(currentHoleIdx + 1);
+    } else {
+      // No PuttDistModal — safe to fire side-game detection now.
+      detectToastEventsLocal(currentHole.number);
+      if (currentHoleIdx < holes.length - 1) {
+        setCurrentHoleIdx(currentHoleIdx + 1);
+      }
     }
   }, [players, currentHoleScores, updatePlayerScore, getPlayerScore, generateEvents, checkDormieMoments, detectToastEventsLocal, sideGameKeys, currentHole, allScores, bbbHolePoints, wolfHoleDecisions, showTransitionBanner, currentHoleIdx, holes.length, isLowHigh, lowHighTeams, isSixSixSix]);
 
@@ -643,12 +657,17 @@ export function useScoringState() {
     if (puttDistPrompt.playerIdx < playersWithPutts.length - 1) {
       setPuttDistPrompt((prev) => ({ ...prev, playerIdx: prev.playerIdx + 1 }));
     } else {
+      // Capture before reset — setPuttDistPrompt below clears holeNumber.
+      const completedHoleNumber = puttDistPrompt.holeNumber;
       setPuttDistPrompt({ show: false, playerIdx: 0, holeNumber: 1 });
+      // PuttDistModal is closing — now fire the side-game detection that was
+      // deferred from handleNext. The two modals are now strictly serial.
+      detectToastEventsLocal(completedHoleNumber);
       if (currentHoleIdx < holes.length - 1) {
         setCurrentHoleIdx(currentHoleIdx + 1);
       }
     }
-  }, [players, getPlayerScore, puttDistPrompt.playerIdx, puttDistPrompt.holeNumber, currentHoleIdx, holes.length]);
+  }, [players, getPlayerScore, puttDistPrompt.playerIdx, puttDistPrompt.holeNumber, currentHoleIdx, holes.length, detectToastEventsLocal]);
 
   const handlePrev = useCallback(() => {
     if (currentHoleIdx > 0) {
@@ -1273,6 +1292,8 @@ export function useScoringState() {
     // Side game toast
     sideGameToastEvents,
     setSideGameToastEvents,
+    sideGameEventSlice,
+    setSideGameEventSlice,
 
     // Wolf
     wolfOrder,
