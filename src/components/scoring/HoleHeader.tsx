@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { GEO } from '../../theme/fonts';
 import { greenHeaderGradient } from '../../theme/colors';
+import { clearActiveRound } from '../../lib/roundStorage';
 import { scoringStyles as st } from './styles';
 
 // Abbreviate long course names for header display
@@ -86,7 +87,17 @@ export const HoleHeader = memo(function HoleHeader({
               'Your scores will be lost if you leave.',
               [
                 { text: 'Stay', style: 'cancel' },
-                { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+                {
+                  text: 'Leave',
+                  style: 'destructive',
+                  // Make the dialog's promise true: clear the AsyncStorage
+                  // save so the restore-effect on a future mount (Try Again,
+                  // or Resume from Home) doesn't bring the round back.
+                  // Fire-and-forget — the AsyncStorage serial queue
+                  // guarantees the remove enqueues before any subsequent
+                  // getActiveRound() read.
+                  onPress: () => { clearActiveRound(); router.back(); },
+                },
               ],
             );
           }}

@@ -34,6 +34,7 @@ import type { FriendshipWithUser } from '../../src/lib/database.types';
 import type { Season, Trip } from '../../src/lib/database.types';
 import { haptics } from '../../src/lib/haptics';
 import { logWarn, logError } from '../../src/lib/logger';
+import { clearActiveRound } from '../../src/lib/roundStorage';
 import { useToast } from '../../src/components/Toast';
 import {
   SCORING_FORMATS,
@@ -1229,6 +1230,17 @@ export default function ScoreScreen() {
 
   const handleStartRound = () => {
     if (!course) return;
+
+    // Clear any orphaned active-round save before launching the new round.
+    // A hard crash / force-kill mid-round leaves a save in AsyncStorage that
+    // would otherwise be picked up by useScoringState's restore-effect on
+    // the next mount (within the 24h identity window). Fire-and-forget — the
+    // serial AsyncStorage queue guarantees this completes before the next
+    // mount's getActiveRound() read. Resume and Leave don't reach this
+    // handler (verified), so we can't accidentally clear a save we want to
+    // restore or double-clear after Leave.
+    clearActiveRound();
+
     haptics.medium();
     showToast({ message: 'Round started', type: 'success', icon: 'flag' });
     const activeFormat = SCORING_FORMATS.find((f) => f.key === format);
