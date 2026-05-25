@@ -113,7 +113,8 @@ export const scoringStyles = StyleSheet.create({
   /* Scoring body */
   scoringBody: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 24,
+    paddingBottom: 16,
   },
 
   /* Player card */
@@ -237,19 +238,23 @@ export const scoringStyles = StyleSheet.create({
     gap: 6,
   },
   puttsButton: {
-    width: 36,
-    height: 32,
+    // ≥44pt tap target (Apple HIG / accessible-touch minimum). The
+    // earlier 36×32 was below comfortable size for a gloved, outdoor,
+    // one-handed context; a mis-tap silently corrupts stats.
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   puttsButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   toggleChip: {
-    width: 28,
-    height: 28,
+    // ≥44pt tap target — see puttsButton note above.
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

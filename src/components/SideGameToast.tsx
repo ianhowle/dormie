@@ -55,6 +55,14 @@ export type SideGameToastProps = {
   suspended?: boolean;
 };
 
+// ─── Possessive helper ───────────────────────────────────────────────
+// Player names interpolate into possessive templates ("Kara's putt").
+// The "You" token must become "your" — appending "'s" yields "You's"
+// which reads broken. Apply to every possessive site in event copy.
+function possessive(name: string): string {
+  return name === 'You' ? 'your' : `${name}'s`;
+}
+
 // ─── Side game triggers map ───────────────────────────────────────────
 export function detectSideGameEvents(
   gameKey: string,
@@ -200,7 +208,7 @@ export function detectSideGameEvents(
           playerId,
           playerName,
           holeNumber,
-          description: `How close was ${playerName}'s approach?`,
+          description: `How close was ${possessive(playerName)} approach?`,
           inputLabel: 'Distance to pin',
           inputUnit: 'ft',
         });
@@ -217,7 +225,7 @@ export function detectSideGameEvents(
           playerId,
           playerName,
           holeNumber,
-          description: `How long was ${playerName}'s one-putt?`,
+          description: `How long was ${possessive(playerName)} one-putt?`,
           inputLabel: 'Putt distance',
           inputUnit: 'ft',
         });
@@ -416,7 +424,7 @@ function ManualInputModal({
                 onChangeText={setInputValue}
                 placeholder="0"
                 placeholderTextColor={c.textMuted}
-                keyboardType="numeric"
+                keyboardType="number-pad"
                 style={[styles.modalInput, { backgroundColor: c.elevated, color: c.text, borderColor: c.border }]}
                 autoFocus
               />

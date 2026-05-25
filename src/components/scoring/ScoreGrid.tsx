@@ -247,7 +247,15 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
           <Text
             style={[
               st.runningTotal,
-              { color: toParColor(runningTotal - runningPar, c), fontFamily: GEO },
+              {
+                // Mute the dash to textMuted when no scores yet — at par
+                // (diff === 0), toParColor returns gold, which made the
+                // empty-state "—" read like a populated value.
+                color: runningTotal > 0
+                  ? toParColor(runningTotal - runningPar, c)
+                  : c.textMuted,
+                fontFamily: GEO,
+              },
             ]}
           >
             {runningTotal > 0 ? formatToPar(runningTotal, runningPar) : '-'}
@@ -344,22 +352,18 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
         </View>
       </View>
 
-      {/* Score label */}
-      <View style={st.scoreLabelRow}>
-        <Text
-          style={[
-            st.scoreLabelText,
-            { color: scoreNameColor(score.gross, holePar, c) },
-          ]}
-        >
-          {scoreName(score.gross, holePar)}
-        </Text>
-        {scoreMode === 'net' && netStrokes > 0 && (
+      {/* Net score display — only when net mode + handicap strokes apply.
+          The standalone score-name label (Par/Birdie/Bogey) is intentionally
+          removed: the selected score tile already shows the notation inline,
+          and the hole header shows the hole's par. Three "Par" labels
+          around one grid is visual noise. */}
+      {scoreMode === 'net' && netStrokes > 0 && (
+        <View style={st.scoreLabelRow}>
           <Text style={[st.netScore, { color: c.gold, fontFamily: GEO }]}>
             Net: {netScore}
           </Text>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Secondary inputs: Putts, FIR, GIR */}
       <View style={st.secondaryRow}>

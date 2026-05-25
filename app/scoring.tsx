@@ -662,13 +662,18 @@ function ScoringScreenInner() {
               const playerId = ev.playerId;
               if (playerId) {
                 // Boolean games (sandies/bark) → true. Numeric games (poleys) → parsed distance.
+                // Empty/whitespace input → no write (don't log "0 ft" on a Confirm with
+                // an empty field; the placeholder "0" reads as a value visually).
                 // Unknown gameKey → no write (queue removal still happens below).
                 let writeValue: boolean | number | undefined;
                 if (ev.gameKey === 'sandies' || ev.gameKey === 'bark') {
                   writeValue = true;
                 } else if (ev.gameKey === 'poleys') {
-                  const n = Number(value);
-                  if (Number.isFinite(n)) writeValue = n;
+                  const trimmed = (value ?? '').trim();
+                  if (trimmed.length > 0) {
+                    const n = Number(trimmed);
+                    if (Number.isFinite(n) && n > 0) writeValue = n;
+                  }
                 }
                 if (writeValue !== undefined) {
                   s.setSideGameEventSlice((prev) => {

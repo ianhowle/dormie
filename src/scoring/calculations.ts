@@ -414,9 +414,13 @@ export function buildBBBResult(
 }
 
 // ─── Side game labels lookup ──────────────────────────────────────────
+// Every SIDE_GAMES key must have an entry here — consumers fall through
+// to the raw lowercase key when missing (renders e.g. "poleys" verbatim).
 export const SIDE_GAME_DISPLAY: Record<string, string> = {
   dots: 'Dots', snake: 'Snake', greenies: 'Greenies', skins: 'Skins',
   hammer: 'Hammer', nassau: 'Nassau', wolf: 'Wolf', sandies: 'Sandies',
   bark: 'Barkies', arnies: 'Arnies', close_shave: 'KP',
   bingo_bango_bongo: 'Bingo Bango Bongo',
+  poleys: 'Poleys', hogans: 'Hogans', murphys: 'Murphys',
+  three_putt_poker: '3-Putt Poker', trash: 'Trash',
 };

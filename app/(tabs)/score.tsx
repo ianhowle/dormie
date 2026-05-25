@@ -1299,6 +1299,23 @@ export default function ScoreScreen() {
 
   return (
     <View style={[st.screen, { backgroundColor: c.bg }]}>
+      {/* Top safe-area backdrop — fills the iOS status-bar/notch area so
+          horizontal pill rows (FORMAT / ROUND TYPE) and other content
+          scrolling beneath the system status bar don't visually bleed
+          behind the clock. Color matches the gradient header's top stop
+          so there's no seam at scroll offset 0. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top,
+          backgroundColor: '#1E4D2B',
+          zIndex: 100,
+        }}
+      />
       <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         style={st.flex}

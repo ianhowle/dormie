@@ -143,7 +143,7 @@ export const HoleHeader = memo(function HoleHeader({
           accessibilityLabel="Previous hole"
           accessibilityRole="button"
           hitSlop={12}
-          style={{ opacity: canPrevHole ? 1 : 0.3 }}
+          style={{ opacity: canPrevHole ? 1 : 0.2 }}
         >
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </Pressable>
@@ -160,7 +160,7 @@ export const HoleHeader = memo(function HoleHeader({
           accessibilityLabel="Next hole"
           accessibilityRole="button"
           hitSlop={12}
-          style={{ opacity: canNextHole ? 1 : 0.3 }}
+          style={{ opacity: canNextHole ? 1 : 0.2 }}
         >
           <Ionicons name="chevron-forward" size={22} color="#fff" />
         </Pressable>
