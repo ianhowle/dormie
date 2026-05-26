@@ -1,3 +1,113 @@
+# Dormie — Roadmap & State (canonical pickup doc — open this first each session)
+
+> Built primarily from the 2026-05-25 work session. Strongest on scoring-screen / freeze work; broader/business items carried from prior context and flagged **VERIFY**. Cross-check older sources/sessions for anything pre-dating this session.
+
+---
+
+## OPEN PRODUCT DECISIONS (highest priority — block scoping the rest)
+
+1. **v1 surface area** — which formats / side games / settlement are in the beta. Everything NOT in v1 should be **HIDDEN from selection** (not pickable phantoms) until built. Gates rework scope + engine-wiring priority. **UNRESOLVED.**
+2. **Hammer + 3-Putt Poker** — build engine+post-round+persistence, or make in-round-only honest. (See reality map: live drama works, post-round renders "coming soon," no data persisted.) **UNRESOLVED.**
+3. **Compact-card height** — gates the foursome touch-target fix. Standard mode lifted to 44pt in `de55757`; compact still ±16pt icons. Decision: taller compact cards, drawer pattern, or per-row collapsible. **UNRESOLVED.**
+4. **Are team formats (Scramble / Chapman / Alt Shot) in v1 at all?** If not, the team-scoring-model work drops in priority. Current state: all relabel the chip only. **UNRESOLVED.**
+
+---
+
+## Done (this session)
+
+- `66f5dd3` multi-modal freeze fix (SideGameToast queue rewrite + detection serialization + `suspended` gate + deterministic per-player event ids + `playerId` on `SideGameEvent`).
+- `ea2e797` round-state restore on remount (read path: identity gate + 24h staleness + atomic guard).
+- `4a8170e` clear-on-exit (write-cleanup path: New-Round launch + Leave Round confirm).
+- `de55757` visual polish (possessive grammar, label casing, safe-area, 44pt touch targets, number-pad keyboard).
+- `ff916ff` rework spec doc (`docs/rework-scoring-input-layer.md`).
+- `92afd26` reality map appended to rework spec.
+- tsc baseline corrected **34 → 23** (verified legitimate cleanup: module:esnext for dynamic imports, supabase/functions excluded, LinearGradient tuple sweep, missing useState import, Course schema fix). Tests: **177 scoring + 39 poker** passing throughout.
+
+---
+
+## Reality map (what's actually implemented vs label-only)
+
+FULL inventory lives in **`docs/rework-scoring-input-layer.md`** § "Implemented vs label-only (reality map)" (commit `92afd26`).
+
+Summary:
+- **Formats:** 3 fully real (`stroke_play`, `stableford` post-round, `best_ball` mid-round) / 2 real-in-round-only (`low_high`, `sixsixsix`) / **10 label stubs** (`match_play`, `modified_stableford`, `scramble`, `alternate_shot`, `shamble`, `chapman`, `fourball`, `greensomes`, `pinehurst`, `wolf`-as-format).
+- **Side games:** 7 fully real (nassau, skins, wolf, bbb, dots, snake, greenies) / 7 half-real (sandies, bark, arnies, close_shave, poleys, hammer, three_putt_poker — UI works, post-round "coming soon") / 3 pure stubs (trash, hogans, murphys).
+- **Only Nassau + Skins move money** to the ledger (hardcoded $5 / $2; wizard's structured stakes config is captured but unread).
+- **~15 tested-but-unwired engines** (NetMatchPlay, NetBestBall, scramble, chapman, side-game counters, 3-Putt Poker round engine, team-handicap rules) — exist with tests, not invoked on the live path or in `PostRoundSummary`.
+- **Brittle string-match format detection:** `formatLabel.toLowerCase().includes(...)` not the format key. Renaming a label silently breaks detection.
+
+---
+
+## Deferred work (categorized)
+
+### Scoring-screen / rework
+
+- **Logging-screen rework** (inline per-player grid, unified post-hole capture, collapse 8 modals to ~3) — spec `92afd26`; design pass in progress.
+- **Team / one-ball scoring model** — not implemented; selecting Scramble/Chapman/Alt Shot relabels the chip only.
+- **Engine wiring** — ~15 tested engines sitting unused.
+- **Ledger / settlement beyond Nassau + Skins**; read wizard stakes config (captured-but-unread).
+- **Hammer / 3-Putt-Poker theater gap** — see Open Decision #2.
+- **Detection bugs** — sandy-without-sand (false positive), trees-no-barky (false negative), tags have no consumer. Rides with the rework (tags-drive-detection is the fix).
+- **Save & Exit / pause-round UI** — round-state infra exists (restore + clear), but no mid-round affordance. Currently only Leave (discards) and Finish exit paths.
+- **Compact / foursome touch targets** — Open Decision #3.
+- **Dual "Side Games" control** — naming collision between sticky bar and expander panel.
+- **Score-grid clipping under sticky header** — verify `de55757` spacer (`paddingTop: 24`) fully fixed it on device.
+- **Leaderboard tiebreak rule** — undefined behavior.
+- **Peek / card hole-sync anomaly** (Scramble audit) — symptom noted, not localized.
+- **Hardcoded `#1E4D2B` notch-backdrop color** — `app/(tabs)/score.tsx` setup screen. Re-verify at scroll-0 and mid-scroll on device; matches gradient top stop today but couples to it.
+- **Full round-state restoration** — side-states (Wolf decisions, BBB points, hammer results, putt distances, hole notes, poker state, team setup) still reset on restore. Folds into the rework's structured `ActiveRoundState` schema.
+- **Global one-modal coordinator** (Option C) — proper fix for the freeze class; today's `suspended`-gate is the inlined-into-one-host smallest version. Becomes optional after the rework deletes the colliding modals.
+- **`modified_stableford` engine orphan** — gated out of `PostRoundSummary` by the exact-string match `formatLabel === 'Stableford'`; engine exists, exact-name detection misses.
+- **Hide / flag 3 pure-stub side games** (`trash`, `hogans`, `murphys`) at selection — Open Decision #1's first easy win.
+
+### Uncommitted pending files (sitting all session — CONTENTS NOT REVIEWED)
+
+- `app/create-trip.tsx`
+- `src/components/RyderCupWizard.tsx`
+- `src/components/scoring/PostRoundSummary.tsx`
+- `src/data/trips.ts`
+
+All four have been dirty in the working tree across this entire session. **Nobody has examined what's in these diffs.** Possibly half-finished trip/Ryder-Cup work, possibly stale work-in-progress. Needs a verify-and-commit (or revert) pass before they accumulate further conflict surface.
+
+### Infrastructure / data bugs seen in logs (unaddressed, unrelated to freeze)
+
+- **Supabase:** `column courses_1.city does not exist` — Home rounds fetch fails every load. Schema vs query mismatch.
+- **Supabase:** `infinite recursion detected in policy for relation group_members` — Home groups fetch fails. RLS policy loop.
+- **SecureStore:** value > 2048 bytes warning (recurring). Some session/auth payload exceeds the recommended limit.
+- **Missing assets:** sound files (`click.mp3`, `whoosh.mp3`, `chime.mp3`, `pop.mp3`) and `icon.png` unresolved at load.
+- **expo-notifications not supported in Expo Go** — requires a dev build for push notifications. Not blocking dev, but blocks any push-related verification in Expo Go.
+
+### Broader product / beta-readiness (CARRIED FROM PRIOR CONTEXT — VERIFY, may be stale/done)
+
+- **Supabase Pro upgrade** before beta. **VERIFY** — not confirmed this session.
+- **Apple Developer account ($99)** for TestFlight. **VERIFY** — status unknown.
+- **Logo** (Gary / Fiverr) — was nearing completion in prior session. **VERIFY** current status.
+- **LLC formation** (~$300, TN). **VERIFY** — status unknown.
+- **Privacy Policy / Terms of Service** — **VERIFY** drafting status.
+- **GHIN sync** — handicap integration. **VERIFY** scope + provider status.
+- **Trademark / app name** — "Dormie" vs "Cairn" alternative was under discussion. Status unknown. **VERIFY.**
+- **Monetization:** transaction-led "Venmo for golf" model, ~$150K/yr target. Carried from earlier strategy work.
+
+---
+
+## Design pass — in flight
+
+- **Staged plan:** Stage 1 = per-player row (brief written, not yet run with Claude Design). Subsequent stages: focused view, stacked view, exit / pause model.
+- **Three visual-diagnostic audits** (baseline / foursome / Scramble) exist in chat, **not in the repo** — reference if reconstructing screens. Stage 1 brief also lives only in chat. Worth promoting both to `docs/` when the design pass commits.
+
+---
+
+## Cold-session context
+
+- **Multi-agent workflow:** strategist chat + Claude Code (execution) + visual-diagnostic chat (eyes) + Claude Design; Ian bridges by copy-paste.
+- **Branch:** `claude/setup-dormie-expo-ianD7`.
+- **tsc baseline:** 23. **Tests:** 177 scoring + 39 poker.
+- **Persistent memory** (`~/.claude/projects/-Users-ianhowle-dormie/memory/`): `feedback_phone_verify_sequencing.md` — hold compost/follow-up commits until the fix they relate to is phone-verified and committed first.
+
+---
+
+## Technical compost (granular punts)
+
 # Dormie Compost Pile
 
 **Purpose:** Capture every idea, observation, half-thought, feature concept, competitor note, beta tester comment, and stray insight as soon as it surfaces. Do NOT organize. Do NOT act on. Just append.
@@ -12,6 +122,10 @@
 ---
 
 ## Active Compost
+
+- 2026-05-23 — GLOBAL ONE-MODAL-AT-A-TIME COORDINATOR (deferred — Option C from the score-entry freeze fix)
+
+  Tonight's fix (handleNext / handlePuttDistSelect serialization in useScoringState.ts) handles the known PuttDistModal-vs-ManualInputModal collision that caused the hole-12 freeze. It's surgical and localized. The general problem — React Native does not reliably stack native modals, so ANY two `<Modal>` components trying to be visible simultaneously can produce a stuck modal that swallows touches — is still present for any other auto-opening modal pair on the scoring screen (8 modals total: WolfModal, HammerModal, PuttDistModal, BestBallSetupModal, LowHighSetupModal, SixSixSixSetupModal, HoleNotesModal, plus the side-game ManualInputModal). The real long-term fix is a small `useModalCoordinator()` hook with `requestPresent(id) / dismiss(id)` and a single in-flight modal id; every Modal in the app subscribes. Refactor across all 8 modal sites — too big for a freeze hotfix, defer.
 
 - 2026-05-21 — TEAM-HANDICAP OVERRIDE UI (phone task — engine already supports custom rules)
 
