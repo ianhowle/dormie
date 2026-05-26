@@ -38,6 +38,85 @@ These are the platform the rework builds on. The freeze scaffolding (the `suspen
 
 ---
 
+## Implemented vs label-only (reality map)
+
+The setup screen's format and side-game pick lists do not all map to real in-round behavior. Some entries are fully wired end-to-end; some are half-real (UI works mid-round, but the post-round result falls through to a "Results tracked — detailed scoring coming soon" placeholder); some are pure label stubs that change only the format chip. This inventory captures the current state so the design pass knows what to assume exists.
+
+### Formats (15 declared)
+
+**Fully real (3):**
+
+| Format | Wiring |
+|---|---|
+| `stroke_play` | Default per-player gross/net codepath — what every other format actually runs through. |
+| `stableford` | Detected at post-round via brittle name-match (`formatLabel === 'Stableford'` at `PostRoundSummary.tsx:786`). Renders a real Stableford-points panel via `calculateNetStablefordTotal`. In-round entry is identical to stroke play. |
+| `best_ball` | Detected via `formatLabel.toLowerCase().includes('best ball') && players.length === 4`. Triggers `BestBallSetupModal` (team assign) + `bestBallTeamScores` useMemo (best-per-hole) + live team-totals banner at `scoring.tsx:280–287`. No dedicated post-round summary render. |
+
+**Real in-round only (2):**
+
+| Format | Wiring |
+|---|---|
+| `low_high` | `LowHighSetupModal` + `lowHighResults` per-hole + result banner at `scoring.tsx:268` + scoring branch at `useScoringState.ts:646`. No post-round summary. |
+| `sixsixsix` | `SixSixSixSetupModal` + segment-rotation banners at holes 6 + 12 + `sixSixSixResult` computation. No post-round summary. |
+
+**Label-only stubs (10):**
+
+`match_play`, `modified_stableford`, `scramble`, `alternate_shot`, `shamble`, `chapman`, `fourball`, `greensomes`, `pinehurst`, `wolf`-as-format-key.
+
+Selecting any of these changes only the chip label in the setup screen and the format string in the scoring screen header. The in-round path is identical to stroke play. No setup modal, no special scoring, no post-round summary. The newer engines for several of these (`calculateNetMatchPlay`, `calculateNetBestBall`, scramble validator, chapman engine) exist with tests but are not invoked anywhere on the live path.
+
+### Side games (17 declared)
+
+**Fully real (7):** detection + sticky bar + post-round result.
+
+| Side game | Detection | Post-round result |
+|---|---|---|
+| `nassau` | auto in finalize | `buildNassauResult` |
+| `skins` | auto in finalize | `buildSkinsResult` |
+| `wolf` | modal-driven per hole (auto-opens on hole change); decisions captured to `wolfHoleDecisions`; serialized to round as `wolf_data` | `buildWolfResult` via `computeWolfPoints` |
+| `bingo_bango_bongo` | auto (GIR/score) + semi-auto Bango prompt | `buildBBBResult` |
+| `dots` | auto (birdie / one-putt / three-putt) | `buildDotsResult` |
+| `snake` | auto (3-putt) | `buildSnakeResult` |
+| `greenies` | semi-auto on par-3 | `buildGreeniesResult` |
+
+**Half-real (7):** UI/prompts work mid-round, post-round falls through to `buildGenericResult` → `"Results tracked — detailed scoring coming soon"`.
+
+| Side game | What works | What's theater |
+|---|---|---|
+| `sandies` | Semi-auto prompt fires via `isSave` (false-positive prone: no tag check, fires on any par-save without GIR) | Post-round result |
+| `bark` | Semi-auto prompt via `isSave && !isFir` (false-negative prone: requires `isFir` recorded false, not undefined) | Post-round result |
+| `arnies` | Semi-auto prompt via `gross <= par && !isFir && !isGir` | Post-round result |
+| `close_shave` (KP) | Manual prompt on par-3 / GIR — `ManualInputModal` captures distance | Post-round result |
+| `poleys` | Manual prompt on one-putt — `ManualInputModal` captures distance (overlapping with `PuttDistModal`'s bucket — the double putt-distance capture bug) | Post-round result |
+| `hammer` | Full live UI: modal opens, multiplier badge climbs 2x→4x→8x, accept/decline writes to `hammerResults` Map | Post-round result AND **no `hammer_data` persisted to round row** (unlike Wolf) |
+| `three_putt_poker` | Live ticker: pot grows, cards dealt as players 3-putt, worst-putter chip-holder tracked | Post-round result (most theatrical gap — the user watches an entire poker hand build over 18 holes, then nothing surfaces) |
+
+**Pure stubs (3):** selectable, label-only.
+
+| Side game | What exists |
+|---|---|
+| `trash` | Sticky-bar label only. No detection, no result, nothing in `useScoringState`. |
+| `hogans` | Sticky-bar label only. |
+| `murphys` | Sticky-bar label only. |
+
+### Cross-cutting reality facts
+
+- **Only Nassau and Skins move money.** Both auto-settle to the `wagers` / `ledger_entries` / `settlements` ledger via `useScoringState.ts:763–808` with hardcoded amounts (Nassau $5/segment, Skins $2/skin). Every other "fully real" side game (Wolf, BBB, Dots, Snake, Greenies) produces a visible point/result line in post-round but writes zero to the ledger. The wizard's structured `perGameStakes` config is captured in `WizardContext` but read by no downstream code.
+- **~15 engines exist with tests but aren't wired to the live path or PostRoundSummary.** Post-audit commits added comprehensive engines + tests for `calculateNetMatchPlay`, `calculateNetBestBall`, scramble + validator, chapman + total, sandies / barkies / arnies / hogans / murphys / poleys / trash counter engines, 3-Putt Poker round engine, team-handicap rules engine. None are invoked from `useScoringState` or `PostRoundSummary`. The audit-era state from `b021894` is largely unchanged in this regard except for Stableford (`calculateNetStablefordTotal` is the one engine that did get wired post-audit).
+- **Format detection is brittle string-match on `formatLabel.toLowerCase()`.** Not the format-key (`'best_ball'`). Renaming a format label in `SCORING_FORMATS` would silently break in-round detection for Best Ball / Low/High / 6-6-6 / Stableford. No format-key-based switch exists anywhere on the live path; `params.format` is treated as a pure display string by `useScoringState`.
+
+### Design / product principles this implies
+
+**1. Don't surface selectable UI for zero-wiring features.** The 3 pure stub side games (`trash`, `hogans`, `murphys`) and the 10 label-only format stubs are selectable today and produce no in-round signal. A user picking "Murphys" then playing 18 holes gets nothing — no toast, no banner, no post-round line. Either hide these from the pick list until implemented, or label them "coming soon" at the selection point (with the selection disabled or warned-on) so the user can't pick a phantom feature and feel cheated at round end.
+
+**2. The Hammer / 3-Putt-Poker "theater gap" needs a product decision.** Both have unusually rich live in-round UX (Hammer modal + multiplier badge; Poker ticker + pot + cards) that builds tension across the round, and then nothing surfaces post-round. Two options, both legitimate; pick deliberately:
+   - **(a) Build the engines + post-round renderers + persistence** so the live drama produces a real artifact (and ideally a ledger entry). This is the "make the promise true" path. Estimated effort: ~3hr for Hammer engine + post-round (the `hammerResults` Map already exists; just needs a `computeHammerPoints` + `buildHammerResult` + `hammer_data` save field), ~2hr for 3-Putt Poker post-round (the engine already exists in `src/scoring/threePuttPoker.ts` from `c4a86d4`; just needs wiring into PostRoundSummary).
+   - **(b) Be honest that these are in-round-only experiences** — remove or rebrand the "coming soon" tail so the round end doesn't promise a result that isn't there. Cheaper, but harder for users to value the side game.
+
+Either decision is fine. What's not fine is the current state where the live UI implicitly promises a post-round payoff that the code doesn't deliver.
+
+---
+
 ## Engineering architecture (the target the rework builds)
 
 ### The inline per-player input grid
