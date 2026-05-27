@@ -126,6 +126,28 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
 ## Active Compost
 
+- 2026-05-26 — MATCH PLAY — IN PROGRESS (Stages 1–3a done, Stage 3b planned, two open issues)
+
+  DURING-ROUND match play works end-to-end. Setup takes user choices, engine computes match state on every entered hole, live banner displays current status. Verified on device. **DONE + committed:**
+  - Stage 1 — `formatMatchState` engine + singles wiring (Layer A `deriveSinglesSideScore` + Layer B aggregation), committed `f4fb474`.
+  - DormieMoment × PuttDistModal modal-collision freeze fix (extends `66f5dd3` suspended-gate to a pair it didn't cover), committed `7ccf36e`.
+  - Stage 2 — setup plumbing: `matchSides`, `matchScoreMode`, `matchPerspective` state + placeholder setup modal (UX deliberately thin — design pass owns it), committed `3fa3693`.
+  - Stage 3a — live match-status banner on the scoring screen (`MatchPlayBanner` peer-card chrome, Georgia serif 17pt, perspective-first framing "You 2 UP thru 9" / "AS thru 12" / "DORMIE" in gold), committed `6fc23b4`.
+
+  **NOT BUILT YET — Stage 3b (post-round match result).** Phase 1 investigation complete (plan ready). NO code written. Plan:
+  - Thread `matchSides` + `matchPerspective` as optional props into PostRoundSummary (currently they only live in `useScoringState`; without threading, post-round would silently drop any user override from the setup modal).
+  - Add `isMatchPlay` branch in PostRoundSummary mirroring the `isStableford` template at `PostRoundSummary.tsx:786` (data useMemo) + L838 (ternary in FINAL STANDINGS render).
+  - **CLINCH-MARGIN FIX is required, not optional.** Engine's `finalDisplay` is computed from CURRENT totals — drifts if user keeps entering scores past clinch. Worked example: match clinched 3&2 on hole 16, user enters 17+18 with trailer winning both → engine emits "1 UP" (doubly wrong: was actually 3&2). Fix shape: local post-round helper in PostRoundSummary that iterates holes 1→N in order, finds the first hole where `lead > holesRemaining`, freezes margin + remaining there. Falls back to engine's `finalDisplay` if no clinch hole found (went the distance or halved). **Do not touch the engine** — bug is post-round-display-only; live banner uses `currentDisplay` correctly.
+  - ADD tests for the "clinched on 16, played through 18" case — existing MPF.8/MPF.11/MPF.12 tests cover `holesPlayed === clinch hole` but not "user kept entering past clinch." This is the gap that let the drift slip through Stage 1 verification.
+
+  **Stage 4 (team match — 2v2 best ball / aggregate / alt shot via the same Layer-B engine with multi-player sides) + Phase 2 (consolidate the 4 parallel match-status implementations: `calculateMatchPlay`, `evaluateMatch`, `RyderCupHub.computeMatchStatus`, inline matchupOpponent code) still deferred** per risk-inverted sequence in `docs/matchplay-architecture.md` — consolidation lands LAST against the proven engine.
+
+  **TWO OPEN ISSUES found on device 2026-05-26 — need attention before match play is "done":**
+
+  1. **Post-round result rendering disconnect.** Match-play post-round shows only the default stroke-play standings + scorecard tab grid (expected — Stage 3b not built). Separately, the Stableford post-round branch IS already written (+121/-40 sitting in `src/components/scoring/PostRoundSummary.tsx` working tree, pending across the session) but UNCOMMITTED — so it isn't in any production build, and if dev mode is being used the strict-equality check `formatLabel === 'Stableford'` may still miss (e.g., "Modified Stableford"). Next session: (a) confirm build mode, (b) read the post-round header text on device — it echoes `formatLabel` verbatim at PostRoundSummary.tsx:833, that one text element diagnoses whether strict equality is failing, (c) decide commit-pending vs. build-Stage-3b ordering.
+
+  2. **LIKELY BUG — match-closed celebration firing on a Stableford round (unverified).** Observed on device today: a "match closed — you 6&5" celebration fired during a STABLEFORD round at hole 14. `checkDormieMoments` appears to run regardless of format. The match-closed / dormie celebration should be gated to `isMatchPlay` only. Needs its own look — check where `checkDormieMoments` is called from `useScoringState` and whether the match-close branch has any format gate, then add `isMatchPlay` precondition. Low effort fix once located.
+
 - 2026-05-23 — GLOBAL ONE-MODAL-AT-A-TIME COORDINATOR (deferred — Option C from the score-entry freeze fix)
 
   Tonight's fix (handleNext / handlePuttDistSelect serialization in useScoringState.ts) handles the known PuttDistModal-vs-ManualInputModal collision that caused the hole-12 freeze. It's surgical and localized. The general problem — React Native does not reliably stack native modals, so ANY two `<Modal>` components trying to be visible simultaneously can produce a stuck modal that swallows touches — is still present for any other auto-opening modal pair on the scoring screen (8 modals total: WolfModal, HammerModal, PuttDistModal, BestBallSetupModal, LowHighSetupModal, SixSixSixSetupModal, HoleNotesModal, plus the side-game ManualInputModal). The real long-term fix is a small `useModalCoordinator()` hook with `requestPresent(id) / dismiss(id)` and a single in-flight modal id; every Modal in the app subscribes. Refactor across all 8 modal sites — too big for a freeze hotfix, defer.
