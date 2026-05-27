@@ -523,7 +523,16 @@ function ScoringScreenInner() {
       </Modal>
 
       <PuttDistModal
-        visible={s.puttDistPrompt.show}
+        // Defer PuttDistModal while a DormieMoment celebration is up. Both
+        // are native <Modal> components; RN doesn't stack them reliably and
+        // the result is a zombie modal that eats touches. PuttDist state
+        // (puttDistPrompt.show) stays intact — only its presentation is
+        // gated. When DormieMoment is dismissed, this prop recomputes true
+        // and the putt prompt presents normally. Same gating pattern as the
+        // SideGameToast suspended gate. Closes the freeze surfaced at
+        // dormie/match-closed state when a one-putt is entered on the
+        // trigger hole.
+        visible={s.puttDistPrompt.show && !s.dormieMoment.visible}
         playerName={(() => {
           const playersWithPutts = s.players.filter((p) => { const sc = s.getPlayerScore(p.id); return sc.putts > 0; });
           const cp = playersWithPutts[s.puttDistPrompt.playerIdx];
@@ -651,7 +660,13 @@ function ScoringScreenInner() {
             (s.showBestBallSetup && s.isBestBall) ||
             (s.showLowHighSetup && s.isLowHigh) ||
             (s.showSixSetup && s.isSixSixSix) ||
-            s.showNoteModal
+            s.showNoteModal ||
+            // DormieMoment is a full-screen <Modal> celebration that can fire
+            // mid-handleNext when checkDormieMoments / BBB_TRIPLE_CROWN /
+            // CLEAN_SWEEP / other moment triggers detect their state. Without
+            // this guard, ManualInputModal would race it and produce a
+            // zombie-modal freeze. Same collision class as 66f5dd3.
+            s.dormieMoment.visible
           }
           onConfirm={(eventId, value) => {
             const ev = s.sideGameToastEvents.find((e) => e.id === eventId);
