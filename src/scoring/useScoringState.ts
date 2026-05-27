@@ -188,6 +188,29 @@ export function useScoringState() {
   // by Best Ball / Low-High / 6-6-6 below: string-match on the format label.
   const isMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
 
+  // Stage 2 — Match play setup state. Side model is MatchSide { playerIds: string[] }
+  // per the architecture; Stage 4 extends it to multi-player team sides. For 1v1, each
+  // side has exactly one player. matchScoreMode + matchPerspective are user-overridable
+  // in the placeholder setup modal — they replace the Stage-1 hardcoded reads (raw
+  // URL scoreMode + perspective 'A') inside the matchPlayState useMemo below.
+  const [matchSides, setMatchSides] = useState<{
+    sideA: { playerIds: string[] };
+    sideB: { playerIds: string[] };
+  }>(() => ({
+    sideA: { playerIds: players[0] ? [players[0].id] : [] },
+    sideB: { playerIds: players[1] ? [players[1].id] : [] },
+  }));
+  const [matchScoreMode, setMatchScoreMode] = useState<'gross' | 'net'>(
+    scoreMode === 'net' ? 'net' : 'gross',
+  );
+  // Default perspective: whichever side contains the user (id '1'); fall back to A.
+  const [matchPerspective, setMatchPerspective] = useState<'A' | 'B'>(() => {
+    if (players[0]?.id === '1') return 'A';
+    if (players[1]?.id === '1') return 'B';
+    return 'A';
+  });
+  const [showMatchPlaySetup, setShowMatchPlaySetup] = useState(isMatchPlay);
+
   // Feature 4: Best Ball 2v2
   const isBestBall = formatLabel.toLowerCase().includes('best ball') && players.length === 4;
   const [bestBallTeams, setBestBallTeams] = useState<{ team1: string[]; team2: string[] }>({
@@ -933,16 +956,17 @@ export function useScoringState() {
     }
   }, [user, holes, allScores, scoreMode, handicapStrokes, courseId, courseName, courseSlope, courseRating, coursePar, tripId, linkedSeasons, router, showToast]);
 
-  // Match Play 1v1 live state (Stage 1). When the round is Match Play with
-  // exactly 2 players, derive each player's per-hole side score (gross or net
-  // per scoreMode) and aggregate via formatMatchState. Returns null when not
-  // applicable so consumers can early-out. Perspective fixed to 'A' (player[0],
-  // typically "You" on the regular scoring path) — Stage 2 adds the setup
-  // modal that lets the user pick sides explicitly.
+  // Match Play 1v1 live state (Stage 1 + Stage 2 wiring). When the round is
+  // Match Play with exactly 2 players, resolve each side's player from
+  // matchSides, derive each side's per-hole score (gross or net per the
+  // user's matchScoreMode choice), and aggregate via formatMatchState.
+  // Perspective comes from the user's matchPerspective choice (defaults to
+  // whichever side contains the user). Returns null when not applicable so
+  // consumers can early-out.
   const matchPlayState = useMemo<MatchPlayState | null>(() => {
     if (!isMatchPlay) return null;
-    const playerA = players[0];
-    const playerB = players[1];
+    const playerA = players.find((p) => p.id === matchSides.sideA.playerIds[0]);
+    const playerB = players.find((p) => p.id === matchSides.sideB.playerIds[0]);
     if (!playerA || !playerB) return null;
 
     let holesWonA = 0;
@@ -956,10 +980,10 @@ export function useScoringState() {
       const grossB = holeScores.get(playerB.id)?.gross;
       if (grossA === undefined || grossB === undefined) return;
 
-      const strokesA = scoreMode === 'net'
+      const strokesA = matchScoreMode === 'net'
         ? (handicapStrokes.get(playerA.id)?.get(h.number) ?? 0)
         : 0;
-      const strokesB = scoreMode === 'net'
+      const strokesB = matchScoreMode === 'net'
         ? (handicapStrokes.get(playerB.id)?.get(h.number) ?? 0)
         : 0;
 
@@ -973,8 +997,8 @@ export function useScoringState() {
       // halved: neither counter increments; holesPlayed still does.
     });
 
-    return formatMatchState(holesWonA, holesWonB, holesPlayed, holes.length, 'A');
-  }, [isMatchPlay, players, allScores, scoreMode, handicapStrokes, holes]);
+    return formatMatchState(holesWonA, holesWonB, holesPlayed, holes.length, matchPerspective);
+  }, [isMatchPlay, players, matchSides, matchScoreMode, matchPerspective, allScores, handicapStrokes, holes]);
 
   // Feature 4: Best Ball team scores
   const bestBallTeamScores = useMemo(() => {
@@ -1307,9 +1331,17 @@ export function useScoringState() {
     puttDist,
     setPuttDist,
 
-    // Match Play 1v1 (Stage 1 — singles)
+    // Match Play 1v1 (Stage 1 — singles + Stage 2 — placeholder setup)
     isMatchPlay,
     matchPlayState,
+    matchSides,
+    setMatchSides,
+    matchScoreMode,
+    setMatchScoreMode,
+    matchPerspective,
+    setMatchPerspective,
+    showMatchPlaySetup,
+    setShowMatchPlaySetup,
 
     // Best Ball
     isBestBall,

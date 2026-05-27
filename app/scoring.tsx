@@ -52,6 +52,7 @@ import {
   LiveLeaderboard,
   LowHighSetupModal,
   SixSixSixSetupModal,
+  MatchPlaySetupModal,
 } from '../src/components/scoring/ScoringModals';
 import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
 import { SixSixSixBanner, SixSixSixSegmentTransition } from '../src/components/scoring/SixSixSixBanner';
@@ -542,6 +543,17 @@ function ScoringScreenInner() {
         onSelect={s.handlePuttDistSelect}
       />
 
+      <MatchPlaySetupModal
+        visible={s.showMatchPlaySetup && s.isMatchPlay}
+        players={s.players}
+        sides={s.matchSides}
+        scoreMode={s.matchScoreMode}
+        perspective={s.matchPerspective}
+        onSetScoreMode={s.setMatchScoreMode}
+        onSetPerspective={s.setMatchPerspective}
+        onStart={() => s.setShowMatchPlaySetup(false)}
+      />
+
       <BestBallSetupModal
         visible={s.showBestBallSetup && s.isBestBall}
         players={s.players}
@@ -660,6 +672,7 @@ function ScoringScreenInner() {
             (s.showBestBallSetup && s.isBestBall) ||
             (s.showLowHighSetup && s.isLowHigh) ||
             (s.showSixSetup && s.isSixSixSix) ||
+            (s.showMatchPlaySetup && s.isMatchPlay) ||
             s.showNoteModal ||
             // DormieMoment is a full-screen <Modal> celebration that can fire
             // mid-handleNext when checkDormieMoments / BBB_TRIPLE_CROWN /

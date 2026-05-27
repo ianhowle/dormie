@@ -330,6 +330,139 @@ export function BestBallSetupModal({
   );
 }
 
+// ─── Match Play Setup Modal (Stage 2 — placeholder UX) ────────────
+//
+// Placeholder UX — setup experience to be designed (see Design open question).
+// Stage 2 builds the minimal functional plumbing so 1v1 match play works
+// end-to-end and is testable; the user-facing experience (layout, copy,
+// allowance UI, perspective wording, single-tap-to-start defaults vs
+// affordances) is for Design to reshape. Do not polish this surface —
+// it ships with smart defaults so a single Start tap works.
+//
+// Scope: 1v1 / 2-player only. The two columns are static (the BestBall
+// "tap to move" guard degenerates with one player per side — Stage 4
+// extends to team sizes ≥ 1 per side). Choices that DO matter for 1v1:
+//   - Gross/Net (defaults from round-level scoreMode)
+//   - Perspective: which side is "you" (drives UP/DOWN in the banner)
+// Allowance is deferred per docs/matchplay-architecture.md (default 100%).
+export function MatchPlaySetupModal({
+  visible,
+  players,
+  sides,
+  scoreMode,
+  perspective,
+  onSetScoreMode,
+  onSetPerspective,
+  onStart,
+}: {
+  visible: boolean;
+  players: PlayerConfig[];
+  sides: { sideA: { playerIds: string[] }; sideB: { playerIds: string[] } };
+  scoreMode: 'gross' | 'net';
+  perspective: 'A' | 'B';
+  onSetScoreMode: (mode: 'gross' | 'net') => void;
+  onSetPerspective: (p: 'A' | 'B') => void;
+  onStart: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const playerForSide = (sideIds: string[]) => players.find((p) => p.id === sideIds[0]);
+  const pA = playerForSide(sides.sideA.playerIds);
+  const pB = playerForSide(sides.sideB.playerIds);
+  const sideLabel = (p: PlayerConfig | undefined) =>
+    p ? (p.id === '1' ? 'You' : p.name) : '—';
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={st.modalOverlay}>
+        <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.teal, width: '90%' }]}>
+          <Text style={[st.modalTitle, { color: c.teal, fontFamily: GEO }]}>MATCH PLAY</Text>
+          <Text style={[st.modalText, { color: c.textMuted }]}>1v1 singles</Text>
+
+          {/* Static side columns (2-player case — no move interaction) */}
+          <View style={st.bestBallSetupRow}>
+            <View style={st.bestBallColumn}>
+              <Text style={[st.bestBallColumnTitle, { color: c.teal }]}>Side A</Text>
+              {pA && (
+                <View style={[st.bestBallPlayerChip, { backgroundColor: `${c.teal}20`, borderColor: c.teal }]}>
+                  <Avatar id={pA.id} size={22} name={pA.name} />
+                  <Text style={[st.bestBallPlayerName, { color: c.text }]}>{sideLabel(pA)}</Text>
+                </View>
+              )}
+            </View>
+            <View style={st.bestBallColumn}>
+              <Text style={[st.bestBallColumnTitle, { color: c.gold }]}>Side B</Text>
+              {pB && (
+                <View style={[st.bestBallPlayerChip, { backgroundColor: `${c.gold}20`, borderColor: c.gold }]}>
+                  <Avatar id={pB.id} size={22} name={pB.name} />
+                  <Text style={[st.bestBallPlayerName, { color: c.text }]}>{sideLabel(pB)}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Gross / Net toggle (placeholder pills) */}
+          <Text style={[st.modalText, { color: c.textMuted, marginTop: 12 }]}>Scoring</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            {(['gross', 'net'] as const).map((mode) => {
+              const active = scoreMode === mode;
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => onSetScoreMode(mode)}
+                  style={[
+                    st.bestBallPlayerChip,
+                    {
+                      backgroundColor: active ? `${c.teal}20` : c.elevated,
+                      borderColor: active ? c.teal : c.border,
+                    },
+                  ]}
+                >
+                  <Text style={[st.bestBallPlayerName, { color: active ? c.teal : c.textMuted }]}>
+                    {mode === 'gross' ? 'Gross' : 'Net'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Perspective toggle (placeholder pills) */}
+          <Text style={[st.modalText, { color: c.textMuted, marginTop: 12 }]}>Your side</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            {(['A', 'B'] as const).map((side) => {
+              const active = perspective === side;
+              const sideP = side === 'A' ? pA : pB;
+              return (
+                <Pressable
+                  key={side}
+                  onPress={() => onSetPerspective(side)}
+                  style={[
+                    st.bestBallPlayerChip,
+                    {
+                      backgroundColor: active ? `${c.teal}20` : c.elevated,
+                      borderColor: active ? c.teal : c.border,
+                    },
+                  ]}
+                >
+                  <Text style={[st.bestBallPlayerName, { color: active ? c.teal : c.textMuted }]}>
+                    Side {side} ({sideLabel(sideP)})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Pressable
+            onPress={onStart}
+            style={[st.modalBtn, { backgroundColor: c.teal, marginTop: 16, alignSelf: 'center' }]}
+          >
+            <Text style={st.modalBtnText}>Start Match</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Hole Notes Modal ───────────────────────────────────────────────
 export function HoleNotesModal({
   visible,
