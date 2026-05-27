@@ -56,6 +56,7 @@ import {
 } from '../src/components/scoring/ScoringModals';
 import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
 import { SixSixSixBanner, SixSixSixSegmentTransition } from '../src/components/scoring/SixSixSixBanner';
+import { MatchPlayBanner } from '../src/components/scoring/MatchPlayBanner';
 import { ThreePuttPokerTicker } from '../src/components/scoring/ThreePuttPokerTicker';
 
 function HoleResultBanner({ players, holeScores, holePar }: { players: PlayerConfig[]; holeScores: Map<string, HoleScore>; holePar: number }) {
@@ -217,6 +218,16 @@ function ScoringScreenInner() {
         </Pressable>
         <GoldDivider />
         </>
+      )}
+
+      {/* Match Play banner — Stage 3a — live status, first slot */}
+      {s.isMatchPlay && s.matchPlayState && !s.showMatchPlaySetup && (
+        <MatchPlayBanner
+          state={s.matchPlayState}
+          perspective={s.matchPerspective}
+          sides={s.matchSides}
+          players={s.players}
+        />
       )}
 
       {/* Wolf banner */}
