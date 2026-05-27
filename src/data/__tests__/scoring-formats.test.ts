@@ -22,6 +22,8 @@ import {
   calculateBestNHoles,
   calculateMatchPlay,
   calculateNetMatchPlay,
+  formatMatchState,
+  deriveSinglesSideScore,
   calculateBestBall,
   calculateNetBestBall,
   calculateScrambleTeamScore,
@@ -2156,6 +2158,114 @@ describe('TEAM-HANDICAP — format resolver + throw semantics', () => {
     const ok = threw && msg.includes('mismatch');
     record('TH.16', 'weights/handicaps length mismatch', 'throws', threw ? `threw: ${msg}` : 'did NOT throw', ok);
     expect(ok).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// MATCH PLAY FAMILY — formatMatchState (Layer B engine, Stage 1)
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('MATCH PLAY — formatMatchState (mid-round states)', () => {
+  it('MPF.1: 0 holes played → AS (no thru suffix)', () => {
+    const r = formatMatchState(0, 0, 0, 18);
+    record('MPF.1', 'fresh round: AS, currentDisplay "AS"', '"AS"/"AS"', `${r.status}/${r.currentDisplay}`, r.status === 'AS' && r.currentDisplay === 'AS' && r.isComplete === false);
+  });
+
+  it('MPF.2: A wins hole 1, 1 UP thru 1', () => {
+    const r = formatMatchState(1, 0, 1, 18);
+    record('MPF.2', 'A wins hole 1', '"UP"/"1 UP thru 1"', `${r.status}/${r.currentDisplay}`, r.status === 'UP' && r.currentDisplay === '1 UP thru 1' && r.leader === 'A' && r.lead === 1);
+  });
+
+  it('MPF.3: 2 wins for A, 1 for B, 1 halve, 4 played → 1 UP thru 4', () => {
+    const r = formatMatchState(2, 1, 4, 18);
+    record('MPF.3', '2-1-1 partial', '"UP"/"1 UP thru 4"', `${r.status}/${r.currentDisplay}`, r.status === 'UP' && r.currentDisplay === '1 UP thru 4' && r.lead === 1);
+  });
+
+  it('MPF.4: perspective=B with A leading → 1 DOWN thru 4', () => {
+    const r = formatMatchState(2, 1, 4, 18, 'B');
+    record('MPF.4', 'B perspective, A leads', '"DOWN"/"1 DOWN thru 4"', `${r.status}/${r.currentDisplay}`, r.status === 'DOWN' && r.currentDisplay === '1 DOWN thru 4' && r.leader === 'A');
+  });
+
+  it('MPF.5: All Square mid-round → AS thru N', () => {
+    const r = formatMatchState(3, 3, 7, 18);
+    record('MPF.5', 'tied mid-round', '"AS"/"AS thru 7"', `${r.status}/${r.currentDisplay}`, r.status === 'AS' && r.currentDisplay === 'AS thru 7' && r.leader === null && r.lead === 0);
+  });
+
+  it('MPF.6: DORMIE (lead === holesRemaining > 0)', () => {
+    // 14 holes played, 4 remaining; A up by 4 → DORMIE
+    const r = formatMatchState(7, 3, 14, 18);
+    record('MPF.6', 'DORMIE: lead==remaining==4', '"DORMIE"/"DORMIE"', `${r.status}/${r.currentDisplay}`, r.status === 'DORMIE' && r.currentDisplay === 'DORMIE' && r.isComplete === false);
+  });
+
+  it('MPF.7: DORMIE perspective=B → still DORMIE (no DOWN-flavored DORMIE in Stage 1)', () => {
+    const r = formatMatchState(7, 3, 14, 18, 'B');
+    record('MPF.7', 'DORMIE from trailing perspective', '"DORMIE"/"DORMIE"', `${r.status}/${r.currentDisplay}`, r.status === 'DORMIE' && r.currentDisplay === 'DORMIE');
+  });
+
+  it('MPF.8: lead > remaining at hole 14 → CLINCHED 5&4', () => {
+    // 14 played, 4 remaining, A wins 9 / B wins 4 / halved 1 → A up 5, but lead > remaining
+    const r = formatMatchState(9, 4, 14, 18);
+    record('MPF.8', 'clinched mid-round 5&4', '"CLINCHED"/"5&4"', `${r.status}/${r.finalDisplay}`, r.status === 'CLINCHED' && r.finalDisplay === '5&4' && r.isComplete === true);
+  });
+});
+
+describe('MATCH PLAY — formatMatchState (end-of-match states)', () => {
+  it('MPF.9: All 18 played, halved → FINAL HALVED', () => {
+    const r = formatMatchState(7, 7, 18, 18);
+    record('MPF.9', 'all-played, even', '"FINAL"/"HALVED"', `${r.status}/${r.finalDisplay}`, r.status === 'FINAL' && r.finalDisplay === 'HALVED' && r.isComplete === true);
+  });
+
+  it('MPF.10: Won on the final hole 1 UP', () => {
+    const r = formatMatchState(8, 7, 18, 18);
+    record('MPF.10', 'all-played, 1 UP on 18', '"FINAL"/"1 UP"', `${r.status}/${r.finalDisplay}`, r.status === 'FINAL' && r.finalDisplay === '1 UP' && r.lead === 1);
+  });
+
+  it('MPF.11: Clinched 2&1 (17 played, lead 2)', () => {
+    const r = formatMatchState(8, 6, 17, 18);
+    record('MPF.11', 'clinched 2&1 on 17', '"CLINCHED"/"2&1"', `${r.status}/${r.finalDisplay}`, r.status === 'CLINCHED' && r.finalDisplay === '2&1');
+  });
+
+  it('MPF.12: Clinched 6&5 (13 played, lead 6)', () => {
+    const r = formatMatchState(9, 3, 13, 18);
+    record('MPF.12', 'big lead clinched early', '"CLINCHED"/"6&5"', `${r.status}/${r.finalDisplay}`, r.status === 'CLINCHED' && r.finalDisplay === '6&5');
+  });
+
+  it('MPF.13: 9-hole match — completes at totalHoles=9', () => {
+    const r = formatMatchState(5, 3, 9, 9);
+    record('MPF.13', '9-hole match final', '"FINAL"/"2 UP"', `${r.status}/${r.finalDisplay}`, r.status === 'FINAL' && r.finalDisplay === '2 UP' && r.isComplete === true);
+  });
+});
+
+describe('MATCH PLAY — formatMatchState edge cases', () => {
+  it('MPF.14: leader correctness for tied state', () => {
+    const r = formatMatchState(5, 5, 10, 18);
+    record('MPF.14', 'tied → leader null', 'null', String(r.leader), r.leader === null);
+  });
+
+  it('MPF.15: holesPlayed > totalHoles defensive (treats as complete)', () => {
+    // shouldn't happen in practice but engine should not throw
+    const r = formatMatchState(10, 8, 18, 18);
+    record('MPF.15', 'all-played edge', '"FINAL"/"2 UP"', `${r.status}/${r.finalDisplay}`, r.status === 'FINAL' && r.finalDisplay === '2 UP');
+  });
+
+  it('MPF.16: deriveSinglesSideScore — gross', () => {
+    const v = deriveSinglesSideScore(4, 0);
+    record('MPF.16', 'gross 4, 0 strokes', '4', String(v), v === 4);
+  });
+
+  it('MPF.17: deriveSinglesSideScore — net (1 stroke off gross 5)', () => {
+    const v = deriveSinglesSideScore(5, 1);
+    record('MPF.17', 'gross 5 minus 1 stroke', '4', String(v), v === 4);
+  });
+
+  it('MPF.18: deriveSinglesSideScore — undefined gross → null', () => {
+    const v = deriveSinglesSideScore(undefined, 0);
+    record('MPF.18', 'no entry yet → null', 'null', String(v), v === null);
+  });
+
+  it('MPF.19: deriveSinglesSideScore — default strokes 0 (gross path)', () => {
+    const v = deriveSinglesSideScore(6);
+    record('MPF.19', 'omitted strokes', '6', String(v), v === 6);
   });
 });
 

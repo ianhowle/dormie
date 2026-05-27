@@ -794,6 +794,141 @@ export function calculateNetMatchPlay(
   return calculateMatchPlay(netA, netB);
 }
 
+// ─── Match Play family — Layer B (status formatting) ─────────────────
+// Shared formatter consumed by the whole match-play family (singles,
+// best-ball-match, alt-shot-match, Ryder Cup matches). Pure: takes
+// pre-aggregated totals, returns the match state. Format-agnostic.
+//
+// See docs/matchplay-architecture.md for the full design. Stage 1 wires
+// this for 1v1 singles only; team formats and Ryder Cup migration land
+// in later stages against this same engine.
+
+export type MatchPlayStatus = 'FINAL' | 'CLINCHED' | 'DORMIE' | 'AS' | 'UP' | 'DOWN';
+
+export type MatchPlayState = {
+  status: MatchPlayStatus;
+  lead: number;
+  leader: 'A' | 'B' | null;
+  isComplete: boolean;
+  /** Mid-round "keep computing" form. Examples:
+   *   "2 UP thru 9", "AS thru 12", "DORMIE", "3 DOWN thru 5" (with perspective). */
+  currentDisplay: string;
+  /** End-of-match "ended-on-hole-N" form. Examples:
+   *   "2&1", "1 UP", "HALVED". */
+  finalDisplay: string;
+};
+
+/**
+ * Format match-play state from pre-aggregated per-side hole counts.
+ *
+ * This is the Layer-B engine: it does not look at scores. The caller
+ * (Layer A) decides how to derive per-hole side scores for the match
+ * format being played (singles = player's score; best-ball = min of
+ * side's players; aggregate = sum; alt-shot = single team entry), then
+ * counts holes won per side, and passes the totals here.
+ *
+ * @param holesWonA      Holes won by side A so far.
+ * @param holesWonB      Holes won by side B so far.
+ * @param holesPlayed    Total holes both sides have entered scores for.
+ *                       (Halved holes count toward holesPlayed but neither
+ *                       wonA nor wonB.)
+ * @param totalHoles     Total holes in the round (typically 18, or 9 for
+ *                       a 9-hole match, or holes.length for partial ranges).
+ * @param perspective    Optional side identifier for DOWN-formatting in
+ *                       currentDisplay. When the perspective side is
+ *                       trailing, currentDisplay reads "X DOWN" instead
+ *                       of "X UP". finalDisplay is perspective-neutral.
+ *
+ * DORMIE emits only when `lead === holesRemaining && holesRemaining > 0`
+ * — the trailing side cannot win, only halve. Distinct from CLINCHED
+ * (`lead > holesRemaining` — match decided).
+ */
+export function formatMatchState(
+  holesWonA: number,
+  holesWonB: number,
+  holesPlayed: number,
+  totalHoles: number,
+  perspective?: 'A' | 'B',
+): MatchPlayState {
+  const lead = Math.abs(holesWonA - holesWonB);
+  const leader: 'A' | 'B' | null =
+    holesWonA > holesWonB ? 'A'
+      : holesWonB > holesWonA ? 'B'
+      : null;
+  const holesRemaining = Math.max(0, totalHoles - holesPlayed);
+
+  // Match is complete if all holes played OR lead exceeds holes remaining.
+  // The `holesPlayed > 0` guard prevents claiming a brand-new round (0/18,
+  // lead 0, remaining 18) is somehow complete.
+  const isComplete =
+    holesPlayed >= totalHoles
+    || (lead > holesRemaining && holesPlayed > 0);
+
+  // ─── status ──────────────────────────────────────────────────────
+  let status: MatchPlayStatus;
+  if (isComplete) {
+    status = holesPlayed >= totalHoles ? 'FINAL' : 'CLINCHED';
+  } else if (lead === 0) {
+    status = 'AS';
+  } else if (lead === holesRemaining) {
+    // lead > 0 by virtue of the lead===0 branch above; lead === holesRemaining
+    // with lead > 0 is DORMIE.
+    status = 'DORMIE';
+  } else {
+    // Mid-round, someone leads, not dormie. Perspective drives UP vs DOWN.
+    status = perspective && perspective !== leader ? 'DOWN' : 'UP';
+  }
+
+  // ─── currentDisplay (mid-round / live banner form) ───────────────
+  let currentDisplay: string;
+  if (lead === 0) {
+    currentDisplay = holesPlayed > 0 ? `AS thru ${holesPlayed}` : 'AS';
+  } else if (status === 'DORMIE') {
+    currentDisplay = 'DORMIE';
+  } else if (perspective && perspective !== leader) {
+    currentDisplay = `${lead} DOWN thru ${holesPlayed}`;
+  } else {
+    currentDisplay = `${lead} UP thru ${holesPlayed}`;
+  }
+
+  // ─── finalDisplay (end-of-match / post-round form) ───────────────
+  let finalDisplay: string;
+  if (lead === 0) {
+    finalDisplay = 'HALVED';
+  } else if (holesRemaining === 0) {
+    // Won on the final hole (lead === 1 and last hole was decisive,
+    // or any lead with holesPlayed === totalHoles).
+    finalDisplay = `${lead} UP`;
+  } else {
+    // Clinched early: "X&M" where M is holes remaining.
+    finalDisplay = `${lead}&${holesRemaining}`;
+  }
+
+  return { status, lead, leader, isComplete, currentDisplay, finalDisplay };
+}
+
+// ─── Match Play family — Layer A (per-hole side-score derivation) ────
+// Format-specific. Stage 1 implements singles; best-ball / aggregate /
+// alt-shot variants slot in beside this in Stage 4.
+
+/**
+ * Derive a 1v1-singles side's score for one hole.
+ *
+ * Gross: caller passes 0 (or omits) for `handicapStrokesForHole`.
+ * Net:   caller passes the player's per-hole strokes from the live
+ *        scoring path's `handicapStrokes: Map<playerId, Map<hole, strokes>>`.
+ *
+ * Returns null when the player has not entered a gross score for the hole,
+ * letting the caller skip the hole entirely (no spurious 0-vs-0 halve).
+ */
+export function deriveSinglesSideScore(
+  gross: number | undefined | null,
+  handicapStrokesForHole: number = 0,
+): number | null {
+  if (gross === undefined || gross === null) return null;
+  return gross - handicapStrokesForHole;
+}
+
 // ─── Best Ball (team) ────────────────────────────────────────────────
 
 export type BestBallResult = {

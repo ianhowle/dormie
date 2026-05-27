@@ -39,6 +39,7 @@ import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as det
 
 import type { SideGameEvent } from '../components/SideGameToast';
 import type { SideGameEventSlice } from '../data/scoring';
+import { formatMatchState, deriveSinglesSideScore, type MatchPlayState } from '../data/scoring';
 import type { PlayerHoleResult } from '../components/HoleTransitionBanner';
 import type { MomentType } from '../components/DormieMoment';
 
@@ -181,6 +182,11 @@ export function useScoringState() {
   // Feature 3: Putt distance prompt
   const [puttDistPrompt, setPuttDistPrompt] = useState<{ show: boolean; playerIdx: number; holeNumber: number }>({ show: false, playerIdx: 0, holeNumber: 1 });
   const [puttDist, setPuttDist] = useState<Map<number, Map<string, string>>>(new Map());
+
+  // Match Play 1v1 (Stage 1 — singles only; 2v2/team match lands in Stage 4
+  // alongside MatchPlaySetupModal). Mirrors the format-detection pattern used
+  // by Best Ball / Low-High / 6-6-6 below: string-match on the format label.
+  const isMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
 
   // Feature 4: Best Ball 2v2
   const isBestBall = formatLabel.toLowerCase().includes('best ball') && players.length === 4;
@@ -927,6 +933,49 @@ export function useScoringState() {
     }
   }, [user, holes, allScores, scoreMode, handicapStrokes, courseId, courseName, courseSlope, courseRating, coursePar, tripId, linkedSeasons, router, showToast]);
 
+  // Match Play 1v1 live state (Stage 1). When the round is Match Play with
+  // exactly 2 players, derive each player's per-hole side score (gross or net
+  // per scoreMode) and aggregate via formatMatchState. Returns null when not
+  // applicable so consumers can early-out. Perspective fixed to 'A' (player[0],
+  // typically "You" on the regular scoring path) — Stage 2 adds the setup
+  // modal that lets the user pick sides explicitly.
+  const matchPlayState = useMemo<MatchPlayState | null>(() => {
+    if (!isMatchPlay) return null;
+    const playerA = players[0];
+    const playerB = players[1];
+    if (!playerA || !playerB) return null;
+
+    let holesWonA = 0;
+    let holesWonB = 0;
+    let holesPlayed = 0;
+
+    holes.forEach((h) => {
+      const holeScores = allScores.get(h.number);
+      if (!holeScores) return;
+      const grossA = holeScores.get(playerA.id)?.gross;
+      const grossB = holeScores.get(playerB.id)?.gross;
+      if (grossA === undefined || grossB === undefined) return;
+
+      const strokesA = scoreMode === 'net'
+        ? (handicapStrokes.get(playerA.id)?.get(h.number) ?? 0)
+        : 0;
+      const strokesB = scoreMode === 'net'
+        ? (handicapStrokes.get(playerB.id)?.get(h.number) ?? 0)
+        : 0;
+
+      const sideA = deriveSinglesSideScore(grossA, strokesA);
+      const sideB = deriveSinglesSideScore(grossB, strokesB);
+      if (sideA === null || sideB === null) return;
+
+      holesPlayed++;
+      if (sideA < sideB) holesWonA++;
+      else if (sideB < sideA) holesWonB++;
+      // halved: neither counter increments; holesPlayed still does.
+    });
+
+    return formatMatchState(holesWonA, holesWonB, holesPlayed, holes.length, 'A');
+  }, [isMatchPlay, players, allScores, scoreMode, handicapStrokes, holes]);
+
   // Feature 4: Best Ball team scores
   const bestBallTeamScores = useMemo(() => {
     if (!isBestBall) return { team1: 0, team2: 0, team1Par: 0, team2Par: 0 };
@@ -1257,6 +1306,10 @@ export function useScoringState() {
     setPuttDistPrompt,
     puttDist,
     setPuttDist,
+
+    // Match Play 1v1 (Stage 1 — singles)
+    isMatchPlay,
+    matchPlayState,
 
     // Best Ball
     isBestBall,
