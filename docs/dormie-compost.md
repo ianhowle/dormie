@@ -57,6 +57,7 @@ Summary:
 - **Hardcoded `#1E4D2B` notch-backdrop color** — `app/(tabs)/score.tsx` setup screen. Re-verify at scroll-0 and mid-scroll on device; matches gradient top stop today but couples to it.
 - **Full round-state restoration** — side-states (Wolf decisions, BBB points, hammer results, putt distances, hole notes, poker state, team setup) still reset on restore. Folds into the rework's structured `ActiveRoundState` schema.
 - **Global one-modal coordinator** (Option C) — proper fix for the freeze class; today's `suspended`-gate is the inlined-into-one-host smallest version. Becomes optional after the rework deletes the colliding modals.
+- Modal-collision freeze class bit a SECOND time: DormieMoment × PuttDistModal at dormie/match-closed state (fixed `7ccf36e`, extending the `66f5dd3` suspended-gate pattern to a pair it didn't cover). Recurrence confirms the pair-by-pair patching keeps leaving uncovered pairs. The proper fix is a single modal coordinator (Option C / Tier-3) ensuring only one modal presents at a time — **priority RAISED by this recurrence**. Build it in the rework rather than patching the next pair.
 - **`modified_stableford` engine orphan** — gated out of `PostRoundSummary` by the exact-string match `formatLabel === 'Stableford'`; engine exists, exact-name detection misses.
 - **Hide / flag 3 pure-stub side games** (`trash`, `hogans`, `murphys`) at selection — Open Decision #1's first easy win.
 
