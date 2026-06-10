@@ -1,3 +1,5 @@
+import { daysBetweenYMD, todayYMD } from '../lib/dateHelpers';
+
 // ─── Types ───────────────────────────────────────────────────────────
 export type TripStatus = 'planning' | 'upcoming' | 'active' | 'completed';
 
@@ -80,8 +82,7 @@ export function generateInviteCode(): string {
 }
 
 export function getDaysUntilTrip(startDate: string): number {
-  const diff = new Date(startDate).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  return Math.max(0, daysBetweenYMD(todayYMD(), startDate));
 }
 
 // ─── Mock data ───────────────────────────────────────────────────────

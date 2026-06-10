@@ -19,6 +19,7 @@ import { useTheme } from '../src/theme/ThemeContext';
 import { GEO } from '../src/theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../src/theme/colors';
 import { haptics } from '../src/lib/haptics';
+import { todayYMD } from '../src/lib/dateHelpers';
 import { useToast } from '../src/components/Toast';
 import { Avatar } from '../src/components/Avatar';
 import GoldDivider from '../src/components/GoldDivider';
@@ -591,8 +592,8 @@ function TripForm({ tripType }: { tripType: 'quick' | 'planned' }) {
                   const trip = await tripsService.create({
                     name: name.trim(),
                     location: selectedCourse?.name ?? location.trim(),
-                    start_date: startDate || new Date().toISOString().slice(0, 10),
-                    end_date: endDate || new Date().toISOString().slice(0, 10),
+                    start_date: startDate || todayYMD(),
+                    end_date: endDate || todayYMD(),
                     organizer_id: user.id,
                     trip_type: tripType,
                     format,

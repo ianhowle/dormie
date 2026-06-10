@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
 import { haptics } from '../lib/haptics';
+import { todayYMD } from '../lib/dateHelpers';
 import { GEO } from '../theme/fonts';
 import { cardShadowDark, cardShadowLight } from '../theme/colors';
 import GoldDivider from './GoldDivider';
@@ -1389,8 +1390,8 @@ export function RyderCupWizard({ onBack }: { onBack: () => void }) {
       const trip = await tripsService.create({
         name: name || 'Ryder Cup',
         location: destination || 'TBD',
-        start_date: startDate || new Date().toISOString().slice(0, 10),
-        end_date: endDate || new Date().toISOString().slice(0, 10),
+        start_date: startDate || todayYMD(),
+        end_date: endDate || todayYMD(),
         organizer_id: user.id,
         trip_type: 'ryder',
         status: 'planning',
