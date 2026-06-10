@@ -126,6 +126,16 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
 ## Active Compost
 
+- 2026-06-09 — STABLEFORD POST-ROUND SHIPPED; LIVE SCORING STILL MISSING + enhancement + celebration-bug reconfirm
+
+  Stableford post-round standings table committed `436ce63` (verified on device — round-complete screen shows POS/PLAYER/POINTS). That clears Open Issue #1 of the 2026-05-26 match-play entry (the previously-uncommitted `+121/-40` PostRoundSummary diff is now in the tree and pushed). Three findings logged this session:
+
+  1. **Stableford LIVE scoring missing.** During the round there's no per-hole points display, and the live leaderboard shows stroke play, not Stableford points. Post-round standings work (committed `436ce63`), but the in-round experience is stroke-play until the end. Separate feature — needs per-hole points + a Stableford-aware live leaderboard. (Parallels the match-play shape: post-round result built before the format's live in-round treatment is complete.)
+
+  2. **Stableford post-round enhancement.** The standings table shows final points only; it should show how/where points were earned (per-hole points breakdown). Future refinement on top of the shipped table.
+
+  3. **Match-closed/dormie cinematic fires on non-match rounds — RECONFIRMED.** Already logged as Open Issue #2 of the 2026-05-26 match-play entry. CONFIRMED AGAIN this session on a Stableford round — the match-closed celebration fired during Stableford play. Still needs an `isMatchPlay` gate on `checkDormieMoments`'s match-close branch. No longer "unverified" — seen twice.
+
 - 2026-05-26 — MATCH PLAY — IN PROGRESS (Stages 1–3a done, Stage 3b planned, two open issues)
 
   DURING-ROUND match play works end-to-end. Setup takes user choices, engine computes match state on every entered hole, live banner displays current status. Verified on device. **DONE + committed:**
@@ -146,7 +156,7 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
   1. **Post-round result rendering disconnect.** Match-play post-round shows only the default stroke-play standings + scorecard tab grid (expected — Stage 3b not built). Separately, the Stableford post-round branch IS already written (+121/-40 sitting in `src/components/scoring/PostRoundSummary.tsx` working tree, pending across the session) but UNCOMMITTED — so it isn't in any production build, and if dev mode is being used the strict-equality check `formatLabel === 'Stableford'` may still miss (e.g., "Modified Stableford"). Next session: (a) confirm build mode, (b) read the post-round header text on device — it echoes `formatLabel` verbatim at PostRoundSummary.tsx:833, that one text element diagnoses whether strict equality is failing, (c) decide commit-pending vs. build-Stage-3b ordering.
 
-  2. **LIKELY BUG — match-closed celebration firing on a Stableford round (unverified).** Observed on device today: a "match closed — you 6&5" celebration fired during a STABLEFORD round at hole 14. `checkDormieMoments` appears to run regardless of format. The match-closed / dormie celebration should be gated to `isMatchPlay` only. Needs its own look — check where `checkDormieMoments` is called from `useScoringState` and whether the match-close branch has any format gate, then add `isMatchPlay` precondition. Low effort fix once located.
+  2. **LIKELY BUG — match-closed celebration firing on a Stableford round (CONFIRMED 2026-06-09 — reconfirmed on a Stableford round; see 2026-06-09 entry).** Observed on device today: a "match closed — you 6&5" celebration fired during a STABLEFORD round at hole 14. `checkDormieMoments` appears to run regardless of format. The match-closed / dormie celebration should be gated to `isMatchPlay` only. Needs its own look — check where `checkDormieMoments` is called from `useScoringState` and whether the match-close branch has any format gate, then add `isMatchPlay` precondition. Low effort fix once located.
 
 - 2026-05-23 — GLOBAL ONE-MODAL-AT-A-TIME COORDINATOR (deferred — Option C from the score-entry freeze fix)
 
