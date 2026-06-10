@@ -21,6 +21,7 @@ import type {
 } from '../../scoring/types';
 import { CompetitionImpactSection } from './CompetitionImpact';
 import { computeSeasonImpact, computeHandicapImpact } from '../../data/competitionImpact';
+import { calculateNetStablefordTotal } from '../../data/scoring';
 import { competitionStyles as ci } from './styles';
 import {
   computePlayerTotals, isGIR, pName,
@@ -782,6 +783,24 @@ const PostRoundSummary = memo(function PostRoundSummary({
   );
   const sorted = useMemo(() => [...playerTotals].sort((a, b) => a.gross - b.gross), [playerTotals]);
 
+  const isStableford = formatLabel === 'Stableford';
+  const stablefordRows = useMemo(() => {
+    if (!isStableford) return null;
+    return playerTotals
+      .map((pt) => {
+        const holeScores = pt.scores.map((s) => s.score.gross);
+        const coursePars = pt.scores.map((s) => s.hole.par);
+        const handicapStrokesPerHole = pt.scores.map(
+          (s) => handicapStrokes.get(pt.player.id)?.get(s.hole.number) ?? 0,
+        );
+        return {
+          player: pt.player,
+          points: calculateNetStablefordTotal(holeScores, coursePars, handicapStrokesPerHole),
+        };
+      })
+      .sort((a, b) => b.points - a.points);
+  }, [isStableford, playerTotals, handicapStrokes]);
+
   // ─── Competition Impact computation ───────────────────────────────
   const userId = '1'; // Current user ID convention
   const userTotals = playerTotals.find((r) => r.player.id === userId);
@@ -817,42 +836,76 @@ const PostRoundSummary = memo(function PostRoundSummary({
         {/* Final standings (always visible) */}
         <View style={ps.body}>
           <Text style={[ps.sectionTitle, { color: c.gold, fontFamily: GEO }]}>FINAL STANDINGS</Text>
-          <View style={[ps.standingsTable, { borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
-            <View style={[ps.standingsRow, { backgroundColor: '#1E4D2B' }]}>
-              <Text style={[ps.stColPos, ps.stHeader]}>POS</Text>
-              <Text style={[ps.stColName, ps.stHeader]}>PLAYER</Text>
-              <Text style={[ps.stColNum, ps.stHeader]}>GROSS</Text>
-              {scoreMode === 'net' && <Text style={[ps.stColNum, ps.stHeader]}>NET</Text>}
-              <Text style={[ps.stColNum, ps.stHeader]}>TO PAR</Text>
-            </View>
-            {sorted.map((row, i) => {
-              const pos = i + 1;
-              const medal = pos === 1 ? '\u{1F947}' : pos === 2 ? '\u{1F948}' : pos === 3 ? '\u{1F949}' : '';
-              const isMe = row.player.id === '1';
-              const diff = row.gross - totalPar;
-              return (
-                <View
-                  key={row.player.id}
-                  style={[
-                    ps.standingsRow,
-                    { backgroundColor: isMe ? `${c.teal}12` : i % 2 === 0 ? c.cardBg : c.elevated },
-                    isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
-                  ]}
-                >
-                  <Text style={[ps.stColPos, { color: c.textMuted, fontSize: 13, fontWeight: '600' as const }]}>{medal || pos}</Text>
-                  <View style={[ps.stColName, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-                    <Avatar id={row.player.id} size={22} name={row.player.name} />
-                    <Text style={[{ fontSize: 12, color: isMe ? c.teal : c.text }, isMe && { fontWeight: '700' as const }]} numberOfLines={1}>
-                      {isMe ? 'You' : row.player.name}
-                    </Text>
+          {isStableford && stablefordRows ? (
+            <View style={[ps.standingsTable, { borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
+              <View style={[ps.standingsRow, { backgroundColor: '#1E4D2B' }]}>
+                <Text style={[ps.stColPos, ps.stHeader]}>POS</Text>
+                <Text style={[ps.stColName, ps.stHeader]}>PLAYER</Text>
+                <Text style={[ps.stColNum, ps.stHeader]}>POINTS</Text>
+              </View>
+              {stablefordRows.map((row, i) => {
+                const pos = i + 1;
+                const medal = pos === 1 ? '\u{1F947}' : pos === 2 ? '\u{1F948}' : pos === 3 ? '\u{1F949}' : '';
+                const isMe = row.player.id === '1';
+                return (
+                  <View
+                    key={row.player.id}
+                    style={[
+                      ps.standingsRow,
+                      { backgroundColor: isMe ? `${c.teal}12` : i % 2 === 0 ? c.cardBg : c.elevated },
+                      isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
+                    ]}
+                  >
+                    <Text style={[ps.stColPos, { color: c.textMuted, fontSize: 13, fontWeight: '600' as const }]}>{medal || pos}</Text>
+                    <View style={[ps.stColName, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                      <Avatar id={row.player.id} size={22} name={row.player.name} />
+                      <Text style={[{ fontSize: 12, color: isMe ? c.teal : c.text }, isMe && { fontWeight: '700' as const }]} numberOfLines={1}>
+                        {isMe ? 'You' : row.player.name}
+                      </Text>
+                    </View>
+                    <Text style={[ps.stColNum, { color: c.gold, fontFamily: GEO, fontWeight: '700' as const }]}>{row.points}</Text>
                   </View>
-                  <Text style={[ps.stColNum, { color: c.text, fontFamily: GEO, fontWeight: '700' as const }]}>{row.gross}</Text>
-                  {scoreMode === 'net' && <Text style={[ps.stColNum, { color: c.gold, fontFamily: GEO, fontWeight: '700' as const }]}>{row.net}</Text>}
-                  <Text style={[ps.stColNum, { color: toParColor(diff, c), fontFamily: GEO, fontWeight: '700' as const }]}>{formatToPar(row.gross, totalPar)}</Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={[ps.standingsTable, { borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
+              <View style={[ps.standingsRow, { backgroundColor: '#1E4D2B' }]}>
+                <Text style={[ps.stColPos, ps.stHeader]}>POS</Text>
+                <Text style={[ps.stColName, ps.stHeader]}>PLAYER</Text>
+                <Text style={[ps.stColNum, ps.stHeader]}>GROSS</Text>
+                {scoreMode === 'net' && <Text style={[ps.stColNum, ps.stHeader]}>NET</Text>}
+                <Text style={[ps.stColNum, ps.stHeader]}>TO PAR</Text>
+              </View>
+              {sorted.map((row, i) => {
+                const pos = i + 1;
+                const medal = pos === 1 ? '\u{1F947}' : pos === 2 ? '\u{1F948}' : pos === 3 ? '\u{1F949}' : '';
+                const isMe = row.player.id === '1';
+                const diff = row.gross - totalPar;
+                return (
+                  <View
+                    key={row.player.id}
+                    style={[
+                      ps.standingsRow,
+                      { backgroundColor: isMe ? `${c.teal}12` : i % 2 === 0 ? c.cardBg : c.elevated },
+                      isMe && { borderLeftWidth: 2, borderLeftColor: c.teal },
+                    ]}
+                  >
+                    <Text style={[ps.stColPos, { color: c.textMuted, fontSize: 13, fontWeight: '600' as const }]}>{medal || pos}</Text>
+                    <View style={[ps.stColName, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                      <Avatar id={row.player.id} size={22} name={row.player.name} />
+                      <Text style={[{ fontSize: 12, color: isMe ? c.teal : c.text }, isMe && { fontWeight: '700' as const }]} numberOfLines={1}>
+                        {isMe ? 'You' : row.player.name}
+                      </Text>
+                    </View>
+                    <Text style={[ps.stColNum, { color: c.text, fontFamily: GEO, fontWeight: '700' as const }]}>{row.gross}</Text>
+                    {scoreMode === 'net' && <Text style={[ps.stColNum, { color: c.gold, fontFamily: GEO, fontWeight: '700' as const }]}>{row.net}</Text>}
+                    <Text style={[ps.stColNum, { color: toParColor(diff, c), fontFamily: GEO, fontWeight: '700' as const }]}>{formatToPar(row.gross, totalPar)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           {/* Competition Impact */}
           <GoldDivider style={{ marginTop: 20 }} />
