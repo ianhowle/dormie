@@ -45,6 +45,7 @@ import type { HoleScore, HoleData } from '../../scoring/types';
 import type { Card } from '../../services/poker.service';
 import { checkDormieMoments } from '../../scoring/moments';
 import { resolveMatchResult } from '../../scoring/matchplay-result';
+import { computeStablefordLive } from '../../scoring/stableford-live';
 import {
   cardsToDealForHole,
   countThreePutts,
@@ -2484,6 +2485,73 @@ describe('MATCH PLAY POST-ROUND: resolveMatchResult clinch freeze', () => {
     record('RMR.7', 'net flips 1-3 → 3&2; gross HALVED', 'net=3&2,gross=HALVED', `net=${net.display},gross=${gross.display}`, net.display === '3&2' && net.leader === 'A' && gross.display === 'HALVED');
     expect(net.display).toBe('3&2');
     expect(gross.display).toBe('HALVED');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// STABLEFORD LIVE — computeStablefordLive (live in-round points, Stage 1)
+// Points scale (net diff from par): +2+ → 0, +1 → 1, par → 2, birdie → 3,
+// eagle → 4, ≤ -3 → 5. thru = holes scored. Individual format, any count.
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('STABLEFORD LIVE: computeStablefordLive', () => {
+  const HOLES_4 = [1, 2, 3, 4].map((n) => makeHole(n, 4));
+  const NO_HCP = new Map<string, Map<number, number>>();
+
+  // Known par-4 board for player '1': par(2) + birdie(3) + bogey(1) + double(0) = 6.
+  const grossBoard = makeAllScores([
+    { hole: 1, playerId: '1', score: makeScore(4, 2, null) }, // par → 2
+    { hole: 2, playerId: '1', score: makeScore(3, 2, null) }, // birdie → 3
+    { hole: 3, playerId: '1', score: makeScore(5, 2, null) }, // bogey → 1
+    { hole: 4, playerId: '1', score: makeScore(6, 2, null) }, // double → 0
+  ]);
+
+  it('SL.1: gross round — points + thru correct across a known board', () => {
+    const m = computeStablefordLive(HOLES_4, grossBoard, NO_HCP, 'gross');
+    const e = m.get('1');
+    record('SL.1', 'par+birdie+bogey+double', '6/4', `${e?.points}/${e?.thru}`, e?.points === 6 && e?.thru === 4);
+    expect(e?.points).toBe(6);
+    expect(e?.thru).toBe(4);
+  });
+
+  it('SL.2: net round — handicap strokes change points (same board diverges from gross)', () => {
+    // 1 stroke on holes 3 & 4: bogey→par (1→2), double→bogey (0→1). Net 8 vs gross 6.
+    const hcp = new Map<string, Map<number, number>>([['1', new Map([[3, 1], [4, 1]])]]);
+    const net = computeStablefordLive(HOLES_4, grossBoard, hcp, 'net');
+    const gross = computeStablefordLive(HOLES_4, grossBoard, hcp, 'gross');
+    record('SL.2', 'net strokes on 3,4', 'net=8,gross=6', `net=${net.get('1')?.points},gross=${gross.get('1')?.points}`, net.get('1')?.points === 8 && gross.get('1')?.points === 6);
+    expect(net.get('1')?.points).toBe(8);
+    expect(gross.get('1')?.points).toBe(6);
+  });
+
+  it('SL.3: partial round — unscored holes contribute 0 and do not count toward thru', () => {
+    // Only holes 1-2 entered: par(2) + birdie(3) = 5, thru 2.
+    const partial = makeAllScores([
+      { hole: 1, playerId: '1', score: makeScore(4, 2, null) },
+      { hole: 2, playerId: '1', score: makeScore(3, 2, null) },
+    ]);
+    const e = computeStablefordLive(HOLES_4, partial, NO_HCP, 'gross').get('1');
+    record('SL.3', 'thru 2 of 4', '5/2', `${e?.points}/${e?.thru}`, e?.points === 5 && e?.thru === 2);
+    expect(e?.points).toBe(5);
+    expect(e?.thru).toBe(2);
+  });
+
+  it('SL.4: 3-player board — no player-count assumption, each tallied independently', () => {
+    const three = makeAllScores([
+      { hole: 1, playerId: '1', score: makeScore(4, 2, null) }, { hole: 2, playerId: '1', score: makeScore(4, 2, null) }, // 2+2=4
+      { hole: 1, playerId: '2', score: makeScore(3, 2, null) }, { hole: 2, playerId: '2', score: makeScore(3, 2, null) }, // 3+3=6
+      { hole: 1, playerId: '3', score: makeScore(5, 2, null) }, { hole: 2, playerId: '3', score: makeScore(5, 2, null) }, // 1+1=2
+    ]);
+    const m = computeStablefordLive(HOLES_4, three, NO_HCP, 'gross');
+    const ok = m.size === 3 && m.get('1')?.points === 4 && m.get('2')?.points === 6 && m.get('3')?.points === 2;
+    record('SL.4', '3 players, 2 holes each', '4/6/2,size3', `${m.get('1')?.points}/${m.get('2')?.points}/${m.get('3')?.points},size${m.size}`, ok);
+    expect(ok).toBe(true);
+  });
+
+  it('SL.5: empty board → empty map (no players, no points)', () => {
+    const m = computeStablefordLive(HOLES_4, makeAllScores([]), NO_HCP, 'gross');
+    record('SL.5', 'no scores entered', 'size 0', `size ${m.size}`, m.size === 0);
+    expect(m.size).toBe(0);
   });
 });
 

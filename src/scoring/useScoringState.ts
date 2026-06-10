@@ -40,6 +40,7 @@ import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as det
 import type { SideGameEvent } from '../components/SideGameToast';
 import type { SideGameEventSlice } from '../data/scoring';
 import { formatMatchState, deriveSinglesSideScore, type MatchPlayState } from '../data/scoring';
+import { computeStablefordLive, type StablefordLiveEntry } from './stableford-live';
 import type { PlayerHoleResult } from '../components/HoleTransitionBanner';
 import type { MomentType } from '../components/DormieMoment';
 
@@ -187,6 +188,12 @@ export function useScoringState() {
   // alongside MatchPlaySetupModal). Mirrors the format-detection pattern used
   // by Best Ball / Low-High / 6-6-6 below: string-match on the format label.
   const isMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
+
+  // Stableford live points (Stage 1 — derivation only, no UI). STRICT equality
+  // on the label (Modified Stableford uses a different point scale and is not
+  // covered here) and NO player-count gate — Stableford is an individual format
+  // played by any number of players.
+  const isStableford = formatLabel === 'Stableford';
 
   // Stage 2 — Match play setup state. Side model is MatchSide { playerIds: string[] }
   // per the architecture; Stage 4 extends it to multi-player team sides. For 1v1, each
@@ -1000,6 +1007,19 @@ export function useScoringState() {
     return formatMatchState(holesWonA, holesWonB, holesPlayed, holes.length, matchPerspective);
   }, [isMatchPlay, players, matchSides, matchScoreMode, matchPerspective, allScores, handicapStrokes, holes]);
 
+  // Stableford live points per player. Null when not a Stableford round so
+  // consumers can early-out. Respects URL scoreMode (gross vs net), mirroring
+  // matchPlayState's gross/net handling.
+  const stablefordLive = useMemo<Map<string, StablefordLiveEntry> | null>(() => {
+    if (!isStableford) return null;
+    return computeStablefordLive(
+      holes,
+      allScores,
+      handicapStrokes,
+      scoreMode === 'net' ? 'net' : 'gross',
+    );
+  }, [isStableford, holes, allScores, handicapStrokes, scoreMode]);
+
   // Feature 4: Best Ball team scores
   const bestBallTeamScores = useMemo(() => {
     if (!isBestBall) return { team1: 0, team2: 0, team1Par: 0, team2Par: 0 };
@@ -1342,6 +1362,10 @@ export function useScoringState() {
     setMatchPerspective,
     showMatchPlaySetup,
     setShowMatchPlaySetup,
+
+    // Stableford live points (Stage 1 — derivation only)
+    isStableford,
+    stablefordLive,
 
     // Best Ball
     isBestBall,
