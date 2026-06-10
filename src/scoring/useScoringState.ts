@@ -509,7 +509,7 @@ export function useScoringState() {
 
   // Item 31: Check dormie moment conditions
   const checkDormieMoments = useCallback((holeNumber: number) => {
-    const result = checkDormieMomentsUtil(holeNumber, allScores, players, holes, sideGameKeys);
+    const result = checkDormieMomentsUtil(holeNumber, allScores, players, holes, sideGameKeys, isMatchPlay);
     if (result) {
       setDormieMoment({
         visible: true,
@@ -518,7 +518,7 @@ export function useScoringState() {
         detail: result.detail,
       });
     }
-  }, [allScores, holes, players, sideGameKeys]);
+  }, [allScores, holes, players, sideGameKeys, isMatchPlay]);
 
   // Item 32: Detect side game toast events
   const detectToastEventsLocal = useCallback((holeNumber: number) => {

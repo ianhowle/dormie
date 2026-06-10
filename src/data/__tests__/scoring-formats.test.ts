@@ -43,6 +43,7 @@ import {
 } from '../scoring';
 import type { HoleScore, HoleData } from '../../scoring/types';
 import type { Card } from '../../services/poker.service';
+import { checkDormieMoments } from '../../scoring/moments';
 import {
   cardsToDealForHole,
   countThreePutts,
@@ -2288,6 +2289,90 @@ describe('CROSS-FORMAT COMPARISONS', () => {
     record('X.2', 'Front 9 gross=38, HCP 6', `Gross: 38, Net: 32`, `Gross: ${gross}, Net: ${net}`, gross === 38 && net === 32);
     expect(gross).toBe(38);
     expect(net).toBe(32);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// DORMIE MOMENTS — isMatchPlay GATE (regression: match-close fired on
+// non-match rounds, e.g. Stableford). Gate must suppress DORMIE/MATCH_CLOSED
+// when !isMatchPlay, but never touch the unconditional SKINS_JACKPOT path.
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('DORMIE MOMENTS: isMatchPlay gate', () => {
+  const HOLES_9 = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => makeHole(n, 4));
+
+  // Through hole 6 (3 remaining): A wins holes 1–5, hole 6 halved → lead 5 > 3 → MATCH_CLOSED.
+  const matchClosedScores = makeAllScores([
+    ...[1, 2, 3, 4, 5].flatMap((h) => [
+      { hole: h, playerId: '1', score: makeScore(3, 2, null) },
+      { hole: h, playerId: '2', score: makeScore(5, 2, null) },
+    ]),
+    { hole: 6, playerId: '1', score: makeScore(4, 2, null) },
+    { hole: 6, playerId: '2', score: makeScore(4, 2, null) },
+  ]);
+
+  // Through hole 6 (3 remaining): A wins holes 1–3, holes 4–6 halved → lead 3 === 3 → DORMIE.
+  const dormieScores = makeAllScores([
+    ...[1, 2, 3].flatMap((h) => [
+      { hole: h, playerId: '1', score: makeScore(3, 2, null) },
+      { hole: h, playerId: '2', score: makeScore(5, 2, null) },
+    ]),
+    ...[4, 5, 6].flatMap((h) => [
+      { hole: h, playerId: '1', score: makeScore(4, 2, null) },
+      { hole: h, playerId: '2', score: makeScore(4, 2, null) },
+    ]),
+  ]);
+
+  // Through hole 4 (5 remaining): holes 1–3 halved (skin carries x3), hole 4 won by A →
+  // SKINS_JACKPOT. Match lead is only 1 (< 5), so no match moment regardless of the flag.
+  const skinsScores = makeAllScores([
+    ...[1, 2, 3].flatMap((h) => [
+      { hole: h, playerId: '1', score: makeScore(4, 2, null) },
+      { hole: h, playerId: '2', score: makeScore(4, 2, null) },
+    ]),
+    { hole: 4, playerId: '1', score: makeScore(3, 2, null) },
+    { hole: 4, playerId: '2', score: makeScore(4, 2, null) },
+  ]);
+
+  const PLAYERS = [
+    { id: '1', name: 'You' },
+    { id: '2', name: 'Rival' },
+  ] as any;
+
+  it('DMG.1: MATCH_CLOSED board returns null when isMatchPlay=false (the regression fix)', () => {
+    const r = checkDormieMoments(6, matchClosedScores, PLAYERS, HOLES_9, [], false);
+    record('DMG.1', 'match-close board, !isMatchPlay', 'null', JSON.stringify(r), r === null);
+    expect(r).toBe(null);
+  });
+
+  it('DMG.2: MATCH_CLOSED board returns MATCH_CLOSED when isMatchPlay=true (real positive intact)', () => {
+    const r = checkDormieMoments(6, matchClosedScores, PLAYERS, HOLES_9, [], true);
+    record('DMG.2', 'match-close board, isMatchPlay', 'MATCH_CLOSED', String(r?.type), r?.type === 'MATCH_CLOSED');
+    expect(r?.type).toBe('MATCH_CLOSED');
+  });
+
+  it('DMG.3: DORMIE board returns null when isMatchPlay=false', () => {
+    const r = checkDormieMoments(6, dormieScores, PLAYERS, HOLES_9, [], false);
+    record('DMG.3', 'dormie board, !isMatchPlay', 'null', JSON.stringify(r), r === null);
+    expect(r).toBe(null);
+  });
+
+  it('DMG.4: DORMIE board returns DORMIE when isMatchPlay=true', () => {
+    const r = checkDormieMoments(6, dormieScores, PLAYERS, HOLES_9, [], true);
+    record('DMG.4', 'dormie board, isMatchPlay', 'DORMIE', String(r?.type), r?.type === 'DORMIE');
+    expect(r?.type).toBe('DORMIE');
+  });
+
+  it('DMG.5: SKINS_JACKPOT still fires when isMatchPlay=false (skins path unaffected by gate)', () => {
+    const r = checkDormieMoments(4, skinsScores, PLAYERS, HOLES_9, ['skins'], false);
+    record('DMG.5', 'skins board, !isMatchPlay', 'SKINS_JACKPOT', String(r?.type), r?.type === 'SKINS_JACKPOT');
+    expect(r?.type).toBe('SKINS_JACKPOT');
+  });
+
+  it('DMG.6: SKINS_JACKPOT also fires when isMatchPlay=true (flag does not disturb skins)', () => {
+    const r = checkDormieMoments(4, skinsScores, PLAYERS, HOLES_9, ['skins'], true);
+    record('DMG.6', 'skins board, isMatchPlay', 'SKINS_JACKPOT', String(r?.type), r?.type === 'SKINS_JACKPOT');
+    expect(r?.type).toBe('SKINS_JACKPOT');
   });
 });
 

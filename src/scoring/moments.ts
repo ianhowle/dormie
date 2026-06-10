@@ -15,6 +15,7 @@ export function checkDormieMoments(
   players: PlayerConfig[],
   holes: HoleData[],
   sideGameKeys: string[],
+  isMatchPlay: boolean,
 ): MomentResult {
   const holeScores = allScores.get(holeNumber);
   if (!holeScores || players.length < 2) return null;
@@ -22,50 +23,54 @@ export function checkDormieMoments(
   const holesRemaining = holes.length - holes.findIndex((h) => h.number === holeNumber) - 1;
   if (holesRemaining <= 0) return null;
 
-  // Match play dormie: player leads by exactly as many holes as remain
-  const totals = players.map((p) => {
-    let total = 0;
-    holes.forEach((h) => {
-      if (h.number > holeNumber) return;
-      const s = allScores.get(h.number)?.get(p.id);
-      if (s) total += s.gross;
-    });
-    return { player: p, total };
-  }).sort((a, b) => a.total - b.total);
+  // Match play dormie/match-closed: only meaningful for actual match-play rounds.
+  // Gated so it never fires on stroke/Stableford/etc. (skins block below stays unconditional).
+  if (isMatchPlay) {
+    // Match play dormie: player leads by exactly as many holes as remain
+    const totals = players.map((p) => {
+      let total = 0;
+      holes.forEach((h) => {
+        if (h.number > holeNumber) return;
+        const s = allScores.get(h.number)?.get(p.id);
+        if (s) total += s.gross;
+      });
+      return { player: p, total };
+    }).sort((a, b) => a.total - b.total);
 
-  if (totals.length >= 2 && totals[0].total > 0 && totals[1].total > 0) {
-    let holesWon = 0;
-    holes.forEach((h) => {
-      if (h.number > holeNumber) return;
-      const s1 = allScores.get(h.number)?.get(totals[0].player.id);
-      const s2 = allScores.get(h.number)?.get(totals[1].player.id);
-      if (s1 && s2) {
-        if (s1.gross < s2.gross) holesWon++;
-        else if (s1.gross > s2.gross) holesWon--;
+    if (totals.length >= 2 && totals[0].total > 0 && totals[1].total > 0) {
+      let holesWon = 0;
+      holes.forEach((h) => {
+        if (h.number > holeNumber) return;
+        const s1 = allScores.get(h.number)?.get(totals[0].player.id);
+        const s2 = allScores.get(h.number)?.get(totals[1].player.id);
+        if (s1 && s2) {
+          if (s1.gross < s2.gross) holesWon++;
+          else if (s1.gross > s2.gross) holesWon--;
+        }
+      });
+
+      const lead = Math.abs(holesWon);
+      const leaderName = holesWon > 0 ? (totals[0].player.id === '1' ? 'You' : totals[0].player.name) :
+        holesWon < 0 ? (totals[1].player.id === '1' ? 'You' : totals[1].player.name) : '';
+
+      if (lead > 0 && lead === holesRemaining) {
+        haptics.heavy();
+        sounds.chime();
+        return {
+          type: 'DORMIE',
+          playerName: leaderName,
+          detail: `${lead} up with ${holesRemaining} to play`,
+        };
       }
-    });
-
-    const lead = Math.abs(holesWon);
-    const leaderName = holesWon > 0 ? (totals[0].player.id === '1' ? 'You' : totals[0].player.name) :
-      holesWon < 0 ? (totals[1].player.id === '1' ? 'You' : totals[1].player.name) : '';
-
-    if (lead > 0 && lead === holesRemaining) {
-      haptics.heavy();
-      sounds.chime();
-      return {
-        type: 'DORMIE',
-        playerName: leaderName,
-        detail: `${lead} up with ${holesRemaining} to play`,
-      };
-    }
-    if (lead > holesRemaining) {
-      haptics.heavy();
-      sounds.chime();
-      return {
-        type: 'MATCH_CLOSED',
-        playerName: leaderName,
-        detail: `${lead} & ${holesRemaining} — match closed`,
-      };
+      if (lead > holesRemaining) {
+        haptics.heavy();
+        sounds.chime();
+        return {
+          type: 'MATCH_CLOSED',
+          playerName: leaderName,
+          detail: `${lead} & ${holesRemaining} — match closed`,
+        };
+      }
     }
   }
 
