@@ -22,6 +22,7 @@ import type {
 import { CompetitionImpactSection } from './CompetitionImpact';
 import { computeSeasonImpact, computeHandicapImpact } from '../../data/competitionImpact';
 import { calculateNetStablefordTotal } from '../../data/scoring';
+import { resolveMatchResult } from '../../scoring/matchplay-result';
 import { competitionStyles as ci } from './styles';
 import {
   computePlayerTotals, isGIR, pName,
@@ -753,6 +754,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
   linkedSeasons,
   courseSlope,
   courseRating,
+  matchSides,
+  matchPerspective,
+  matchScoreMode,
   onDone,
   onSettleUp,
 }: {
@@ -769,6 +773,11 @@ const PostRoundSummary = memo(function PostRoundSummary({
   linkedSeasons?: LinkedSeason[];
   courseSlope?: number;
   courseRating?: number;
+  // Stage 3b — match-play post-round. Optional; default to the 1v1 first-two-players
+  // shape + URL scoreMode so non-match callers and older call sites stay unaffected.
+  matchSides?: { sideA: { playerIds: string[] }; sideB: { playerIds: string[] } };
+  matchPerspective?: 'A' | 'B';
+  matchScoreMode?: 'gross' | 'net';
   onDone: () => void;
   onSettleUp?: () => void;
 }) {
@@ -800,6 +809,32 @@ const PostRoundSummary = memo(function PostRoundSummary({
       })
       .sort((a, b) => b.points - a.points);
   }, [isStableford, playerTotals, handicapStrokes]);
+
+  // ─── Match Play post-round result (Stage 3b) ──────────────────────
+  // isMatchPlay detection consistent with useScoringState: 'match play' in
+  // the format label + exactly 2 players. Sides/scoreMode fall back to the
+  // 1v1 first-two-players / URL-scoreMode defaults when props are absent.
+  const isMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
+  const matchSideAId = matchSides?.sideA.playerIds[0] ?? players[0]?.id;
+  const matchSideBId = matchSides?.sideB.playerIds[0] ?? players[1]?.id;
+  const resolvedMatchScoreMode: 'gross' | 'net' =
+    matchScoreMode ?? (scoreMode === 'net' ? 'net' : 'gross');
+  const matchResult = useMemo(() => {
+    if (!isMatchPlay || !matchSideAId || !matchSideBId) return null;
+    return resolveMatchResult(
+      matchSideAId,
+      matchSideBId,
+      holes,
+      allScores,
+      resolvedMatchScoreMode,
+      handicapStrokes,
+    );
+  }, [isMatchPlay, matchSideAId, matchSideBId, holes, allScores, resolvedMatchScoreMode, handicapStrokes]);
+  const matchSideAPlayer = players.find((p) => p.id === matchSideAId);
+  const matchSideBPlayer = players.find((p) => p.id === matchSideBId);
+  // "You" side: whichever side holds the user (id '1'); else the chosen perspective.
+  const matchYouSide: 'A' | 'B' =
+    matchSideAId === '1' ? 'A' : matchSideBId === '1' ? 'B' : (matchPerspective ?? 'A');
 
   // ─── Competition Impact computation ───────────────────────────────
   const userId = '1'; // Current user ID convention
@@ -836,6 +871,31 @@ const PostRoundSummary = memo(function PostRoundSummary({
         {/* Final standings (always visible) */}
         <View style={ps.body}>
           <Text style={[ps.sectionTitle, { color: c.gold, fontFamily: GEO }]}>FINAL STANDINGS</Text>
+          {isMatchPlay && matchResult && matchSideAPlayer && matchSideBPlayer && (() => {
+            // id '1' is always "You"; in proxy/spectator rounds (no id '1'),
+            // the chosen perspective side reads "You".
+            const nameFor = (p: PlayerConfig, side: 'A' | 'B') =>
+              p.id === '1' ? 'You'
+                : (matchSideAId !== '1' && matchSideBId !== '1' && side === matchYouSide) ? 'You'
+                : p.name;
+            const winnerLine = matchResult.leader === null
+              ? 'Match halved'
+              : matchResult.leader === 'A'
+                ? `${nameFor(matchSideAPlayer, 'A')} def. ${nameFor(matchSideBPlayer, 'B')} ${matchResult.display}`
+                : `${nameFor(matchSideBPlayer, 'B')} def. ${nameFor(matchSideAPlayer, 'A')} ${matchResult.display}`;
+            return (
+              <View style={[ps.standingsTable, { borderColor: c.border, backgroundColor: '#1E4D2B', paddingVertical: 18, paddingHorizontal: 16, alignItems: 'center', marginBottom: 12 }, theme.isDark ? cardShadowDark : cardShadowLight]}>
+                <Text style={{ color: c.gold, fontFamily: GEO, fontSize: 22, fontWeight: '700' as const, textAlign: 'center' }}>
+                  {winnerLine}
+                </Text>
+                <Text style={{ color: '#E8E4DE', fontSize: 12, marginTop: 4, letterSpacing: 1 }}>
+                  {matchResult.clinchedEarly && matchResult.clinchHole
+                    ? `CLOSED OUT ON HOLE ${matchResult.clinchHole}`
+                    : matchResult.leader === null ? 'ALL SQUARE' : 'TO THE LAST'}
+                </Text>
+              </View>
+            );
+          })()}
           {isStableford && stablefordRows ? (
             <View style={[ps.standingsTable, { borderColor: c.border }, theme.isDark ? cardShadowDark : cardShadowLight]}>
               <View style={[ps.standingsRow, { backgroundColor: '#1E4D2B' }]}>

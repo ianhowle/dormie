@@ -44,6 +44,7 @@ import {
 import type { HoleScore, HoleData } from '../../scoring/types';
 import type { Card } from '../../services/poker.service';
 import { checkDormieMoments } from '../../scoring/moments';
+import { resolveMatchResult } from '../../scoring/matchplay-result';
 import {
   cardsToDealForHole,
   countThreePutts,
@@ -2373,6 +2374,116 @@ describe('DORMIE MOMENTS: isMatchPlay gate', () => {
     const r = checkDormieMoments(4, skinsScores, PLAYERS, HOLES_9, ['skins'], true);
     record('DMG.6', 'skins board, isMatchPlay', 'SKINS_JACKPOT', String(r?.type), r?.type === 'SKINS_JACKPOT');
     expect(r?.type).toBe('SKINS_JACKPOT');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// MATCH PLAY POST-ROUND — resolveMatchResult CLINCH FREEZE (Stage 3b)
+// The regression that motivated this stage: the engine's finalDisplay drifts
+// when scores are entered past the close-out. These tests pin the frozen
+// result — clinched 3&2 on 16 must stay "3&2" no matter what holes 17-18 do.
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('MATCH PLAY POST-ROUND: resolveMatchResult clinch freeze', () => {
+  const HOLES_18 = Array.from({ length: 18 }, (_, i) => makeHole(i + 1, 4));
+  const NO_HCP = new Map<string, Map<number, number>>();
+
+  // Base board: A (id '1') wins holes 1-3, holes 4-16 halved → dormie 3-up
+  // after 15, closes out 3&2 on hole 16. `extra` appends holes 17-18.
+  const buildBoard = (extra: Array<{ hole: number; a: number; b: number }>) => {
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (const h of [1, 2, 3]) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(3, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(5, 2, null) });
+    }
+    for (let h = 4; h <= 16; h++) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(4, 2, null) });
+    }
+    for (const e of extra) {
+      rows.push({ hole: e.hole, playerId: '1', score: makeScore(e.a, 2, null) });
+      rows.push({ hole: e.hole, playerId: '2', score: makeScore(e.b, 2, null) });
+    }
+    return makeAllScores(rows);
+  };
+
+  it('RMR.1: clinched 3&2 on 16, holes 17-18 SPLIT → still 3&2', () => {
+    // 17: A wins, 18: B wins. Engine would net to lead 3 still, but we must not depend on that.
+    const r = resolveMatchResult('1', '2', HOLES_18, buildBoard([{ hole: 17, a: 3, b: 5 }, { hole: 18, a: 5, b: 3 }]), 'gross', NO_HCP);
+    record('RMR.1', 'clinch16, 17-18 split', 'A/3&2/hole16', `${r.leader}/${r.display}/hole${r.clinchHole}`, r.leader === 'A' && r.display === '3&2' && r.clinchHole === 16);
+    expect(r.display).toBe('3&2');
+    expect(r.leader).toBe('A');
+    expect(r.clinchHole).toBe(16);
+  });
+
+  it('RMR.2: clinched 3&2 on 16, holes 17-18 both HALVED → still 3&2', () => {
+    const r = resolveMatchResult('1', '2', HOLES_18, buildBoard([{ hole: 17, a: 4, b: 4 }, { hole: 18, a: 4, b: 4 }]), 'gross', NO_HCP);
+    record('RMR.2', 'clinch16, 17-18 halved', 'A/3&2', `${r.leader}/${r.display}`, r.leader === 'A' && r.display === '3&2');
+    expect(r.display).toBe('3&2');
+  });
+
+  it('RMR.3: clinched 3&2 on 16, TRAILER wins 17 AND 18 → still 3&2 (the drift bug)', () => {
+    // This is the exact case that made the engine emit "1 UP". Helper must freeze 3&2.
+    const r = resolveMatchResult('1', '2', HOLES_18, buildBoard([{ hole: 17, a: 5, b: 3 }, { hole: 18, a: 5, b: 3 }]), 'gross', NO_HCP);
+    record('RMR.3', 'clinch16, trailer wins 17+18', 'A/3&2/early', `${r.leader}/${r.display}/${r.clinchedEarly}`, r.leader === 'A' && r.display === '3&2' && r.clinchedEarly === true);
+    expect(r.display).toBe('3&2');
+    expect(r.clinchedEarly).toBe(true);
+  });
+
+  it('RMR.4: clinched 3&2 on 16, NO holes 17-18 entered → 3&2 (freeze independent of trailing holes)', () => {
+    const r = resolveMatchResult('1', '2', HOLES_18, buildBoard([]), 'gross', NO_HCP);
+    record('RMR.4', 'clinch16, 17-18 blank', 'A/3&2/hole16', `${r.leader}/${r.display}/hole${r.clinchHole}`, r.leader === 'A' && r.display === '3&2' && r.clinchHole === 16);
+    expect(r.display).toBe('3&2');
+    expect(r.clinchHole).toBe(16);
+  });
+
+  it('RMR.5: won on the final hole → "1 UP" (not "1&0"), clinchedEarly false', () => {
+    // Holes 1-17 halved, A wins 18. No early close-out; decided on the last hole.
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (let h = 1; h <= 17; h++) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(4, 2, null) });
+    }
+    rows.push({ hole: 18, playerId: '1', score: makeScore(3, 2, null) });
+    rows.push({ hole: 18, playerId: '2', score: makeScore(5, 2, null) });
+    const r = resolveMatchResult('1', '2', HOLES_18, makeAllScores(rows), 'gross', NO_HCP);
+    record('RMR.5', 'won on 18', 'A/1 UP/notearly/nullhole', `${r.leader}/${r.display}/${r.clinchedEarly}/${r.clinchHole}`, r.leader === 'A' && r.display === '1 UP' && r.clinchedEarly === false && r.clinchHole === null);
+    expect(r.display).toBe('1 UP');
+    expect(r.clinchedEarly).toBe(false);
+    expect(r.clinchHole).toBe(null);
+  });
+
+  it('RMR.6: all square through 18 → "HALVED", leader null', () => {
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (let h = 1; h <= 18; h++) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(4, 2, null) });
+    }
+    const r = resolveMatchResult('1', '2', HOLES_18, makeAllScores(rows), 'gross', NO_HCP);
+    record('RMR.6', 'AS through 18', 'null/HALVED', `${r.leader}/${r.display}`, r.leader === null && r.display === 'HALVED');
+    expect(r.display).toBe('HALVED');
+    expect(r.leader).toBe(null);
+  });
+
+  it('RMR.7: NET mode — strokes flip holes 1-3 to A, clinch 3&2 on 16 (gross would be all square)', () => {
+    // Gross: holes 1-3 are 5-5 (halved) → match would be AS. With A getting a
+    // stroke on 1,2,3, net A=4 wins each → same 3&2 clinch. Proves scoreMode path.
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (const h of [1, 2, 3]) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(5, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(5, 2, null) });
+    }
+    for (let h = 4; h <= 16; h++) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(4, 2, null) });
+    }
+    const board = makeAllScores(rows);
+    const hcp = new Map<string, Map<number, number>>([['1', new Map([[1, 1], [2, 1], [3, 1]])]]);
+    const net = resolveMatchResult('1', '2', HOLES_18, board, 'net', hcp);
+    const gross = resolveMatchResult('1', '2', HOLES_18, board, 'gross', hcp);
+    record('RMR.7', 'net flips 1-3 → 3&2; gross HALVED', 'net=3&2,gross=HALVED', `net=${net.display},gross=${gross.display}`, net.display === '3&2' && net.leader === 'A' && gross.display === 'HALVED');
+    expect(net.display).toBe('3&2');
+    expect(gross.display).toBe('HALVED');
   });
 });
 

@@ -121,6 +121,9 @@ function ScoringScreenInner() {
           linkedSeasons={s.linkedSeasons}
           courseSlope={s.courseSlope}
           courseRating={s.courseRating}
+          matchSides={s.matchSides}
+          matchPerspective={s.matchPerspective}
+          matchScoreMode={s.matchScoreMode}
           onDone={s.handlePostRound}
           onSettleUp={() => s.router.push('/ledger')}
         />
