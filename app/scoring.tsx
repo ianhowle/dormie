@@ -57,6 +57,7 @@ import {
 import { LowHighBanner } from '../src/components/scoring/LowHighBanner';
 import { SixSixSixBanner, SixSixSixSegmentTransition } from '../src/components/scoring/SixSixSixBanner';
 import { MatchPlayBanner } from '../src/components/scoring/MatchPlayBanner';
+import { StablefordBanner } from '../src/components/scoring/StablefordBanner';
 import { ThreePuttPokerTicker } from '../src/components/scoring/ThreePuttPokerTicker';
 
 function HoleResultBanner({ players, holeScores, holePar }: { players: PlayerConfig[]; holeScores: Map<string, HoleScore>; holePar: number }) {
@@ -231,6 +232,13 @@ function ScoringScreenInner() {
           sides={s.matchSides}
           players={s.players}
         />
+      )}
+
+      {/* Stableford banner — Stage 2 — live points, first slot.
+          Mutually exclusive with Match Play (formatLabel can't be both
+          'Stableford' and include 'match play'), so no stacking conflict. */}
+      {s.isStableford && s.stablefordLive && (
+        <StablefordBanner entries={s.stablefordLive} players={s.players} />
       )}
 
       {/* Wolf banner */}
