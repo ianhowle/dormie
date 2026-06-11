@@ -126,6 +126,10 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
 ## Active Compost
 
+- 2026-06-10 — BUG — manual-player handicap entry has no exit affordance (round setup)
+
+  Repro: add a manual player during round setup → type name → enter → handicap entry appears → type handicap value → NOTHING to tap to proceed. No Done/confirm button, no dismiss. Only escape is re-tapping the search player filter. NOT a freeze/zombie-modal (touches respond, state machine works): the player IS added with the correct handicap — the completion affordance simply doesn't exist. Fix shape: add a Done/confirm button + `onSubmitEditing` on the handicap input so keyboard return completes the flow. First-run feel-breaker for beta (users will think it's stuck). Queued behind Stableford-live Stages 2b + 3.
+
 - 2026-06-09 — STABLEFORD POST-ROUND SHIPPED; LIVE SCORING STILL MISSING + enhancement + celebration-bug reconfirm
 
   Stableford post-round standings table committed `436ce63` (verified on device — round-complete screen shows POS/PLAYER/POINTS). That clears Open Issue #1 of the 2026-05-26 match-play entry (the previously-uncommitted `+121/-40` PostRoundSummary diff is now in the tree and pushed). Three findings logged this session:
