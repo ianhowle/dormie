@@ -48,6 +48,7 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
   scoreMode,
   onChange,
   compact,
+  stablefordPoints,
 }: {
   player: PlayerConfig;
   holePar: number;
@@ -58,6 +59,10 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
   scoreMode: string;
   onChange: (s: HoleScore) => void;
   compact?: boolean;
+  // Stableford live points (Stage 2b). When undefined (every non-Stableford
+  // caller), the running-summary slot renders byte-identically to before;
+  // when a number, it replaces the to-par value with "N pts".
+  stablefordPoints?: number;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -129,14 +134,20 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
           >
             {isMe ? 'You' : player.name.split(' ')[0]}
           </Text>
-          <Text
-            style={[
-              st.compactRunning,
-              { color: toParColor(runningTotal - runningPar, c), fontFamily: GEO },
-            ]}
-          >
-            {runningTotal > 0 ? formatToPar(runningTotal, runningPar) : '-'}
-          </Text>
+          {stablefordPoints !== undefined ? (
+            <Text style={[st.compactRunning, { color: c.gold, fontFamily: GEO }]}>
+              {stablefordPoints} pts
+            </Text>
+          ) : (
+            <Text
+              style={[
+                st.compactRunning,
+                { color: toParColor(runningTotal - runningPar, c), fontFamily: GEO },
+              ]}
+            >
+              {runningTotal > 0 ? formatToPar(runningTotal, runningPar) : '-'}
+            </Text>
+          )}
         </View>
         <View style={st.compactGrid}>
           {gridNumbers.map((n) => (
@@ -244,25 +255,36 @@ export const PlayerScoreInput = memo(function PlayerScoreInput({
           )}
         </View>
         <View style={st.runningWrap}>
-          <Text
-            style={[
-              st.runningTotal,
-              {
-                // Mute the dash to textMuted when no scores yet — at par
-                // (diff === 0), toParColor returns gold, which made the
-                // empty-state "—" read like a populated value.
-                color: runningTotal > 0
-                  ? toParColor(runningTotal - runningPar, c)
-                  : c.textMuted,
-                fontFamily: GEO,
-              },
-            ]}
-          >
-            {runningTotal > 0 ? formatToPar(runningTotal, runningPar) : '-'}
-          </Text>
-          <Text style={[st.runningLabel, { color: c.textMuted }]}>
-            thru {runningPar > 0 ? Math.round(runningPar / (runningTotal / runningTotal || 1)) : 0}
-          </Text>
+          {stablefordPoints !== undefined ? (
+            <>
+              <Text style={[st.runningTotal, { color: c.gold, fontFamily: GEO }]}>
+                {stablefordPoints}
+              </Text>
+              <Text style={[st.runningLabel, { color: c.textMuted }]}>PTS</Text>
+            </>
+          ) : (
+            <>
+              <Text
+                style={[
+                  st.runningTotal,
+                  {
+                    // Mute the dash to textMuted when no scores yet — at par
+                    // (diff === 0), toParColor returns gold, which made the
+                    // empty-state "—" read like a populated value.
+                    color: runningTotal > 0
+                      ? toParColor(runningTotal - runningPar, c)
+                      : c.textMuted,
+                    fontFamily: GEO,
+                  },
+                ]}
+              >
+                {runningTotal > 0 ? formatToPar(runningTotal, runningPar) : '-'}
+              </Text>
+              <Text style={[st.runningLabel, { color: c.textMuted }]}>
+                thru {runningPar > 0 ? Math.round(runningPar / (runningTotal / runningTotal || 1)) : 0}
+              </Text>
+            </>
+          )}
         </View>
       </View>
 

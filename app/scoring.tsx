@@ -378,6 +378,7 @@ function ScoringScreenInner() {
                 scoreMode={s.scoreMode}
                 onChange={(score) => s.updatePlayerScore(p.id, score)}
                 compact={s.viewMode === 'all' && s.players.length > 2}
+                stablefordPoints={s.isStableford ? (s.stablefordLive?.get(p.id)?.points ?? 0) : undefined}
               />
             );
           })}
