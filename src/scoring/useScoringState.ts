@@ -39,7 +39,7 @@ import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as det
 
 import type { SideGameEvent } from '../components/SideGameToast';
 import type { SideGameEventSlice } from '../data/scoring';
-import { formatMatchState, deriveSinglesSideScore, type MatchPlayState } from '../data/scoring';
+import { formatMatchState, deriveSinglesSideScore, deriveBestBallSideScore, deriveAggregateSideScore, type MatchPlayState } from '../data/scoring';
 import { computeStablefordLive, rankStablefordLive, type StablefordLiveEntry } from './stableford-live';
 import type { PlayerHoleResult } from '../components/HoleTransitionBanner';
 import type { MomentType } from '../components/DormieMoment';
@@ -184,10 +184,14 @@ export function useScoringState() {
   const [puttDistPrompt, setPuttDistPrompt] = useState<{ show: boolean; playerIdx: number; holeNumber: number }>({ show: false, playerIdx: 0, holeNumber: 1 });
   const [puttDist, setPuttDist] = useState<Map<number, Map<string, string>>>(new Map());
 
-  // Match Play 1v1 (Stage 1 — singles only; 2v2/team match lands in Stage 4
-  // alongside MatchPlaySetupModal). Mirrors the format-detection pattern used
-  // by Best Ball / Low-High / 6-6-6 below: string-match on the format label.
-  const isMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
+  // Match Play (Stage 1 — singles; Stage 4b — 2v2 team). One catalog label:
+  // the match_play entry's own copy promises "Singles (1v1), Fourball (2v2),
+  // or larger team play" — player count is the discriminator. Mirrors the
+  // format-detection pattern used by Best Ball / Low-High / 6-6-6 below:
+  // string-match on the format label.
+  const isSinglesMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
+  const isTeamMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 4;
+  const isMatchPlay = isSinglesMatchPlay || isTeamMatchPlay;
 
   // Stableford live points (Stage 1 — derivation only, no UI). STRICT equality
   // on the label (Modified Stableford uses a different point scale and is not
@@ -196,24 +200,40 @@ export function useScoringState() {
   const isStableford = formatLabel === 'Stableford';
 
   // Stage 2 — Match play setup state. Side model is MatchSide { playerIds: string[] }
-  // per the architecture; Stage 4 extends it to multi-player team sides. For 1v1, each
-  // side has exactly one player. matchScoreMode + matchPerspective are user-overridable
-  // in the placeholder setup modal — they replace the Stage-1 hardcoded reads (raw
-  // URL scoreMode + perspective 'A') inside the matchPlayState useMemo below.
+  // per the architecture; Stage 4b extends it to 2-player team sides. For 1v1, each
+  // side has exactly one player; for 2v2 the default split is first-two-vs-last-two
+  // (same convention as bestBallTeams below), reassignable in the setup modal.
+  // matchScoreMode + matchPerspective are user-overridable in the placeholder setup
+  // modal — they replace the Stage-1 hardcoded reads (raw URL scoreMode +
+  // perspective 'A') inside the matchPlayState useMemo below.
   const [matchSides, setMatchSides] = useState<{
     sideA: { playerIds: string[] };
     sideB: { playerIds: string[] };
-  }>(() => ({
-    sideA: { playerIds: players[0] ? [players[0].id] : [] },
-    sideB: { playerIds: players[1] ? [players[1].id] : [] },
-  }));
+  }>(() => {
+    if (players.length === 4) {
+      return {
+        sideA: { playerIds: [players[0].id, players[1].id] },
+        sideB: { playerIds: [players[2].id, players[3].id] },
+      };
+    }
+    return {
+      sideA: { playerIds: players[0] ? [players[0].id] : [] },
+      sideB: { playerIds: players[1] ? [players[1].id] : [] },
+    };
+  });
   const [matchScoreMode, setMatchScoreMode] = useState<'gross' | 'net'>(
     scoreMode === 'net' ? 'net' : 'gross',
   );
-  // Default perspective: whichever side contains the user (id '1'); fall back to A.
+  // Stage 4b — how a TEAM side's per-hole score derives from its players'
+  // balls: best ball (fourball convention, default) or aggregate (sum).
+  // Irrelevant for singles; the matchPlayState memo ignores it there.
+  const [matchSideMode, setMatchSideMode] = useState<'best_ball' | 'aggregate'>('best_ball');
+  // Default perspective: whichever side contains the user (id '1'); fall back
+  // to A. Mirrors the matchSides default split (1 or 2 players per side).
   const [matchPerspective, setMatchPerspective] = useState<'A' | 'B'>(() => {
-    if (players[0]?.id === '1') return 'A';
-    if (players[1]?.id === '1') return 'B';
+    const split = players.length === 4 ? 2 : 1;
+    if (players.slice(0, split).some((p) => p.id === '1')) return 'A';
+    if (players.slice(split).some((p) => p.id === '1')) return 'B';
     return 'A';
   });
   const [showMatchPlaySetup, setShowMatchPlaySetup] = useState(isMatchPlay);
@@ -963,15 +983,52 @@ export function useScoringState() {
     }
   }, [user, holes, allScores, scoreMode, handicapStrokes, courseId, courseName, courseSlope, courseRating, coursePar, tripId, linkedSeasons, router, showToast]);
 
-  // Match Play 1v1 live state (Stage 1 + Stage 2 wiring). When the round is
-  // Match Play with exactly 2 players, resolve each side's player from
-  // matchSides, derive each side's per-hole score (gross or net per the
-  // user's matchScoreMode choice), and aggregate via formatMatchState.
+  // Match Play live state (Stage 1 + 2 singles wiring; Stage 4b team branch).
+  // Singles: resolve each side's player from matchSides, derive per-hole side
+  // scores (gross or net per the user's matchScoreMode choice). Team (2v2):
+  // derive each side's per-hole score from its players' balls via the
+  // matchSideMode variant (best ball or aggregate — Stage 4a Layer A).
+  // Either way, aggregate via formatMatchState (Layer B, side-agnostic).
   // Perspective comes from the user's matchPerspective choice (defaults to
   // whichever side contains the user). Returns null when not applicable so
   // consumers can early-out.
   const matchPlayState = useMemo<MatchPlayState | null>(() => {
     if (!isMatchPlay) return null;
+
+    if (isTeamMatchPlay) {
+      const idsA = matchSides.sideA.playerIds;
+      const idsB = matchSides.sideB.playerIds;
+      if (idsA.length === 0 || idsB.length === 0) return null;
+      const derive = matchSideMode === 'aggregate' ? deriveAggregateSideScore : deriveBestBallSideScore;
+
+      let holesWonA = 0;
+      let holesWonB = 0;
+      let holesPlayed = 0;
+
+      holes.forEach((h) => {
+        const holeScores = allScores.get(h.number);
+        if (!holeScores) return;
+        // Per-player strokes pre-resolved for THIS hole (the derive variants'
+        // contract); the variants ignore it in gross mode.
+        const strokesByPlayer = new Map<string, number>();
+        for (const id of [...idsA, ...idsB]) {
+          strokesByPlayer.set(id, handicapStrokes.get(id)?.get(h.number) ?? 0);
+        }
+        const sideA = derive(idsA, holeScores, strokesByPlayer, matchScoreMode);
+        const sideB = derive(idsB, holeScores, strokesByPlayer, matchScoreMode);
+        // Hole counts only when BOTH sides have a score per their variant's
+        // missing-ball contract (best ball: any ball; aggregate: all balls).
+        if (sideA === null || sideB === null) return;
+
+        holesPlayed++;
+        if (sideA < sideB) holesWonA++;
+        else if (sideB < sideA) holesWonB++;
+        // halved: neither counter increments; holesPlayed still does.
+      });
+
+      return formatMatchState(holesWonA, holesWonB, holesPlayed, holes.length, matchPerspective);
+    }
+
     const playerA = players.find((p) => p.id === matchSides.sideA.playerIds[0]);
     const playerB = players.find((p) => p.id === matchSides.sideB.playerIds[0]);
     if (!playerA || !playerB) return null;
@@ -1005,7 +1062,7 @@ export function useScoringState() {
     });
 
     return formatMatchState(holesWonA, holesWonB, holesPlayed, holes.length, matchPerspective);
-  }, [isMatchPlay, players, matchSides, matchScoreMode, matchPerspective, allScores, handicapStrokes, holes]);
+  }, [isMatchPlay, isTeamMatchPlay, matchSideMode, players, matchSides, matchScoreMode, matchPerspective, allScores, handicapStrokes, holes]);
 
   // Stableford live points per player. Null when not a Stableford round so
   // consumers can early-out. Respects URL scoreMode (gross vs net), mirroring
@@ -1363,11 +1420,14 @@ export function useScoringState() {
     puttDist,
     setPuttDist,
 
-    // Match Play 1v1 (Stage 1 — singles + Stage 2 — placeholder setup)
+    // Match Play (Stage 1 — singles + Stage 2 — placeholder setup + Stage 4b — 2v2 team)
     isMatchPlay,
+    isTeamMatchPlay,
     matchPlayState,
     matchSides,
     setMatchSides,
+    matchSideMode,
+    setMatchSideMode,
     matchScoreMode,
     setMatchScoreMode,
     matchPerspective,

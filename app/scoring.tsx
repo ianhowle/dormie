@@ -570,8 +570,19 @@ function ScoringScreenInner() {
         visible={s.showMatchPlaySetup && s.isMatchPlay}
         players={s.players}
         sides={s.matchSides}
+        isTeam={s.isTeamMatchPlay}
+        sideMode={s.matchSideMode}
         scoreMode={s.matchScoreMode}
         perspective={s.matchPerspective}
+        onMoveToSideA={(pid) => s.setMatchSides((prev) => ({
+          sideA: { playerIds: [...prev.sideA.playerIds, pid] },
+          sideB: { playerIds: prev.sideB.playerIds.filter((id) => id !== pid) },
+        }))}
+        onMoveToSideB={(pid) => s.setMatchSides((prev) => ({
+          sideA: { playerIds: prev.sideA.playerIds.filter((id) => id !== pid) },
+          sideB: { playerIds: [...prev.sideB.playerIds, pid] },
+        }))}
+        onSetSideMode={s.setMatchSideMode}
         onSetScoreMode={s.setMatchScoreMode}
         onSetPerspective={s.setMatchPerspective}
         onStart={() => s.setShowMatchPlaySetup(false)}

@@ -339,9 +339,9 @@ export function BestBallSetupModal({
 // affordances) is for Design to reshape. Do not polish this surface —
 // it ships with smart defaults so a single Start tap works.
 //
-// Scope: 1v1 / 2-player only. The two columns are static (the BestBall
-// "tap to move" guard degenerates with one player per side — Stage 4
-// extends to team sizes ≥ 1 per side). Choices that DO matter for 1v1:
+// Scope: 1v1 singles (static columns) + 2v2 team (Stage 4b: BestBall-style
+// tap-to-move side assignment + side-scoring-mode choice). Choices:
+//   - Team only: side assignment; Best Ball vs Aggregate side scoring
 //   - Gross/Net (defaults from round-level scoreMode)
 //   - Perspective: which side is "you" (drives UP/DOWN in the banner)
 // Allowance is deferred per docs/matchplay-architecture.md (default 100%).
@@ -349,8 +349,13 @@ export function MatchPlaySetupModal({
   visible,
   players,
   sides,
+  isTeam,
+  sideMode,
   scoreMode,
   perspective,
+  onMoveToSideA,
+  onMoveToSideB,
+  onSetSideMode,
   onSetScoreMode,
   onSetPerspective,
   onStart,
@@ -358,8 +363,15 @@ export function MatchPlaySetupModal({
   visible: boolean;
   players: PlayerConfig[];
   sides: { sideA: { playerIds: string[] }; sideB: { playerIds: string[] } };
+  // Stage 4b — 2v2 team match. When false (singles), the side columns are
+  // static and side-mode/move props are unused.
+  isTeam?: boolean;
+  sideMode?: 'best_ball' | 'aggregate';
   scoreMode: 'gross' | 'net';
   perspective: 'A' | 'B';
+  onMoveToSideA?: (pid: string) => void;
+  onMoveToSideB?: (pid: string) => void;
+  onSetSideMode?: (mode: 'best_ball' | 'aggregate') => void;
   onSetScoreMode: (mode: 'gross' | 'net') => void;
   onSetPerspective: (p: 'A' | 'B') => void;
   onStart: () => void;
@@ -371,34 +383,113 @@ export function MatchPlaySetupModal({
   const pB = playerForSide(sides.sideB.playerIds);
   const sideLabel = (p: PlayerConfig | undefined) =>
     p ? (p.id === '1' ? 'You' : p.name) : '—';
+  // Team perspective-pill label: first names joined ("You/Kara").
+  const sideNames = (sideIds: string[]) =>
+    sideIds
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is PlayerConfig => !!p)
+      .map((p) => (p.id === '1' ? 'You' : p.name.split(' ')[0]))
+      .join('/') || '—';
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={st.modalOverlay}>
         <View style={[st.modalContent, { backgroundColor: c.cardBg, borderColor: c.teal, width: '90%' }]}>
           <Text style={[st.modalTitle, { color: c.teal, fontFamily: GEO }]}>MATCH PLAY</Text>
-          <Text style={[st.modalText, { color: c.textMuted }]}>1v1 singles</Text>
+          <Text style={[st.modalText, { color: c.textMuted }]}>
+            {isTeam ? '2v2 team match — tap a player to switch sides' : '1v1 singles'}
+          </Text>
 
-          {/* Static side columns (2-player case — no move interaction) */}
-          <View style={st.bestBallSetupRow}>
-            <View style={st.bestBallColumn}>
-              <Text style={[st.bestBallColumnTitle, { color: c.teal }]}>Side A</Text>
-              {pA && (
-                <View style={[st.bestBallPlayerChip, { backgroundColor: `${c.teal}20`, borderColor: c.teal }]}>
-                  <Avatar id={pA.id} size={22} name={pA.name} />
-                  <Text style={[st.bestBallPlayerName, { color: c.text }]}>{sideLabel(pA)}</Text>
-                </View>
-              )}
+          {isTeam ? (
+            /* Team side columns (Stage 4b — BestBallSetupModal tap-to-move
+               pattern; a side never empties below one player) */
+            <View style={st.bestBallSetupRow}>
+              <View style={st.bestBallColumn}>
+                <Text style={[st.bestBallColumnTitle, { color: c.teal }]}>Side A</Text>
+                {sides.sideA.playerIds.map((pid) => {
+                  const p = players.find((pl) => pl.id === pid);
+                  if (!p) return null;
+                  return (
+                    <Pressable
+                      key={pid}
+                      onPress={() => { if (sides.sideA.playerIds.length > 1) onMoveToSideB?.(pid); }}
+                      style={[st.bestBallPlayerChip, { backgroundColor: `${c.teal}20`, borderColor: c.teal }]}
+                    >
+                      <Avatar id={p.id} size={22} name={p.name} />
+                      <Text style={[st.bestBallPlayerName, { color: c.text }]}>{p.id === '1' ? 'You' : p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={st.bestBallColumn}>
+                <Text style={[st.bestBallColumnTitle, { color: c.gold }]}>Side B</Text>
+                {sides.sideB.playerIds.map((pid) => {
+                  const p = players.find((pl) => pl.id === pid);
+                  if (!p) return null;
+                  return (
+                    <Pressable
+                      key={pid}
+                      onPress={() => { if (sides.sideB.playerIds.length > 1) onMoveToSideA?.(pid); }}
+                      style={[st.bestBallPlayerChip, { backgroundColor: `${c.gold}20`, borderColor: c.gold }]}
+                    >
+                      <Avatar id={p.id} size={22} name={p.name} />
+                      <Text style={[st.bestBallPlayerName, { color: c.text }]}>{p.id === '1' ? 'You' : p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-            <View style={st.bestBallColumn}>
-              <Text style={[st.bestBallColumnTitle, { color: c.gold }]}>Side B</Text>
-              {pB && (
-                <View style={[st.bestBallPlayerChip, { backgroundColor: `${c.gold}20`, borderColor: c.gold }]}>
-                  <Avatar id={pB.id} size={22} name={pB.name} />
-                  <Text style={[st.bestBallPlayerName, { color: c.text }]}>{sideLabel(pB)}</Text>
-                </View>
-              )}
+          ) : (
+            /* Static side columns (2-player case — no move interaction) */
+            <View style={st.bestBallSetupRow}>
+              <View style={st.bestBallColumn}>
+                <Text style={[st.bestBallColumnTitle, { color: c.teal }]}>Side A</Text>
+                {pA && (
+                  <View style={[st.bestBallPlayerChip, { backgroundColor: `${c.teal}20`, borderColor: c.teal }]}>
+                    <Avatar id={pA.id} size={22} name={pA.name} />
+                    <Text style={[st.bestBallPlayerName, { color: c.text }]}>{sideLabel(pA)}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={st.bestBallColumn}>
+                <Text style={[st.bestBallColumnTitle, { color: c.gold }]}>Side B</Text>
+                {pB && (
+                  <View style={[st.bestBallPlayerChip, { backgroundColor: `${c.gold}20`, borderColor: c.gold }]}>
+                    <Avatar id={pB.id} size={22} name={pB.name} />
+                    <Text style={[st.bestBallPlayerName, { color: c.text }]}>{sideLabel(pB)}</Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
+          )}
+
+          {/* Side scoring mode — team only (placeholder pills) */}
+          {isTeam && (
+            <>
+              <Text style={[st.modalText, { color: c.textMuted, marginTop: 12 }]}>Side scoring</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                {(['best_ball', 'aggregate'] as const).map((mode) => {
+                  const active = sideMode === mode;
+                  return (
+                    <Pressable
+                      key={mode}
+                      onPress={() => onSetSideMode?.(mode)}
+                      style={[
+                        st.bestBallPlayerChip,
+                        {
+                          backgroundColor: active ? `${c.teal}20` : c.elevated,
+                          borderColor: active ? c.teal : c.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[st.bestBallPlayerName, { color: active ? c.teal : c.textMuted }]}>
+                        {mode === 'best_ball' ? 'Best Ball' : 'Aggregate'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           {/* Gross / Net toggle (placeholder pills) */}
           <Text style={[st.modalText, { color: c.textMuted, marginTop: 12 }]}>Scoring</Text>
@@ -431,6 +522,7 @@ export function MatchPlaySetupModal({
             {(['A', 'B'] as const).map((side) => {
               const active = perspective === side;
               const sideP = side === 'A' ? pA : pB;
+              const sideIds = side === 'A' ? sides.sideA.playerIds : sides.sideB.playerIds;
               return (
                 <Pressable
                   key={side}
@@ -444,7 +536,7 @@ export function MatchPlaySetupModal({
                   ]}
                 >
                   <Text style={[st.bestBallPlayerName, { color: active ? c.teal : c.textMuted }]}>
-                    Side {side} ({sideLabel(sideP)})
+                    Side {side} ({isTeam ? sideNames(sideIds) : sideLabel(sideP)})
                   </Text>
                 </Pressable>
               );
