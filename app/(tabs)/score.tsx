@@ -668,6 +668,7 @@ function AddPlayerModal({
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualHcp, setManualHcp] = useState('');
+  const manualHcpRef = useRef<TextInput>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -693,7 +694,14 @@ function AddPlayerModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={[st.modalOverlay]}>
+      {/* The overlay is a KeyboardAvoidingView: a Modal renders in its own
+          native window, so the screen-level KAV does not reach it. Without
+          this, the keyboard covers the manual form's Cancel/Add buttons (the
+          2026-06-10 handicap-entry dead-end). */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={st.modalOverlay}
+      >
         <View style={[st.modalContent, { backgroundColor: c.bg }]}>
           {/* Header */}
           <View style={[st.modalHeader, { borderColor: c.border }]}>
@@ -771,8 +779,12 @@ function AddPlayerModal({
                 value={manualName}
                 onChangeText={setManualName}
                 autoCapitalize="words"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => manualHcpRef.current?.focus()}
               />
               <TextInput
+                ref={manualHcpRef}
                 style={[st.addInput, st.addHcpInput, { color: c.text, borderColor: c.border, backgroundColor: c.elevated, fontFamily: GEO }]}
                 placeholder="HCP"
                 placeholderTextColor={c.textMuted}
@@ -780,6 +792,8 @@ function AddPlayerModal({
                 onChangeText={setManualHcp}
                 keyboardType="numeric"
                 maxLength={3}
+                returnKeyType="done"
+                onSubmitEditing={handleAddManual}
               />
               <View style={st.addActions}>
                 <Pressable
@@ -802,7 +816,7 @@ function AddPlayerModal({
             </View>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
