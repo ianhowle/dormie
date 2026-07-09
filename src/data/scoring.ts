@@ -929,6 +929,82 @@ export function deriveSinglesSideScore(
   return gross - handicapStrokesForHole;
 }
 
+/**
+ * Derive a team side's score for one hole as its BEST ball (Stage 4a).
+ * This is the fourball / best-ball-match Layer A variant.
+ *
+ * Net strokes are applied PER PLAYER before the best-pick — the same
+ * "net before best" order calculateNetBestBall documents: a stroked
+ * player may hold the side's better ball despite a higher gross.
+ *
+ * Missing-score contract: use the balls that exist. A side player with
+ * no score on the hole (picked up — common in fourball once a partner's
+ * ball is in) simply contributes nothing. Only when NO side player has
+ * a score does the side have no ball → null (caller skips the hole,
+ * mirroring deriveSinglesSideScore's null).
+ *
+ * A one-player side degenerates to singles: equals
+ * deriveSinglesSideScore(gross, strokes) for that player (tested as a
+ * property, TMS.7).
+ *
+ * @param sidePlayerIds        The side's player ids (any count ≥ 1).
+ * @param holeScores           This hole's scores: Map<playerId, HoleScore>.
+ * @param handicapStrokesByPlayer  Per-player strokes for THIS hole (net only).
+ * @param scoreMode            'gross' ignores strokes; 'net' subtracts per player.
+ */
+export function deriveBestBallSideScore(
+  sidePlayerIds: string[],
+  holeScores: Map<string, HoleScore> | undefined,
+  handicapStrokesByPlayer: Map<string, number>,
+  scoreMode: 'gross' | 'net',
+): number | null {
+  if (!holeScores) return null;
+  let best: number | null = null;
+  for (const id of sidePlayerIds) {
+    const gross = holeScores.get(id)?.gross;
+    const strokes = scoreMode === 'net' ? (handicapStrokesByPlayer.get(id) ?? 0) : 0;
+    const ball = deriveSinglesSideScore(gross, strokes);
+    if (ball === null) continue;
+    if (best === null || ball < best) best = ball;
+  }
+  return best;
+}
+
+/**
+ * Derive a team side's score for one hole as the SUM of its balls
+ * (Stage 4a). This is the aggregate / combined-match Layer A variant.
+ *
+ * Net strokes are applied PER PLAYER before the sum (same order rule
+ * as deriveBestBallSideScore).
+ *
+ * Missing-score contract: STRICTER than best ball. A sum with a missing
+ * ball is not a smaller sum — it's a different (wrong) number that would
+ * hand the hole to the shorthanded side. If ANY side player has no score
+ * on the hole, the hole is incomplete for the side → null (caller skips
+ * the hole, no partial sums). An empty side is also null.
+ *
+ * A one-player side degenerates to singles: equals
+ * deriveSinglesSideScore(gross, strokes) for that player (tested as a
+ * property, TMS.7).
+ */
+export function deriveAggregateSideScore(
+  sidePlayerIds: string[],
+  holeScores: Map<string, HoleScore> | undefined,
+  handicapStrokesByPlayer: Map<string, number>,
+  scoreMode: 'gross' | 'net',
+): number | null {
+  if (!holeScores || sidePlayerIds.length === 0) return null;
+  let sum = 0;
+  for (const id of sidePlayerIds) {
+    const gross = holeScores.get(id)?.gross;
+    const strokes = scoreMode === 'net' ? (handicapStrokesByPlayer.get(id) ?? 0) : 0;
+    const ball = deriveSinglesSideScore(gross, strokes);
+    if (ball === null) return null; // incomplete hole for the side
+    sum += ball;
+  }
+  return sum;
+}
+
 // ─── Best Ball (team) ────────────────────────────────────────────────
 
 export type BestBallResult = {

@@ -24,6 +24,8 @@ import {
   calculateNetMatchPlay,
   formatMatchState,
   deriveSinglesSideScore,
+  deriveBestBallSideScore,
+  deriveAggregateSideScore,
   calculateBestBall,
   calculateNetBestBall,
   calculateScrambleTeamScore,
@@ -2269,6 +2271,119 @@ describe('MATCH PLAY — formatMatchState edge cases', () => {
   it('MPF.19: deriveSinglesSideScore — default strokes 0 (gross path)', () => {
     const v = deriveSinglesSideScore(6);
     record('MPF.19', 'omitted strokes', '6', String(v), v === 6);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEAM MATCH SIDES — deriveBestBallSideScore / deriveAggregateSideScore
+// (Stage 4a — Layer A team variants; Layer B formatMatchState untouched)
+// Contracts: net strokes per player BEFORE best/sum. Best ball uses the
+// balls that exist (null only when NO side ball); aggregate is strict —
+// ANY missing side ball → null (no partial sums).
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('TEAM MATCH SIDES: deriveBestBallSideScore / deriveAggregateSideScore', () => {
+  const NO_STROKES = new Map<string, number>();
+  const A = ['1', '2'];
+  const B = ['3', '4'];
+
+  it('TMS.1: same board, DIFFERENT winners — best ball → A, aggregate → B', () => {
+    // A: 3 + 7 (best 3, sum 10) vs B: 4 + 5 (best 4, sum 9).
+    const hole = new Map([
+      ['1', makeScore(3, 2, null)], ['2', makeScore(7, 2, null)],
+      ['3', makeScore(4, 2, null)], ['4', makeScore(5, 2, null)],
+    ]);
+    const bbA = deriveBestBallSideScore(A, hole, NO_STROKES, 'gross');
+    const bbB = deriveBestBallSideScore(B, hole, NO_STROKES, 'gross');
+    const agA = deriveAggregateSideScore(A, hole, NO_STROKES, 'gross');
+    const agB = deriveAggregateSideScore(B, hole, NO_STROKES, 'gross');
+    const ok = bbA === 3 && bbB === 4 && agA === 10 && agB === 9;
+    record('TMS.1', 'A[3,7] vs B[4,5]', 'bb A wins (3<4), agg B wins (9<10)', `bb ${bbA}v${bbB}, agg ${agA}v${agB}`, ok);
+    expect(ok).toBe(true);
+  });
+
+  it('TMS.2: net strokes flip the hole for aggregate but NOT best ball', () => {
+    // A gross [5,6], B gross [4,7]. Gross: bb B wins (4<5), agg halved (11=11).
+    // 1 net stroke to A's second player: bb still B (4<5), agg flips to A (10<11).
+    const hole = new Map([
+      ['1', makeScore(5, 2, null)], ['2', makeScore(6, 2, null)],
+      ['3', makeScore(4, 2, null)], ['4', makeScore(7, 2, null)],
+    ]);
+    const strokes = new Map([['2', 1]]);
+    const bbGross = [deriveBestBallSideScore(A, hole, strokes, 'gross'), deriveBestBallSideScore(B, hole, strokes, 'gross')];
+    const bbNet = [deriveBestBallSideScore(A, hole, strokes, 'net'), deriveBestBallSideScore(B, hole, strokes, 'net')];
+    const agGross = [deriveAggregateSideScore(A, hole, strokes, 'gross'), deriveAggregateSideScore(B, hole, strokes, 'gross')];
+    const agNet = [deriveAggregateSideScore(A, hole, strokes, 'net'), deriveAggregateSideScore(B, hole, strokes, 'net')];
+    const bbUnchanged = bbGross[0] === 5 && bbGross[1] === 4 && bbNet[0] === 5 && bbNet[1] === 4;
+    const agFlipped = agGross[0] === 11 && agGross[1] === 11 && agNet[0] === 10 && agNet[1] === 11;
+    record('TMS.2', 'stroke on A2', 'bb 5v4 both modes; agg 11v11→10v11', `bb ${bbNet[0]}v${bbNet[1]}, agg ${agGross[0]}v${agGross[1]}→${agNet[0]}v${agNet[1]}`, bbUnchanged && agFlipped);
+    expect(bbUnchanged && agFlipped).toBe(true);
+  });
+
+  it('TMS.3: best ball missing-score contract — uses the balls that exist; null only when none', () => {
+    const oneBall = new Map([['2', makeScore(5, 2, null)]]); // player 1 picked up
+    const partial = deriveBestBallSideScore(A, oneBall, NO_STROKES, 'gross');
+    const noBalls = deriveBestBallSideScore(A, new Map(), NO_STROKES, 'gross');
+    record('TMS.3', 'one ball / no balls', '5 / null', `${partial} / ${noBalls}`, partial === 5 && noBalls === null);
+    expect(partial).toBe(5);
+    expect(noBalls).toBe(null);
+  });
+
+  it('TMS.4: aggregate missing-score contract — ANY missing side ball → null (no partial sums)', () => {
+    const oneBall = new Map([['2', makeScore(5, 2, null)]]);
+    const partial = deriveAggregateSideScore(A, oneBall, NO_STROKES, 'gross');
+    const empty = deriveAggregateSideScore([], oneBall, NO_STROKES, 'gross');
+    record('TMS.4', 'one of two balls / empty side', 'null / null', `${partial} / ${empty}`, partial === null && empty === null);
+    expect(partial).toBe(null);
+    expect(empty).toBe(null);
+  });
+
+  it('TMS.5: undefined holeScores (hole never opened) → null for both variants', () => {
+    const bb = deriveBestBallSideScore(A, undefined, NO_STROKES, 'gross');
+    const ag = deriveAggregateSideScore(A, undefined, NO_STROKES, 'gross');
+    record('TMS.5', 'no hole map', 'null / null', `${bb} / ${ag}`, bb === null && ag === null);
+    expect(bb).toBe(null);
+    expect(ag).toBe(null);
+  });
+
+  it('TMS.7: PROPERTY — a one-player side degenerates to deriveSinglesSideScore (both variants, gross + net)', () => {
+    const cases: Array<[number, number]> = [[3, 0], [4, 1], [5, 2], [7, 0], [6, 1]];
+    let ok = true;
+    for (const [gross, str] of cases) {
+      const hole = new Map([['9', makeScore(gross, 2, null)]]);
+      const strokes = new Map([['9', str]]);
+      for (const mode of ['gross', 'net'] as const) {
+        const singles = deriveSinglesSideScore(gross, mode === 'net' ? str : 0);
+        const bb = deriveBestBallSideScore(['9'], hole, strokes, mode);
+        const ag = deriveAggregateSideScore(['9'], hole, strokes, mode);
+        if (bb !== singles || ag !== singles) ok = false;
+      }
+    }
+    record('TMS.7', '5 boards × 2 modes × 2 variants', 'all equal singles', ok ? 'all equal' : 'MISMATCH', ok);
+    expect(ok).toBe(true);
+  });
+
+  it('TMS.8: formatMatchState consumes team side scores UNMODIFIED — 2v2 best-ball board end-to-end', () => {
+    // 3 holes: A best wins h1 (3v4), halved h2 (4v4), A best wins h3 (4v5)
+    // → 2 UP thru 3 of 18, in progress.
+    const holes = [
+      new Map([['1', makeScore(3, 2, null)], ['2', makeScore(6, 2, null)], ['3', makeScore(4, 2, null)], ['4', makeScore(6, 2, null)]]),
+      new Map([['1', makeScore(4, 2, null)], ['2', makeScore(5, 2, null)], ['3', makeScore(4, 2, null)], ['4', makeScore(5, 2, null)]]),
+      new Map([['1', makeScore(4, 2, null)], ['2', makeScore(7, 2, null)], ['3', makeScore(5, 2, null)], ['4', makeScore(6, 2, null)]]),
+    ];
+    let wonA = 0, wonB = 0, played = 0;
+    for (const h of holes) {
+      const a = deriveBestBallSideScore(A, h, NO_STROKES, 'gross');
+      const b = deriveBestBallSideScore(B, h, NO_STROKES, 'gross');
+      if (a === null || b === null) continue;
+      played++;
+      if (a < b) wonA++;
+      else if (b < a) wonB++;
+    }
+    const state = formatMatchState(wonA, wonB, played, 18);
+    const ok = state.currentDisplay === '2 UP thru 3' && state.leader === 'A' && !state.isComplete;
+    record('TMS.8', '2v2 bb → Layer B', '2 UP thru 3/A/incomplete', `${state.currentDisplay}/${state.leader}/${state.isComplete ? 'complete' : 'incomplete'}`, ok);
+    expect(ok).toBe(true);
   });
 });
 
