@@ -126,6 +126,10 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
 ## Active Compost
 
+- 2026-07-08 — BATCHED PHONE SESSION — verification debt (this run commits with a device-unverified label; verify all items in one phone session at end of run, then clear the list)
+
+  1. **Stableford-live Stage 3 (`3f28815`) — two-sided.** Stableford round: Live Leaderboard ranks by points DESC, POS/PLAYER/THRU/PTS with gold serif PTS column, agrees with banner + grid chips, unscored players at bottom with "-". Other side: stroke/match/best-ball leaderboards identical to before (POS/PLAYER/THRU/TOTAL/TO PAR, to-par ASC); matchup tab unchanged in both.
+
 - 2026-06-10 — BUG — manual-player handicap entry has no exit affordance (round setup)
 
   Repro: add a manual player during round setup → type name → enter → handicap entry appears → type handicap value → NOTHING to tap to proceed. No Done/confirm button, no dismiss. Only escape is re-tapping the search player filter. NOT a freeze/zombie-modal (touches respond, state machine works): the player IS added with the correct handicap — the completion affordance simply doesn't exist. Fix shape: add a Done/confirm button + `onSubmitEditing` on the handicap input so keyboard return completes the flow. First-run feel-breaker for beta (users will think it's stuck). Queued behind Stableford-live Stages 2b + 3.
@@ -134,7 +138,7 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
   Stableford post-round standings table committed `436ce63` (verified on device — round-complete screen shows POS/PLAYER/POINTS). That clears Open Issue #1 of the 2026-05-26 match-play entry (the previously-uncommitted `+121/-40` PostRoundSummary diff is now in the tree and pushed). Three findings logged this session:
 
-  1. **Stableford LIVE scoring missing.** During the round there's no per-hole points display, and the live leaderboard shows stroke play, not Stableford points. Post-round standings work (committed `436ce63`), but the in-round experience is stroke-play until the end. Separate feature — needs per-hole points + a Stableford-aware live leaderboard. (Parallels the match-play shape: post-round result built before the format's live in-round treatment is complete.) **UPDATE 2026-07-08:** Stages 1 (`a3a75b7` live points derivation), 2 (`b00277e` live points banner), and 2b (`d1f2661` per-card points chip in the score grid, verified two-sided on device) are committed. **Stage 3 — the points-aware live leaderboard — is the remaining piece.**
+  1. **Stableford LIVE scoring missing.** During the round there's no per-hole points display, and the live leaderboard shows stroke play, not Stableford points. Post-round standings work (committed `436ce63`), but the in-round experience is stroke-play until the end. Separate feature — needs per-hole points + a Stableford-aware live leaderboard. (Parallels the match-play shape: post-round result built before the format's live in-round treatment is complete.) **UPDATE 2026-07-08:** Stages 1 (`a3a75b7` live points derivation), 2 (`b00277e` live points banner), 2b (`d1f2661` per-card points chip, verified two-sided on device), and 3 (`3f28815` points-aware live leaderboard) are ALL committed — **feature CODE-COMPLETE**. Stage 3 device verification is **PENDING** in the batched phone session (see BATCHED PHONE SESSION list at the top of Active Compost).
 
   2. **Stableford post-round enhancement.** The standings table shows final points only; it should show how/where points were earned (per-hole points breakdown). Future refinement on top of the shipped table.
 
