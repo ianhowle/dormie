@@ -130,9 +130,13 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
   1. **Stableford-live Stage 3 (`3f28815`) — two-sided.** Stableford round: Live Leaderboard ranks by points DESC, POS/PLAYER/THRU/PTS with gold serif PTS column, agrees with banner + grid chips, unscored players at bottom with "-". Other side: stroke/match/best-ball leaderboards identical to before (POS/PLAYER/THRU/TOTAL/TO PAR, to-par ASC); matchup tab unchanged in both.
 
+  2. **Manual-player handicap dead-end fix (`44fb41d`).** Handicap entry: type value → Done/Add button visible and works (no longer hidden behind the keyboard); keyboard return also completes (name → next → HCP; Android numeric ✓ submits — iOS numeric pad has no return key, Add button is the iOS path); player lands in roster with correct handicap; escape no longer requires the search-filter trick. Also confirm the friends list + search still work with the sheet now keyboard-avoiding.
+
 - 2026-06-10 — BUG — manual-player handicap entry has no exit affordance (round setup)
 
   Repro: add a manual player during round setup → type name → enter → handicap entry appears → type handicap value → NOTHING to tap to proceed. No Done/confirm button, no dismiss. Only escape is re-tapping the search player filter. NOT a freeze/zombie-modal (touches respond, state machine works): the player IS added with the correct handicap — the completion affordance simply doesn't exist. Fix shape: add a Done/confirm button + `onSubmitEditing` on the handicap input so keyboard return completes the flow. First-run feel-breaker for beta (users will think it's stuck). Queued behind Stableford-live Stages 2b + 3.
+
+  **FIXED 2026-07-08 (`44fb41d`) — diagnosis refined:** the Cancel/Add buttons existed all along (AddPlayerModal manual form); the modal renders in its own native window so the screen-level KeyboardAvoidingView never reached it — the keyboard covered the sheet bottom, and the iOS numeric pad has no return key. Fix: modal overlay is now a KeyboardAvoidingView (buttons stay visible) + submit chain (name → HCP → handleAddManual). Device verification PENDING — batched phone session item 2. Side note: `AddPlayerInline` (score.tsx) is dead code — defined, never mounted; candidate for deletion in a cleanup pass.
 
 - 2026-06-09 — STABLEFORD POST-ROUND SHIPPED; LIVE SCORING STILL MISSING + enhancement + celebration-bug reconfirm
 
