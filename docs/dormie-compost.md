@@ -21,7 +21,7 @@
 - `de55757` visual polish (possessive grammar, label casing, safe-area, 44pt touch targets, number-pad keyboard).
 - `ff916ff` rework spec doc (`docs/rework-scoring-input-layer.md`).
 - `92afd26` reality map appended to rework spec.
-- tsc baseline corrected **34 → 23** (verified legitimate cleanup: module:esnext for dynamic imports, supabase/functions excluded, LinearGradient tuple sweep, missing useState import, Course schema fix). Tests: **177 scoring + 39 poker** passing throughout.
+- tsc baseline corrected **34 → 23** (verified legitimate cleanup: module:esnext for dynamic imports, supabase/functions excluded, LinearGradient tuple sweep, missing useState import, Course schema fix). Tests: **214 scoring + 39 poker** passing throughout.
 
 ---
 
@@ -104,7 +104,7 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
 - **Multi-agent workflow:** strategist chat + Claude Code (execution) + visual-diagnostic chat (eyes) + Claude Design; Ian bridges by copy-paste.
 - **Branch:** `claude/setup-dormie-expo-ianD7`.
-- **tsc baseline:** 23. **Tests:** 177 scoring + 39 poker.
+- **tsc baseline:** 23. **Tests:** 214 scoring + 39 poker.
 - **Persistent memory** (`~/.claude/projects/-Users-ianhowle-dormie/memory/`): `feedback_phone_verify_sequencing.md` — hold compost/follow-up commits until the fix they relate to is phone-verified and committed first.
 
 ---
@@ -134,7 +134,7 @@ All four have been dirty in the working tree across this entire session. **Nobod
 
   Stableford post-round standings table committed `436ce63` (verified on device — round-complete screen shows POS/PLAYER/POINTS). That clears Open Issue #1 of the 2026-05-26 match-play entry (the previously-uncommitted `+121/-40` PostRoundSummary diff is now in the tree and pushed). Three findings logged this session:
 
-  1. **Stableford LIVE scoring missing.** During the round there's no per-hole points display, and the live leaderboard shows stroke play, not Stableford points. Post-round standings work (committed `436ce63`), but the in-round experience is stroke-play until the end. Separate feature — needs per-hole points + a Stableford-aware live leaderboard. (Parallels the match-play shape: post-round result built before the format's live in-round treatment is complete.)
+  1. **Stableford LIVE scoring missing.** During the round there's no per-hole points display, and the live leaderboard shows stroke play, not Stableford points. Post-round standings work (committed `436ce63`), but the in-round experience is stroke-play until the end. Separate feature — needs per-hole points + a Stableford-aware live leaderboard. (Parallels the match-play shape: post-round result built before the format's live in-round treatment is complete.) **UPDATE 2026-07-08:** Stages 1 (`a3a75b7` live points derivation), 2 (`b00277e` live points banner), and 2b (`d1f2661` per-card points chip in the score grid, verified two-sided on device) are committed. **Stage 3 — the points-aware live leaderboard — is the remaining piece.**
 
   2. **Stableford post-round enhancement.** The standings table shows final points only; it should show how/where points were earned (per-hole points breakdown). Future refinement on top of the shipped table.
 
