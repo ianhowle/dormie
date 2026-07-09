@@ -40,7 +40,7 @@ import { generateScoringEvents as genScoringEventsUtil, detectToastEvents as det
 import type { SideGameEvent } from '../components/SideGameToast';
 import type { SideGameEventSlice } from '../data/scoring';
 import { formatMatchState, deriveSinglesSideScore, type MatchPlayState } from '../data/scoring';
-import { computeStablefordLive, type StablefordLiveEntry } from './stableford-live';
+import { computeStablefordLive, rankStablefordLive, type StablefordLiveEntry } from './stableford-live';
 import type { PlayerHoleResult } from '../components/HoleTransitionBanner';
 import type { MomentType } from '../components/DormieMoment';
 
@@ -1288,6 +1288,18 @@ export function useScoringState() {
     });
   }, [players, getRunningTotal]);
 
+  // Stableford live leaderboard (Stage 3). Parallel dataset — the stroke-play
+  // leaderboardData above stays the ranking for every other format. Null when
+  // not a Stableford round so consumers can early-out. Ordering contract
+  // (points DESC, unscored-last, roster-index tiebreak) lives in
+  // rankStablefordLive.
+  const stablefordLeaderboardData = useMemo(() => {
+    if (!isStableford || !stablefordLive) return null;
+    const byId = new Map(players.map((p) => [p.id, p]));
+    return rankStablefordLive(players.map((p) => p.id), stablefordLive)
+      .map((row) => ({ player: byId.get(row.playerId)!, points: row.points, thru: row.thru }));
+  }, [isStableford, stablefordLive, players]);
+
   // Feature 12: Unread feed count
   const unreadFeedCount = scoringEvents.length - lastReadEventCount;
 
@@ -1496,6 +1508,7 @@ export function useScoringState() {
     isLastHole,
     bestBallTeamScores,
     leaderboardData,
+    stablefordLeaderboardData,
     unreadFeedCount,
     visiblePlayers,
 

@@ -64,3 +64,45 @@ export function computeStablefordLive(
 
   return result;
 }
+
+export type StablefordLeaderboardRow = {
+  playerId: string;
+  points: number;
+  thru: number;
+};
+
+/**
+ * Rank the full roster for a live Stableford leaderboard (Stage 3).
+ *
+ * Ordering contract:
+ *   1. Unscored players (thru === 0) always rank BELOW scored players, in
+ *      roster order. The discriminator is thru, NOT points — in Stableford an
+ *      earned zero (holes played, no points) is a real score and outranks a
+ *      player who hasn't teed off.
+ *   2. Scored players sort by points DESC.
+ *   3. Ties break by roster index — deliberately NOT by thru. A thru-based
+ *      tiebreak reorders tied players on any 0-point hole (points unchanged,
+ *      thru incremented); roster index is fixed for the round, so tied
+ *      players hold their relative order hole over hole.
+ *
+ * Every roster id appears in the result exactly once; ids absent from
+ * `entries` come back as { points: 0, thru: 0 }.
+ */
+export function rankStablefordLive(
+  rosterIds: string[],
+  entries: Map<string, StablefordLiveEntry>,
+): StablefordLeaderboardRow[] {
+  return rosterIds
+    .map((id, idx) => {
+      const e = entries.get(id);
+      return { playerId: id, points: e?.points ?? 0, thru: e?.thru ?? 0, idx };
+    })
+    .sort((a, b) => {
+      const aUnscored = a.thru === 0;
+      const bUnscored = b.thru === 0;
+      if (aUnscored !== bUnscored) return aUnscored ? 1 : -1;
+      if (b.points !== a.points) return b.points - a.points;
+      return a.idx - b.idx;
+    })
+    .map(({ playerId, points, thru }) => ({ playerId, points, thru }));
+}

@@ -653,6 +653,7 @@ function ScoringScreenInner() {
         activeCompTab={s.activeCompTab}
         setActiveCompTab={s.setActiveCompTab}
         leaderboardData={s.leaderboardData}
+        stablefordLeaderboardData={s.stablefordLeaderboardData}
         allScores={s.allScores}
         holes={s.holes}
         holesScored={s.holesScored}

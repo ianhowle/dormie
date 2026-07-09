@@ -45,7 +45,7 @@ import type { HoleScore, HoleData } from '../../scoring/types';
 import type { Card } from '../../services/poker.service';
 import { checkDormieMoments } from '../../scoring/moments';
 import { resolveMatchResult } from '../../scoring/matchplay-result';
-import { computeStablefordLive } from '../../scoring/stableford-live';
+import { computeStablefordLive, rankStablefordLive } from '../../scoring/stableford-live';
 import {
   cardsToDealForHole,
   countThreePutts,
@@ -2552,6 +2552,55 @@ describe('STABLEFORD LIVE: computeStablefordLive', () => {
     const m = computeStablefordLive(HOLES_4, makeAllScores([]), NO_HCP, 'gross');
     record('SL.5', 'no scores entered', 'size 0', `size ${m.size}`, m.size === 0);
     expect(m.size).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// STABLEFORD LIVE LEADERBOARD — rankStablefordLive (Stage 3 ranking)
+// Contract: points DESC; unscored (thru===0, NOT points===0) pinned last in
+// roster order; ties break by roster index (deliberately not thru — a
+// 0-point hole must not reorder tied players).
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('STABLEFORD LIVE LEADERBOARD: rankStablefordLive', () => {
+  const entry = (points: number, thru: number) => ({ points, thru });
+
+  it('RSL.1: points DESC — higher points rank first regardless of roster order', () => {
+    const ranked = rankStablefordLive(
+      ['1', '2', '3'],
+      new Map([['1', entry(4, 3)], ['2', entry(9, 3)], ['3', entry(6, 3)]]),
+    );
+    const order = ranked.map((r) => r.playerId).join(',');
+    record('RSL.1', 'pts 4/9/6 by roster', '2,3,1', order, order === '2,3,1');
+    expect(order).toBe('2,3,1');
+  });
+
+  it('RSL.2: earned zero (thru>0) ranks ABOVE unscored (thru===0); unscored last in roster order', () => {
+    const ranked = rankStablefordLive(
+      ['1', '2', '3', '4'],
+      new Map([['2', entry(0, 4)], ['3', entry(5, 4)]]), // 1 & 4 never teed off
+    );
+    const order = ranked.map((r) => r.playerId).join(',');
+    const bottom = ranked[2];
+    record('RSL.2', 'earned-0 vs unscored', '3,2,1,4', order, order === '3,2,1,4' && bottom.points === 0 && bottom.thru === 0);
+    expect(order).toBe('3,2,1,4');
+    expect(ranked[3]).toEqual({ playerId: '4', points: 0, thru: 0 });
+  });
+
+  it('RSL.3: tie holds roster order and does NOT reorder on a 0-point hole (thru change, points unchanged)', () => {
+    // Before: 1 and 3 tied at 7, both thru 4. After: player 3 blobs hole 5
+    // (thru 5, still 7 points). Order must be identical both times.
+    const before = rankStablefordLive(
+      ['1', '2', '3'],
+      new Map([['1', entry(7, 4)], ['2', entry(3, 4)], ['3', entry(7, 4)]]),
+    ).map((r) => r.playerId).join(',');
+    const after = rankStablefordLive(
+      ['1', '2', '3'],
+      new Map([['1', entry(7, 4)], ['2', entry(3, 4)], ['3', entry(7, 5)]]),
+    ).map((r) => r.playerId).join(',');
+    record('RSL.3', 'tie stable across blob hole', `${before}==${after}`, `${before}/${after}`, before === '1,3,2' && after === '1,3,2');
+    expect(before).toBe('1,3,2');
+    expect(after).toBe('1,3,2');
   });
 });
 

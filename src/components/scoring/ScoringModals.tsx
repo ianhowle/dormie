@@ -523,6 +523,7 @@ export function LiveLeaderboard({
   activeCompTab,
   setActiveCompTab,
   leaderboardData,
+  stablefordLeaderboardData,
   allScores,
   holes,
   holesScored,
@@ -539,6 +540,10 @@ export function LiveLeaderboard({
   activeCompTab: string;
   setActiveCompTab: (tab: string) => void;
   leaderboardData: { player: PlayerConfig; total: number; par: number; count: number }[];
+  // Stableford live ranking (Stage 3). When null/undefined (every
+  // non-Stableford round), the round view renders the literal existing
+  // stroke-play table.
+  stablefordLeaderboardData?: { player: PlayerConfig; points: number; thru: number }[] | null;
   allScores: Map<number, Map<string, HoleScore>>;
   holes: HoleData[];
   holesScored: number;
@@ -588,37 +593,71 @@ export function LiveLeaderboard({
 
         {/* Round view */}
         {(activeCompTab === 'round' || !competitionTabs.find((t) => t.key === activeCompTab)) && (
-          <>
-            <View style={st.broadcastHeaderRow}>
-              <Text style={st.broadcastColPos}>POS</Text>
-              <Text style={st.broadcastColName}>PLAYER</Text>
-              <Text style={st.broadcastColThru}>THRU</Text>
-              <Text style={st.broadcastColTotal}>TOTAL</Text>
-              <Text style={st.broadcastColPar}>TO PAR</Text>
-            </View>
-            <ScrollView bounces={false} contentContainerStyle={{ paddingHorizontal: 0 }}>
-              {leaderboardData.map((row, i) => {
-                const isMe = row.player.id === '1';
-                const diff = row.total - row.par;
-                return (
-                  <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(0,103,71,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
-                    <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
-                    <Avatar id={row.player.id} size={28} name={row.player.name} />
-                    <View style={st.lbNameWrap}>
-                      <Text style={[st.lbName, isMe && { color: '#006747', fontWeight: '700' }]}>
-                        {isMe ? 'You' : row.player.name}
+          stablefordLeaderboardData ? (
+            /* Stableford (Stage 3): points ranking — POS / PLAYER / THRU / PTS.
+               No TOTAL / TO PAR: in Stableford, points IS the score (same
+               product logic as the Stage 2b grid chip). */
+            <>
+              <View style={st.broadcastHeaderRow}>
+                <Text style={st.broadcastColPos}>POS</Text>
+                <Text style={st.broadcastColName}>PLAYER</Text>
+                <Text style={st.broadcastColThru}>THRU</Text>
+                <Text style={[st.broadcastColPar, { width: 48 }]}>PTS</Text>
+              </View>
+              <ScrollView bounces={false} contentContainerStyle={{ paddingHorizontal: 0 }}>
+                {stablefordLeaderboardData.map((row, i) => {
+                  const isMe = row.player.id === '1';
+                  return (
+                    <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(0,103,71,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                      <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
+                      <Avatar id={row.player.id} size={28} name={row.player.name} />
+                      <View style={st.lbNameWrap}>
+                        <Text style={[st.lbName, isMe && { color: '#006747', fontWeight: '700' }]}>
+                          {isMe ? 'You' : row.player.name}
+                        </Text>
+                      </View>
+                      <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.thru}</Text>
+                      <Text style={[st.lbTotal, { width: 48, color: '#C9A227', fontFamily: GEO }]}>
+                        {row.thru > 0 ? row.points : '-'}
                       </Text>
                     </View>
-                    <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.count}</Text>
-                    <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
-                    <Text style={[st.lbToPar, { color: diff < 0 ? '#006747' : diff === 0 ? '#C9A227' : '#C41E3A', fontFamily: GEO }]}>
-                      {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
-                    </Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </>
+                  );
+                })}
+              </ScrollView>
+            </>
+          ) : (
+            <>
+              <View style={st.broadcastHeaderRow}>
+                <Text style={st.broadcastColPos}>POS</Text>
+                <Text style={st.broadcastColName}>PLAYER</Text>
+                <Text style={st.broadcastColThru}>THRU</Text>
+                <Text style={st.broadcastColTotal}>TOTAL</Text>
+                <Text style={st.broadcastColPar}>TO PAR</Text>
+              </View>
+              <ScrollView bounces={false} contentContainerStyle={{ paddingHorizontal: 0 }}>
+                {leaderboardData.map((row, i) => {
+                  const isMe = row.player.id === '1';
+                  const diff = row.total - row.par;
+                  return (
+                    <View key={row.player.id} style={[st.lbRow, { backgroundColor: isMe ? 'rgba(0,103,71,0.15)' : i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }]}>
+                      <Text style={[st.lbPos, { fontFamily: GEO }]}>{i + 1}</Text>
+                      <Avatar id={row.player.id} size={28} name={row.player.name} />
+                      <View style={st.lbNameWrap}>
+                        <Text style={[st.lbName, isMe && { color: '#006747', fontWeight: '700' }]}>
+                          {isMe ? 'You' : row.player.name}
+                        </Text>
+                      </View>
+                      <Text style={[st.lbThru, { width: 36, textAlign: 'center' }]}>{row.count}</Text>
+                      <Text style={[st.lbTotal, { fontFamily: GEO }]}>{row.total || '-'}</Text>
+                      <Text style={[st.lbToPar, { color: diff < 0 ? '#006747' : diff === 0 ? '#C9A227' : '#C41E3A', fontFamily: GEO }]}>
+                        {row.total > 0 ? formatToPar(row.total, row.par) : '-'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </>
+          )
         )}
 
         {/* Matchup view */}
