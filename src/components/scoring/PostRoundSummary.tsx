@@ -22,7 +22,7 @@ import type {
 import { CompetitionImpactSection } from './CompetitionImpact';
 import { computeSeasonImpact, computeHandicapImpact } from '../../data/competitionImpact';
 import { calculateNetStablefordTotal } from '../../data/scoring';
-import { resolveMatchResult } from '../../scoring/matchplay-result';
+import { resolveMatchResult, resolveTeamMatchResult } from '../../scoring/matchplay-result';
 import { competitionStyles as ci } from './styles';
 import {
   computePlayerTotals, isGIR, pName,
@@ -757,6 +757,7 @@ const PostRoundSummary = memo(function PostRoundSummary({
   matchSides,
   matchPerspective,
   matchScoreMode,
+  matchSideMode,
   onDone,
   onSettleUp,
 }: {
@@ -778,6 +779,9 @@ const PostRoundSummary = memo(function PostRoundSummary({
   matchSides?: { sideA: { playerIds: string[] }; sideB: { playerIds: string[] } };
   matchPerspective?: 'A' | 'B';
   matchScoreMode?: 'gross' | 'net';
+  // Stage 4c — 2v2 team match: how a side's per-hole score derives from its
+  // players' balls. Defaults to best ball (fourball convention).
+  matchSideMode?: 'best_ball' | 'aggregate';
   onDone: () => void;
   onSettleUp?: () => void;
 }) {
@@ -810,16 +814,40 @@ const PostRoundSummary = memo(function PostRoundSummary({
       .sort((a, b) => b.points - a.points);
   }, [isStableford, playerTotals, handicapStrokes]);
 
-  // ─── Match Play post-round result (Stage 3b) ──────────────────────
-  // isMatchPlay detection consistent with useScoringState: 'match play' in
-  // the format label + exactly 2 players. Sides/scoreMode fall back to the
-  // 1v1 first-two-players / URL-scoreMode defaults when props are absent.
-  const isMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
+  // ─── Match Play post-round result (Stage 3b singles + 4c team) ────
+  // Detection consistent with useScoringState: 'match play' in the format
+  // label; player count discriminates singles (2) vs team (4). Sides /
+  // scoreMode / sideMode fall back to the first-two-vs-last-two /
+  // URL-scoreMode / best-ball defaults when props are absent.
+  const isSinglesMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 2;
+  const isTeamMatchPlay = formatLabel.toLowerCase().includes('match play') && players.length === 4;
+  const isMatchPlay = isSinglesMatchPlay || isTeamMatchPlay;
   const matchSideAId = matchSides?.sideA.playerIds[0] ?? players[0]?.id;
   const matchSideBId = matchSides?.sideB.playerIds[0] ?? players[1]?.id;
+  const teamSideAIds = useMemo(
+    () => matchSides?.sideA.playerIds ?? players.slice(0, 2).map((p) => p.id),
+    [matchSides, players],
+  );
+  const teamSideBIds = useMemo(
+    () => matchSides?.sideB.playerIds ?? players.slice(2, 4).map((p) => p.id),
+    [matchSides, players],
+  );
   const resolvedMatchScoreMode: 'gross' | 'net' =
     matchScoreMode ?? (scoreMode === 'net' ? 'net' : 'gross');
+  const resolvedMatchSideMode: 'best_ball' | 'aggregate' = matchSideMode ?? 'best_ball';
   const matchResult = useMemo(() => {
+    if (isTeamMatchPlay) {
+      if (teamSideAIds.length === 0 || teamSideBIds.length === 0) return null;
+      return resolveTeamMatchResult(
+        teamSideAIds,
+        teamSideBIds,
+        resolvedMatchSideMode,
+        holes,
+        allScores,
+        resolvedMatchScoreMode,
+        handicapStrokes,
+      );
+    }
     if (!isMatchPlay || !matchSideAId || !matchSideBId) return null;
     return resolveMatchResult(
       matchSideAId,
@@ -829,12 +857,21 @@ const PostRoundSummary = memo(function PostRoundSummary({
       resolvedMatchScoreMode,
       handicapStrokes,
     );
-  }, [isMatchPlay, matchSideAId, matchSideBId, holes, allScores, resolvedMatchScoreMode, handicapStrokes]);
+  }, [isMatchPlay, isTeamMatchPlay, matchSideAId, matchSideBId, teamSideAIds, teamSideBIds, resolvedMatchSideMode, holes, allScores, resolvedMatchScoreMode, handicapStrokes]);
   const matchSideAPlayer = players.find((p) => p.id === matchSideAId);
   const matchSideBPlayer = players.find((p) => p.id === matchSideBId);
   // "You" side: whichever side holds the user (id '1'); else the chosen perspective.
-  const matchYouSide: 'A' | 'B' =
-    matchSideAId === '1' ? 'A' : matchSideBId === '1' ? 'B' : (matchPerspective ?? 'A');
+  const matchYouSide: 'A' | 'B' = isTeamMatchPlay
+    ? (teamSideAIds.includes('1') ? 'A' : teamSideBIds.includes('1') ? 'B' : (matchPerspective ?? 'A'))
+    : matchSideAId === '1' ? 'A' : matchSideBId === '1' ? 'B' : (matchPerspective ?? 'A');
+  // Team side display names — slash-joined first names, matching the live
+  // banner's Stage 4c convention ("You/Kara def. Drew/Tommy 3&2").
+  const teamSideName = (ids: string[]) =>
+    ids
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is PlayerConfig => !!p)
+      .map((p) => (p.id === '1' ? 'You' : p.name.split(' ')[0]))
+      .join('/') || '—';
 
   // ─── Competition Impact computation ───────────────────────────────
   const userId = '1'; // Current user ID convention
@@ -878,11 +915,15 @@ const PostRoundSummary = memo(function PostRoundSummary({
               p.id === '1' ? 'You'
                 : (matchSideAId !== '1' && matchSideBId !== '1' && side === matchYouSide) ? 'You'
                 : p.name;
+            // Team (Stage 4c): slash-joined side names; singles: existing line.
+            const sideName = (side: 'A' | 'B') => isTeamMatchPlay
+              ? teamSideName(side === 'A' ? teamSideAIds : teamSideBIds)
+              : nameFor(side === 'A' ? matchSideAPlayer : matchSideBPlayer, side);
             const winnerLine = matchResult.leader === null
               ? 'Match halved'
               : matchResult.leader === 'A'
-                ? `${nameFor(matchSideAPlayer, 'A')} def. ${nameFor(matchSideBPlayer, 'B')} ${matchResult.display}`
-                : `${nameFor(matchSideBPlayer, 'B')} def. ${nameFor(matchSideAPlayer, 'A')} ${matchResult.display}`;
+                ? `${sideName('A')} def. ${sideName('B')} ${matchResult.display}`
+                : `${sideName('B')} def. ${sideName('A')} ${matchResult.display}`;
             return (
               <View style={[ps.standingsTable, { borderColor: c.border, backgroundColor: '#1E4D2B', paddingVertical: 18, paddingHorizontal: 16, alignItems: 'center', marginBottom: 12 }, theme.isDark ? cardShadowDark : cardShadowLight]}>
                 <Text style={{ color: c.gold, fontFamily: GEO, fontSize: 22, fontWeight: '700' as const, textAlign: 'center' }}>

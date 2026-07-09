@@ -125,6 +125,7 @@ function ScoringScreenInner() {
           matchSides={s.matchSides}
           matchPerspective={s.matchPerspective}
           matchScoreMode={s.matchScoreMode}
+          matchSideMode={s.matchSideMode}
           onDone={s.handlePostRound}
           onSettleUp={() => s.router.push('/ledger')}
         />

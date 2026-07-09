@@ -19,18 +19,28 @@ function nameFor(pid: string | undefined, players: PlayerConfig[]) {
   return p.id === '1' ? 'You' : p.name.split(' ')[0];
 }
 
+// Stage 4c: team sides read as slash-joined first names ("You/Kara") — the
+// densest one-line-safe form for 2-player sides. Singles (one id) is
+// byte-identical to nameFor's output; an empty side preserves nameFor's
+// undefined → 'You' fallback.
+function sideNameFor(playerIds: string[], players: PlayerConfig[]) {
+  if (playerIds.length <= 1) return nameFor(playerIds[0], players);
+  return playerIds.map((pid) => nameFor(pid, players)).join('/');
+}
+
 // Stage 3a: live match-status banner. Reads matchPlayState.currentDisplay
 // (perspective-aware UP/DOWN) and prefixes the perspective side's name so
 // the line reads as a subject: "You 2 UP thru 9" / "Kara 2 DOWN thru 4" /
-// "AS thru 12" / "You DORMIE". Inline View — no Modal, no state.
+// "AS thru 12" / "You DORMIE" — team sides (Stage 4c): "You/Kara 2 UP
+// thru 9". Inline View — no Modal, no state.
 export function MatchPlayBanner({ state, perspective, sides, players }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const perspectivePid = perspective === 'A'
-    ? sides.sideA.playerIds[0]
-    : sides.sideB.playerIds[0];
-  const perspectiveName = nameFor(perspectivePid, players);
+  const perspectiveIds = perspective === 'A'
+    ? sides.sideA.playerIds
+    : sides.sideB.playerIds;
+  const perspectiveName = sideNameFor(perspectiveIds, players);
 
   let line: string;
   if (state.status === 'AS') {

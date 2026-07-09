@@ -46,7 +46,7 @@ import {
 import type { HoleScore, HoleData } from '../../scoring/types';
 import type { Card } from '../../services/poker.service';
 import { checkDormieMoments } from '../../scoring/moments';
-import { resolveMatchResult } from '../../scoring/matchplay-result';
+import { resolveMatchResult, resolveTeamMatchResult } from '../../scoring/matchplay-result';
 import { computeStablefordLive, rankStablefordLive } from '../../scoring/stableford-live';
 import {
   cardsToDealForHole,
@@ -2600,6 +2600,107 @@ describe('MATCH PLAY POST-ROUND: resolveMatchResult clinch freeze', () => {
     record('RMR.7', 'net flips 1-3 → 3&2; gross HALVED', 'net=3&2,gross=HALVED', `net=${net.display},gross=${gross.display}`, net.display === '3&2' && net.leader === 'A' && gross.display === 'HALVED');
     expect(net.display).toBe('3&2');
     expect(gross.display).toBe('HALVED');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEAM MATCH POST-ROUND — resolveTeamMatchResult (Stage 4c)
+// Same clinch-freeze contract as resolveMatchResult, sides derived via the
+// Stage 4a team variants. TMR.2 is the team analog of RMR.3: entering
+// scores past the close-out must not drift the frozen result.
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('TEAM MATCH POST-ROUND: resolveTeamMatchResult clinch freeze', () => {
+  const HOLES_18 = Array.from({ length: 18 }, (_, i) => makeHole(i + 1, 4));
+  const NO_HCP = new Map<string, Map<number, number>>();
+  const SIDE_A = ['1', '2'];
+  const SIDE_B = ['3', '4'];
+
+  // 2v2 board: side A's best ball wins holes 1-3 (A best 3 vs B best 4),
+  // holes 4-16 halved (both best 4) → closes out 3&2 on hole 16.
+  // `extra` appends holes 17-18 rows.
+  const buildTeamBoard = (extra: Array<{ hole: number; scores: Array<[string, number]> }>) => {
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (const h of [1, 2, 3]) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(3, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(6, 2, null) });
+      rows.push({ hole: h, playerId: '3', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '4', score: makeScore(5, 2, null) });
+    }
+    for (let h = 4; h <= 16; h++) {
+      for (const pid of ['1', '2', '3', '4']) {
+        rows.push({ hole: h, playerId: pid, score: makeScore(4, 2, null) });
+      }
+    }
+    for (const e of extra) {
+      for (const [pid, gross] of e.scores) {
+        rows.push({ hole: e.hole, playerId: pid, score: makeScore(gross, 2, null) });
+      }
+    }
+    return makeAllScores(rows);
+  };
+
+  it('TMR.1: 2v2 best ball clinches 3&2 on hole 16', () => {
+    const r = resolveTeamMatchResult(SIDE_A, SIDE_B, 'best_ball', HOLES_18, buildTeamBoard([]), 'gross', NO_HCP);
+    const ok = r.leader === 'A' && r.display === '3&2' && r.clinchedEarly && r.clinchHole === 16;
+    record('TMR.1', '2v2 bb clinch', 'A/3&2/hole16', `${r.leader}/${r.display}/hole${r.clinchHole}`, ok);
+    expect(ok).toBe(true);
+  });
+
+  it('TMR.2: TEAM CLINCH FREEZE — trailer side wins 17 AND 18 → still 3&2 (RMR.3 shape)', () => {
+    const board = buildTeamBoard([
+      { hole: 17, scores: [['1', 6], ['2', 6], ['3', 3], ['4', 5]] }, // B best 3 beats A best 6
+      { hole: 18, scores: [['1', 5], ['2', 6], ['3', 4], ['4', 4]] }, // B best 4 beats A best 5
+    ]);
+    const r = resolveTeamMatchResult(SIDE_A, SIDE_B, 'best_ball', HOLES_18, board, 'gross', NO_HCP);
+    const ok = r.leader === 'A' && r.display === '3&2' && r.clinchedEarly && r.clinchHole === 16;
+    record('TMR.2', 'clinch16, trailer wins 17+18', 'A/3&2/hole16', `${r.leader}/${r.display}/hole${r.clinchHole}`, ok);
+    expect(ok).toBe(true);
+  });
+
+  it('TMR.3: PROPERTY — one-player sides via resolveTeamMatchResult equal resolveMatchResult (both side modes)', () => {
+    // Reuse the RMR.7 net board shape: strokes flip holes 1-3 for player 1.
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (const h of [1, 2, 3]) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(5, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(5, 2, null) });
+    }
+    for (let h = 4; h <= 16; h++) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(4, 2, null) });
+    }
+    const board = makeAllScores(rows);
+    const hcp = new Map<string, Map<number, number>>([['1', new Map([[1, 1], [2, 1], [3, 1]])]]);
+    let ok = true;
+    for (const mode of ['gross', 'net'] as const) {
+      const singles = resolveMatchResult('1', '2', HOLES_18, board, mode, hcp);
+      for (const sideMode of ['best_ball', 'aggregate'] as const) {
+        const team = resolveTeamMatchResult(['1'], ['2'], sideMode, HOLES_18, board, mode, hcp);
+        if (team.leader !== singles.leader || team.display !== singles.display
+          || team.clinchedEarly !== singles.clinchedEarly || team.clinchHole !== singles.clinchHole) ok = false;
+      }
+    }
+    record('TMR.3', '1-player sides, 2 modes x 2 sideModes', 'all equal singles', ok ? 'all equal' : 'MISMATCH', ok);
+    expect(ok).toBe(true);
+  });
+
+  it('TMR.4: side mode changes the RESULT on the same board — best ball A wins, aggregate B wins', () => {
+    // Every hole: A [3,7] (best 3, sum 10) vs B [4,5] (best 4, sum 9) — the
+    // TMS.1 divergence board, full round. Best ball: A wins every hole,
+    // clinches early. Aggregate: B wins every hole, clinches early.
+    const rows: Array<{ hole: number; playerId: string; score: HoleScore }> = [];
+    for (let h = 1; h <= 18; h++) {
+      rows.push({ hole: h, playerId: '1', score: makeScore(3, 2, null) });
+      rows.push({ hole: h, playerId: '2', score: makeScore(7, 2, null) });
+      rows.push({ hole: h, playerId: '3', score: makeScore(4, 2, null) });
+      rows.push({ hole: h, playerId: '4', score: makeScore(5, 2, null) });
+    }
+    const board = makeAllScores(rows);
+    const bb = resolveTeamMatchResult(SIDE_A, SIDE_B, 'best_ball', HOLES_18, board, 'gross', NO_HCP);
+    const ag = resolveTeamMatchResult(SIDE_A, SIDE_B, 'aggregate', HOLES_18, board, 'gross', NO_HCP);
+    const ok = bb.leader === 'A' && ag.leader === 'B' && bb.clinchedEarly && ag.clinchedEarly;
+    record('TMR.4', 'same board, 2 side modes', 'bb→A, agg→B (both clinch)', `bb→${bb.leader} ${bb.display}, agg→${ag.leader} ${ag.display}`, ok);
+    expect(ok).toBe(true);
   });
 });
 

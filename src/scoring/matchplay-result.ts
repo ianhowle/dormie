@@ -16,7 +16,11 @@
 // live banner uses `currentDisplay` correctly; this is post-round-display-only.
 
 import type { HoleData, HoleScore } from './types';
-import { deriveSinglesSideScore } from '../data/scoring';
+import {
+  deriveSinglesSideScore,
+  deriveBestBallSideScore,
+  deriveAggregateSideScore,
+} from '../data/scoring';
 
 export type MatchResult = {
   /** Winning side, or null for a halved match. */
@@ -55,6 +59,60 @@ export function resolveMatchResult(
   scoreMode: 'gross' | 'net',
   handicapStrokes: Map<string, Map<number, number>>,
 ): MatchResult {
+  return walkMatchResult(
+    holes,
+    allScores,
+    (h, holeScores) => {
+      const strokes = scoreMode === 'net' ? (handicapStrokes.get(sideAPlayerId)?.get(h.number) ?? 0) : 0;
+      return deriveSinglesSideScore(holeScores.get(sideAPlayerId)?.gross, strokes);
+    },
+    (h, holeScores) => {
+      const strokes = scoreMode === 'net' ? (handicapStrokes.get(sideBPlayerId)?.get(h.number) ?? 0) : 0;
+      return deriveSinglesSideScore(holeScores.get(sideBPlayerId)?.gross, strokes);
+    },
+  );
+}
+
+/**
+ * Resolve the FINAL 2v2 team match result (Stage 4c) — same clinch-freeze
+ * walk as resolveMatchResult, with each side's per-hole score derived from
+ * its players' balls via the Stage 4a Layer A variants:
+ *   'best_ball'  → deriveBestBallSideScore (best net/gross ball per side)
+ *   'aggregate'  → deriveAggregateSideScore (sum of the side's balls)
+ * A hole counts only when BOTH sides have a score under their variant's
+ * missing-ball contract. A one-player side degenerates to singles (tested
+ * as a property, TMR.3).
+ */
+export function resolveTeamMatchResult(
+  sideAPlayerIds: string[],
+  sideBPlayerIds: string[],
+  sideMode: 'best_ball' | 'aggregate',
+  holes: HoleData[],
+  allScores: Map<number, Map<string, HoleScore>>,
+  scoreMode: 'gross' | 'net',
+  handicapStrokes: Map<string, Map<number, number>>,
+): MatchResult {
+  const derive = sideMode === 'aggregate' ? deriveAggregateSideScore : deriveBestBallSideScore;
+  const sideScore = (ids: string[]) => (h: HoleData, holeScores: Map<string, HoleScore>) => {
+    // Per-player strokes pre-resolved for THIS hole (the derive variants'
+    // contract); the variants ignore it in gross mode.
+    const strokesByPlayer = new Map<string, number>();
+    for (const id of ids) {
+      strokesByPlayer.set(id, handicapStrokes.get(id)?.get(h.number) ?? 0);
+    }
+    return derive(ids, holeScores, strokesByPlayer, scoreMode);
+  };
+  return walkMatchResult(holes, allScores, sideScore(sideAPlayerIds), sideScore(sideBPlayerIds));
+}
+
+// Shared clinch-freeze walk. Both resolvers delegate here; the only thing
+// that varies is how a side's per-hole score is derived (Layer A).
+function walkMatchResult(
+  holes: HoleData[],
+  allScores: Map<number, Map<string, HoleScore>>,
+  sideScoreA: (h: HoleData, holeScores: Map<string, HoleScore>) => number | null,
+  sideScoreB: (h: HoleData, holeScores: Map<string, HoleScore>) => number | null,
+): MatchResult {
   const totalHoles = holes.length;
   let wonA = 0;
   let wonB = 0;
@@ -63,13 +121,8 @@ export function resolveMatchResult(
   for (const h of holes) {
     const holeScores = allScores.get(h.number);
     if (!holeScores) continue;
-    const grossA = holeScores.get(sideAPlayerId)?.gross;
-    const grossB = holeScores.get(sideBPlayerId)?.gross;
-
-    const strokesA = scoreMode === 'net' ? (handicapStrokes.get(sideAPlayerId)?.get(h.number) ?? 0) : 0;
-    const strokesB = scoreMode === 'net' ? (handicapStrokes.get(sideBPlayerId)?.get(h.number) ?? 0) : 0;
-    const sideA = deriveSinglesSideScore(grossA, strokesA);
-    const sideB = deriveSinglesSideScore(grossB, strokesB);
+    const sideA = sideScoreA(h, holeScores);
+    const sideB = sideScoreB(h, holeScores);
     if (sideA === null || sideB === null) continue; // hole not complete for both sides
 
     played++;
